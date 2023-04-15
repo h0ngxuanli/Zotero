@@ -1,0 +1,181 @@
+
+Typesetting math: 100%
+JavaScript is disabled on your browser. Please enable JavaScript to use all the features on this page. Skip to main content Skip to article
+Elsevier logo ScienceDirect
+
+    Access through  your institution
+    Purchase PDF 
+
+Article preview
+
+    Abstract
+    Introduction
+    Section snippets
+    References (144)
+    Cited by (1339)
+    Recommended articles (6) 
+
+Elsevier
+Neurocomputing
+Volume 312 , 27 October 2018, Pages 135-153
+Neurocomputing
+Deep visual domain adaptation: A survey
+Author links open overlay panel Mei Wang , Weihong Deng
+Show more
+Add to Mendeley
+Share
+Cite
+https://doi.org/10.1016/j.neucom.2018.05.083 Get rights and content
+Abstract
+
+Deep domain adaptation has emerged as a new learning technique to address the lack of massive amounts of labeled data. Compared to conventional methods, which learn shared feature subspaces or reuse important source instances with shallow representations, deep domain adaptation methods leverage deep networks to learn more transferable representations by embedding domain adaptation in the pipeline of deep learning. There have been comprehensive surveys for shallow domain adaptation, but few timely reviews the emerging deep learning based methods. In this paper, we provide a comprehensive survey of deep domain adaptation methods for computer vision applications with four major contributions. First, we present a taxonomy of different deep domain adaptation scenarios according to the properties of data that define how two domains are diverged. Second, we summarize deep domain adaptation approaches into several categories based on training loss, and analyze and compare briefly the state-of-the-art methods under these categories. Third, we overview the computer vision applications that go beyond image classification , such as face recognition, semantic segmentation and object detection. Fourth, some potential deficiencies of current methods and several future directions are highlighted.
+Introduction
+
+Over the past few years, machine learning has achieved great success and has benefited real-world applications. However, collecting and annotating datasets for every new task and domain are extremely expensive and time-consuming processes, sufficient training data may not always be available. Fortunately, the big data era makes a large amount of data available for other domains and tasks. For instance, although large-scale labeled video databases that are publicly available only contain a small number of samples, statistically, the YouTube face dataset (YTF) consists of 3.4 K videos. The number of labeled still images is more than sufficient [1]. Hence, skillfully using the auxiliary data for the current task with scarce data will be helpful for real-world applications.
+
+However, due to many factors (e.g., illumination, pose, and image quality), there is always a distribution change or domain shift between two domains that can degrade the performance, as shown in Fig. 1. Mimicking the human vision system, domain adaptation (DA) is a particular case of transfer learning (TL) that utilizes labeled data in one or more relevant source domains to execute new tasks in a target domain. Over the past decades, various shallow DA methods have been proposed to solve a domain shift between the source and target domains. The common algorithms for shallow DA can mainly be categorized into two classes: instance-based DA [2], [3] and feature-based DA [4], [5], [6], [7]. The first class reduces the discrepancy by reweighting the source samples, and it trains on the weighted source samples. For the second class, a common shared space is generally learned in which the distributions of the two datasets are matched.
+
+Recently, neural-network-based deep learning approaches have achieved many inspiring results in visual categorization applications, such as image classification [8], face recognition [9], and object detection [10]. Simulating the perception of the human brain, deep networks can represent high-level abstractions by multiple layers of non-linear transformations. Existing deep network architectures [11] include convolutional neural networks (CNNs) [8], [12], [13], [14], deep belief networks (DBNs) [15], and stacked autoencoders (SAEs) [16], among others. Although some studies have shown that deep networks can learn more transferable representations that disentangle the exploratory factors of variations underlying the data samples and group features hierarchically in accordance with their relatedness to invariant factors, Donahue et al. [17] showed that a domain shift still affects their performance. The deep features would eventually transition from general to specific, and the transferability of the representation sharply decreases in higher layers. Therefore, recent work has addressed this problem by deep DA, which combines deep learning and DA.
+
+There have been other surveys on TL and DA over the past few years [18], [19], [20], [21], [22], [23]. Pan and Yang [18] categorized TL under three subsettings, including inductive TL, transductive TL, and unsupervised TL, but they only studied homogeneous feature spaces. Shao et al. [19] categorized TL techniques into feature-representation-level knowledge transfer and classifier-level knowledge transfer. The survey written by Patel et al. [21] only focused on DA, a subtopic of TL. Day and Khoshgoftaar [20] discussed 38 methods for heterogeneous TL that operate under various settings, requirements, and domains. Zhang et al. [22] were the first to summarize several transferring criteria in detail from the concept level. These five surveys mentioned above only cover the methodologies on shallow TL or DA. The work presented by Csurka [23] briefly analyzed the state-of-the-art shallow DA methods and categorized the deep DA methods into three subsettings based on training loss: classification loss, discrepancy loss and adversarial loss. However, Csurka’s work mainly focused on shallow methods, and it only discussed deep DA in image classification applications.
+
+In this paper, we focus on analyzing and discussing deep DA methods. Specifically, the key contributions of this survey are as follows: (1) we present a taxonomy of different deep DA scenarios according to the properties of data that define how two domains are diverged. (2) extending Csurka’s work, we improve and detail the three subsettings (training with classification loss, discrepancy loss and adversarial loss) and summarize different approaches used in different DA scenes. (3) Considering the distance of the source and target domains, multi-step DA methods are studied and categorized into hand-crafted, feature-based and representation-based mechanisms. (4) We provide a survey of many computer vision applications, such as image classification, face recognition, style translation, object detection, semantic segmentation and person re-identification.
+
+The remainder of this survey is structured as follows. In Section 2, we first define some notations, and then we categorize deep DA into different settings (given in Fig. 2). In the next three sections, different approaches are discussed for each setting, which are given in Table 1 and Table 2 in detail. Then, in Section 6, we introduce some successful computer vision applications of deep DA. Finally, the conclusion of this paper and discussion of future works are presented in Section 7.
+Section snippets
+Notations and definitions
+
+In this section, we introduce some notations and definitions that are used in this survey. The notations and definitions match those from the survey papers by [18], [23] to maintain consistency across surveys. A domain D consists of a feature space X and a marginal probability distribution P ( X ), where X = { x 1 , … , x n } ∈ X . Given a specific domain D = { X , P ( X ) } , a task T consists of a feature space Y and an objective predictive function f ( · ), which can also be viewed as a conditional probability
+Approaches of deep domain adaptation
+
+In a broad sense, deep DA is a method that utilizes a deep network to enhance the performance of DA. Under this definition, shallow methods with deep features [17], [67], [68], [69], [70] can be considered as a deep DA approach. DA is adopted by shallow methods, whereas deep networks only extract vectorial features and are not helpful for transferring knowledge directly. For example, Lu et al. [71] extracted the convolutional activations from a CNN as the tensor representation, and then
+One-step domain adaptation
+
+As mentioned in Section 2.1, the data in the target domain have three types regardless of homogeneous or heterogeneous DA: (1) supervised DA with labeled data, (2) semi-supervised DA with labeled and unlabeled data and (3) non-supervised DA with unlabeled data. The second setting is able to be accomplished by combining the methods of setting 1 and setting 3; thus, we only focus on the first and third settings in this paper. The cases where the different approaches are mainly used for each DA
+Multi-step domain adaptation
+
+For multi-step DA, the selection of the intermediate domain is problem specific, and different problems may have different strategies.
+Application of deep domain adaptation
+
+Deep DA techniques have recently been successfully applied in many real-world applications, including image classification, object recognition, face recognition, object detection, style translation, and so forth. In this section, we present different application examples using various visual deep DA methods. Because the information of commonly used datasets for evaluating the performance is provided in [22] in detail, we do not introduce it in this paper.
+Conclusion
+
+In a broad sense, deep DA is utilizing deep networks to enhance the performance of DA, such as shallow DA methods with features extracted by deep networks. In a narrow sense, deep DA is based on deep learning architectures designed for DA and optimized by back propagation. In this survey paper, we focus on this narrow definition, and we have reviewed deep DA techniques on visual categorization tasks.
+
+Deep DA is classified as homogeneous DA and heterogeneous DA, and it can be further divided into
+Acknowledgments
+
+This work was partially supported by the National Natural Science Foundation of China under Grant nos. 61573068 , 61471048 , and 61375031 , and Beijing Nova Program under Grant no. Z161100004916088 .
+
+Mei Wang received the B.E. degree in information and communication engineering from the Dalian University of Technology (DUT), Dalian, China, in 2013 and received M.E. degree in communication engineering from the Beijing University of Posts and Telecommunications (BUPT), Beijing, China, in 2016. From September 2018, she is a Ph.D. student in school of information and communication engineering of BUPT. Her research interests include pattern recognition and computer vision, with a particular
+References (144)
+
+    Wang X. et al.
+    Deep sketch feature for cross-domain image retrieval
+    Neurocomputing
+    (2016)
+    Zhang L. et al.
+    Deep object recognition across domains based on adaptive extreme learning machine
+    Neurocomputing
+    (2017)
+    Liu W. et al.
+    A survey of deep neural network architectures and their applications
+    Neurocomputing
+    (2017)
+    S. Pachori et al.
+    Hashing in the zero shot framework with domain adaptation
+    Neurocomputing
+    (2018)
+    M. Gheisari et al.
+    Unsupervised domain adaptation via representation learning and adaptive classifier learning
+    Neurocomputing
+    (2015)
+    K. Sohn, S. Liu, G. Zhong, X. Yu, M.-H. Yang, M. Chandraker, Unsupervised domain adaptation for face recognition in...
+    L. Bruzzone et al.
+    Domain adaptation problems: a DASVM classification technique and a circular validation strategy
+    IEEE Trans. Pattern Anal. Mach. Intell.
+    (2010)
+    Chu W.-S. et al.
+    Selective transfer machine for personalized facial action unit detection
+    Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition
+    (2013)
+    Gong B. et al.
+    Connecting the dots with landmarks: discriminatively learning domain-invariant features for unsupervised domain adaptation
+    Proceedings of the International Conference on Machine Learning
+    (2013)
+    Pan S.J. et al.
+    Domain adaptation via transfer component analysis
+    IEEE Trans. Neural Netw.
+    (2011)
+
+View more references
+Cited by (1339)
+
+    Crowdmeta: Crowdsourcing truth inference with meta-Knowledge transfer
+    2023, Pattern Recognition
+    Show abstract
+    A novel unsupervised domain adaptation framework based on graph convolutional network and multi-level feature alignment for inter-subject ECG classification
+    2023, Expert Systems with Applications
+    Show abstract
+    Domain adaptation via Transferable Swin Transformer for tire defect detection
+    2023, Engineering Applications of Artificial Intelligence
+    Show abstract
+    Cross-corpora spoken language identification with domain diversification and generalization
+    2023, Computer Speech and Language
+    Show abstract
+    Domain adaptation for few-sample nonlinear process monitoring with deep networks
+    2023, Information Sciences
+    Show abstract
+    Deep domain-invariant learning for facial age estimation
+    2023, Neurocomputing
+    Show abstract
+
+View all citing articles on Scopus
+Recommended articles (6)
+
+    Research article
+    Correlation-aware adversarial domain adaptation and generalization
+    Pattern Recognition, Volume 100, 2020, Article 107124
+    Show abstract
+    Research article
+    Exploring uncertainty in pseudo-label guided unsupervised domain adaptation
+    Pattern Recognition, Volume 96, 2019, Article 106996
+    Show abstract
+    Research article
+    Scale variance minimization for unsupervised domain adaptation in image segmentation
+    Pattern Recognition, Volume 112, 2021, Article 107764
+    Show abstract
+    Research article
+    Cycle label-consistent networks for unsupervised domain adaptation
+    Neurocomputing, Volume 422, 2021, pp. 186-199
+    Show abstract
+    Research article
+    Multi-Layer domain adaptation method for rolling bearing fault diagnosis
+    Signal Processing, Volume 157, 2019, pp. 180-197
+    Show abstract
+    Research article
+    Pixel and feature level based domain adaptation for object detection in autonomous driving
+    Neurocomputing, Volume 367, 2019, pp. 31-38
+    Show abstract
+
+Mei Wang received the B.E. degree in information and communication engineering from the Dalian University of Technology (DUT), Dalian, China, in 2013 and received M.E. degree in communication engineering from the Beijing University of Posts and Telecommunications (BUPT), Beijing, China, in 2016. From September 2018, she is a Ph.D. student in school of information and communication engineering of BUPT. Her research interests include pattern recognition and computer vision, with a particular emphasis in deep face recognition and transfer learning.
+
+Weihong Deng received the B.E. degree in information engineering and the Ph.D. degree in signal and information processing from the Beijing University of Posts and Telecommunications (BUPT), Beijing, China, in 2004 and 2009, respectively. From Oct. 2007 to Dec. 2008, he was a postgraduate exchange student in the School of Information Technologies, University of Sydney, Australia. He is currently an professor in School of Information and Telecommunications Engineering, BUPT. His research interests include statistical pattern recognition and computer vision, with a particular emphasis in face recognition. He has published over 100 technical papers in international journals and conferences, such as IEEE TPAMI and CVPR. He serves as associate editor for IEEE Access, and guest editor for Image and Vision Computing Journal and the reviewer for dozens of international journals, such as IEEE TPAMI / TIP / TIFS / TNNLS / TMM / TSMC, IJCV, PR / PRL. His Dissertation titled “Highly accurate face recognition algorithms” was awarded the Outstanding Doctoral Dissertation Award by Beijing Municipal Commission of Education in 2011. He has been supported by the program for New Century Excellent Talents by the Ministry of Education of China in 2013 and Beijing Nova Program in 2016.
+View full text
+© 2018 Elsevier B.V. All rights reserved.
+Elsevier logo with wordmark
+
+    About ScienceDirect
+    Remote access
+    Shopping cart
+    Advertise
+    Contact and support
+    Terms and conditions
+    Privacy policy 
+
+We use cookies to help provide and enhance our service and tailor content and ads. By continuing you agree to the use of cookies .
+
+Copyright © 2023 Elsevier B.V. or its licensors or contributors. ScienceDirect® is a registered trademark of Elsevier B.V.
+
+ScienceDirect® is a registered trademark of Elsevier B.V.
+RELX group home page

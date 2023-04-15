@@ -1,0 +1,1196 @@
+Manuscript accepted by Neurocomputing 2018
+
+1
+
+Deep Visual Domain Adaptation: A Survey
+Mei Wang, Weihong Deng School of Information and Communication Engineering, Beijing University of Posts and Telecommunications, Beijing, China.
+wm0245@126.com, whdeng@bupt.edu.cn
+
+arXiv:1802.03601v4 [cs.CV] 25 May 2018
+
+Abstract—Deep domain adaptation has emerged as a new learning technique to address the lack of massive amounts of labeled data. Compared to conventional methods, which learn shared feature subspaces or reuse important source instances with shallow representations, deep domain adaptation methods leverage deep networks to learn more transferable representations by embedding domain adaptation in the pipeline of deep learning. There have been comprehensive surveys for shallow domain adaptation, but few timely reviews the emerging deep learning based methods. In this paper, we provide a comprehensive survey of deep domain adaptation methods for computer vision applications with four major contributions. First, we present a taxonomy of different deep domain adaptation scenarios according to the properties of data that deﬁne how two domains are diverged. Second, we summarize deep domain adaptation approaches into several categories based on training loss, and analyze and compare brieﬂy the state-of-the-art methods under these categories. Third, we overview the computer vision applications that go beyond image classiﬁcation, such as face recognition, semantic segmentation and object detection. Fourth, some potential deﬁciencies of current methods and several future directions are highlighted.
+I. INTRODUCTION
+Over the past few years, machine learning has achieved great success and has beneﬁted real-world applications. However, collecting and annotating datasets for every new task and domain are extremely expensive and time-consuming processes, sufﬁcient training data may not always be available. Fortunately, the big data era makes a large amount of data available for other domains and tasks. For instance, although large-scale labeled video databases that are publicly available only contain a small number of samples, statistically, the YouTube face dataset (YTF) consists of 3.4K videos. The number of labeled still images is more than sufﬁcient [107]. Hence, skillfully using the auxiliary data for the current task with scarce data will be helpful for real-world applications.
+However, due to many factors (e.g., illumination, pose, and image quality), there is always a distribution change or domain shift between two domains that can degrade the performance, as shown in Fig. 1. Mimicking the human vision system, domain adaptation (DA) is a particular case of transfer learning (TL) that utilizes labeled data in one or more relevant source domains to execute new tasks in a target domain. Over the past decades, various shallow DA methods have been proposed to solve a domain shift between the source and target domains. The common algorithms for shallow DA can mainly be categorized into two classes: instance-based DA [6], [18] and feature-based DA [37], [82], [30], [81]. The ﬁrst class reduces the discrepancy by reweighting the source samples, and it trains on the weighted source samples. For the second
+
+class, a common shared space is generally learned in which the distributions of the two datasets are matched.
+Recently, neural-network-based deep learning approaches have achieved many inspiring results in visual categorization applications, such as image classiﬁcation [62], face recognition [112], and object detection [35]. Simulating the perception of the human brain, deep networks can represent high-level abstractions by multiple layers of non-linear transformations. Existing deep network architectures [71] include convolutional neural networks (CNNs) [62], [106], [110], [44], deep belief networks (DBNs) [46], and stacked autoencoders (SAEs) [122], among others. Although some studies have shown that deep networks can learn more transferable representations that disentangle the exploratory factors of variations underlying the data samples and group features hierarchically in accordance with their relatedness to invariant factors, Donahue et al. [22] showed that a domain shift still affects their performance. The deep features would eventually transition from general to speciﬁc, and the transferability of the representation sharply decreases in higher layers. Therefore, recent work has addressed this problem by deep DA, which combines deep learning and DA.
+There have been other surveys on TL and DA over the past few years [83], [101], [20], [84], [137], [19]. Pan et al. [83] categorized TL under three subsettings, including inductive TL, transductive TL, and unsupervised TL, but they only studied homogeneous feature spaces. Shao et al. [101] categorized TL techniques into feature-representation-level knowledge transfer and classiﬁer-level knowledge transfer. The survey written by Patel [84] only focused on DA, a subtopic of TL. [20] discussed 38 methods for heterogeneous TL that operate under various settings, requirements, and domains. Zhang et al. [137] were the ﬁrst to summarize several transferring criteria in detail from the concept level. These ﬁve surveys mentioned above only cover the methodologies on shallow TL or DA. The work presented by Csurka et al. [19] brieﬂy analyzed the state-of-the-art shallow DA methods and categorized the deep DA methods into three subsettings based on training loss: classiﬁcation loss, discrepancy loss and adversarial loss. However, Csurka’s work mainly focused on shallow methods, and it only discussed deep DA in image classiﬁcation applications.
+In this paper, we focus on analyzing and discussing deep DA methods. Speciﬁcally, the key contributions of this survey are as follows: 1) we present a taxonomy of different deep DA scenarios according to the properties of data that deﬁne how two domains are diverged. 2) extending Csurka’s work, we improve and detail the three subsettings (training with
+
+Manuscript accepted by Neurocomputing 2018
+
+Amazon
+
+DSLR
+
+2
+
+Webcam
+
+Caltech-256
+
+MNIST LFW
+
+(a) USPS
+(b) BCS
+
+SVHN CUFS
+
+(c)
+Fig. 1. (a) Some object images from the ”Bike” and ”Laptop” categories in Amazon, DSLR, Webcam, and Caltech-256 databases. (b) Some digit images from MNIST, USPS, and SVHN databases. (c) Some face images from LFW, BCS and CUFS databases. Realworld computer vision applications, such as face recognition, must learn to adapt to distributions speciﬁc to each domain.
+
+classiﬁcation loss, discrepancy loss and adversarial loss) and summarize different approaches used in different DA scenes. 3) Considering the distance of the source and target domains, multi-step DA methods are studied and categorized into handcrafted, feature-based and representation-based mechanisms. 4) We provide a survey of many computer vision applications, such as image classiﬁcation, face recognition, style translation, object detection, semantic segmentation and person reidentiﬁcation.
+The remainder of this survey is structured as follows. In Section II, we ﬁrst deﬁne some notations, and then we categorize deep DA into different settings (given in Fig. 2). In the next three sections, different approaches are discussed for each setting, which are given in Table I and Table II in detail. Then, in Section VI, we introduce some successful computer vision applications of deep DA. Finally, the conclusion of this paper and discussion of future works are presented in Section VII.
+II. OVERVIEW
+A. Notations and Deﬁnitions
+In this section, we introduce some notations and deﬁnitions that are used in this survey. The notations and deﬁnitions match those from the survey papers by [83], [19] to maintain consistency across surveys. A domain D consists of a feature space X and a marginal probability distribution P (X), where X = {x1, ..., xn} ∈ X . Given a speciﬁc domain D = {X , P (X)}, a task T consists of a feature space Y and an objective predictive function f (·), which can also be viewed as a conditional probability distribution P (Y |X) from a probabilistic perspective. In general, we can learn P (Y |X) in a supervised manner from the labeled data {xi, yi}, where xi ∈ X and yi ∈ Y.
+Assume that we have two domains: the training dataset with sufﬁcient labeled data is the source domain Ds = {X s, P (X)s}, and the test dataset with a small amount of labeled data or no labeled data is the target domain Dt =
+
+{X t, P (X)t}. We see that the partially labeled part, Dtl, and the unlabeled parts, Dtu, form the entire target domain, that is, Dt = Dtl ∪ Dtu. Each domain is together with its task: the former is T s = {Ys, P (Y s|Xs)}, and the latter is T t = {Yt, P (Y t|Xt)}. Similarly, P (Y s|Xs) can be learned from the source labeled data {xsi , yis}, while P (Y t|Xt) can be learned from labeled target data {xtil, yitl} and unlabeled data {xtiu}.
+B. Different Settings of Domain Adaptation
+The case of traditional machine learning is Ds = Dt and T s = T t. For TL, Pan et al. [83] summarized that the differences between different datasets can be caused by domain divergence Ds = Dt (i.e., distribution shift or feature space difference) or task divergence T s = T t (i.e., conditional distribution shift or label space difference), or both. Based on this summary, Pan et al. categorized TL into three main groups: inductive, transductive and unsupervised TL.
+According to this classiﬁcation, DA methods are transductive TL solutions with the assumption that the tasks are the same, i.e., T s = T t, and the differences are only caused by domain divergence, Ds = Dt. Therefore, DA can be split into two main categories based on different domain divergences (distribution shift or feature space difference): homogeneous and heterogeneous DA. Then, we can further categorize DA into supervised, semi-supervised and unsupervised DA in consideration of labeled data of the target domain. The classiﬁcation is given in Fig. 2.
+• In the homogeneous DA setting, the feature spaces between the source and target domains are identical (X s = X t) with the same dimension (ds = dt). Hence, the source and target datasets are generally different in terms of data distributions (P (X)s = P (X)t).
+In addition, we can further categorize the homogeneous DA setting into three cases:
+1) In the supervised DA, a small amount of labeled target data, Dtl, are present. However, the labeled data are commonly not sufﬁcient for tasks.
+
+Manuscript accepted by Neurocomputing 2018
+
+3
+
+Domain adaptation
+
+One-step Domain adaptation
+Select Intermediate Domain
+
+Feature Space is same between source and target domain
+Feature Space is different between source and target
+domain
+
+Multi-step Domain adaptation
+
+Fig. 2. An overview of different settings of domain adaptation
+
+Homogeneous Heterogeneous
+
+Labeled data are available in target domain
+Labeled+unlabeled data are available in target domain
+No labeled data in target domain
+Labeled data are available in target domain
+Labeled+unlabeled data are available in target domain
+No labeled data in target domain
+
+Supervised Semi-Supervised
+Unsupervised Supervised
+Semi-Supervised Unsupervised
+
+2) In the semi-supervised DA, both limited labeled data, Dtl, and redundant unlabeled data, Dtu, in the target domain are available in the training stage, which allows the networks to learn the structure information of the target domain.
+3) In the unsupervised DA, no labeled but sufﬁcient unlabeled target domain data, Dtu, are observable when training the network.
+• In the heterogeneous DA setting, the feature spaces between the source and target domains are nonequivalent (X s = X t), and the dimensions may also generally differ (ds = dt).
+Similar to the homogeneous setting, the heterogeneous DA setting can also be divided into supervised, semi-supervised and unsupervised DA.
+All of the above DA settings assumed that the source and target domains are directly related; thus, transferring knowledge can be accomplished in one step. We call them onestep DA. In reality, however, this assumption is occasionally unavailable. There is little overlap between the two domains, and performing one-step DA will not be effective. Fortunately, there are some intermediate domains that are able to draw the source and target domains closer than their original distance. Thus, we use a series of intermediate bridges to connect two seemingly unrelated domains and then perform onestep DA via this bridge, named multi-step (or transitive) DA [113], [114]. For example, face images and vehicle images are dissimilar between each other due to different shapes or other aspects, and thus, one-step DA would fail. However, some intermediate images, such as ’football helmet’, can be introduced to be an intermediate domain and have a smooth knowledge transfer. Fig. 3 shows the differences between the learning processes of one-step and multi-step DA techniques.
+III. APPROACHES OF DEEP DOMAIN ADAPTATION
+In a broad sense, deep DA is a method that utilizes a deep network to enhance the performance of DA. Under this deﬁnition, shallow methods with deep features [22], [49], [88], [80], [138] can be considered as a deep DA approach. DA is adopted by shallow methods, whereas deep networks only extract vectorial features and are not helpful for transferring knowledge directly. For example, [76] extracted the convolutional activations from a CNN as the tensor representation, and then performed tensor-aligned invariant subspace learning
+
+to realize DA. This approach reliably outperforms current state-of-the-art approaches based on traditional hand-crafted features because sufﬁcient representational and transferable features can be extracted through deep networks, which can work better on discrimination tasks [22].
+In a narrow sense, deep DA is based on deep learning architectures designed for DA and can obtain a ﬁrsthand effect from deep networks via back-propagation. The intuitive idea is to embed DA into the process of learning representation and to learn a deep feature representation that is both semantically meaningful and domain invariant. With the ”good” feature representations, the performance of the target task would improve signiﬁcantly. In this paper, we focus on the narrow deﬁnition and discuss how to utilize deep networks to learn ”good” feature representations with extra training criteria.
+A. Categorization of One-Step Domain Adaptation
+In one-step DA, the deep approaches can be summarized into three cases, which refers to [19]. Table 1 shows these three cases and brief descriptions. The ﬁrst case is the discrepancybased deep DA approach, which assumes that ﬁne-tuning the deep network model with labeled or unlabeled target data can diminish the shift between the two domains. Class criterion, statistic criterion, architecture criterion and geometric criterion are four major techniques for performing ﬁne-tuning.
+• Class Criterion: uses the class label information as a guide for transferring knowledge between different domains. When the labeled samples from the target domain are available in supervised DA, soft label and metric learning are always effective [118], [86], [53], [45], [79]. When such samples are unavailable, some other techniques can be adopted to substitute for class labeled data, such as pseudo labels [75], [139], [130], [98] and attribute representation [29], [118].
+• Statistic Criterion: aligns the statistical distribution shift between the source and target domains using some mechanisms. The most commonly used methods for comparing and reducing distribution shift are maximum mean discrepancy (MMD) [74], [130], [73], [75], [120], [32], correlation alignment (CORAL) [109], [87], KullbackLeibler (KL) divergence [144] and H divergence, among others.
+• Architecture Criterion: aims at improving the ability of learning more transferable features by adjusting the architectures of deep networks. The techniques that are
+
+Manuscript accepted by Neurocomputing 2018
+
+4
+
+Traditional Machine Learning Different Domain
+
+One-step Domain Adaptation
+
+Source Domain
+
+Target Domain
+
+Multi-step Domain Adaptation
+
+Source Domain
+
+intermediate
+
+Target Domain
+
+Learning System Learning System Learning System (a)
+
+Knowledge (b)
+
+Learning System
+
+One-Step
+
+Knowledge
+
+Knowledge
+
+(c)
+
+Learning System
+
+Fig. 3. Different learning processes between (a) traditional machine learning, (b) one-step domain adaptation and (c) multi-step domain adaptation [83].
+
+One-step DA Approaches
+Discrepancy-based
+Adversarial-based Reconstruction-
+based
+
+TABLE I DIFFERENT DEEP APPROACHES TO ONE-STEP DA
+
+Brief Description
+ﬁne-tuning the deep network with labeled or unlabeled target data to diminish the domain shift
+using domain discriminators to encourage domain confusion through an adversarial objective
+using the data reconstruction as an auxiliary task to ensure feature invariance
+
+Subsettings
+class criterion [118], [86], [79], [98] [53], [45], [75], [139], [130], [29], [118], [28]
+statistic criterion [74], [130], [73] [75], [120], [32], [109], [87], [144] architecture criterion [69], [54], [68], [95], [128], [89]
+geometric criterion [16] generative models [70], [4], [57] non-generative models [119], [118], [26], [25], [117]
+[85] encoder-decoder reconstruction [5], [33], [31], [144]
+adversarial reconstruction [131], [143], [59]
+
+TABLE II DIFFERENT DEEP APPROACHES TO MULTI-STEP DA
+
+Multi-step Approaches Hand-crafted Instance-based
+Representation-based
+
+Brief Description users determine the intermediate domains based on experience [129] selecting certain parts of data from the auxiliary datasets to compose the intermediate domains [114], [16] freeze weights of one network and use their intermediate representations as input to the new network [96]
+
+proven to be cost effective include adaptive batch normalization (BN) [69], [54], [68], weak-related weight [95], domain-guided dropout [128], and so forth.
+• Geometric Criterion: bridges the source and target domains according to their geometrical properties. This criterion assumes that the relationship of geometric structures can reduce the domain shift [16].
+The second case can be referred to as an adversarial-based deep DA approach [26]. In this case, a domain discriminator that classiﬁes whether a data point is drawn from the source or target domain is used to encourage domain confusion through an adversarial objective to minimize the distance between the empirical source and target mapping distributions. Furthermore, the adversarial-based deep DA approach can be categorized into two cases based on whether there are generative models.
+• Generative Models: combine the discriminative model with a generative component in general based on generative adversarial networks (GANs). One of the typical cases is to use source images, noise vectors or both to generate simulated samples that are similar to the target samples and preserve the annotation information of the source domain [70], [4], [57].
+
+• Non-Generative Models: rather than generating models with input image distributions, the feature extractor learns a discriminative representation using the labels in the source domain and maps the target data to the same space through a domain-confusion loss, thus resulting in the domain-invariant representations [119], [118], [26], [25], [117].
+The third case can be referred to as a reconstruction-based DA approach, which assumes that the data reconstruction of the source or target samples can be helpful for improving the performance of DA. The reconstructor can ensure both speciﬁcity of intra-domain representations and indistinguishability of inter-domain representations.
+• Encoder-Decoder Reconstruction: by using stacked autoencoders (SAEs), encoder-decoder reconstruction methods combine the encoder network for representation learning with a decoder network for data reconstruction [5], [33], [31], [144].
+• Adversarial Reconstruction: the reconstruction error is measured as the difference between the reconstructed and original images within each image domain by a cyclic mapping obtained via a GAN discriminator, such as dual GAN [131], cycle GAN [143] and disco GAN [59].
+
+Manuscript accepted by Neurocomputing 2018
+
+5
+
+TABLE III DIFFERENT APPROACHES USED IN DIFFERENT DOMAIN ADAPTATION SETTINGS
+
+Discrepancy-based
+Adversarial-based Reconstruction-based
+
+Class Criterion Statistic Criterion Architecture Criterion Geometric Criterion Generative Model Non-Generative Model Encoder-Decoder Model Adversarial Model
+
+Superv√ised DA
+√ √
+
+Unsupervised DA
+√ √
+√ √ √ √
+
+B. Categorization of Multi-Step Domain Adaptation
+In multi-step DA, we ﬁrst determine the intermediate domains that are more related with the source and target domains than their direct connection. Second, the knowledge transfer process will be performed between the source, intermediate and target domains by one-step DA with less information loss. Thus, the key of multi-step DA is how to select and utilize intermediate domains; additionally, it can fall into three categories referring to [83]: hand-crafted, feature-based and representation-based selection mechanisms.
+• Hand-Crafted: users determine the intermediate domains based on experience [129].
+• Instance-Based: selecting certain parts of data from the auxiliary datasets to compose the intermediate domains to train the deep network [114], [16].
+• Representation-Based: transfer is enabled via freezing the previously trained network and using their intermediate representations as input to the new one [96].
+
+speciﬁcity and that ﬁne-tuning can enhance generalization performance. Fine-tuning (can also be viewed as a discrepancybased deep DA approach) is to train a base network with source data and then directly reuse the ﬁrst n layers to conduct a target network. The remaining layers of the target network are randomly initialized and trained with loss based on discrepancy. During training, the ﬁrst n layers of the target network can be ﬁne-tuned or frozen depending on the size of the target dataset and its similarity to the source dataset [17]. Some common rules of thumb for navigating the 4 major scenarios are given in Table IV.
+
+IV. ONE-STEP DOMAIN ADAPTATION
+As mentioned in Section II-A, the data in the target domain have three types regardless of homogeneous or heterogeneous DA: 1) supervised DA with labeled data, 2) semi-supervised DA with labeled and unlabeled data and 3) non-supervised DA with unlabeled data. The second setting is able to be accomplished by combining the methods of setting 1 and setting 3; thus, we only focus on the ﬁrst and third settings in this paper. The cases where the different approaches are mainly used for each DA setting are shown in Table III. As shown, more work is focused on unsupervised scenes because supervised DA has its limitations. When only few labeled data in the target domain are available, using the source and target labeled data to train parameters of models typically results in overﬁtting to the source distribution. In addition, the discrepancy-based approaches have been studied for years and produced more methods in many research works, whereas the adversarial-based and reconstruction-based approaches are a relatively new research topic but have recently been attracting more attention.
+A. Homogeneous Domain Adaptation
+1) Discrepancy-Based Approaches: Yosinski et al.[133] proved that transferable features learned by deep networks have limitations due to fragile co-adaptation and representation
+
+Fig. 4. The average accuracy over the validation set for a network trained with different strategies. Baseline B: the network is trained on dataset B. 2) BnB: the ﬁrst n layers are reused from baseline B and frozen. The higher layers are trained on dataset B. 3) BnB+: the same as BnB but where all layers are ﬁne-tuned. 4) AnB: the ﬁrst n layers are reused from the network trained on dataset A and frozen. The higher layers are trained on dataset B. 5) AnB+: the same as AnB but where all layers are ﬁne-tuned [133].
+
+• Class Criterion
+
+The class criterion is the most basic training loss in deep
+
+DA. After pre-training the network with source data, the
+
+remaining layers of the target model use the class label
+
+information as a guide to train the network. Hence, a small
+
+number of labeled samples from the target dataset is assumed
+
+to be available.
+
+Ideally, the class label information is given directly in
+
+supervised DA. Most work commonly uses the negative log-
+
+likelihood of the ground truth class with softmax as their
+
+training loss, L = −
+
+N i=0
+
+yi
+
+log
+
+yˆi
+
+(yˆi
+
+are
+
+the
+
+softmax
+
+predictions of the model, which represent class probabilities)
+
+[118], [86], [53], [126]. To extend this, Hinton et al. [45]
+
+modiﬁed the softmax function to soft label loss:
+
+qi =
+
+exp(zi/T ) j (exp(zj/T ))
+
+(1)
+
+Manuscript accepted by Neurocomputing 2018
+
+6
+
+TABLE IV SOME COMMON RULES OF THUMB FOR DECIDING FINE-TUNED OR FROZEN IN THE FIRST N LAYERS. [17]
+
+The Distance between
+Source and Target
+
+Low Medium
+High
+
+The Size of Target Dataset
+
+Low
+
+Medium
+
+Freeze
+
+Try Freeze or Tune
+
+Try Freeze or Tune
+
+Tune
+
+Try Freeze or Tune
+
+Tune
+
+High Tune Tune Tune
+
+where zi is the logit output computed for each class. T is a temperature that is normally set to 1 in standard softmax, but it takes a higher value to produce a softer probability distribution over classes. By using it, much of the information about the learned function that resides in the ratios of very small probabilities can be obtained. For example, when recognizing digits, one version of 2 may obtain a probability of 106 of being a 3 and 109 of being a 7; in other words, this version of 2 looks more similar to 3 than 7. Inspired by Hinton, [118] ﬁne-tuned the network by simultaneously minimizing the domain confusion loss (belonging to adversarial-based approaches, which will be presented in Section IV-A2) and soft label loss. Using soft labels rather than hard labels can preserve the relationships between classes across domains. Gebru et al. [29] modiﬁed existing adaptation algorithms based on [118] and utilized soft label loss at the ﬁne-grained class level Lcsoft and attribute level Lasoft.
+
+their distribution difference:
+
+min J = Sc(M) − αSb(M) + βDt(sM) X s, X t
+
+M
+
+2
+
+2
+
+(2)
+
++γ
+
+( W (m) + b(m) )
+
+F
+
+2
+
+m=1
+
+where α, β and γ are regularization parameters and W (m) and b(m) are the weights and biases of the mth layer of the network. Dt(sM) (X s, X t) is the MMD between representations of the source and target domains. Sc and Sb deﬁne the intra-
+class compactness and the interclass separability.
+
+However, what can we do if there is no class label informa-
+
+tion in the target domain directly? As we all know, humans
+
+can identify unseen classes given only a high-level descrip-
+
+tion. For instance, when provided the description ”tall brown
+
+animals with long necks”, we are able to recognize giraffes.
+
+To imitate the ability of humans, [64] introduced high-level semantic attributes per class. Assume that ac = (ac1, ..., acm) is the attribute representation for class c, which has ﬁxed-
+
+length binary values with m attributes in all the classes. The
+
+classiﬁers provide estimates of p(am|x) for each attribute am.
+
+In the test stage, each target class y obtains its attribute vector
+
+ay in a deterministic way, i.e., p(a|y) = [[a = ay]]. By applying
+
+Bayes
+
+rule,
+
+p(y|a)
+
+=
+
+p(y) p(ay )
+
+[[a
+
+=
+
+ay ]],
+
+the
+
+posterior
+
+of
+
+a
+
+test
+
+class can be calculated as follows:
+
+p(y|x) =
+
+p(y) p(y|a)p(a|x) = p(ay)
+
+M
+
+p(aym|x)
+
+(3)
+
+a∈{0,1}M
+
+m=1
+
+Fig. 5. Deep DA by combining domain confusion loss and soft label loss [118].
+In addition to softmax loss, there are other methods that can be used as training loss to ﬁne-tune the target model in supervised DA. Embedding metric learning in deep networks is another method that can make the distance of samples from different domains with the same labels be closer while those with different labels are far away. Based on this idea, [79] constructed the semantic alignment loss and the separation loss accordingly. Deep transfer metric learning is proposed by [53], which applies the marginal Fisher analysis criterion and MMD criterion (described in Statistic Criterion) to minimize
+
+Gebru et al. [29] drew inspiration from these works and
+
+leveraged attributes to improve performance in the DA of ﬁne-
+
+grained recognition. There are multiple independent softmax
+
+losses that simultaneously perform attribute and class level
+
+to ﬁne-tune the target model. To prevent the independent
+
+classiﬁers from obtaining conﬂicting labels with attribute and
+
+class level, an attribute consistency loss is also implemented.
+
+Occasionally, when ﬁne-tuning the network in unsupervised
+
+DA, a label of target data, which is called a pseudo label,
+
+can preliminarily be obtained based on the maximum poste-
+
+rior probability. Yan et al. [130] initialized the target model
+
+using the source data and then deﬁned the class posterior
+
+probability p(yjt = c|xtj) by the output of the target model.
+
+With p(yjt = c|xtj), they assigned pseudo-label yjt to xtj by
+
+yjt
+
+=
+
+arg
+
+max
+c
+
+p(yjt
+
+=
+
+c|xtj ).
+
+In
+
+[98],
+
+two
+
+different
+
+networks
+
+assign pseudo-labels to unlabeled samples, another network is
+
+trained by the samples to obtain target discriminative repre-
+
+sentations. The deep transfer network (DTN) [139] used some
+
+base classiﬁers, e.g., SVMs and MLPs, to obtain the pseudo
+
+Manuscript accepted by Neurocomputing 2018
+
+7
+
+labels for the target samples to estimate the conditional distribution of the target samples and match both the marginal and the conditional distributions with the MMD criterion. When casting the classiﬁer adaptation into the residual learning framework, [75] used the pseudo label to build the conditional entropy E(Dt, f t), which ensures that the target classiﬁer f t ﬁts the target-speciﬁc structures well.
+
+• Statistic Criterion
+
+Although some discrepancy-based approaches search for pseudo labels, attribute labels or other substitutes to labeled target data, more work focuses on learning domain-invariant representations via minimizing the domain distribution discrepancy in unsupervised DA.
+MMD is an effective metric for comparing the distributions between two datasets by a kernel two-sample test [3]. Given two distributions s and t, the MMD is deﬁned as follows:
+
+M M D2(s, t) = sup
+
+Exs∼s[φ(xs)] − Ext∼s[φ(xt)]
+
+2 H
+
+φ H≤1
+
+(4)
+
+where φ represents the kernel function that maps the origi-
+
+nal data to a reproducing kernel Hilbert space (RKHS) and
+
+φ H ≤ 1 deﬁnes a set of functions in the unit ball of RKHS H.
+
+Based on the above, Ghifary et al. [32] proposed a model
+
+that introduced the MMD metric in feedforward neural net-
+
+works with a single hidden layer. The MMD metric is
+
+computed between representations of each domain to reduce
+
+the distribution mismatch in the latent space. The empirical
+
+estimate of MMD is as follows:
+
+2
+
+M M D2(Ds, Dt) =
+
+1 M
+
+M
+
+φ(xsi )−
+
+1 N
+
+N
+φ(xtj )
+
+(5)
+
+i=1
+
+j=1
+
+H
+
+Subsequently, Tzeng et al. [120] and Long et al. [73] extended MMD to a deep CNN model and achieved great success. The deep domain confusion network (DDC) by Tzeng et al. [120] used two CNNs for the source and target domains with shared weights. The network is optimized for classiﬁcation loss in the source domain, while domain difference is measured by an adaptation layer with the MMD metric.
+
+L=LC(XL, y) + λM M D2(XsXt)
+
+(6)
+
+where the hyperparameter λ is a penalty parameter. LC (XL, y) denotes classiﬁcation loss on the available labeled data, XL, and the ground-truth labels, y. M M D2(XsXt) denotes the distance between the source and target data. DDC only adapts one layer of the network, resulting in a reduction in the transferability of multiple layers. Rather than using a single layer and linear MMD, Long et al. [73] proposed the deep adaptation network (DAN) that matches the shift in marginal distributions across domains by adding multiple adaptation layers and exploring multiple kernels, assuming that the conditional distributions remain unchanged. However, this assumption is rather strong in practical applications; in other words, the source classiﬁer cannot be directly used in the target domain. To make it more generalized, a joint adaptation network (JAN) [74] aligns the shift in the joint distributions
+
+of input features and output labels in multiple domain-speciﬁc layers based on a joint maximum mean discrepancy (JMMD) criterion. [139] proposed DTN, where both the marginal and the conditional distributions are matched based on MMD. The shared feature extraction layer learns a subspace to match the marginal distributions of the source and the target samples, and the discrimination layer matches the conditional distributions by classiﬁer transduction. In addition to adapting features using MMD, residual transfer networks (RTNs) [75] added a gated residual layer for classiﬁer adaptation. More recently, [130] proposed a weighted MMD model that introduces an auxiliary weight for each class in the source domain when the class weights in the target domain are not the same as those in the source domain.
+If φ is a characteristic kernel (i.e., Gaussian kernel or Laplace kernel), MMD will compare all the orders of statistic moments. In contrast to MMD, CORAL [108] learned a linear transformation that aligns the second-order statistics between domains. Sun et al. [109] extended CORAL to deep neural networks (deep CORAL) with a nonlinear transformation.
+
+1 LCORAL= 4d2
+
+CS − CT
+
+2 F
+
+(7)
+
+where
+
+·
+
+2 F
+
+denotes
+
+the
+
+squared
+
+matrix
+
+Frobenius
+
+norm.
+
+CS
+
+and CT denote the covariance matrices of the source and target
+
+data, respectively.
+
+By the Taylor expansion of the Gaussian kernel, MMD can
+
+be viewed as minimizing the distance between the weighted
+
+sums of all raw moments [67]. The interpretation of MMD
+
+as moment matching procedures motivated Zellinger et al.
+
+[134] to match the higher-order moments of the domain dis-
+
+tributions, which we call central moment discrepancy (CMD).
+
+An empirical estimate of the CMD metric for the domain discrepancy in the activation space [a, b]N is given by
+
+CM DK (Xs, Xt)
+
+=
+
+1 (b − a)
+
+E(Xs) − E(Xt)
+
+2
+
+K
+
+1
+
++ k=2 |b − a|k
+
+Ck(Xs) − Ck(Xt)
+
+2
+
+(8)
+
+where Ck(X) = E((x − E(X))k is the vector of all kth-
+
+order
+
+sample
+
+central
+
+moments
+
+and
+
+E (X )
+
+=
+
+1 |X |
+
+x∈X x is
+
+the empirical expectation.
+
+The association loss Lassoc proposed by [42] is an alternative discrepancy measure, it enforces statistical associations
+
+between source and target data by making the two-step roundtrip probabilities Piajba be similar to the uniform distribution over the class labels.
+
+• Architecture Criterion
+
+Some other methods optimize the architecture of the network to minimize the distribution discrepancy. This adaptation behavior can be achieved in most deep DA models, such as supervised and unsupervised settings.
+Rozantsev et al. [95] considered that the weights in corresponding layers are not shared but related by a weight regularizer rw(·) to account for the differences between the
+
+Manuscript accepted by Neurocomputing 2018
+
+8
+
+(a) The Deep Adaptation Network (DAN) architecture
+
+(b) The Joint Adaptation Network (JAN) architecture
+
+(c) The Residual Transfer Network (RTN) architecture
+Fig. 6. Different approaches with the MMD metric. (a) The deep adaptation network (DAN) architecture [73], (b) the joint adaptation network (JAN) architecture [74] and (c) the residual transfer network (RTN) architecture [75].
+
+two domains. The weight regularizer rw(·) can be expressed as the exponential loss function:
+
+rw(θjs, θjt ) = exp θjs − θjt 2 − 1
+
+(9)
+
+where θjs and θjt denote the parameters of the jth layer of the source and target models, respectively. To further relax this restriction, they allow the weights in one stream to undergo a linear transformation:
+
+rw(θjs, θjt ) = exp( aj θjs + bj − θjt 2) − 1
+
+(10)
+
+where aj and bj are scalar parameters that encode the linear transformation. The work of Shu et al. [105] is similar to [95] using weakly parameter-shared layers. The penalty term Ω controls the relatedness of parameters.
+
+Ω=
+
+L
+
+(
+
+WS(l) − WT(l)
+
+2
++
+F
+
+b(Sl) − b(Tl)
+
+2
+)
+F
+
+i=1
+
+(11)
+
+where {WS(l), b(Sl)}Ll=1 and {WT(l), b(Tl)}Ll=1 are the parameters of the lth layer in the source and target domains, respectively.
+
+Fig. 7. The two-stream architecture with related weight [95].
+
+Li et al. [69] hypothesized that the class-related knowledge
+
+is stored in the weight matrix, whereas domain-related knowl-
+
+edge is represented by the statistics of the batch normaliza-
+
+tion (BN) layer [56]. BN normalizes the mean and standard
+
+deviation for each individual feature channel such that each
+
+layer receives data from a similar distribution, irrespective
+
+of whether it comes from the source or the target domain.
+
+Therefore, Li et al. used BN to align the distribution for
+
+recomputing the mean and standard deviation in the target
+
+domain.
+
+BN (Xt) = λ
+
+x − µ(Xt) σ(X t )
+
++β
+
+(12)
+
+where λ and β are parameters learned from the target data and µ(x) and σ(x) are the mean and standard deviation computed
+
+independently for each feature channel. Based on [69], [9] endowed BN layers with a set of alignment parameters which can be learned automatically and can decide the degree of feature alignment required at different levels of the deep
+
+network. Furthermore, Ulyanov et al. [121] found that when replacing BN layers with instance normalization (IN) layers, where µ(x) and σ(x) are computed independently for each
+
+channel and each sample, the performance of DA can be further improved.
+Occasionally, neurons are not effective for all domains
+
+because of the presence of domain biases. For example, when recognizing people, the target domain typically contains one person centered with minimal background clutter, whereas the source dataset contains many people with more clutter. Thus, the neurons that capture the features of other people and clutter are useless. Domain-guided dropout was proposed by [128] to solve the problem of multi-DA, and it mutes non-related
+
+neurons for each domain. Rather than assigning dropout with a
+
+speciﬁc dropout rate, it depends on the gain of the loss function
+
+of each neuron on the domain sample when the neuron is
+
+removed.
+
+si = L(g(x)\i) − L(g(x))
+
+(13)
+
+where L is the softmax loss function and g(x)\i is the feature vector after setting the response of the ith neuron to
+zero. In [66], each source domain is assigned with different parameters, Θ(i) = Θ(0) + ∆(i), where Θ(0) is a domain general model, and ∆(i) is a domain speciﬁc bias term. After the low rank parameterized CNNs are trained, Θ(0) can serve
+
+as the classiﬁer for target domain.
+
+• Geometric Criterion
+
+The geometric criterion mitigates the domain shift by in-
+
+tegrating intermediate subspaces on a geodesic path from the source to the target domains. A geodesic ﬂow curve is constructed to connect the source and target domains on the Grassmannian. The source and target subspaces are points on a Grassmann manifold. By sampling a ﬁxed [40] or inﬁnite [38] number of subspaces along the geodesic, we can form the
+
+Manuscript accepted by Neurocomputing 2018
+
+9
+
+intermediate subspaces to help to ﬁnd the correlations between domains. Then, both source and target data are projected to the obtained intermediate subspaces to align the distribution.
+Inspired by the intermediate representations on the geodesic path, Chopra et al. [16] proposed a model called deep learning for DA by interpolating between domains (DLID). DLID generates intermediate datasets, starting with all the source data samples and gradually replacing source data with target data. Each dataset is a single point on an interpolating path between the source and target domains. Once intermediate datasets are generated, a deep nonlinear feature extractor using the predictive sparse decomposition is trained in an unsupervised manner.
+2) Adversarial-Based Approaches: Recently, great success has been achieved by the GAN method [39], which estimates generative models via an adversarial process. GAN consists of two models: a generative model G that extracts the data distribution and a discriminative model D that distinguishes whether a sample is from G or training datasets by predicting a binary label. The networks are trained on the label prediction loss in a mini-max fashion: simultaneously optimizing G to minimize the loss while also training D to maximize the probability of assigning the correct label:
+
+labels, or something else. Then, synthetic data with labels are used to train the target model as if no DA were required. Adversarial-based approaches with generative models are able to learn such a transformation in an unsupervised manner based on GAN.
+The core idea of CoGAN [70] is to generate synthetic target data that are paired with synthetic source ones. It consists of a pair of GANs: GAN1 for generating source data and GAN2 for generating target data. The weights of the ﬁrst few layers in the generative models and the last few layers in the discriminative models are tied. This weight-sharing constraint allows CoGAN to achieve a domain-invariant feature space without correspondence supervision. A trained CoGAN can adapt the input noise vector to paired images that are from the two distributions and share the labels. Therefore, the shared labels of synthetic target samples can be used to train the target model.
+
+min
+G
+
+max
+D
+
+V
+
+(D,
+
+G)
+
+=
+
+Ex∼pdata(x)[log
+
+D(x)]
+
+(14)
+
++Ez∼pz(z)[log(1 − D(G(z)))]
+
+In DA, this principle has been employed to ensure that the network cannot distinguish between the source and target domains. [119] proposed a uniﬁed framework for adversarialbased approaches and summarized the existing approaches according to whether to use a generator, which loss function to employ, or whether to share weights across domains. In this paper, we only categorize the adversarial-based approaches into two subsettings: generative models and non-generative models.
+
+Fig. 8. Generalized architecture for adversarial domain adaptation. Existing adversarial adaptation methods can be viewed as instantiations of a framework with different choices regarding their properties. [119]
+
+Fig. 9. The CoGAN architecture. [70]
+More work focuses on generating synthetic data that are similar to the target data while maintaining annotations. Yoo et al. [132] transferred knowledge from the source domain to pixel-level target images with GANs. A domain discriminator ensures the invariance of content to the source domain, and a real/fake discriminator supervises the generator to produce similar images to the target domain. Shrivastava et al. [104] developed a method for simulated+unsupervised (S+U) learning that uses a combined objective of minimizing an adversarial loss and a self-regularization loss, where the goal is to improve the realism of synthetic images using unlabeled real data. In contrast to other works in which the generator is conditioned only on a noise vector or source images, Bousmalis et al. [4] proposed a model that exploits GANs conditioned on both. The classiﬁer T is trained to predict class labels of both source and synthetic images, while the discriminator is trained to predict the domain labels of target and synthetic images. In addition, to expect synthetic images with similar foregrounds and different backgrounds from the same source images, a content similarity is used that penalizes large differences between source and synthetic images for foreground pixels only by a masked pairwise mean squared error [24]. The goal of the network is to learn G, D and T by solving the optimization problem:
+
+• Generative Models
+Synthetic target data with ground-truth annotations are an appealing alternative to address the problem of a lack of training data. First, with the help of source data, generators render unlimited quantities of synthetic target data, which are paired with synthetic source data to share labels or appear as if they were sampled from the target domain while maintaining
+
+min max V (D, G) = αLd(D, G)
+
+G,T D
+
+(15)
+
++βLt(T, G) + γLc(G)
+
+where α, β, and γ are parameters that control the trade-off between the losses. Ld, Lt and Lc are the adversarial loss, softmax loss and content-similarity loss, respectively.
+• Non-Generative Models
+
+Manuscript accepted by Neurocomputing 2018
+
+10
+
+min LadvD(Xs,Xt, M s, M t) =
+D
+− E(xs)∼(Xs)[log D(M s(xs))] − E(xt)∼(Xt)[log(1 − D(M t(xt)))]
+
+min LadvM (M s, M t) =
+
+M s,M t
+
+(16)
+
+− E(xt)∼(Xt)[log D(M t(xt))]
+
+Fig. 10. The model that exploits GANs conditioned on noise vector and source images. [4]
+The key of deep DA is learning domain-invariant representations from source and target samples. With these representations, the distribution of both domains can be similar enough such that the classiﬁer is fooled and can be directly used in the target domain even if it is trained on source samples. Therefore, whether the representations are domain-confused or not is crucial to transferring knowledge. Inspired by GAN, domain confusion loss, which is produced by the discriminator, is introduced to improve the performance of deep DA without generators.
+
+where the mappings M s and M t are learned from the source and target data, Xs and Xt. C represents a classiﬁer working on the source domain. The ﬁrst classiﬁcation loss function Lcls is optimized by training the source model using the labeled source data. The second function LadvD is minimized to train the discriminator, while the third function LadvM is learning a representation that is domain invariant.
+Fig. 12. The Adversarial discriminative domain adaptation (ADDA) architecture. [119]
+
+Fig. 11. The domain-adversarial neural network (DANN) architecture. [25]
+The domain-adversarial neural network (DANN) [25] integrates a gradient reversal layer (GRL) into the standard architecture to ensure that the feature distributions over the two domains are made similar. The network consists of shared feature extraction layers and two classiﬁers. DANN minimizes the domain confusion loss (for all samples) and label prediction loss (for source samples) while maximizing domain confusion loss via the use of the GRL. In contrast to the above methods, the adversarial discriminative domain adaptation (ADDA) [119] considers independent source and target mappings by untying the weights, and the parameters of the target model are initialized by the pre-trained source one. This is more ﬂexible because of allowing more domainspeciﬁc feature extractions to be learned. ADDA minimizes the source and target representation distances through iteratively minimizing these following functions, which is most similar to the original GAN:
+
+min
+M s,C
+
+Lcls
+
+(X
+
+s
+
+,
+
+Y
+
+s)
+
+=
+
+K
+
+− E(xs,ys)∼(Xs,Y s)
+
+1[k=ys] log C(M s(xs))
+
+k=1
+
+Tzeng et al. [118] proposed adding an additional domain classiﬁcation layer that performs binary domain classiﬁcation and designed a domain confusion loss to encourage its prediction to be as close as possible to a uniform distribution over binary labels. Unlike previous methods that match the entire source and target domains, Cao et al. introduced a selective adversarial network (SAN) [8] to address partial transfer learning from large domains to small domains, which assumes that the target label space is a subspace of the source label space. It simultaneously avoids negative transfer by ﬁltering out outlier source classes, and it promotes positive transfer by matching the data distributions in the shared label space via splitting the domain discriminator into many class-wise domain discriminators. [78] encoded domain labels and class labels to produce four groups of pairs, and replaced the typical binary adversarial discriminator by a four-class discriminator. Volpi et al. [123] trained a feature generator (S) to perform data augmentation in the source feature space and obtained a domain invariant feature through playing a minimax game against features from S.
+Rather than using discriminator to classify domain label, some papers make some other explorations. Inspired by Wasserstein GAN [1], Shen et al. [102] utilized discriminator to estimate empirical Wasserstein distance between the source and target samples and optimized the feature extractor network to minimize the distance in an adversarial manner. In [99], two classiﬁers are treated as discriminators and are trained to maximize the discrepancy to detect target samples outside the support of the source, while a feature extractor is trained to minimize the discrepancy by generating target features near the support.
+3) Reconstruction-Based Approaches: In DA, the data reconstruction of source or target samples is an auxiliary task that simultaneously focuses on creating a shared representation
+
+Manuscript accepted by Neurocomputing 2018
+
+11
+
+between the two domains and keeping the individual characteristics of each domain.
+• Encoder-Decoder Reconstruction
+The basic autoencoder framework [2] is a feedforward neural network that includes the encoding and decoding processes. The autoencoder ﬁrst encodes an input to some hidden representation, and then it decodes this hidden representation back to a reconstructed version. The DA approaches based on encoder-decoder reconstruction typically learn the domaininvariant representation by a shared encoder and maintain the domain-special representation by a reconstruction loss in the source and target domains.
+Xavier and Bengio [36] proposed extracting a high-level representation based on stacked denoising autoencoders (SDA) [122]. By reconstructing the union of data from various domains with the same network, the high-level representations can represent both the source and target domain data. Thus, a linear classiﬁer that is trained on the labeled data of the source domain can make predictions on the target domain data with these representations. Despite their remarkable results, SDAs are limited by their high computational cost and lack of scalability to high-dimensional features. To address these crucial limitations, Chen et al. [10] proposed the marginalized SDA (mSDA), which marginalizes noise with linear denoisers; thus, parameters can be computed in closed-form and do not require stochastic gradient descent.
+The deep reconstruction classiﬁcation network (DRCN) proposed in [33] learns a shared encoding representation that provides useful information for cross-domain object recognition. DRCN is a CNN architecture that combines two pipelines with a shared encoder. After a representation is provided by the encoder, the ﬁrst pipeline, which is a CNN, works for supervised classiﬁcation with source labels, whereas the second pipeline, which is a deconvolutional network, optimizes for unsupervised reconstruction with target data.
+
+min λLc({θenc, θlab}) + (1 − λ)Lr({θenc, θdec}) (17)
+
+where λ is a hyper-parameter that controls the trade-off
+
+between classiﬁcation and reconstruction. θenc, θdec and θlab
+
+denote the parameters of the encoder, decoder and source clas-
+
+siﬁer, respectively. Lc is cross-entropy loss for classiﬁcation,
+
+and Lr is squared loss
+
+x − fr(x)
+
+2 2
+
+for
+
+reconstruction
+
+in
+
+which fr(x) is the reconstruction of x.
+
+Fig. 13. The deep reconstruction classiﬁcation network (DRCN) architecture. [33]
+Domain separation networks (DSNs) [5] explicitly and jointly model both private and shared components of the domain representations. A shared-weight encoder learns to
+
+capture shared representations, while a private encoder is used for domain-speciﬁc components in each domain. Additionally, a shared decoder learns to reconstruct the input samples by both the private and shared representations. Then, a classiﬁer is trained on the shared representation. By partitioning the space in such a manner, the shared representations will not be inﬂuenced by domain-speciﬁc representations such that a better transfer ability can be obtained. Finding that the separation loss is simple and that the private features are only used for reconstruction in DSNs, [116] reinforced them by incorporating a hybrid adversarial learning in a separation network and an adaptation network.
+Zhuang et al. [144] proposed transfer learning with deep autoencoders (TLDA), which consists of two encoding layers. The distance in distributions between domains is minimized with KL divergence in the embedding encoding layer, and label information of the source domain is encoded using a softmax loss in the label encoding layer. Ghifary et al. [31] extended the autoencoder into a model that jointly learns two types of data-reconstruction tasks taken from related domains: one is self-domain reconstruction, and the other is betweendomain reconstruction.
+• Adversarial Reconstruction
+Dual learning was ﬁrst proposed by Xia et al. [43] to reduce the requirement of labeled data in natural language processing. Dual learning trains two ”opposite” language translators, e.g., A-to-B and B-to-A. The two translators represent a primaldual pair that evaluates how likely the translated sentences belong to the targeted language, and the closed loop measures the disparity between the reconstructed and the original ones. Inspired by dual learning, adversarial reconstruction is adopted in deep DA with the help of dual GANs.
+Zhu et al. [143] proposed a cycle GAN that can translate the characteristics of one image domain into the other in the absence of any paired training examples. Compared to dual learning, cycle GAN uses two generators rather than translators, which learn a mapping G : X → Y and an inverse mapping F : Y → X. Two discriminators, DX and DY , measure how realistic the generated image is (G(X) ≈ Y or G(Y ) ≈ X) by an adversarial loss and how well the original input is reconstructed after a sequence of two generations (F (G(X)) ≈ X or G(F (Y )) ≈ Y ) by a cycle consistency loss (reconstruction loss). Thus, the distribution of images from G(X) (or F (Y )) is indistinguishable from the distribution Y (or X).
+
+LGAN (G, DY , X, Y ) = Ey∼pdata(y)[log DY (y)] +Ex∼pdata(x)[log(1 − DY (G(x)))]
+
+Lcyc(G, F ) = Ex∼data(x)[ F (G(x)) − x 1]
+
+(18)
+
++Ey∼data(y)[ G(F (y)) − y 1]
+
+where LGAN is the adversarial loss produced by discriminator DY with mapping function G : X → Y . Lcyc is the reconstruction loss using L1 norm.
+
+The dual GAN [131] and the disco GAN [59] were proposed
+
+at the same time, where the core idea is similar to cycle
+
+GAN. In dual GAN, the generator is conﬁgured with skip
+
+connections between mirrored downsampling and upsampling
+
+Manuscript accepted by Neurocomputing 2018
+
+12
+
+Fig. 14. The cycle GAN architecture. [143]
+layers [93], [57], making it a U-shaped net to share low-level information (e.g., object shapes, textures, clutter, and so forth). For discriminators, the Markovian patch-GAN [65] architecture is employed to capture local high-frequency information. In disco GAN, various forms of distance functions, such as mean-square error (MSE), cosine distance, and hinge loss, can be used as the reconstruction loss, and the network is applied to translate images, changing speciﬁed attributes including hair color, gender and orientation while maintaining all other components.
+4) Hybrid Approaches: To obtain better performance, some of the aforementioned methods have been used simultaneously. [118] combined a domain confusion loss and a soft label loss, while [75] used both statistic (MMD) and architecture criteria (adapt classiﬁer by residual function) for unsupervised DA. [130] introduced class-speciﬁc auxiliary weights assigned by the pseudo-labels into the original MMD. In DSNs [5], encoder-decoder reconstruction approaches separate representations into private and shared representations, while the MMD criterion or domain confusion loss is helpful to make the shared representations similar and soft subspace orthogonality constraints ensure dissimilarity between the private and shared representations. [95] used the MMD between the learned source and target representations and also allowed the weights of the corresponding layers to differ. [144] learned domaininvariant representations by encoder-decoder reconstruction approaches and the KL divergence.
+B. Heterogeneous Domain Adaptation
+In heterogeneous DA, the feature spaces of the source and target domains are not the same, Xs = Xt, and the dimensions of the feature spaces may also differ. According to the divergence of feature spaces, heterogeneous DA can be further divided into two scenarios. In one scenario, the source and target domain both contain images, and the divergence of feature spaces is mainly caused by different sensory devices (e.g., visual light (VIS) vs. near-infrared (NIR) or RGB vs. depth) and different styles of images (e.g., sketches vs. photos). In the other scenario, there are different types of media in source and target domain (e.g., text vs. image and language vs. image). Obviously, the cross-domain gap of the second scenario is much larger.
+Most heterogeneous DA with shallow methods fall into two categories: symmetric transformation and asymmetric transformation. The symmetric transformation learns feature transformations to project the source and target features onto a common subspace. Heterogeneous feature augmentation (HFA) [23] ﬁrst transformed the source and target data into a common subspace using projection matrices P and Q re-
+
+spectively, then proposed two new feature mapping functions, ϕs (xs) = [P xs, xs, 0dt ]T and ϕt (xt) = [Qxt, 0ds , xt]T , to augment the transformed data with their original features and zeros. These projection matrices are found using standard SVM with hinge loss in both the linear and nonlinear cases and an alternating optimization algorithm is proposed to simultaneously solve the dual SVM and to ﬁnd the optimal transformations. [124] treated each input domain as a manifold which is represented by a Laplacian matrix, and used labels rather than correspondences to align the manifolds. The asymmetric transformation transforms one of source and target features to align with the other. [142] proposed a sparse and class-invariant feature transformation matrix to map the weight vector of classiﬁers learned from the source domain to the target domain. The asymmetric regularized cross-domain transfer (ARC-t) [63] used asymmetric, nonlinear transformations learned in Gaussian RBF kernel space to map the target data to the source domain. Extended from [97], ARC-t performed asymmetric transformation based on metric learning, and transfer knowledge between domains with different dimensions through changes of the regularizer. Since we focus on deep DA, we refer the interested readers to [20], which summarizes shallow approaches of heterogeneous DA.
+However, as for deep methods, there is not much work focused on heterogeneous DA so far. The special and effective methods of heterogeneous deep DA have not been proposed, and heterogeneous deep DA is still performed similar to some approaches of homogeneous DA.
+1) Discrepancy-Based Approach: In discrepancy-based approaches, the network generally shares or reuses the ﬁrst n layers between the source and target domains, which limits the feature spaces of the input to the same dimension. However, in heterogeneous DA, the dimensions of the feature spaces of source domain may differ from those of target domain.
+In ﬁrst scenario of heterogeneous DA, the images in different domains can be directly resized into the same dimensions, so the Class Criterion and Statistic Criterion are still effective and are mainly used. For example, given an RGB image and its paired depth image, [41] used the mid-level representation learned by CNNs as a supervisory signal to re-train a CNN on depth images. To transform an RGB object detector into a RGB-D detector without needing complete RGB-D data, Hoffman et al. [48] ﬁrst trained an RGB network using labeled RGB data from all categories and ﬁnetuned the network with labeled depth data from partial categories, then combined midlevel RGB and depth representations at fc6 to incorporate both modalities into the ﬁnal object class prediction. [77] ﬁrst trained the network using large face database of photos and then ﬁnetuned it using small database of composite sketches; [72] transferred the VIS deep networks to the NIR domain in the same way.
+In second scenario, the features of different media can not be directly resized into the same dimensions. Therefore, discrepancy-based methods fail to work without extra process. [105] proposed weakly shared DTNs to transfer labeled information across heterogeneous domains, particularly from the text domain to the image domain. DTNs take paired data, such as text and image, as input to two SAEs, followed by weakly
+
+Manuscript accepted by Neurocomputing 2018
+
+13
+
+parameter-shared network layers at the top. Chen et al. [12] proposed transfer neural trees (TNTs), which consist of two stream networks to learn a domain-invariant feature representation for each modality. Then, a transfer neural decision forest (Transfer-NDF) [94], [61] is used with stochastic pruning for adapting representative neurons in the prediction layer.
+2) Adversarial-Based Approach: Using Generative Models can generate the heterogeneous target data while transferring some information of source domain to them. [111] employed a compound loss function that consists of a multiclass GAN loss, a regularizing component and an f-constancy component to transfer unlabeled face photos to emoji images. To generate images for birds and ﬂowers based on text, [90] trained a GAN conditioned on text features encoded by a hybrid characterlevel convolutional-recurrent neural network. [135] proposed stacked generative adversarial networks (StackGAN) with conditioning augmentation for synthesizing photo-realistic images from text. It decomposes the synthesis problem into several sketch-reﬁnement processes. Stage-I GAN sketches the primitive shape and basic colors of the object to yield low-resolution image, and Stage-II GAN completes details of the object to produce a high-resolution photo-realistic image.
+Fig. 15. The StackGAN architecture. [135]
+3) Reconstruction-Based Approach: The Adversarial Reconstruction can be used in heterogeneous DA as well. For example, the cycle GAN [143], dual GAN [131] and disco GAN [59] used two generators, GA and GB, to generate sketches from photos and photos from sketches, respectively. Based on cycle GAN [143], [125] proposed a multi-adversarial network to avoid artifacts of facial photo-sketch synthesis by leveraging the implicit presence of feature maps of different resolutions in the generator subnetwork.
+V. MULTI-STEP DOMAIN ADAPTATION For multi-step DA, the selection of the intermediate domain is problem speciﬁc, and different problems may have different strategies.
+A. Hand-Crafted Approaches Occasionally, the intermediate domain can be selected by
+experience, that is, it is decided in advance. For example, when the source domain is image data and the target domain is composed of text data, some annotated images will clearly be crawled as intermediate domain data.
+With the common sense that nighttime light intensities can be used as a proxy for economic activity, Xie et al.
+
+[129] transferred knowledge from daytime satellite imagery to poverty prediction with the help of some nighttime light intensity information as an intermediate domain.
+
+B. Instance-Based Approaches
+
+In other problems where there are many candidate intermediate domains, some automatic selection criterion should be considered. Similar to the instance-transfer approaches proposed by Pan [83], because the samples of the source domain cannot be used directly, the mixture of certain parts of the source and target data can be useful for constructing the intermediate domain.
+Tan et al. [114] proposed distant domain transfer learning (DDTL), where long-distance domains fail to transfer knowledge by only one intermediate domain but can be related via multiple intermediate domains. DDTL gradually selects unlabeled data from the intermediate domains by minimizing reconstruction errors on the selected instances in the source and intermediate domains and all the instances in the target domain simultaneously. With removal of the unrelated source data, the selected intermediate domains gradually become closer to the target domain from the source domain:
+
+J1(fe, fd, vS, vT ) =
+
+1 nS
+
+nS
+vSi
+i=1
+
+xˆiS − xiS
+
+2 2
+
++
+
+1 nI
+
+nI
+vIi
+i=1
+
+xˆiI − xiI
+
+2 2
+
+(19)
+
+1 nT +
+nT i=1
+
+xˆiT − xiT
+
+2 2
+
++
+
+R(vS
+
+,
+
+vT
+
+)
+
+where xˆiS, xˆiT and xˆiI are reconstructions of source data Si, target data T i and intermediate data Ii based on the autoencoder, respectively, and fe and fd are the parameters of the encoder and decoder, respectively. vS = (vS1 , ..., vSnS ) and vI = (vI1, ..., vInI ) , vSi , vIi ∈ 0, 1 are selection indicators for the ith source and intermediate instance, respectively. R(vS, vT ) is a regularization term that avoids all values of vS and vI being zero.
+The DLID model [16] mentioned in Section IV-A1 (Geometric Criterion) constructs the intermediate domains with a subset of the source and target domains, where source samples are gradually replaced by target samples.
+
+C. Representation-Based Approaches
+Representation-based approaches freeze the previously trained network and use their intermediate representations as input to the new network. Rusu et al. [96] introduced progressive networks that have the ability to accumulate and transfer knowledge to new domains over a sequence of experiences. To avoid the target model losing its ability to solve the source domain, they constructed a new neural network for each domain, while transfer is enabled via lateral connections to features of previously learned networks. In the process, the parameters in the latest network are frozen to remember knowledge of intermediate domains.
+
+Manuscript accepted by Neurocomputing 2018
+
+14
+
+also compared them with DANN and DLID under a supervised DA setting.
+In [119], MNIST2(M), USPS3(U), and SVHN4 (S) digit datasets (shown in Fig. 1(b)) are used for a cross-domain handwritten digit recognition task, and the experiment showed the comparison results on some adversarial-based methods, such as DANN, CoGAN [70] and ADDA [119], where the baseline is VGG-16 [106].
+
+Fig. 16. The progressive network architecture. [96]
+VI. APPLICATION OF DEEP DOMAIN ADAPTATION
+Deep DA techniques have recently been successfully applied in many real-world applications, including image classiﬁcation, object recognition, face recognition, object detection, style translation, and so forth. In this section, we present different application examples using various visual deep DA methods. Because the information of commonly used datasets for evaluating the performance is provided in [137] in detail, we do not introduce it in this paper.
+A. Image Classiﬁcation
+Because image classiﬁcation is a basic task of computer vision applications, most of the algorithms mentioned above were originally proposed to solve such problems. Therefore, we do not discuss this application repeatedly, but we show how much beneﬁt deep DA methods for image classiﬁcation can bring. Because different papers often use different parameters, experimental protocols and tuning strategies in the preprocessing steps, it is quite difﬁcult to perform a fair comparison among all the methods directly. Thus, similar to the work of Pan [83], we show the comparison results between the proposed deep DA methods and non-adaptation methods using only deep networks. A list of simple experiments taken from some published deep DA papers are presented in Table V.
+In [74], [134], and [118], the authors used the Ofﬁce-31 dataset1 as one of the evaluation data sets, as shown in Fig. 1(a). The Ofﬁce dataset is a computer vision classiﬁcation data set with images from three distinct domains: Amazon (A), DSLR (D), and Webcam (W). The largest domain, Amazon, has 2817 labeled images and its corresponding 31 classes, which consists of objects commonly encountered in ofﬁce settings. By using this dataset, previous works can show the performance of methods across all six possible DA tasks. [74] showed comparison experiments among the standard AlexNet [62], the DANN method [25], and the MMD algorithm and its variations, such as DDC [120], DAN [73], JAN [74] and RTN [75]. Zellinger et al. [134] evaluated their proposed CMD algorithm in comparison to other discrepancy-based methods (DDC, deep CROAL [109], DLID [16], AdaBN [69]) and the adversarial-based method DANN. [118] proposed an algorithm combining soft label loss and domain confusion loss, and they
+1 https://cs.stanford.edu/∼jhoffman/domainadapt/
+
+B. Face Recognition The performance of face recognition signiﬁcantly degrades
+when there are variations in the test images that are not present in the training images. The dataset shift can be caused by poses, resolution, illuminations, expressions, and modality. Kan et al. [58] proposed a bi-shifting auto-encoder network (BAE) for face recognition across view angle, ethnicity, and imaging sensor. In BAE, source domain samples are shifted to the target domain, and sparse reconstruction is used with several local neighbors from the target domain to ensure its correction, and vice versa. Single sample per person domain adaptation network (SSPP-DAN) in [51] generates synthetic images with varying poses to increase the number of samples in the source domain and bridges the gap between the synthetic and source domains by adversarial training with a GRL in realworld face recognition. [107] improved the performance of video face recognition by using an adversarial-based approach with large-scale unlabeled videos, labeled still images and synthesized images. Considering that age variations are difﬁcult problems for smile detection and that networks trained on the current benchmarks do not perform well on young children, Xia et al. [127] applied DAN [73] and JAN [74] (mentioned in Section IV-A1) to two baseline deep models, i.e., AlexNet and ResNet, to transfer the knowledge from adults to infants.
+Fig. 17. The single sample per person domain adaptation network (SSPPDAN) architecture. [51]
+C. Object Detection Recent advances in object detection are driven by region-
+based convolutional neural networks (R-CNNs [35], fast RCNNs [34] and faster R-CNNs [91]). They are composed of a window selection mechanism and classiﬁers that are pre-trained labeled bounding boxes by using the features extracted from CNNs. At test time, the classiﬁer decides whether a region obtained by sliding windows contains the object. Although the R-CNN algorithm is effective, a large
+2 http://yann.lecun.com/exdb/mnist/ 3http://statweb.stanford.edu/∼tibs/ElemStatLearn/data.html 4http://uﬂdl.stanford.edu/housenumbers/
+
+Manuscript accepted by Neurocomputing 2018
+
+15
+
+TABLE V COMPARISON BETWEEN TRANSFER LEARNING AND NON-ADAPTATION LEARNING METHODS
+
+Data Set (reference)
+Ofﬁce-31 Dataset ACC (unit:%)[74]
+Ofﬁce-31 Dataset ACC (unit:%)[134]
+Ofﬁce-31 Dataset ACC (unit:%)[118]
+MNIST, USPS, and SVHN
+digits datasets ACC (unit:%)[119]
+
+Source vs. Target
+A vs. W D vs. W W vs. D A vs. D D vs. A W vs. A
+Avg
+A vs. W D vs. W W vs. D A vs. D D vs. A W vs. A
+Avg
+A vs. W D vs. W W vs. D A vs. D D vs. A W vs. A
+Avg
+M vs. U U vs. M S vs. M
+
+Baselines
+AlexNet 61.6±0.5 95.4±0.3 99.0±0.2 63.8±0.5 51.1±0.6 49.8±0.4
+70.1 AlexNet
+61.6 95.4 99.0 63.8 51.1 49.8 70.1
+AlexNet
+56.5±0.3 92.4±0.3 93.6±0.2 64.6±0.4 47.6±0.1 42.7±0.1
+66.2 VGG-16 75.2±1.6 57.1±1.7 60.1±1.1
+
+DDC 61.8±0.4 95.0±0.5 98.5±0.4 64.4±0.3 52.1±0.6 52.2±0.4
+70.6 Deep CORAL
+66.4 95.7 99.2 66.8 52.8 51.5 72.1
+DLID
+51.9 78.2 89.9
+DANN 77.1±1.8 73.0±2.0 73.9
+
+Deep Domain Adaptation Methods
+
+DAN 68.5 96.0±0.3 99.0±0.3 67.0±0.4 54.0±0.5 53.1±0.5 72.9 CMD 77.0±0.6 96.3±0.4 99.2±0.2 79.6±0.6 63.8±0.7 63.3±0.6 79.9
+DANN
+53.6±0.2 71.2±0.0 83.5±0.0
+CoGAN 91.2±0.8 89.1±0.8 -
+
+RTN 73.3±0.3 96.8±0.2 99.6±0.1 71.0±0.2 50.5±0.3 51.0±0.1
+73.7 DLID 51.9 78.2 89.9
+-
+Soft Labels
+82.7±0.7 95.9±0.6 98.3±0.3 84.9±1.2 66.0±0.5 65.2±0.6
+82.17 ADDA 89.4±0.2 90.1±0.8 76.0±1.8
+
+JAN 75.2±0.4 96.6±0.2 99.6±0.1 72.8±0.3 57.5±0.2 56.3±0.2
+76.3 AdaBN
+74.2 95.7 99.8 73.1 59.8 57.4 76.7
+Domain Confusion 82.8±0.9 95.6±0.4 97.5±0.2 85.9±1.1 66.2±0.4 64.9±0.5
+82.13
+
+DANN 73.0±0.5 96.4±0.3 99.2±0.3 72.3±0.3 53.4±0.4 51.2±0.5
+74.3 DANN
+73 96.4 99.2
+-
+Confusion +Soft 82.7±0.8 95.7±0.5 97.6±0.2 86.1±1.2 66.2±0.3 65.0±0.5
+82.22
+
+amount of bounding box labeled data is required to train each detection category. To solve the problem of lacking labeled data, considering the window selection mechanism as being domain independent, deep DA methods can be used in classiﬁers to adapt to the target domain.
+Because R-CNNs train classiﬁers on regions just like classiﬁcation, weak labeled data (such as image-level class labels) are directly useful for the detector. Most works learn the detector with limited bounding box labeled data and massive weak labeled data. The large-scale detection through adaptation (LSDA) [47] trains a classiﬁcation layer for the target domain and then uses a pre-trained source model along with output layer adaptation techniques to update the target classiﬁcation parameters directly. Rochan et al. [92] used word vectors to establish the semantic relatedness between weak labeled source objects and target objects and then transferred the bounding box labeled information from source objects to target objects based on their relatedness. Extending [47] and [92], Tang et al. [115] transferred visual (based on the LSDA model) and semantic similarity (based on work vectors) for training an object detector on weak labeled category. [13] incorporated both an image-level and an instance-level adaptation component into faster R-CNN and minimized the domain discrepancy based on adversarial training. By using bounding box labeled data in a source domain and weak labeled data in a target domain, [55] progressively ﬁne-tuned the pre-trained model with domain-transfer samples and pseudo-labeling samples.
+
+D. Semantic Segmentation
+Fully convolutional network models (FCNs) for dense prediction have proven to be successful for evaluating semantic segmentation, but their performance will also degrade under domain shifts. Therefore, some work has also explored using weak labels to improve the performance of semantic segmentation. Hong et al. [52] used a novel encoder-decoder architecture with attention model by transferring weak class labeled knowledge in the source domain, while [60], [103] transferred weak object location knowledge.
+Much attention has also been paid to deep unsupervised DA in semantic segmentation. Hoffman et al. [50] ﬁrst introduced it, in which global domain alignment is performed using FCNs with adversarial-based training, while transferring spatial layout is achieved by leveraging class-aware constrained multiple instance loss. Zhang et al. [140] enhanced the segmentation performance on real images with the help of virtual ones. It uses the global label distribution loss of the images and local label distribution loss of the landmark superpixels in the target domain to effectively regularize the ﬁne-tuning of the semantic segmentation network. Chen et al. [15] proposed a framework for cross-city semantic segmentation. The framework assigns pseudo labels to pixels/grids in the target domain and jointly utilizes global and class-wise alignment by domain adversarial learning to minimize domain shift. In [14], a target guided distillation module adapts the style from the real images by imitating the pre-trained source network, and a spatial-aware adaptation module leverages the intrinsic spatial structure to reduce the domain divergence. Rather than operating a simple adversarial objective on the feature space, [100] used a GAN
+
+Manuscript accepted by Neurocomputing 2018
+
+16
+
+to address domain shift in which a generator projects the features to the image space and a discriminator operates on this projected image space.
+
+a person, person re-ID recognizes whether this person has been in another camera to compensate for the limitations of ﬁxed devices. Recently, deep DA methods have been used in re-ID when models trained on one dataset are directly used on another. Xiao et al. [128] proposed the domain-guided dropout algorithm to discard useless neurons for re-identifying persons on multiple datasets simultaneously. Inspired by cycle GAN and Siamese network, the similarity preserving generative adversarial network (SPGAN) [21] translated the labeled source image to the target domain, preserving self similarity and domain-dissimilarity in an unsupervised manner, and then it trains re-ID models with the translated images using supervised feature learning methods.
+
+Fig. 18. The architecture of pixel-level adversarial and constraint-based adaptation. [50]
+E. Image-to-Image Translation
+Image-to-image translation has recently achieved great success with deep DA, and it has been applied to various tasks, such as style transferring. Specially, when the feature spaces of source and target images are not same, image-to-image translation should be performed by heterogeneous DA.
+More approaches of image-to-image translation use a dataset of paired images and incorporate a DA algorithm into generative networks. Isola et al. [57] proposed the pix2pix framework, which uses a conditional GAN to learn a mapping from source to target images. Tzeng et al. [117] utilized domain confusion loss and pairwise loss to adapt from simulation to real-world data in a PR2 robot. However, several other methods also address the unpaired setting, such as CoGAN [70], cycle GAN [143], dual GAN [131] and disco GAN [59].
+Matching the statistical distribution by ﬁne-tuning a deep network is another way to achieve image-to-image translation. Gatys et al. [27] ﬁne-tuned the CNN to achieve DA by the total loss, which is a linear combination between the content and the style loss, such that the target image is rendered in the style of the source image maintaining the content. The content loss minimizes the mean squared difference of the feature representation between the original image and generated image in higher layers, while the style loss minimizes the elementwise mean squared difference between the Gram matrix of them on each layer. [68] demonstrated that matching the Gram matrices of feature maps is equivalent to minimizing the MMD. Rather than MMD, [87] proposed a deep generative correlation alignment network (DGCAN) that bridges the domain discrepancy between CAD synthetic and real images by applying the content and CORAL losses to different layers.
+F. Person Re-identiﬁcation
+In the community, person re-identiﬁcation (re-ID) has become increasingly popular. When given video sequences of
+
+G. Image Captioning
+Recently, image captioning, which automatically describes an image with a natural sentence, has been an emerging challenge in computer vision and natural language processing. Due to lacking of paired image-sentence training data, DA leverages different types of data in other source domains to tackle this challenge. Chen et al. [11] proposed a novel adversarial training procedure (captioner v.s. critics) for crossdomain image captioning using paired source data and unpaired target data. One captioner adapts the sentence style from source to target domain, whereas two critics, namely domain critic and multi-modal critic, aim at distinguishing them. Zhao et al. [141] ﬁne-tuned the pre-trained source model on limited data in the target domain via a dual learning mechanism.
+VII. CONCLUSION
+In a broad sense, deep DA is utilizing deep networks to enhance the performance of DA, such as shallow DA methods with features extracted by deep networks. In a narrow sense, deep DA is based on deep learning architectures designed for DA and optimized by back propagation. In this survey paper, we focus on this narrow deﬁnition, and we have reviewed deep DA techniques on visual categorization tasks.
+Deep DA is classiﬁed as homogeneous DA and heterogeneous DA, and it can be further divided into supervised, semisupervised and unsupervised settings. The ﬁrst setting is the simplest but is generally limited due to the need for labeled data; thus, most previous works focused on unsupervised cases. Semi-supervised deep DA is a hybrid method that combines the methods of the supervised and unsupervised settings.
+Furthermore, the approaches of deep DA can be classiﬁed into one-step DA and multi-step DA considering the distance of the source and target domains. When the distance is small, one-step DA can be used based on training loss. It consists of the discrepancy-based approach, the adversarialbased approach, and the reconstruction-based approach. When the source and target domains are not directly related, multistep (or transitive) DA can be used. The key of multi-step DA is to select and utilize intermediate domains, thus falling into three categories, including hand-crafted, feature-based and representation-based selection mechanisms.
+
+Manuscript accepted by Neurocomputing 2018
+
+17
+
+Although deep DA has achieved success recently, many issues still remain to be addressed. First, most existing algorithms focus on homogeneous deep DA, which assumes that the feature spaces between the source and target domains are the same. However, this assumption may not be true in many applications. We expect to transfer knowledge without this severe limitation and take advantage of existing datasets to help with more tasks. Heterogeneous deep DA may attract increasingly more attention in the future.
+In addition, deep DA techniques have been successfully applied in many real-world applications, including image classiﬁcation, and style translation. We have also found that only a few papers address adaptation beyond classiﬁcation and recognition, such as object detection, face recognition, semantic segmentation and person re-identiﬁcation. How to achieve these tasks with no or a very limited amount of data is probably one of the main challenges that should be addressed by deep DA in the next few years.
+Finally, since existing deep DA methods aim at aligning marginal distributions, they commonly assume shared label space across the source and target domains. However, in realistic scenario, the images of the source and target domain may be from the different set of categories or only a few categories of interest are shared. Recently, some papers [8], [7], [136] have begun to focus on this issue and we believe it is worthy of more attention.
+VIII. ACKNOWLEDGEMENTS
+This work was partially supported by the National Natural Science Foundation of China under Grant Nos. 61573068, 61471048, and 61375031, and Beijing Nova Program under Grant No. Z161100004916088.
+REFERENCES
+[1] M. Arjovsky, S. Chintala, and L. Bottou. Wasserstein gan. arXiv preprint arXiv:1701.07875, 2017.
+[2] Y. Bengio. Learning deep architectures for ai. Foundations and Trends in Machine Learning, 2(1):1–127, 2009.
+[3] K. M. Borgwardt, A. Gretton, M. J. Rasch, H.-P. Kriegel, B. Scho¨lkopf, and A. J. Smola. Integrating structured biological data by kernel maximum mean discrepancy. Bioinformatics, 22(14):e49–e57, 2006.
+[4] K. Bousmalis, N. Silberman, D. Dohan, D. Erhan, and D. Krishnan. Unsupervised pixel-level domain adaptation with generative adversarial networks. arXiv preprint arXiv:1612.05424, 2016.
+[5] K. Bousmalis, G. Trigeorgis, N. Silberman, D. Krishnan, and D. Erhan. Domain separation networks. In Advances in Neural Information Processing Systems, pages 343–351, 2016.
+[6] L. Bruzzone and M. Marconcini. Domain adaptation problems: A dasvm classiﬁcation technique and a circular validation strategy. IEEE transactions on pattern analysis and machine intelligence, 32(5):770– 787, 2010.
+[7] P. P. Busto and J. Gall. Open set domain adaptation. In The IEEE International Conference on Computer Vision (ICCV), volume 1, page 3, 2017.
+[8] Z. Cao, M. Long, J. Wang, and M. I. Jordan. Partial transfer learning with selective adversarial networks. arXiv preprint arXiv:1707.07901, 2017.
+[9] F. M. Carlucci, L. Porzi, B. Caputo, E. Ricci, and S. R. Bulo`. Autodial: Automatic domain alignment layers. In International Conference on Computer Vision, 2017.
+[10] M. Chen, Z. Xu, K. Weinberger, and F. Sha. Marginalized denoising autoencoders for domain adaptation. arXiv preprint arXiv:1206.4683, 2012.
+[11] T.-H. Chen, Y.-H. Liao, C.-Y. Chuang, W.-T. Hsu, J. Fu, and M. Sun. Show, adapt and tell: Adversarial training of cross-domain image captioner. In The IEEE International Conference on Computer Vision (ICCV), volume 2, 2017.
+
+[12] W.-Y. Chen, T.-M. H. Hsu, Y.-H. H. Tsai, Y.-C. F. Wang, and M.-S. Chen. Transfer neural trees for heterogeneous domain adaptation. In European Conference on Computer Vision, pages 399–414. Springer, 2016.
+[13] Y. Chen, W. Li, C. Sakaridis, D. Dai, and L. Van Gool. Domain adaptive faster r-cnn for object detection in the wild. arXiv preprint arXiv:1803.03243, 2018.
+[14] Y. Chen, W. Li, and L. Van Gool. Road: Reality oriented adaptation for semantic segmentation of urban scenes. arXiv preprint arXiv:1711.11556, 2017.
+[15] Y.-H. Chen, W.-Y. Chen, Y.-T. Chen, B.-C. Tsai, Y.-C. F. Wang, and M. Sun. No more discrimination: Cross city adaptation of road scene segmenters. arXiv preprint arXiv:1704.08509, 2017.
+[16] S. Chopra, S. Balakrishnan, and R. Gopalan. Dlid: Deep learning for domain adaptation by interpolating between domains. In ICML workshop on challenges in representation learning, volume 2, 2013.
+[17] B. Chu, V. Madhavan, O. Beijbom, J. Hoffman, and T. Darrell. Best practices for ﬁne-tuning visual classiﬁers to new domains. In Computer Vision–ECCV 2016 Workshops, pages 435–442. Springer, 2016.
+[18] W.-S. Chu, F. De la Torre, and J. F. Cohn. Selective transfer machine for personalized facial action unit detection. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 3515–3522, 2013.
+[19] G. Csurka. Domain adaptation for visual applications: A comprehensive survey. arXiv preprint arXiv:1702.05374, 2017.
+[20] O. Day and T. M. Khoshgoftaar. A survey on heterogeneous transfer learning. Journal of Big Data, 4(1):29, 2017.
+[21] W. Deng, L. Zheng, G. Kang, Y. Yang, Q. Ye, and J. Jiao. Image-image domain adaptation with preserved self-similarity and domain-dissimilarity for person re-identiﬁcation. arXiv preprint arXiv:1711.07027, 2017.
+[22] J. Donahue, Y. Jia, O. Vinyals, J. Hoffman, N. Zhang, E. Tzeng, and T. Darrell. Decaf: A deep convolutional activation feature for generic visual recognition. In International conference on machine learning, pages 647–655, 2014.
+[23] L. Duan, D. Xu, and I. Tsang. Learning with augmented features for heterogeneous domain adaptation. arXiv preprint arXiv:1206.4660, 2012.
+[24] D. Eigen, C. Puhrsch, and R. Fergus. Depth map prediction from a single image using a multi-scale deep network. In Advances in neural information processing systems, pages 2366–2374, 2014.
+[25] Y. Ganin and V. Lempitsky. Unsupervised domain adaptation by backpropagation. In International Conference on Machine Learning, pages 1180–1189, 2015.
+[26] Y. Ganin, E. Ustinova, H. Ajakan, P. Germain, H. Larochelle, F. Laviolette, M. Marchand, and V. Lempitsky. Domain-adversarial training of neural networks. Journal of Machine Learning Research, 17(59):1–35, 2016.
+[27] L. A. Gatys, A. S. Ecker, and M. Bethge. Image style transfer using convolutional neural networks. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 2414–2423, 2016.
+[28] W. Ge and Y. Yu. Borrowing treasures from the wealthy: Deep transfer learning through selective joint ﬁne-tuning. arXiv preprint arXiv:1702.08690, 2017.
+[29] T. Gebru, J. Hoffman, and L. Fei-Fei. Fine-grained recognition in the wild: A multi-task domain adaptation approach. arXiv preprint arXiv:1709.02476, 2017.
+[30] M. Gheisari and M. S. Baghshah. Unsupervised domain adaptation via representation learning and adaptive classiﬁer learning. Neurocomputing, 165:300–311, 2015.
+[31] M. Ghifary, W. Bastiaan Kleijn, M. Zhang, and D. Balduzzi. Domain generalization for object recognition with multi-task autoencoders. In Proceedings of the IEEE international conference on computer vision, pages 2551–2559, 2015.
+[32] M. Ghifary, W. B. Kleijn, and M. Zhang. Domain adaptive neural networks for object recognition. In Paciﬁc Rim International Conference on Artiﬁcial Intelligence, pages 898–904. Springer, 2014.
+[33] M. Ghifary, W. B. Kleijn, M. Zhang, D. Balduzzi, and W. Li. Deep reconstruction-classiﬁcation networks for unsupervised domain adaptation. In European Conference on Computer Vision, pages 597–613. Springer, 2016.
+[34] R. Girshick. Fast r-cnn. In Proceedings of the IEEE international conference on computer vision, pages 1440–1448, 2015.
+[35] R. Girshick, J. Donahue, T. Darrell, and J. Malik. Rich feature hierarchies for accurate object detection and semantic segmentation. In Proceedings of the IEEE conference on computer vision and pattern recognition, pages 580–587, 2014.
+[36] X. Glorot, A. Bordes, and Y. Bengio. Domain adaptation for large-scale sentiment classiﬁcation: A deep learning approach. In Proceedings
+
+Manuscript accepted by Neurocomputing 2018
+
+18
+
+of the 28th international conference on machine learning (ICML-11), pages 513–520, 2011. [37] B. Gong, K. Grauman, and F. Sha. Connecting the dots with landmarks: Discriminatively learning domain-invariant features for unsupervised domain adaptation. In International Conference on Machine Learning, pages 222–230, 2013. [38] B. Gong, Y. Shi, F. Sha, and K. Grauman. Geodesic ﬂow kernel for unsupervised domain adaptation. In Computer Vision and Pattern Recognition (CVPR), 2012 IEEE Conference on, pages 2066–2073. IEEE, 2012. [39] I. Goodfellow, J. Pouget-Abadie, M. Mirza, B. Xu, D. Warde-Farley, S. Ozair, A. Courville, and Y. Bengio. Generative adversarial nets. In Advances in neural information processing systems, pages 2672–2680, 2014. [40] R. Gopalan, R. Li, and R. Chellappa. Domain adaptation for object recognition: An unsupervised approach. In Computer Vision (ICCV), 2011 IEEE International Conference on, pages 999–1006. IEEE, 2011. [41] S. Gupta, J. Hoffman, and J. Malik. Cross modal distillation for supervision transfer. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 2827–2836, 2016. [42] P. Haeusser, T. Frerix, A. Mordvintsev, and D. Cremers. Associative domain adaptation. In International Conference on Computer Vision (ICCV), volume 2, page 6, 2017. [43] D. He, Y. Xia, T. Qin, L. Wang, N. Yu, T. Liu, and W.-Y. Ma. Dual learning for machine translation. In Advances in Neural Information Processing Systems, pages 820–828, 2016. [44] K. He, X. Zhang, S. Ren, and J. Sun. Deep residual learning for image recognition. In Proceedings of the IEEE conference on computer vision and pattern recognition, pages 770–778, 2016. [45] G. Hinton, O. Vinyals, and J. Dean. Distilling the knowledge in a neural network. arXiv preprint arXiv:1503.02531, 2015. [46] G. E. Hinton, S. Osindero, and Y.-W. Teh. A fast learning algorithm for deep belief nets. Neural computation, 18(7):1527–1554, 2006. [47] J. Hoffman, S. Guadarrama, E. S. Tzeng, R. Hu, J. Donahue, R. Girshick, T. Darrell, and K. Saenko. Lsda: Large scale detection through adaptation. In Advances in Neural Information Processing Systems, pages 3536–3544, 2014. [48] J. Hoffman, S. Gupta, J. Leong, S. Guadarrama, and T. Darrell. Crossmodal adaptation for rgb-d detection. In Robotics and Automation (ICRA), 2016 IEEE International Conference on, pages 5032–5039. IEEE, 2016. [49] J. Hoffman, E. Tzeng, J. Donahue, Y. Jia, K. Saenko, and T. Darrell. One-shot adaptation of supervised deep convolutional models. arXiv preprint arXiv:1312.6204, 2013. [50] J. Hoffman, D. Wang, F. Yu, and T. Darrell. Fcns in the wild: Pixel-level adversarial and constraint-based adaptation. arXiv preprint arXiv:1612.02649, 2016. [51] S. Hong, W. Im, J. Ryu, and H. S. Yang. Sspp-dan: Deep domain adaptation network for face recognition with single sample per person. arXiv preprint arXiv:1702.04069, 2017. [52] S. Hong, J. Oh, H. Lee, and B. Han. Learning transferrable knowledge for semantic segmentation with deep convolutional neural network. In Proceedings of the IEEE Conference on Computer Vision and Pattern
+Recognition, pages 3204–3212, 2016. [53] J. Hu, J. Lu, and Y.-P. Tan. Deep transfer metric learning. In
+Proceedings of the IEEE Conference on Computer Vision and Pattern
+Recognition, pages 325–333, 2015. [54] X. Huang and S. Belongie. Arbitrary style transfer in real-time with
+adaptive instance normalization. arXiv preprint arXiv:1703.06868, 2017. [55] N. Inoue, R. Furuta, T. Yamasaki, and K. Aizawa. Cross-domain weakly-supervised object detection through progressive domain adaptation. arXiv preprint arXiv:1803.11365, 2018. [56] S. Ioffe and C. Szegedy. Batch normalization: Accelerating deep network training by reducing internal covariate shift. In International Conference on Machine Learning, pages 448–456, 2015. [57] P. Isola, J.-Y. Zhu, T. Zhou, and A. A. Efros. Image-to-image translation with conditional adversarial networks. arXiv preprint arXiv:1611.07004, 2016. [58] M. Kan, S. Shan, and X. Chen. Bi-shifting auto-encoder for unsupervised domain adaptation. In Proceedings of the IEEE International Conference on Computer Vision, pages 3846–3854, 2015. [59] T. Kim, M. Cha, H. Kim, J. Lee, and J. Kim. Learning to discover crossdomain relations with generative adversarial networks. arXiv preprint arXiv:1703.05192, 2017. [60] A. Kolesnikov and C. H. Lampert. Seed, expand and constrain: Three principles for weakly-supervised image segmentation. In European Conference on Computer Vision, pages 695–711. Springer, 2016. [61] P. Kontschieder, M. Fiterau, A. Criminisi, and S. Rota Bulo. Deep
+
+neural decision forests. In Proceedings of the IEEE International Conference on Computer Vision, pages 1467–1475, 2015. [62] A. Krizhevsky, I. Sutskever, and G. E. Hinton. Imagenet classiﬁcation with deep convolutional neural networks. In Advances in neural information processing systems, pages 1097–1105, 2012. [63] B. Kulis, K. Saenko, and T. Darrell. What you saw is not what you get: Domain adaptation using asymmetric kernel transforms. In Computer Vision and Pattern Recognition (CVPR), 2011 IEEE Conference on,
+pages 1785–1792. IEEE, 2011. [64] C. H. Lampert, H. Nickisch, and S. Harmeling. Learning to detect
+unseen object classes by between-class attribute transfer. In Computer Vision and Pattern Recognition, 2009. CVPR 2009. IEEE Conference
+on, pages 951–958. IEEE, 2009. [65] C. Li and M. Wand. Precomputed real-time texture synthesis with
+markovian generative adversarial networks. In European Conference on Computer Vision, pages 702–716. Springer, 2016. [66] D. Li, Y. Yang, Y.-Z. Song, and T. M. Hospedales. Deeper, broader and artier domain generalization. In Computer Vision (ICCV), 2017 IEEE International Conference on, pages 5543–5551. IEEE, 2017. [67] Y. Li, K. Swersky, and R. Zemel. Generative moment matching networks. In Proceedings of the 32nd International Conference on Machine Learning (ICML-15), pages 1718–1727, 2015. [68] Y. Li, N. Wang, J. Liu, and X. Hou. Demystifying neural style transfer. arXiv preprint arXiv:1701.01036, 2017. [69] Y. Li, N. Wang, J. Shi, J. Liu, and X. Hou. Revisiting batch normalization for practical domain adaptation. arXiv preprint arXiv:1603.04779,
+2016. [70] M.-Y. Liu and O. Tuzel. Coupled generative adversarial networks. In
+Advances in neural information processing systems, pages 469–477,
+2016. [71] W. Liu, Z. Wang, X. Liu, N. Zeng, Y. Liu, and F. E. Alsaadi. A
+survey of deep neural network architectures and their applications. Neurocomputing, 234:11–26, 2017. [72] X. Liu, L. Song, X. Wu, and T. Tan. Transferring deep representation for nir-vis heterogeneous face recognition. In Biometrics (ICB), 2016 International Conference on, pages 1–8. IEEE, 2016. [73] M. Long, Y. Cao, J. Wang, and M. Jordan. Learning transferable features with deep adaptation networks. In International Conference on Machine Learning, pages 97–105, 2015. [74] M. Long, J. Wang, and M. I. Jordan. Deep transfer learning with joint adaptation networks. arXiv preprint arXiv:1605.06636, 2016. [75] M. Long, H. Zhu, J. Wang, and M. I. Jordan. Unsupervised domain adaptation with residual transfer networks. In Advances in Neural Information Processing Systems, pages 136–144, 2016. [76] H. Lu, L. Zhang, Z. Cao, W. Wei, K. Xian, C. Shen, and A. van den
+Hengel. When unsupervised domain adaptation meets tensor representations. In The IEEE International Conference on Computer Vision (ICCV), volume 2, 2017. [77] P. Mittal, M. Vatsa, and R. Singh. Composite sketch recognition via deep network-a transfer learning approach. In Biometrics (ICB), 2015 International Conference on, pages 251–256. IEEE, 2015. [78] S. Motiian, Q. Jones, S. Iranmanesh, and G. Doretto. Few-shot adversarial domain adaptation. In Advances in Neural Information Processing Systems, pages 6673–6683, 2017. [79] S. Motiian, M. Piccirilli, D. A. Adjeroh, and G. Doretto. Uniﬁed deep supervised domain adaptation and generalization. In The IEEE International Conference on Computer Vision (ICCV), volume 2, 2017. [80] H. V. Nguyen, H. T. Ho, V. M. Patel, and R. Chellappa. Dash-n: Joint hierarchical domain adaptation and feature learning. IEEE Transactions on Image Processing, 24(12):5479–5491, 2015. [81] S. Pachori, A. Deshpande, and S. Raman. Hashing in the zero shot framework with domain adaptation. Neurocomputing, 2017. [82] S. J. Pan, I. W. Tsang, J. T. Kwok, and Q. Yang. Domain adaptation via transfer component analysis. IEEE Transactions on Neural Networks,
+22(2):199–210, 2011. [83] S. J. Pan and Q. Yang. A survey on transfer learning. IEEE
+Transactions on knowledge and data engineering, 22(10):1345–1359,
+2010. [84] V. M. Patel, R. Gopalan, R. Li, and R. Chellappa. Visual domain
+adaptation: A survey of recent advances. IEEE signal processing magazine, 32(3):53–69, 2015. [85] K.-C. Peng, Z. Wu, and J. Ernst. Zero-shot deep domain adaptation. arXiv preprint arXiv:1707.01922, 2017. [86] X. Peng, J. Hoffman, X. Y. Stella, and K. Saenko. Fine-to-coarse knowledge transfer for low-res image classiﬁcation. In Image Processing (ICIP), 2016 IEEE International Conference on, pages 3683–3687.
+IEEE, 2016. [87] X. Peng and K. Saenko. Synthetic to real adaptation with deep genera-
+tive correlation alignment networks. arXiv preprint arXiv:1701.05524,
+
+Manuscript accepted by Neurocomputing 2018
+
+19
+
+2017. [88] A. Raj, V. P. Namboodiri, and T. Tuytelaars. Subspace alignment based
+domain adaptation for rcnn detector. arXiv preprint arXiv:1507.05578, 2015. [89] S.-A. Rebufﬁ, H. Bilen, and A. Vedaldi. Learning multiple visual domains with residual adapters. arXiv preprint arXiv:1705.08045, 2017. [90] S. Reed, Z. Akata, X. Yan, L. Logeswaran, B. Schiele, and H. Lee. Generative adversarial text to image synthesis. arXiv preprint arXiv:1605.05396, 2016. [91] S. Ren, K. He, R. Girshick, and J. Sun. Faster r-cnn: Towards real-time object detection with region proposal networks. In Advances in neural information processing systems, pages 91–99, 2015. [92] M. Rochan and Y. Wang. Weakly supervised localization of novel objects using appearance transfer. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 4315–4324, 2015. [93] O. Ronneberger, P. Fischer, and T. Brox. U-net: Convolutional networks for biomedical image segmentation. In International Conference on Medical Image Computing and Computer-Assisted Intervention, pages 234–241. Springer, 2015. [94] S. Rota Bulo and P. Kontschieder. Neural decision forests for semantic image labelling. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 81–88, 2014. [95] A. Rozantsev, M. Salzmann, and P. Fua. Beyond sharing weights for deep domain adaptation. arXiv preprint arXiv:1603.06432, 2016. [96] A. A. Rusu, N. C. Rabinowitz, G. Desjardins, H. Soyer, J. Kirkpatrick, K. Kavukcuoglu, R. Pascanu, and R. Hadsell. Progressive neural networks. arXiv preprint arXiv:1606.04671, 2016. [97] K. Saenko, B. Kulis, M. Fritz, and T. Darrell. Adapting visual category models to new domains. In European conference on computer vision, pages 213–226. Springer, 2010. [98] K. Saito, Y. Ushiku, and T. Harada. Asymmetric tri-training for unsupervised domain adaptation. arXiv preprint arXiv:1702.08400, 2017. [99] K. Saito, K. Watanabe, Y. Ushiku, and T. Harada. Maximum classiﬁer discrepancy for unsupervised domain adaptation. arXiv preprint arXiv:1712.02560, 2017. [100] S. Sankaranarayanan, Y. Balaji, A. Jain, S. N. Lim, and R. Chellappa. Learning from synthetic data: Addressing domain shift for semantic segmentation. 2017. [101] L. Shao, F. Zhu, and X. Li. Transfer learning for visual categorization: A survey. IEEE transactions on neural networks and learning systems, 26(5):1019–1034, 2015. [102] J. Shen, Y. Qu, W. Zhang, and Y. Yu. Wasserstein distance guided representation learning for domain adaptation. 2017. [103] W. Shimoda and K. Yanai. Distinct class-speciﬁc saliency maps for weakly supervised semantic segmentation. In European Conference on Computer Vision, pages 218–234. Springer, 2016. [104] A. Shrivastava, T. Pﬁster, O. Tuzel, J. Susskind, W. Wang, and R. Webb. Learning from simulated and unsupervised images through adversarial training. arXiv preprint arXiv:1612.07828, 2016. [105] X. Shu, G.-J. Qi, J. Tang, and J. Wang. Weakly-shared deep transfer networks for heterogeneous-domain knowledge propagation. In Proceedings of the 23rd ACM international conference on Multimedia, pages 35–44. ACM, 2015. [106] K. Simonyan and A. Zisserman. Very deep convolutional networks for large-scale image recognition. arXiv preprint arXiv:1409.1556, 2014. [107] K. Sohn, S. Liu, G. Zhong, X. Yu, M.-H. Yang, and M. Chandraker. Unsupervised domain adaptation for face recognition in unlabeled videos. arXiv preprint arXiv:1708.02191, 2017. [108] B. Sun, J. Feng, and K. Saenko. Return of frustratingly easy domain adaptation. In AAAI, volume 6, page 8, 2016. [109] B. Sun and K. Saenko. Deep coral: Correlation alignment for deep domain adaptation. In Computer Vision–ECCV 2016 Workshops, pages 443–450. Springer, 2016. [110] C. Szegedy, W. Liu, Y. Jia, P. Sermanet, S. Reed, D. Anguelov, D. Erhan, V. Vanhoucke, and A. Rabinovich. Going deeper with convolutions. In Proceedings of the IEEE conference on computer vision and pattern recognition, pages 1–9, 2015. [111] Y. Taigman, A. Polyak, and L. Wolf. Unsupervised cross-domain image generation. arXiv preprint arXiv:1611.02200, 2016. [112] Y. Taigman, M. Yang, M. Ranzato, and L. Wolf. Deepface: Closing the gap to human-level performance in face veriﬁcation. In Proceedings of the IEEE conference on computer vision and pattern recognition, pages 1701–1708, 2014. [113] B. Tan, Y. Song, E. Zhong, and Q. Yang. Transitive transfer learning. In Proceedings of the 21th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, pages 1155–1164. ACM, 2015. [114] B. Tan, Y. Zhang, S. J. Pan, and Q. Yang. Distant domain transfer
+
+learning. In AAAI, pages 2604–2610, 2017. [115] Y. Tang, J. Wang, B. Gao, E. Dellandre´a, R. Gaizauskas, and L. Chen.
+Large scale semi-supervised object detection using visual and semantic knowledge transfer. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 2119–2128, 2016. [116] J.-C. Tsai and J.-T. Chien. Adversarial domain separation and adaptation. In Machine Learning for Signal Processing (MLSP), 2017 IEEE 27th International Workshop on, pages 1–6. IEEE, 2017. [117] E. Tzeng, C. Devin, J. Hoffman, C. Finn, P. Abbeel, S. Levine, K. Saenko, and T. Darrell. Adapting deep visuomotor representations with weak pairwise constraints. CoRR, vol. abs/1511.07111, 2015. [118] E. Tzeng, J. Hoffman, T. Darrell, and K. Saenko. Simultaneous deep transfer across domains and tasks. In Proceedings of the IEEE International Conference on Computer Vision, pages 4068–4076, 2015. [119] E. Tzeng, J. Hoffman, K. Saenko, and T. Darrell. Adversarial discriminative domain adaptation. arXiv preprint arXiv:1702.05464, 2017. [120] E. Tzeng, J. Hoffman, N. Zhang, K. Saenko, and T. Darrell. Deep domain confusion: Maximizing for domain invariance. arXiv preprint arXiv:1412.3474, 2014. [121] D. Ulyanov, A. Vedaldi, and V. Lempitsky. Improved texture networks: Maximizing quality and diversity in feed-forward stylization and texture synthesis. arXiv preprint arXiv:1701.02096, 2017. [122] P. Vincent, H. Larochelle, I. Lajoie, Y. Bengio, and P.-A. Manzagol. Stacked denoising autoencoders: Learning useful representations in a deep network with a local denoising criterion. Journal of Machine Learning Research, 11(Dec):3371–3408, 2010. [123] R. Volpi, P. Morerio, S. Savarese, and V. Murino. Adversarial feature augmentation for unsupervised domain adaptation. arXiv preprint arXiv:1711.08561, 2017. [124] C. Wang and S. Mahadevan. Heterogeneous domain adaptation using manifold alignment. In IJCAI proceedings-international joint conference on artiﬁcial intelligence, volume 22, page 1541, 2011. [125] L. Wang, V. A. Sindagi, and V. M. Patel. High-quality facial photosketch synthesis using multi-adversarial networks. arXiv preprint arXiv:1710.10182, 2017. [126] X. Wang, X. Duan, and X. Bai. Deep sketch feature for cross-domain image retrieval. Neurocomputing, 207:387–397, 2016. [127] Y. Xia, D. Huang, and Y. Wang. Detecting smiles of young children via deep transfer learning. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 1673–1681, 2017. [128] T. Xiao, H. Li, W. Ouyang, and X. Wang. Learning deep feature representations with domain guided dropout for person re-identiﬁcation. In Proceedings of the IEEE Conference on Computer Vision and Pattern
+Recognition, pages 1249–1258, 2016. [129] M. Xie, N. Jean, M. Burke, D. Lobell, and S. Ermon. Transfer learning
+from deep features for remote sensing and poverty mapping. 2015. [130] H. Yan, Y. Ding, P. Li, Q. Wang, Y. Xu, and W. Zuo. Mind the class
+weight bias: Weighted maximum mean discrepancy for unsupervised domain adaptation. arXiv preprint arXiv:1705.00609, 2017. [131] Z. Yi, H. Zhang, P. T. Gong, et al. Dualgan: Unsupervised dual learning for image-to-image translation. arXiv preprint arXiv:1704.02510, 2017. [132] D. Yoo, N. Kim, S. Park, A. S. Paek, and I. S. Kweon. Pixel-level domain transfer. In European Conference on Computer Vision, pages 517–532. Springer, 2016. [133] J. Yosinski, J. Clune, Y. Bengio, and H. Lipson. How transferable are features in deep neural networks? In Advances in neural information processing systems, pages 3320–3328, 2014. [134] W. Zellinger, T. Grubinger, E. Lughofer, T. Natschla¨ger, and S. Saminger-Platz. Central moment discrepancy (cmd) for domaininvariant representation learning. arXiv preprint arXiv:1702.08811, 2017. [135] H. Zhang, T. Xu, H. Li, S. Zhang, X. Huang, X. Wang, and D. Metaxas. Stackgan: Text to photo-realistic image synthesis with stacked generative adversarial networks. In IEEE Int. Conf. Comput. Vision (ICCV), pages 5907–5915, 2017. [136] J. Zhang, Z. Ding, W. Li, and P. Ogunbona. Importance weighted adversarial nets for partial domain adaptation. arXiv preprint arXiv:1803.09210, 2018. [137] J. Zhang, W. Li, and P. Ogunbona. Transfer learning for cross-dataset recognition: A survey. 2017. [138] L. Zhang, Z. He, and Y. Liu. Deep object recognition across domains based on adaptive extreme learning machine. Neurocomputing, 239:194–203, 2017. [139] X. Zhang, F. X. Yu, S.-F. Chang, and S. Wang. Deep transfer network: Unsupervised domain adaptation. arXiv preprint arXiv:1503.00591, 2015. [140] Y. Zhang, P. David, and B. Gong. Curriculum domain adaptation for semantic segmentation of urban scenes. In The IEEE International
+
+Manuscript accepted by Neurocomputing 2018
+
+20
+
+Conference on Computer Vision (ICCV), volume 2, page 6, 2017. [141] W. Zhao, W. Xu, M. Yang, J. Ye, Z. Zhao, Y. Feng, and Y. Qiao. Dual
+learning for cross-domain image captioning. In Proceedings of the 2017 ACM on Conference on Information and Knowledge Management, pages 29–38. ACM, 2017. [142] J. T. Zhou, I. W. Tsang, S. J. Pan, and M. Tan. Heterogeneous domain adaptation for multiple classes. In Artiﬁcial Intelligence and Statistics, pages 1095–1103, 2014. [143] J.-Y. Zhu, T. Park, P. Isola, and A. A. Efros. Unpaired image-to-image translation using cycle-consistent adversarial networks. arXiv preprint arXiv:1703.10593, 2017. [144] F. Zhuang, X. Cheng, P. Luo, S. J. Pan, and Q. He. Supervised representation learning: Transfer learning with deep autoencoders. In IJCAI, pages 4119–4125, 2015.
+

@@ -1,15 +1,15 @@
 {
 	"translatorID": "17b1a93f-b342-4b54-ad50-08ecc26e0ac3",
+	"translatorType": 4,
 	"label": "INSPIRE",
 	"creator": "Abe Jellinek",
 	"target": "^https?://inspirehep\\.net/",
 	"minVersion": "3.0",
-	"maxVersion": "",
+	"maxVersion": null,
 	"priority": 100,
 	"inRepository": true,
-	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2021-07-19 16:22:40"
+	"lastUpdated": "2023-04-07 08:45:00"
 }
 
 /*
@@ -88,7 +88,7 @@ function scrape(doc, url) {
 				item.tags.push({ tag: tag.textContent.trim() });
 			}
 			
-			for (let action of doc.querySelectorAll('.__ListItemAction__ a')) {
+			for (let action of doc.querySelectorAll('.__UserAction__ a')) {
 				if (/\bpdf\b/i.test(action.textContent)) {
 					item.attachments.push({
 						title: 'Full Text PDF',
@@ -115,6 +115,7 @@ var testCases = [
 	{
 		"type": "web",
 		"url": "https://inspirehep.net/literature/1284987",
+		"defer": true,		
 		"items": [
 			{
 				"itemType": "journalArticle",
@@ -186,6 +187,7 @@ var testCases = [
 	{
 		"type": "web",
 		"url": "https://inspirehep.net/literature/1282171",
+		"defer": true,
 		"items": [
 			{
 				"itemType": "journalArticle",
