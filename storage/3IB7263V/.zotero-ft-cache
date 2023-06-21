@@ -1,0 +1,81 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2210.15025
+
+Help | Advanced Search
+Search
+Computer Science > Computer Vision and Pattern Recognition
+(cs)
+[Submitted on 26 Oct 2022]
+Title: Addressing Heterogeneity in Federated Learning via Distributional Transformation
+Authors: Haolin Yuan , Bo Hui , Yuchen Yang , Philippe Burlina , Neil Zhenqiang Gong , Yinzhi Cao
+Download a PDF of the paper titled Addressing Heterogeneity in Federated Learning via Distributional Transformation, by Haolin Yuan and 5 other authors
+Download PDF
+
+    Abstract: Federated learning (FL) allows multiple clients to collaboratively train a deep learning model. One major challenge of FL is when data distribution is heterogeneous, i.e., differs from one client to another. Existing personalized FL algorithms are only applicable to narrow cases, e.g., one or two data classes per client, and therefore they do not satisfactorily address FL under varying levels of data heterogeneity. In this paper, we propose a novel framework, called DisTrans, to improve FL performance (i.e., model accuracy) via train and test-time distributional transformations along with a double-input-channel model structure. DisTrans works by optimizing distributional offsets and models for each FL client to shift their data distribution, and aggregates these offsets at the FL server to further improve performance in case of distributional heterogeneity. Our evaluation on multiple benchmark datasets shows that DisTrans outperforms state-of-the-art FL methods and data augmentation methods under various settings and different degrees of client distributional heterogeneity. 
+
+Comments: 	In the Proceedings of European Conference on Computer Vision (ECCV), 2022
+Subjects: 	Computer Vision and Pattern Recognition (cs.CV) ; Machine Learning (cs.LG)
+Cite as: 	arXiv:2210.15025 [cs.CV]
+  	(or arXiv:2210.15025v1 [cs.CV] for this version)
+  	https://doi.org/10.48550/arXiv.2210.15025
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Haolin Yuan [ view email ]
+[v1] Wed, 26 Oct 2022 20:42:01 UTC (1,357 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Addressing Heterogeneity in Federated Learning via Distributional Transformation, by Haolin Yuan and 5 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.CV
+< prev   |   next >
+new | recent | 2210
+Change to browse by:
+cs
+cs.LG
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

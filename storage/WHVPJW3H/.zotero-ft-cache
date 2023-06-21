@@ -1,0 +1,83 @@
+
+Skip to main content
+Cornell University
+We are hiring
+
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2303.12860
+
+Help | Advanced Search
+Search
+Computer Science > Computation and Language
+(cs)
+[Submitted on 22 Mar 2023]
+Title: Salient Span Masking for Temporal Understanding
+Authors: Jeremy R. Cole , Aditi Chaudhary , Bhuwan Dhingra , Partha Talukdar
+Download a PDF of the paper titled Salient Span Masking for Temporal Understanding, by Jeremy R. Cole and 3 other authors
+Download PDF
+
+    Abstract: Salient Span Masking (SSM) has shown itself to be an effective strategy to improve closed-book question answering performance. SSM extends general masked language model pretraining by creating additional unsupervised training sentences that mask a single entity or date span, thus oversampling factual information. Despite the success of this paradigm, the span types and sampling strategies are relatively arbitrary and not widely studied for other tasks. Thus, we investigate SSM from the perspective of temporal tasks, where learning a good representation of various temporal expressions is important. To that end, we introduce Temporal Span Masking (TSM) intermediate training. First, we find that SSM alone improves the downstream performance on three temporal tasks by an avg. +5.8 points. Further, we are able to achieve additional improvements (avg. +0.29 points) by adding the TSM task. These comprise the new best reported results on the targeted tasks. Our analysis suggests that the effectiveness of SSM stems from the sentences chosen in the training data rather than the mask choice: sentences with entities frequently also contain temporal expressions. Nonetheless, the additional targeted spans of TSM can still improve performance, especially in a zero-shot context. 
+
+Comments: 	5 pages 1 figure, to appear in EACL 2023
+Subjects: 	Computation and Language (cs.CL) ; Artificial Intelligence (cs.AI)
+Cite as: 	arXiv:2303.12860 [cs.CL]
+  	(or arXiv:2303.12860v1 [cs.CL] for this version)
+  	https://doi.org/10.48550/arXiv.2303.12860
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Jeremy Cole [ view email ]
+[v1] Wed, 22 Mar 2023 18:49:43 UTC (6,516 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Salient Span Masking for Temporal Understanding, by Jeremy R. Cole and 3 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.CL
+< prev   |   next >
+new | recent | 2303
+Change to browse by:
+cs
+cs.AI
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Reddit logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

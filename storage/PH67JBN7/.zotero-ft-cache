@@ -1,0 +1,1396 @@
+Disentangled Graph Social Recommendation
+Lianghao Xia1,†, Yizhen Shao2,†, Chao Huang1,∗, Yong Xu2, Huance Xu2, Jian Pei3 University of Hong Kong1, South China University of Technology2, Duke University3
+aka xia@foxmail.com, chaohuang75@gmail.com, {csyzshao, cshuance.xu}@mail.scut.edu.cn yxu@scut.edu.cn, j.pei@duke.edu
+
+arXiv:2303.07810v1 [cs.IR] 14 Mar 2023
+
+Abstract—Social recommender systems have drawn a lot of attention in many online web services, because of the incorporation of social information between users in improving recommendation results. Despite the signiﬁcant progress made by existing solutions, we argue that current methods fall short in two limitations: (1) Existing social-aware recommendation models only consider collaborative similarity between items, how to incorporate item-wise semantic relatedness is less explored in current recommendation paradigms. (2) Current social recommender systems neglect the entanglement of the latent factors over heterogeneous relations (e.g., social connections, user-item interactions). Learning the disentangled representations with relation heterogeneity poses great challenge for social recommendation. In this work, we design a Disentangled Graph Neural Network (DGNN) with the integration of latent memory units, which empowers DGNN to maintain factorized representations for heterogeneous types of user and item connections. Additionally, we devise new memory-augmented message propagation and aggregation schemes under the graph neural architecture, allowing us to recursively distill semantic relatedness into the representations of users and items in a fully automatic manner. Extensive experiments on three benchmark datasets verify the effectiveness of our model by achieving great improvement over state-of-the-art recommendation techniques. The source code is publicly available at: https://github.com/HKUDS/DGNN.
+I. INTRODUCTION
+Recommender systems which aim to suggest items with the learning of user’s personalized interests, have provided essential web services (e.g., E-commerce sites [23], online review systems [29] and advertising platforms [27]) to alleviate the information overload problem [55]. To address the sparse data limitation of conventional collaborative ﬁltering models, there exist many recommendation paradigms leveraging social relationships between users, to enhance the user-item interaction modeling with external information source. These approaches explicitly characterize the cross-user inﬂuence with respect to their interaction preference in recommendation [20].
+Motivated by the prevalence of graph neural networks (GNNs), recently emerged social recommendation methods utilize graph neural encoders to shine a light on modeling graph structure of social connections, and iteratively aggregate feature information from local neighborhoods. For example, recent efforts (e.g., DiffNet [50], MHCN [61] and KCGN [19]) employ graph convolution to capture the social-aware collaborative ﬁltering signals and guide the user representation learning. GraphRec [12] and DANSER [51] are developed based on graph attention mechanism to discriminate relations
+†Equal contribution. *Corresponding author: Chao Huang.
+
+that connect interacted users. Such GNN-based social-aware recommender systems have generated state-of-the-art performance by modeling the high-order connectivity among users and items. Additionally, another relevant attempts for jointly exploiting user-user and user-item relational structure lie in the feature transfer learning from social domain to user-item interaction encoding process [5], [53].
+Despite their effectiveness, we argue that existing social recommender systems fall short in two limitations:
+(1) The rich semantic relatedness among items remains unexplored by most existing learning solutions. In real-world recommendation scenarios, there typically exist dependencies across items, e.g., product categories/functionality, spatial similarities of venues [17], [37]. Such rich semantic relatedness among items can help explore their latent dependencies, which is helpful to understand complex interests of users [42], [56]. As a result, user’s preference over different items may not only be affected by his/her social connections, but also be inferred from the ﬁne-grained relational knowledge on items. Despite the above beneﬁts, incorporating the cross-item dependencies in social recommendation is challenging due to the heterogeneity nature of various relations.
+(2) Most of current social recommender systems ignore the fact that connections are driven by complex factors. For instance, user’s intent on interacting (e.g., click, or purchase) an item may be inﬂuenced by diverse factors due to different item characteristics, such as the brand and color of products, director of a movie [40], [46]. The overlook of ﬁner-grained user interest with the factor-level representation learning, may produce suboptimal recommendation results. Moreover, in real-life social recommendation scenario, users are socially connected due to multifaceted motives [10], [26], e.g., communities with disparate interests, colleagues, or family members. If we represent user-wise inﬂuence without the disentanglement of such social polysemy, the learned user preference is hard to be reﬂective of multiple social contexts. Therefore, the heterogeneous relations driven by complex latent factors, brings an urge for the model to encode factorized embeddings pertinent to type-speciﬁc relation semantics.
+State-of-the-art recommender systems are proposed to add disentangled representation learning into the user-item interaction modeling. However, they merely focus on single type of relation disentanglement, which are limited to incorporate heterogeneous relational semantics into recommender systems. In other words, an important fact in recommendation has
+
+been ignored: diverse semantics with relation heterogeneity can be utilized to enhance the user preference learning in recommender system. Hence, we need to learn disentangled user/item factorized embeddings with the awareness of heterogeneous side context for enhancing the representation power of neural recommendation models in real-life applications.
+One feasible way of modeling heterogeneous relations in social recommendation is to rely on the heterogeneous graph learning approaches [11], [34], [45]. Speciﬁcally, those methods exploit the connection structures of user-user and item-item relations into the graph learning model. However, these methods heavily rely on manually designed meta-paths between users/items with the requirement of speciﬁc domain knowledge, which can hardly be adaptive in diverse recommendation scenarios. They either simply keep distinct transformation weights during the feature representation for either node type or edge type alone. It makes them insufﬁcient to comprehensively capture heterogeneous relational context from both user and item side, as well as the underlying interaction context between user- and item-wise relations.
+While having realized the vital role of encoding disentangled relation heterogeneity in recommendation, it is a nontrivial task due to the following key challenges: i) Learning the disentangled factors with relation heterogeneity brings the challenge of graph neural networks. In our method, we develop a node- and edge-type dependent memory-augmented network to preserve dedicated semantic representations for different types of interactions, i.e., user-user, item-item and user-item relationships. ii) Capturing the implicit inter-dependencies among different encoded disentangled relation factors. The new designed graph neural network should enable the recommender system to learn the cross-factor inter-dependencies for expressive disentangled representation learning.
+In light of these limitations and challenges, we propose a Disentangled Graph Neural Network (DGNN), to study the social recommendation with the learning of disentangled heterogeneous factors. To handle relation heterogeneity with disentangled relation modeling, we develop a node- and edgetype dependent memory-augmented network to preserve dedicated feature representations for different types of interactions, i.e., user-user, item-item and user-item relationships. Particularly, DGNN utilizes external memory units with differentiable embedding propagation operators, allowing graph neural architecture to explicitly capture the heterogeneous graph relations for social recommendation. Additionally, instead of parameterizing each type of relations, the introduced memory neural layers endow the relation heterogeneity encoding under disentangled latent representation spaces in a fully automatic and interact manner, without customized meta paths.
+To summarize, we make the following contributions:
+• We emphasize the importance of integrating the heterogeneous relationships with latent factor disentanglement in social recommender systems. It empowers the user preference representation paradigm with the exploration of attractive source of information from both user and item domains.
+
+• We propose a disentangled graph neural networks DGNN which generalizes the relation heterogeneity encoding by maintaining the relation-aware disentangled representations. Our proposed DGNN is built upon the heterogeneous graph memory-augmented message passing.
+• Extensive experiments on three real-world datasets demonstrate that DGNN signiﬁcantly beats various state-of-theart recommendation methods. In addition, the elaborated model ablation study helps justify the model effectiveness and component-wise impact in performance improvement.
+II. RELATED WORK
+A. Social-aware Recommendation Methods
+To improve the recommendation results, many social recommendation methods have been proposed to incorporate the online social relationships between users into the recommendation framework as side information [21], [24], [25]. Most traditional methods (e.g., Sorec [30], TrustMF [58]) are built based on the matrix factorization architecture to project users into latent factors. The common rationale behind those approaches is that users are more likely to share similar interests over items with their socially connected friends [36].
+Deep learning-based social recommendation models have received increasing attention, due to the ability of neural networks for knowledge representation [13], [60]. Speciﬁcally, some studies focus on applying graph convolutional network to simultaneously model the user-user and user-item relationships, like DiffNet [50], RecoGCN [57] and KCGN [19]. Additionally, attention mechanisms have been introduced to differentiate inﬂuence among users for characterizing their preference, such as SAMN [4] and GraphRec [12]. For example, GraphRec distinguishes the strength of social ties when aggregating information from both social and useritem interaction graph. Motivated by self-supervised learning, data augmentation is applied in recent social recommender systems MHCN [61] and SMIN [28]. However, most of those recommendation methods disregard the latent factors underlying heterogeneous relationships. To ﬁll this gap, this work therefore seeks for a new social recommender system that integrates the disentangled representation learning with heterogeneous semantics under a graph neural architecture.
+B. Graph Neural Network for Recommendation
+Due to the strength in representation learning over graphstructured data, a line of research for recommendation focuses on enhancing the user-item interaction modeling with graph neural architectures [7], [16], [52]. Inspired by the effectiveness of spectral graph convolutional network, NGCF [43] proposes to capture high-order relationship between user and item by performing the convolutional operations. Furthermore, another line of GNN-based recommender systems explores the spatial GNNs through attentively aggregating information from neighboring nodes, such as KGAT [42] and DGRec [35].
+In addition, amongst the GNN research, heterogeneous graph representation has become the promising solution to
+
+integrate the diverse relational context into the node representation [8], [14], [18], [45], [48]. For example, HERec [34] attempts to incorporate various side information to enhance the user preference learning based on the generated meta-path connections. Multi-typed user-item interactions (e.g., click, purchase) are considered to encode relation heterogeneity [15], [54]. However, the accurate prediction results from most of them largely rely on the effectiveness of the constructed meta-path-based connections, which requires domain-speciﬁc knowledge. Different from them, our DGNN model automatically capture heterogeneous relationships across users and items, by designing the memory-augmented message passing scheme. Additionally, the latent factor encoding with disentangled representations has largely been unexplored in existing recommenders which consider heterogeneous context.
+C. Disentangled Learning for Recommendation
+There exist some recent studies focusing on learning disentangled representations from user-item interactions to distill the latent factors driving the observed connections [32]. For example, DGCF [46] designs routing mechanism with capsule network to model the disentangled relationships between users and items. Chen et al. [6] propose a curriculum learningbased method to disentangle multi-typed feedback of users. In multimedia recommendation domain, the multi-modal features are incorporated into the disentangled representation learning in a weakly supervised way [41].
+While there exist some works on disentangled learning for recommendation, our new recommender system differs from those studies from the following two aspects: i) most of those models are designed to model the homogeneous relations in recommender system, which cannot be easily adaptive to disentangle the diverse factors behind the heterogeneous relationships due to their various semantics. To ﬁll this gap, our disentangled graph neural network is designed to maintain customized factorized representations for relation heterogeneity and distill the relational knowledge in a fully automatic manner. ii) The complex dependencies among the encoded latent factors are ignored in most current studies. In contrast, our DGNN method captures the latent factor-wise inter-dependencies with our designed differentiable memory networks under multiple latent representation spaces. By doing so, the relation-aware latent factors can effectively preserve the disentangled heterogeneous semantics.
+D. Context-aware Recommender Systems
+There exist some relevant research works focusing in developing context-aware recommender systems with the consideration of various context in different recommendation scenarios [1], [22]. From the user dimension, STARS [22] combines the user-wise relations from online social network and user-speciﬁc contextual features to enhance collaborative ﬁltering. From the item content dimension, LBSNs [2] learns the mapping from items’ contextual features to users’ preference tags in Point-of-Interest recommendation. CARL [49] proposes to fuse the textual context information of items
+
+and the interaction-based embeddings for better representation learning. Additionally, knowledge graphs have also been considered as useful contextual signals to be incorporated into recommender system to improve performance in knowledgeaware recommenders KGIN [44], CASR [31] and KGCL [59].
+
+III. PRELIMINARIES
+We consider a scenario with the sets of users U = {u1, ..., ui, ..., uI } and items V = {v1, ..., vj, ..., vJ }. The user-item interactions are denoted by matrix Y ∈ RI×J = {yi,j|u ∈ U , v ∈ V}, where yi,j = 1 if the interaction (e.g., browse, or purchase) between user ui and item vj is observed and yi,j = 0 otherwise. In addition to the interaction matrix Y, we also have the social connections between users which are represented by the deﬁned user social matrix S ∈ RI×I , where each entry si,i = 1 if there exists a social tie between user ui and ui and zero otherwise. In this work, we propose to enhance the social recommendation with the incorporation of item relations. Hence, given an item pair (vj, vj ), their relationships are deﬁned as an entity-relationentity triple (vj, r, vj ), where r ∈ R is the intermediate relation node for cross-item meta relation (e.g., categorical relations between items), where vj, vj ∈ V. We use the item-relation connections (vj, r) to construct the item relation matrix T ∈ RJ×R, where R denotes the number of relations.
+Task Description. With the above deﬁnitions, we deﬁne the task of social recommendation with item relations as: Input the user-item interaction history records Y, the user social relation matrix S, and the item-relation matrix T. Output a trained model ξ(·) that forecasts the preference of each user ui over unobserved items vj by yˆi,j = ξ(ui, vj; Y, S, T)
+
+IV. METHODOLOGY
+In this section, we present the details of our DGNN framework. Our new method consists of three key components: i) Memory-augmented relation heterogeneity encoder which parameterizes the relation heterogeneity into vertex- and edgetype dependent embeddings. ii) Disentangled message aggregation with relation heterogeneity that fuses the disentangled relational context from both interactive patterns and side information. iii) Model forecasting stage which incorporates the heterogeneous factorized embeddings into the model optimized objective for recommendation. The overall architecture of our proposed DGNN is shown in Figure 1.
+
+A. Collaborative Heterogeneous Graph
+To jointly preserve the user-item interactions Y, the useruser social connections S, and the item-wise relations T, we deﬁne a uniﬁed graph structure G = (D, E, A, B) where each vertex d ∈ D and each edge e ∈ E are associated with their mapping functions: D → A and edges E → B. Here, A and B denotes the sets of vertices and relation edge types, respectively. In graph G, we characterize the relation heterogeneity with various connections across users and items by performing the integration as follows:
+
+D = U ∪ V ∪ R; E = S ∪ T ∪ Y
+
+(1)
+
+Social Tie
+
+𝑢∈𝒰 𝐒 ∈ ℝ!×!
+
+𝑢∈𝒰
+
+𝑣∈𝒱
+
+Interactions
+
+𝑢∈𝒰 𝐘 ∈ ℝ!×#
+
+𝑢∈𝒰
+
+Item Dependency
+
+𝑣 ∈ 𝒱 (𝑣$, 𝑟, 𝑣$!) 𝑣$ ∈ 𝒱
+
+Collaborative Heterogeneous Graph
+
+User Item
+
+Item H(&)[𝑣$] ∈ ℝ)
+
+Relation User H(&)[𝑢(] ∈ ℝ)
+Social
+
+Interaction
+
+Itemwise
+
+Relation H(&)[𝑟] ∈ ℝ)
+
+𝐇&[𝑡]
+
+LeakyReLU 𝜎(⋅)
+
+𝑡-specific Disentangle. 𝜂(𝐇 & 𝑡 , 𝑚)
+
+Inputs
+……
+
+𝑥! 𝑤! 𝑥" 𝑤" 𝑥# 𝑤# .. 𝑤$ 𝑥$
+
+∑𝑓 Output
+Sum Activation
+
+Disentangled Propagation 𝜑(𝐇 & 𝑡 , 𝐇&[𝑠])
+
+Inputs
+
+𝑥! 𝑤! 𝑥" 𝑤" 𝑥# 𝑤# .. 𝑤$ 𝑥$
+
+∑𝑓 Output
+Sum Activation
+
+𝐇&[𝑠]
+𝜂(1) 𝜂(𝑚) 𝜂(𝑀)
+×𝐖./
+
+LayerNorm Residual Concat 𝜏(⋅) BPR Loss
+
+Figure 1. The model ﬂow of the proposed DGNN architecture. The collaborative heterogeneous graph together with the initial user/item/relation-node embeddings are fed into our DGNN composed of the disentangled heterogeneity encoder and the heterogeneous graph message aggregator. η(m) represents the learned importance weight of the m-th memory unit corresponding to the encoded factorized embeddings.
+
+where S, T , Y denote the sets of observed edges in the adjacent matrices S, T, Y, respectively (e.g. Y = {(ui, vj) : yi,j = 1}). With the uniﬁed heterogeneous graph integrating three types of relations, we then design our heterogeneous GNN architecture with disentangled factor representations.
+
+B. Disentangled Heterogeneous Graph Memory Network
+Despite the progress, most existing methods for heterogeneous graph data barely pay attention to the latent factors that generate the complex semantics of the heterogeneous data. For example, HGT [45] assigns each node/edge type with an individual parameter set directly. This hinders the deep understanding of heterogeneous data such as latent typewise dependencies. Inspired by the strength of memory neural networks in disentangled representation learning [4], [33], our DGNN proposes to augment the graph neural network with differentiable memory components under multiple latent representation space. DGNN adaptively learns the connections between node/edge types and latent factors, so as to better preserve the disentangled heterogeneous semantics.
+Our DGNN takes G as the input computation graph for information propagation. During the message passing, we ﬁrst perform the local feature transformation and nonlinear activation, and then aggregate relation-aware contextual representations. Formally, it can be represented with the following form (from the (l)-th layer to (l + 1)-th layer):
+
+H(l+1)[t] ← Aggre ϕ(H(l)[t], H(l)[s], es,t)
+
+(2)
+
+∀s∈N (t)
+
+where we deﬁne Hl[t] as the latent representation of target node t for the l-th graph layer. N (t) denotes the set of neighboring nodes (i.e., source node s) of node t. Edge es,t connects node s and t. In the message passing paradigm, DGNN consists of two key operators: relation heterogeneity encoder ϕ(·) and embedding aggregation function Aggre(·).
+1) Memory-Augmented Relation Heterogeneity Encoder: To capture the heterogeneous characteristic in the knowledgeenhanced social recommendation, we propose to parameterize the relation heterogeneity into vertex- and edge-type dependent embedding projection through external memory units (as shown in Figure 2. Speciﬁcally, we ﬁrst deﬁne M be the set
+
+I-R
+
+U-U
+
+𝐇[𝑠] 𝐇 𝑡 ∈ ℝ𝑑 U-I
+
+𝐖𝑚2
+
+𝜎 𝜎
+
+𝐖𝑚1
+
+𝜑(𝐇 𝑡 , 𝐇[𝑠])
+
+|ℳ| 𝐛𝑚
+
+Meg𝑡←𝒔
+
+𝜎 𝜂(𝐇 𝑡 , 𝑚)
+
+Edge-Type-Specific Item
+Relations
+Social Ties
+Interactions
+
+Figure 2. Illustration for the message passing based on our disentangled heterogeneous graph encoder for different user and item relations.
+
+of memory units corresponding to factor prototype learning ϕ(·) for type-speciﬁc relation semantics as below:
+
+|M|
+
+ϕ(H(l)[t], H(l)[s]) =
+
+η(H(l)[t], m)W1m H(l)[s]
+
+m=1
+
+η(H(l)[t], m) = σ(H(l)[t] · W2m + bm)
+
+(3)
+
+where η(·) represents the target node-speciﬁc embedding function. The trainable transformation matrices and bias terms are denoted as: W1m ∈ Rd×d, W2m ∈ Rd and bm ∈ R. The encoded feature embeddings of source and target nodes are represented as H(l)[s] ∈ Rd and H(l)[t] ∈ Rd, respectively. We apply the LeakyReLU as the activation function σ(·), i.e., σ(x) = max(x, αx). The negative slope α is set as 0.2 for better gradient back-propagation. Our memory-augmented network allows the graph encoder to learn relation representation with hierarchical non-linear property. To maintain dedicated representations for different types of nodes (e.g., users, item) and edges (i.e., interactions, social connections, inter-item relationships), we also perform the encoding for edge typespeciﬁc relation with non-sharing hyperparameter space. By doing so, the learned disentangled representations are able to preserve diverse latent factors pertinent to different relations in the collaborative heterogeneous graph G.
+2) Message Aggregation with Relation Heterogeneity: After encoding the heterogeneous relation properties from local neighbor interactions with H(l)[v], we next aggregate message from different information sources from both user and item domains (illustrated in Figure 3). For example, we fuse the
+
+relational context from both interactive patterns and social inﬂuence in the message aggregator for users (ui) as:
+
+H(l+1)[ui]
+
+=
+
+1 |NuSi | + |NuYi |
+
+ϕ(H(l)[ui], H(l)[ui])
+ui ∈NuSi
+
+|M|
+
++
+
+( η(H(l)[vj ], m)Wm i←,1j H(l)[ui] (4)
+
+vj ∈NuYi m=1
+
+where |NuSi | and |NuYi | denote the number of neighboring nodes of ui, in the user-user social graph and in the useritem interaction graph, respectively. Wm i←,1j ∈ Rd×d denotes the transformation matrix for mapping from the item representation space to the user representation space, with respect to the m-th memory unit of disentangled factor.
+With the incorporation of knowledge-aware item relations, the embedding propagation process for item side can be formally presented as follows:
+
+H(l+1)[vj ] = ρi,j (
+
+Meg(vlj)←ui +
+
+Meg(vlj)←r) (5)
+
+vj ∈NvYj
+
+r∈NvTj
+
+where ρi,j indicates the normalization term as ρi,j = 1/(|NvYj | + |NvTj |). The propagated message (Megvj←ui and Megvj←r) is determined by the memory-based encoding function ϕ(·). Furthermore, the embedding propagation between
+items (e.g., vj) and meta relation node (r) is shown below:
+
+|M|
+
+H(l+1)[r]
+
+=
+
+1 |Nr |
+
+( η(H(l)[vj ], m)Wm r←,1j )H(l)[r]
+vj ∈Nr m=1
+
+(6)
+
+where Nr denotes the set of neighbors for the meta relation node r in the graph structure. Wm r←,1j ∈ Rd×d denotes the mth memory-unit-speciﬁc transformation for mapping from the item space to the meta relation node space.
+We further generalize the heterogeneous message aggregation with the incorporation of self-propagation and layer normalization [3] to stabilize the network training:
+
+(l+1)
+
+H(l+1)[v] − µ
+
+H [v] = σ(ω1
+
+√ σ2 +
+
++ ω2)
+
+(7)
+
++ϕ(H(l)[v])
+
+where ω1 and ω2 are learned scaling factors and bias terms. µ and σ respectively denote the mean and variance of input vector H(l+1)[v]. denotes the element-wise multiplication operator. For the self-loop, instead of directly adding the embeddings from the last GNN iteration, DGNN also applies the relation heterogeneity encoder φ(·). To make fully use of the multi-order node embeddings, we further perform the cross-layer (L) high-order embedding aggregation as follows:
+
+H∗[v]
+
+=
+
+(0)
+LayerNorm(H [v]
+
+(1)
+H [v]
+
+...
+
+(L)
+H [v])
+
+(8)
+
+where H∗[v] ∈ Rd denotes the ﬁnal node embeddings for vertex v. LayerNorm(·) denotes the layer normalization.
+
+𝐒 ∈ ℝ!×#
+
+Meg)(.!←) )!#
+
+User
+
+𝐓
+
+Meg
+
+(-) +"←0
+
+Entity
+
+𝐒 ∈ ℝ!×#
+
+Meg
+
+(2) )!←)!#
+
+User
+
+Aggre∀%∈'()!)
+
+𝐇(.)[𝑢/]
+
+Aggre∀%∈'(+")
+
+𝐇(-)[𝑣1]
+
+Aggre∀%∈'()!)
+
+Item
+
+𝐘 ∈ ℝ!×#
+
+Meg
+
+(.) )!←+"
+
+1-hop embedding propagation
+
+User
+
+𝐘 ∈ ℝ!×#
+
+Meg+(-")←)!
+
+2-hop embedding propagation
+
+Item
+
+𝐘 ∈ ℝ!×#
+
+Meg)(2!←) +"
+
+3-hop embedding propagation
+
+Figure 3. Illustration of message passing with disentangled relation heterogeneity across users and items under three graph layers in our model.
+
+C. Model Forecasting Phase
+
+To inject the social inﬂuence into our forecasting phase of DGNN, we reﬁne the learned user embedding with the representation recalibration function τ (·) shown as follows:
+
+τ (H∗[ui])
+
+=
+
+1 |NuSi |
+
++
+
+1
+
+H∗[ui] + H∗[ui]
+ui ∈NuSi
+
+(9)
+
+The function averages the socially-connected user embeddings to directly incorporate social information in the following prediction phase. We formally present it as follows:
+
+ξ(ui, vj) = (H∗[ui] + τ (H∗[ui])) · H∗[vj]
+
+= H∗ [ui] · H∗[vj]
+
+(10)
+
++
+
+H∗ [vj ] |NuSi | + 1
+
+H∗[ui] + H∗[ui]
+ui ∈NuSi
+
+Optimization Objective: We deﬁne our optimization objective with the integrative loss of pairwise BPR loss and weightdecay regularization term in the following equation:
+
+L=
+
+− log δ(ξ(i, j+) − ξ(i, j−)) + λ Θ 2
+
+(i,j + ,j − )∈O
+
+(11)
+
+The training data is denoted as O = {(i, j+, j−)|(i, j+) ∈ Y+, (u, j−) ∈ Y−} (Y+, Y− denotes the observed and
+unobserved interactions, respectively. Training parameters are denoted as Θ and δ(·) denotes the sigmoid activation function.
+The learning process of our DGNN is elaborated in Alg 1.
+
+D. Model Efﬁciency Analysis
+
+1) Time Complexity Analysis: To calculate the attention
+
+weights for each edges on the memory units, DGNN takes
+
+O(|M| × |E| × d) complexity, where |M| denotes the number
+
+of memory units for each graph (i.e. the user-item col-
+
+laborative graph, the user-user social graph, and the item-
+
+relation graph). With the attention scores, the time com-
+
+plexity to obtain the dedicated transformation for each edge
+
+(i.e.
+
+|M| m=1
+
+η(H(l)
+
+[t],
+
+m)W1m
+
+)
+
+is
+
+O(|M| ×
+
+|E |
+
+× d2).
+
+Then
+
+DGNN takes O(|V| × d2) time complexity to conduct embed-
+
+ding transformation, and needs O(|E|×d) complexity for infor-
+
+mation propagation along the heterogeneous edges. Generally,
+
+|V| × d < |E| due to the purpose of information compression, thus O(|V| × d2) < O(|E| × d) empirically. In conclusion, the
+
+Algorithm 1: The Proposed DGNN Algorithm
+
+Input: user set U = {ui}, item set V = {vj}, relation
+
+set R = {r}, user-item interaction matrix Y ∈ RI×J , user-user social matrix S ∈ RI×I , item-item relational matrix T ∈ RJ×|R|,
+
+learning rate η, and number of epochs E
+
+Output: trained model parameters Θ
+
+1 Initialize all parameters in Θ;
+
+2 Construct the collaborative heterogeneous graph
+
+G = {V, E} based on the relation matrices Y, S, T;
+
+3 for e = 1 to E do
+
+4 for l = 1 to L do
+
+5
+
+for (s, t) ∈ E do
+
+6
+
+Calculate the propagated information
+
+ϕ(H(l)[t], H(l)[s]) based on the
+
+memory-augmented encoder (Eq 3);
+
+7
+
+end
+
+8
+
+for ui ∈ U do
+
+9
+
+Acquire aggregated information H(l+1)[ui]
+
+from social and item relations (Eq 4);
+
+10
+
+end
+
+11
+
+for vj ∈ V do
+
+12
+
+Calculate item embedding H(l+1)[vj] based
+
+on user and item-relation edges (Eq 5);
+
+13
+
+end
+
+14
+
+for r ∈ R do
+
+15
+
+Update the relation embedding H(l+1)[r]
+
+from the connected items (Eq 6);
+
+16
+
+end
+
+17
+
+Incorporate layer normalization and
+
+(l+1)
+self-propagation to get H (Eq 7);
+
+18 end 19 Perform cross-layer embedding aggregation for H∗;
+
+20 Calculate loss L for a training batch (Eq 11);
+
+21 for θ ∈ Θ do
+
+22
+
+θ = θ − η · ∂L/∂θ;
+
+23 end
+
+24 end
+
+25 return traind model with parameters Θ.
+
+overall time complexity of DGNN is O(|M| × |E| × d2).
+
+2) Space Complexity Analysis: Although our DGNN uses
+
+latent memory blocks to enhance heterogeneous relation modeling, the extra parameters only costs O(|M| × d2) space for
+
+storing the learnable parameters. DGNN also requires addi-
+
+tional O(|E| × d2) memory space for the edge-speciﬁc trans-
+
+formation matrices (i.e.
+
+|M| m=1
+
+η(H(l)[t],
+
+m)W1m).
+
+In
+
+compar-
+
+ison, a standard GNN model requires O(|V|×d) space to store
+
+node features. Also, O(|E| × d) or O(|E| × d2) extra space
+
+is needed due to the edge-speciﬁc parameter customization
+
+(e.g. GAT [39], HGT [45]).
+
+Table I STATISTICS OF EXPERIMENTED DATASETS.
+
+Dataset # of Users # of Items # of User-Item Interactions Interaction Density Degree # of Social Ties Social Tie Density Degree
+
+Ciao 1,925 15,053 30,370 0.1048% 65,084 1.7564%
+
+Epinions 18,081 251,722 715,821 0.0157% 572,784 0.1752%
+
+Yelp 99,262 10,5142 769,929 0.0074% 1,298,522 0.0132%
+
+V. EVALUATION
+In this section, we perform extensive experiments on three public real-world datasets for model performance evaluation by answering the research questions presented below:
+• RQ1: Compared with various state-of-the-art models, how does DGNN perform for making recommendations?
+• RQ2: What is the impact of major components in DGNN?
+• RQ3: How does different relation types (collaborative relations, social ties, and item-wise relations) contribute to the model performance of DGNN?
+• RQ4: How does DGNN perform compared with baselines for user preference learning under data scarcity?
+• RQ5: How do the key hyperparameters of DGNN model impact its performance with different settings?
+• RQ6: How is the efﬁciency of our DGNN in both optimization phase and forecasting phase?
+• RQ7: With the embedding visualization, how do the learned latent representations beneﬁt from the collectively encoding of relation heterogeneity, from the social- and knowledgeenhanced user-item interactive patterns?
+
+A. Experimental Settings
+1) Datasets: Our experiments are conducted on three realworld benchmark datasets for social recommendation: Ciao, Epinions and Yelp. These datasets are collected from different online review systems in real-life applications, where users can write reviews on different products. Furthermore, users can establish their social relationships by adding others into their trust lists. When constructing user-user connection network, an edge ei,j is added when user ui trust uj and vice versa. We summarize the statistics of our evaluation datasets in Table I. Following the settings in [42], [56], we generate the item-wise relations with external knowledge (e.g., product categories, business genres) from the item side.
+2) Compared Baselines: For comprehensive evaluation of model effectiveness, we compare DGNN with state-ofthe-art methods from various research lines, covering i) attentive social recommendation models (SAMN, EATNN), ii) GNN-based social recommender systems (GraphRec, DiffNet, MHCN), iii) social recommendation with temporal context (DGRec), iv) neural graph collaborative ﬁltering (NGCF, GCCF), v) disentangled graph recommender systems (DGCF, DisenHAN), vi) knowledge-aware recommendation model (KGAT), vii) heterogeneous graph representation learning for
+
+Table II PERFORMANCE COMPARISON OF ALL METHODS IN TERMS OF HR@10 AND NDCG@10. “IMP” REPRESENTS THE RELATIVELY PERFORMANCE
+IMPROVEMENT BETWEEN OUR DHGM NETWORK AND EACH COMPARED BASELINE.
+
+Dataset Ciao
+Epinions Yelp
+
+Metrics SAMN EATNN DiffNet GraphRec NGCF GCCF DGRec KGAT DGCF DisenHAN HAN HGT HERec MHCN HR 0.4677 0.4130 0.5202 0.4594 0.4843 0.4926 0.5086 0.4907 0.5189 0.4856 0.4856 0.4933 0.5298 0.5080 Imp 17.92% 33.54% 6.02% 20.05% 13.88% 11.96% 8.43% 12.39% 6.28% 13.57% 13.57% 11.80% 4.10% 8.56%
+NDCG 0.2838 0.2520 0.3201 0.2670 0.3088 0.3070 0.3113 0.2977 0.3166 0.2894 0.2608 0.3062 0.3104 0.3118 Imp 17.62% 32.46% 4.28% 25.02% 8.10% 8.73% 7.23% 12.13% 5.43% 15.34% 27.99% 9.01% 7.54% 7.06% HR 0.6390 0.6422 0.6323 0.6865 0.6944 0.6779 0.6268 0.6756 0.6635 0.6825 0.6673 0.7001 0.6767 0.6411 Imp 14.79% 14.22% 16.01% 6.85% 5.63% 8.20% 17.02% 8.57% 10.55% 7.47% 9.92% 4.77% 8.39% 14.41%
+NDCG 0.4259 0.4483 0.4160 0.4786 0.4763 0.4783 0.4127 0.4708 0.4594 0.4627 0.4371 0.4812 0.4572 0.4261 Imp 22.45% 16.33% 25.36% 8.96% 9.49% 9.03% 26.36% 10.77% 13.52% 12.71% 19.31% 8.37% 14.06% 22.39% HR 0.7971 0.7273 0.8222 0.8019 0.8204 0.8130 0.7830 0.7737 0.7956 0.8159 0.8169 0.8185 0.7047 0.8019 Imp 5.04% 15.12% 1.84% 4.41% 2.06% 2.99% 6.93% 8.22% 5.24% 2.62% 2.50% 2.30% 18.82% 4.41%
+NDCG 0.5293 0.5289 0.5524 0.5372 0.5651 0.5585 0.5386 0.5386 0.5410 0.5403 0.5511 0.5547 0.4990 0.5348 Imp 10.96% 11.04% 6.32% 9.33% 3.93% 5.16% 9.04% 9.04% 8.56% 8.70% 6.57% 5.88% 17.70% 9.82%
+
+DGNN 0.5515
+– 0.3338
+– 0.7335
+– 0.5215
+– 0.8373
+– 0.5873
+–
+
+recommendation (HAN, HERec, HGT).
+Attentive Social Recommender Systems: Attention mechanisms have been serving as effective techniques to identify important relations for social-aware recommendation.
+• SAMN [4]: it designs a dual-stage attentional model to characterize the user-wise inﬂuence and select relevant friends to model user preference. The friend-wise attention is introduced to investigate the social inﬂuence among users.
+• EATNN [5]: it is a transfer learning approach which fuses interaction and social information using attention mechanisms. An optimization scheme is designed to enable the multi-task learning framework.
+GNN-based Social Recommendation Models: Graph neural networks have been utilized to model the graph-based useritem relationships and users’ social ties for recommendation.
+• DiffNet [50]: it uses the graph information propagation paradigm to model social relations with a layer-wise diffusion architecture for users. The dynamic social diffusion simulates the recursive social inﬂuence.
+• GraphRec [12]: it is built upon the graph attention network to propagate embeddings over social network, to enhance the representation of users. The social connection and item interactions are aggregated for user latent representations through the attentive combinations.
+• MHCN [61]: it is a self-supervised learning architecture to capture user relationships using multi-channel hypergraph neural networks. The mutual information between the nodelevel and sub-graph-level embeddings are maximized, which serve as the auxiliary self-supervised learning task for joint training together with the recommendation loss.
+Graph Collaborative Filtering Models: Graph collaborative ﬁltering techniques become the effective recommendation solution by showing their state-of-the-art performance to capture the collaborative effects over user-item interaction graph. For fair comparison, we enhance the graph CF baselines by incorporating the diverse context into the interaction graph.
+• GCCF [7]: it is a simpliﬁed GNN-based CF model with the utilization of convolution-based message passing. The non-linear transformation is removed from the graph convolutional network to address the overﬁtting issue.
+
+• NGCF [43]: it is a state-of-the-art graph convolution-based collaborative ﬁltering model. In the representation process of users, the high-order connectivity is considered to inject collaborative signals into the user preference learning paradigm with recursively applying graph propagation functions.
+Temporal-aware Social Recommendation: Another line of social recommendation lies in the incorporation of temporal context into the modeling of user-wise social inﬂuence.
+• DGRec [35]: it incorporates the temporal context into the social recommendation with the integration of recurrent units and graph neural networks. Social connections are incorporated into dynamic interest representations of users.
+Disentangled Graph Recommender Systems: Our DGNN model competes with the representative solutions with disentangled learning techniques for recommendation.
+• DGCF [46]: this approach ﬁrst partitions user embeddings into disjoint parts representing disentangled intent of user preference. Then, it perform intent-aware message passing over graph convolutional network for recommendation.
+• DisenHAN [47]: This model is built over the graph attention model to encode the disentangled embeddings based on different connections among users and items for propagation.
+Knowledge-aware Recommender System:We also compare our proposed DGNN framework with the recommendation algorithm which utilizes the knowledge graph as the item side information to learn the item semantic relatedness.
+• KGAT [42]: it is a knowledge-enhanced model using attention to aggregate information from both user-item interactions and item knowledge graph. The weights of neighboring nodes and entities are learned through the attention layer.
+Heterogeneous Graph Representation for Recommendation: In the performance comparison, we include two state-ofthe-art heterogeneous graph embedding techniques to model the different relationships in recommender systems.
+• HAN [45]: it encodes the heterogeneity of graph with a meta-path-guided hierarchical attention model consisting of node- and semantic-level attention. We apply this method to encode the node representations in our collaborative heterogeneous graph G, to preserve both the social-aware user dependencies and knowledge-aware item correlations.
+
+• HGT [45]: this method is a graph transformer architecture for heterogeneous graph representation learning. It calculates edge-speciﬁc transformation and attention for graph message passing with heterogeneity encoding.
+• HERec [34]: it is a heterogeneous network embedding method which integrates various fusion functions with metapath random walk strategy, to incorporate various side information into the user preference learning.
+3) Evaluation Metrics: We focus on top-N item recommendation and use two widely adopted metrics for evaluation: Hit Rate (HR)@N and Normalized Discounted Cumulative Gain (NDCG)@N with the top-N ranked positions [9], [43], to measure the recommendation accuracy of each evaluated method. For individual target user, we select 100 noninteracted items as negative samples and combine them with the interacted item (as positive instances) in the evaluation procedure. Formally, the metrics are calculated as follows:
+
+HR@N =
+
+M i=1
+
+N j=1
+
+ri,j
+
+M
+
+M
+N DCG@N =
+
+N j=1
+
+ri,j /
+
+log2(j
+
++
+
+1)
+
+(12)
+
+i=1
+
+M · IDCGi
+
+where M denotes the number of tested users. ri,j = 1 if the j-th item in the ranked list of the i-th user is the positive item, and ri,j = 0 otherwise. The numerator of NDCG@N is the discounted cumulative gain (DCG)@N , and IDCGi denotes the possible maximum DCG@N value for the i-th tested user.
+
+4) Hyperparameter Settings: We implement the proposed DGNN framework based on Pytorch and perform the model optimization with Adam. For our DGNN method, the dimensionality of embedding is tuned from the range [4, 8, 16, 32]. The learning rate is set as 0.01 and the batch size is searched between 512 and 4096. The coefﬁcient λ of regularization term is tuned in {10−3, 10−4, 10−5}. In our experiments, we set the number of latent memory units as 8. Other hyperparameter details can be found in our release source code.
+
+B. Performance Comparison (RQ1)
+The empirical results of all compared methods on three different datasets (i.e., Ciao, Epinions, Yelp) are reported in Table II. We summarize the following major observations:
+Our DGNN achieves the best performance as compared to all baselines across three different datasets, which demonstrates the performance superiority of DGNN. Such performance improvements are attributed to the following model design: i) Beneﬁting from our heterogeneous graph memory network, DGNN could preserve the comprehensive relation semantics with latent factor disentanglement, which results in the effectively integration of disentangled social- and knowledgeaware collaborative signals. i) By incorporating knowledgeaware item relations into social recommendation framework, DGNN can better characterize the heterogeneous relationships among users and items, which enhances the representation
+
+HR@10
+
+0.56
+0.54
+0.52 --M -OLuNrs 0.50
+(a) Ciao-HR
+0.34 0.33 0.32 0.31 --M -OLuNrs 0.30
+(d) Ciao-NDCG
+
+NDCG@10
+
+HR@10
+
+0.74 0.73 0.72 0.71 --M -OLuNrs 0.70
+(b) Epinions-HR
+0.53 0.52 0.51 0.50 --M -OLuNrs 0.49
+(e) Epinions-NDCG
+
+NDCG@10
+
+HR@10
+
+0.84
+
+0.83
+
+0.82 0.81
+
+--M -OLuNrs
+
+(c) Yelp-HR
+0.60 0.59 0.58 0.57 0.56 --M -OLuNrs 0.55
+(f) Yelp-NDCG
+
+NDCG@10
+
+Figure 4. Ablation studies for different sub-modules in DGNN framework on Ciao, Epinions and Yelp datasets, in terms of HR@10 and NDCG@10.
+
+paradigm of user-item interactions.
+GNN-based social recommendation models perform better than the attentional solutions, which suggests the rationality of performing the embedding propagation with multi-hop graph structures for social relation transformation. In addition, although the design of transforming various relationships via heterogeneous graph encoders in HAN and HERec, they are limited by the generation of meta-path-guided relations with data-speciﬁc domain knowledge. To address this issue, DGNN learns more powerful node- and edge-type dependent representations by avoiding customized meta paths in the embedding function of relation heterogeneity.
+The performance gap between DGNN and GNN-based methods (e.g., DiffNet, GraphRec, DGRec), indicates that leaving the knowledge-aware item relations untapped will limit the performance of social-aware recommender systems. Such observation also suggests that DGNN is good at fulﬁlling the potentials of learning latent factors from both user and item domains, with the designed memory-enhanced graph neural architecture. From Table III, we can observe the performance gain achieved by DGNN over other competitors with different ranked top-N positions, which further justiﬁes the superior ranking performance of our framework. The recommendation accuracy improves with larger N values.
+
+C. Module Ablation Analyses (RQ2)
+In this section, we investigate the design rationality of subnetworks in our DGNN framework. Towards this end, we remove each of key modules and implement three model variants of DGNN corresponding to three technical points of our DGNN: i) “-M”: DGNN without the disentangled memory-enhanced relation heterogeneity encoder. ii) “-τ ”: DGNN without the incorporation of user-speciﬁc social inﬂuence with the representation recalibration function τ (·). iii) “-LN”: DGNN without the layer normalization in each propagation layer for stable node embedding training.
+
+Model
+SAMN EATNN DiffNet GraphRec NGCF GCCF DGRec KGAT DGCF DisenHAN
+HAN HGT HERec MHCN
+DGNN
+
+Table III
+
+PERFORMANCE EVALUATION WITH VARYING TOP-N IN TERMS OF HR@N AND NDCG@N.
+
+Ciao@5
+
+Ciao@20
+
+Epinions@5
+
+Epinions@20
+
+Yelp@5
+
+HR NDCG HR NDCG HR NDCG HR NDCG HR NDCG
+
+0.3468 0.2969 0.3941 0.3058 0.3570 0.3685 0.3724 0.3391 0.3871 0.3493 0.2937 0.3415 0.3832 0.3864
+
+0.2460 0.2124 0.2816 0.2235 0.2360 0.2668 0.2647 0.2422 0.2782 0.2482 0.1897 0.2372 0.2679 0.2799
+
+0.6251 0.5222 0.6647 0.5976 0.5937 0.6289 0.6219 0.6052 0.6775 0.6161 0.6513 0.6128 0.6846 0.6321
+
+0.3223 0.2819 0.3573 0.3042 0.3188 0.3414 0.3277 0.3326 0.3604 0.3248 0.2821 0.3229 0.3641 0.3453
+
+0.5176 0.5283 0.5106 0.5683 0.5612 0.5538 0.5053 0.5483 0.5479 0.5609 0.5403 0.5757 0.5519 0.5199
+
+0.3860 0.3924 0.3820 0.4325 0.4316 0.4161 0.3775 0.4139 0.4144 0.4247 0.4106 0.4360 0.4179 0.3883
+
+0.7491 0.7501 0.7367 0.8001 0.8010 0.7906 0.7308 0.7880 0.7770 0.7890 0.7761 0.8053 0.7792 0.7496
+
+0.4553 0.4557 0.4476 0.5011 0.5006 0.4852 0.4429 0.4837 0.4811 0.4911 0.4802 0.5029 0.4839 0.4551
+
+0.6359 0.6425 0.6701 0.6631 0.6748 0.6703 0.6511 0.6503 0.6565 0.6511 0.6635 0.6888 0.5833 0.6607
+
+0.4662 0.4866 0.5127 0.4903 0.5192 0.5130 0.4897 0.4901 0.4958 0.4944 0.5080 0.5136 0.4501 0.4911
+
+0.4120 0.2890 0.6942 0.3726 0.6142 0.4794 0.8281 0.5387 0.7052 0.5378
+
+Yelp@20 HR NDCG
+
+0.9009 0.8066 0.9053 0.8944 0.9011 0.9011 0.8824 0.8795 0.9010 0.9040 0.8977 0.9060 0.8125 0.8958
+
+0.5407 0.5468 0.5701 0.5650 0.5684 0.5503 0.5611 0.5521 0.5678 0.5650 0.5529 0.5802 0.5034 0.5670
+
+0.9293 0.6043
+
+We evaluate the performance of the above variants as well as DGNN on three experimental data. The results are shown in Figure 4. DGNN consistently achieves best performance in comparison to the three variants. By inspecting the results in detail, we have the following observations: i) Removing the memory-enhanced relation heterogeneity encoder (i.e., “M”) causes signiﬁcant performance degradation. This validates the effectiveness of disentangling latent factors pertinent to each type of relations. ii) The performance gap between the “-τ ” variant and DGNN indicates that using local structures in social relations beneﬁts the user representation learning through explicitly involving heterogeneous relation data. iii) By comparing “-LN” with DGNN, we can conclude that the layer normalization technique has contribution to the model training of DGNN. We ascribe the improvements to its ability to generate stable gradients through normalization.
+D. Effect of Heterogeneous Relationships (RQ3)
+We further investigate the inﬂuence of different auxiliary relational data (i.e., social connections and item-wise relatedness) on the performance of our DGNN. In speciﬁc, the following three model variants are considered: i) “-T”: DGNN removes the item relation matrix T ∈ RJ×|R|. ii) “-S”: DGNN without the user-user social relation matrix S ∈ RI×I in the joint adjacent matrix. iii) “-ST”: both user-wise social relations and item-wise relations are removed from the input.
+The evaluation is conducted on Ciao data and Yelp data, with varying top-N settings. The results are shown in Figure 5. Major conclusions can be drawn as follows: 1) The auxiliary heterogeneous relations consistently bring positive effects to the model performance, which can be attributed to the beneﬁt of incorporated heterogeneous semantics into the representations. 2) The suboptimal performance of “-S” suggests the helpfulness of leveraging social contextual signals to assist user preference learning. 3) DGNN performs better than “T” in all cases. We ascribe the improvements to excavating the rich item-wise dependencies with our memory-enhanced relation heterogeneity encoder. 4) The “-ST” variant always produces the worst performance in both datasets, which further
+
+HR
+
+HR
+
+0.7
+
+0.6
+
+0.5
+
+0.4 Top-5
+
+--TS
+
+-OSuTrs
+
+Top-10 Top-20
+
+(a) Ciao-HR
+
+0.85 0.80 0.75 0.70 0.65 0.60 0.55 Top-5
+
+-T -ST -S Ours Top-10 Top-20
+
+(c) Epinions-HR
+
+0.95 0.90 0.85 0.80 0.75 0.70 0.65 Top-5
+
+--TS
+
+-OSuTrs
+
+Top-10 Top-20
+
+(e) Yelp-HR
+
+NDCG
+
+NDCG
+
+NDCG
+
+0.40
+
+0.35
+
+0.30
+
+0.25 Top-5
+
+--TS
+
+-OSuTrs
+
+Top-10 Top-20
+
+(b) Ciao-NDCG
+
+0.54
+
+0.52
+
+0.50
+
+0.48
+0.46 Top-5
+
+-T -ST -S Ours Top-10 Top-20
+
+(d) Epinions-NDCG
+
+0.60 0.58 0.56 0.54 0.52 0.50 Top-5
+
+--TS
+
+-OSuTrs
+
+Top-10 Top-20
+
+(f) Yelp-NDCG
+
+HR
+
+Figure 5. Ablation studies on the effect of different heterogeneous data on model performance, in terms of HR@N and NDCG@N (N=5, 10, 20).
+
+indicates that incorporating the heterogeneous relations from either user or item domains can improve the accuracy.
+E. Performance on Alleviating Data Sparsity (RQ4)
+In this subsection, we perform experiments to demonstrate the advantage of our DGNN in incorporating heterogeneous side information from both user and item domain, in order to alleviate the sparsity issue of recommendation. We ﬁrst rank all users in terms of their interaction densities and partition
+
+Avg Interation #
+
+80
+
+0.7 OTruursstMF
+
+LRGCCF DiffNet
+
+NGCF HAN
+
+60
+
+0.6
+
+40
+
+20
+
+0.5
+
+0 0-.25 .25-.5 .5-.75 .75-1
+
+(a) Interaction Factor-NDCG
+
+NDCG Avg Interation #
+
+80
+
+0.9 OTruursstMF
+
+LRGCCF DiffNet
+
+NGCF HAN
+
+60
+
+40 20
+
+0.8
+
+0 0-.25 .25-.5 .5-.75 .75-1
+
+(b) Interaction Factor-HR
+
+HR
+
+Table IV RUNNING TIME (SECONDS) IN ONE EPOCH FOR DIFFERENT MODELS.
+
+Model
+
+Traning Ciao Epinions
+
+Yelp
+
+Testing Ciao Epinions Yelp
+
+DGCF 2.56 HGT 4.21 DGNN 2.47
+
+63.52 525.94 31.60
+
+81.15 0.87 728.23 0.77 39.50 0.71
+
+14.77 13.55 7.39
+
+66.57 79.74 25.57
+
+NDCG
+
+0-.25 S.2oc5ia-l.5Tie.5-.75 .75-1 0-.25
+
+.25-.5Intera.5ct-i.o7n5
+
+0.62 0.60 0.58 0.56 0.54 0.52 0.50 0.48 .75-1
+
+Avg Trust #
+
+40
+
+OTruursstMF
+
+LRGCCF DiffNet
+
+NGCF HAN
+
+30
+
+0.60
+
+20
+
+10
+
+0.55
+
+0 0-.25 .25-.5 .5-.75 .75-1
+
+(c) Social and Interaction Factors
+
+(d) Social Factor
+
+Figure 6. Performance comparison of DGNN and baselines with different sparsity levels in terms of user interactions and social connections on Yelp.
+
+them into four different groups which contains equal number of users (as shown in x-axis of Figure 6: 0-25%; 25%50%, etc). In Figure 6, we calculate the average number of interactions for each user group as shown in left side of y-axis. The recommendation performance of each compared method is presented in the right side of y-axis. From the results, we can observe that DGNN performs best compared with baselines on different datasets, which shows the robustness of our recommender system in dealing with the sparsity of user behavior data. This again further conﬁrms that the effectiveness of DGNN for enabling external knowledge from both user and item domain to guide the user preference embedding with cross-relational context under data scarcity.
+We further show the evaluation results w.r.t two different factors (social and interaction dimensions). As shown in Figure 6, we can observe that DGNN consistently outperforms competitive methods with different data sparsity levels, which justiﬁes the effectiveness of DGNN in alleviating the sparsity from the perspectives of both social relations and user-item interactions. Overall, this property of our DGNN method in alleviating the data sparsity problem is important, for the recommendation scenarios, in which there are few user-item interactions compared with the entire interaction space.
+F. Hyperparameter Study (RQ5)
+This section studies how the hyperparameter settings affect the performance, by exploring the inﬂuences of hidden state dimension size d, graph layer numbers L, and latent memory unit numbers M. To save space, we present the evaluation results (with different value scales) on different datasets in a uniﬁed ﬁgure. The y-axis of Figure 7 indicates the performance degradation ratio as compared to the best accuracy.
+Hidden State Size d. We plot the performance curve of our DGNN by varying d in range {22, 23, 24, 25}. With the incorporation of semantic relatedness from both user and item
+
+domains, we can notice that the embedding dimensionality of 16 is sufﬁcient to bring good performance to our DGNN framework. In addition, the model suffers from the performance degradation with the larger embedding dimensionality. In summary, the strong performance of our model with smaller hidden state dimensionality is beneﬁcial for practical recommender systems, in which the model computational cost is directly inﬂuenced by the embedding dimension.
+Graph Layer Numbers L. We perform the context-aware message passing on the collaborative heterogeneous graph G. Now, we investigate the model performance through stacking more graph layers (1 ≤ L ≤ 3). We can observe that propagating embeddings across two-hop neighboring nodes brings performance improvement. We also compare our method with the non-propagation variant (L = 0). The results on three datasets show the effectiveness of encoding high-order relationships between users and items. We also see that by stacking more graph layers, the performance will slightly drop due to the over-smoothing problem of graph neural networks.
+Memory Unit Numbers |M|. In our experiments, the number of memory units M is searched from {21, 22, 23, 24}. We can observe that the best performance can be achieved with 8 memory units for encoding relation heterogeneity. Our method leverages the multi-dimensional representation space to capture the semantics of heterogeneous connections by disentangling the implicit factors.
+G. Model Efﬁciency Study (RQ6)
+We evaluate the model efﬁciency from two aspects, i.e., the computational cost measured by running time as well as the convergence w.r.t epochs. Two state-of-the-art baselines (i.e., DGCF and HGT) are experimentally compared.
+1) Running Time per Epoch: As shown in Table IV, we can observe that our DGNN can achieve better efﬁciency compared with the disentangled recommender system (i.e., DGCF) and heterogeneous GNN-based method (i.e., HGT). To be speciﬁc, HGT employs the transformer-like multi-head dot-product attention mechanism, which is time-consuming. The larger graph size will result in the increased training time of HGT enormously. In addition, for the method DGCF, the cost associated with the design of recursive routing mechanism is huge, which leads to the heavy computational burden for performing the propagation among multiple user embeddings.
+2) Performance v.s. Number of Epochs: We evaluate the model performance in terms of HR@10 and NDCG@10 after each training epoch, which shows the performance improvement with the parameter optimization process. We show the
+
+HR@10
+
+HR@10
+
+0.55
+
+0.5
+
+0.45
+
+Ciao
+0.4 5 10 15 20 25 30
+Hidden State Size d
+0.74
+
+0.72
+
+0.7
+
+0.68
+
+0.66
+
+Epinions
+
+5 10 15 20 25 30
+
+Hidden State Size d
+
+0.84
+
+0.82
+
+0.8
+
+0.78
+Yelp
+0.76 5 10 15 20 25 30
+Hidden State Size d
+
+NDCG@10
+
+NDCG@10
+
+NDCG@10
+
+0.34
+
+0.32
+
+0.3
+
+0.28
+
+0.26
+
+0.24
+
+Ciao
+
+5 10 15 20 25 30
+
+Hidden State Size d
+
+0.52
+0.5
+0.48
+0.46
+Epinions
+0.44 5 10 15 20 25 30
+Hidden State Size d
+
+0.58
+
+0.56
+
+0.54
+Yelp
+0.52 5 10 15 20 25 30
+Hidden State Size d
+
+HR@10
+
+HR@10
+
+HR@10
+
+0.55
+
+0.5
+
+0.45
+
+0.4
+
+0.35
+
+Ciao
+
+0 0.5 1 1.5 2 2.5 3
+
+# of GNN Layers L
+
+0.7
+0.65
+0.6
+Epinions
+0 0.5 1 1.5 2 2.5 3
+# of GNN Layers L
+0.84 0.82 0.8 0.78 0.76 0.74
+Yelp
+0.72 0 0.5 1 1.5 2 2.5 3
+# of GNN Layers L
+
+NDCG@10
+
+NDCG@10
+
+NDCG@10
+
+0.35
+0.3
+0.25
+0.2
+Ciao
+0.15 0 0.5 1 1.5 2 2.5 3
+# of GNN Layers L
+
+0.5
+
+0.45
+
+0.4
+
+Epinions
+0.35 0 0.5 1 1.5 2 2.5 3
+# of GNN Layers L
+
+0.6
+
+0.58
+
+0.56
+
+0.54
+
+0.52
+
+0.5
+
+0.48
+
+Yelp
+
+0 0.5 1 1.5 2 2.5 3
+
+# of GNN Layers L
+
+HR@10
+
+HR@10
+
+HR@10
+
+0.56
+0.54
+0.52
+0.5
+Ciao
+0.48 2 4 6 8 10 12 14 16
+# of Memory Units |M|
+0.74
+0.73
+0.73
+Epinions
+0.72 2 4 6 8 10 12 14 16
+# of Memory Units |M|
+0.84
+0.83
+0.83
+0.82
+Yelp
+0.82 2 4 6 8 10 12 14 16
+# of Memory Units |M|
+
+NDCG@10
+
+NDCG@10
+
+NDCG@10
+
+0.34
+0.32
+0.3
+0.28
+Ciao
+2 4 6 8 10 12 14 16
+# of Memory Units |M|
+0.52 0.51
+0.5 0.49 0.48
+Epinions
+0.47 2 4 6 8 10 12 14 16
+# of Memory Units |M|
+0.59
+0.58
+0.58
+0.57
+Yelp
+0.57 2 4 6 8 10 12 14 16
+# of Memory Units |M|
+
+HR@10
+
+Figure 7. Hyper-parameter study on important parametric conﬁgurations of DGNN (i.e. the hidden state dimensionality d, the number of graph neural iterations L, and the number of memory units |M|), in terms of HR@10 and NDCG@10, on Ciao, Epinions, and Yelp datasets.
+
+HR@10
+
+NDCG@10
+
+0.4 0.2
+0
+0.3 0.2 0.1
+0
+
+Ciao-HR
+
+OHGurTs DGCF
+25 Ep5o0ch 75 100
+Ciao-NDCG
+
+25 Ep5o0ch
+
+OHGurTs
+DGCF
+75 100
+
+NDCG@10
+
+HR@10
+
+0.7
+0.6
+0
+0.50 0.45 0.40 0.35
+0
+
+Epinions-HR
+
+OHGurTs DGCF
+25 Ep5o0ch 75 100
+Epinions-NDCG
+
+25 Ep5o0ch
+
+OHGurTs DGCF 75 100
+
+NDCG@10
+
+HR@10
+
+0.80 0.75
+0
+0.5 0.4
+0
+
+Yelp-HR
+
+OHGurTs DGCF
+25 Ep5o0ch 75 100
+Yelp-NDCG
+
+25 Ep5o0ch
+
+OHGurTs DGCF 75 100
+
+Figure 8. Tested model performances for different methods, w.r.t the number of training epochs, in terms of HR@10 and NDCG@10 on the three datasets.
+
+results in Figure 8, from which we have the following observations: i) DGNN achieves best performance in all epochs compared to HGT and DGCF. This indicates the effectiveness of our model optimization for parameter inference. The architecture of DGNN not only produces better recommendation accuracy, but also are easier to be optimized. We ascribe this to mapping edge relations into multiple latent spaces with the consideration of relation heterogeneity. ii) Compared to DGCF, the performance of HGT increases faster in the early epochs. This implies the advantages of heterogeneous graph transformer over vanilla GCNs in handling heterogeneous graph structures. The reason for such superiority may be the modeling of heterogeneous semantics and the utilization of multi-head dot-product attention technique.
+H. Case Study (RQ7)
+In this section, we conduct case study from two aspects, to investigate the representation ability of DGNN for encoding heterogeneous semantic with disentangled representations.
+
+2276
+
+8451
+
+25430
+
+5377
+
+34358
+
+2276
+
+8451
+
+25430
+
+5377
+
+34358
+
+(a) KGAT
+
+(b) HAN
+
+2276
+
+8451
+
+25430
+
+5377
+
+34358
+
+(c) DGNN
+
+Figure 9. Visualized embeddings for users (stars) and their interacted item (circles), learned by KGAT, HAN and DGNN. Best view in color.
+
+1) Embedding Visualization: In this part, we project the learned user/item feature vectors into low-dimensional latent space using t-SNE [38]. The embedding visualization results are presented in Figure 9. Different colors in this ﬁgure show different users (stars) and their interacted items (circles). The user embeddings encoded by KGAT, HAN and our DGNN method are shown in Figure 9 (a)-(c), respectively. From the results, we summarize the following observations:
+• The better node separation phenomenon of heterogeneous graph neural network (HAN) as compared to knowledgeaware recommender (KGAT), indicating that the exploration of item-wise relationships with social effects will improve the discriminative ability of user preference embeddings.
+• Given interaction patterns over different items of those sampled users, it is obvious that our DGNN separates users better than other baselines. Also, the item nodes with same colors are commonly distributed around the related user in the center. The low-dimensional representation clearly shows the better ability of DGNN in preserving the useritem relatedness. This superior representation ability should be attributed to the joint modeling of user-user and itemitem dependencies, as well as the multi-channel disentangled projection via disentangled graph neural networks.
+
+217 382
+
+Social Ties 217 382
+
+Co-Interactions
+
+80 149
+
+80 149
+
+233
+
+445
+
+User-User
+
+233
+
+445
+
+User-Item (a)
+
+149
+
+256
+
+User-User
+
+149
+
+256
+
+User-Item (b)
+
+Figure 10. Visualized users’ memory attention vectors learned by our memory-augmented graph encoder, with heterogeneous semantic preserved.
+
+2) Memory Attention Visualization: Next, we visualize the learned attention weights over different memory units for different heterogeneous relations, to validate if the edge-type-speciﬁc memory attention of users reﬂect the corresponding user-wise relations. Speciﬁcally, we train a neural network to map the attention vectors [η(H(L)[ui], 1), ..., η(H(L)[ui], m), ..., η(H(L)[ui], M )] into three-dimensional vectors corresponding to RGB color values. The mapping function is trained with self-discrimination task, so that the memory attention weights can be visualized with the original user-memory connections preserved. We randomly pick two closely-connected user-wise subgraphs from Ciao data, one of which contains only social ties, and another one contains only co-interaction relations. The subgraphs are shown in Figure 10, where circles represents users with their color denoting the learned memory attention weights. The lines denote the heterogeneous user-wise connections. The embedding visualization is conducted for both the user-user relations, and the user-item relations.
+From the results, we can clearly observe that users connected by social ties have close user-user memory-unit weights, while they usually have very different user-item memory weights. This pattern also holds for the co-interaction subgraph, where users having co-interactions have similar user-item memory weights, and have very different user-user memory weights. This observation between relation-speciﬁc memory weights and relation-speciﬁc graph structures, validates the capability of the memory-augmented heterogeneity encoder of our DGNN in capturing node/edge-type-speciﬁc semantics by disentangling diverse relational factors.
+VI. CONCLUSION
+In this paper, we develop a novel Disentangled Graph Neural Network (DGNN) to improve social recommendation with the disentanglement over heterogeneous relations from both user and item domains. Speciﬁcally, by integrating the latent memory units into the graph neural network, DGNN could automatically captures heterogeneous structural dependency with disentangled representations. The model differentiates the relation-aware information propagation and aggregation among the correlated users and items over the collaborative heterogeneous graph. Experimental results show that DGNN can lead to signiﬁcantly better performance compared to stateof-the-arts on several real-world recommendation datasets. In the future, we would like to endow our DGNN with the power of cross-domain knowledge transfer, so as to further improve the model performance for cold-start recommenda-
+
+tions. In addition, another potential direction is to explore the
+heterogeneous relational data under a pre-trained framework
+to augment the side knowledge learning.
+REFERENCES
+[1] G. Adomavicius, K. Bauman, A. Tuzhilin, and M. Unger. Contextaware recommender systems: From foundations to recent developments. In Recommender Systems Handbook, pages 211–250. Springer, 2022.
+[2] M. Aliannejadi and F. Crestani. Personalized context-aware point of interest recommendation. ACM Transactions on Information Systems (TOIS), 36(4):1–28, 2018.
+[3] J. L. Ba, J. R. Kiros, and G. E. Hinton. Layer normalization. arXiv preprint arXiv:1607.06450, 2016.
+[4] C. Chen, M. Zhang, Y. Liu, and S. Ma. Social attentional memory network: Modeling aspect-and friend-level differences in recommendation. In International Conference on Web Search and Data Mining (WSDM), pages 177–185, 2019.
+[5] C. Chen, M. Zhang, C. Wang, W. Ma, M. Li, Y. Liu, and S. Ma. An efﬁcient adaptive transfer neural network for social-aware recommendation. In International Conference on Research and Development in Information Retrieval (SIGIR), pages 225–234, 2019.
+[6] H. Chen, Y. Chen, X. Wang, R. Xie, R. Wang, F. Xia, and W. Zhu. Curriculum disentangled recommendation with noisy multi-feedback. Advances in Neural Information Processing Systems (NeuriPS), 34:26924– 26936, 2021.
+[7] L. Chen, L. Wu, R. Hong, K. Zhang, and M. Wang. Revisiting graph based collaborative ﬁltering: A linear residual graph convolutional network approach. In International Conference on Artiﬁcial Intelligence (AAAI), pages 27–34, 2020.
+[8] M. Chen, C. Huang, L. Xia, W. Wei, Y. Xu, and R. Luo. Heterogeneous graph contrastive learning for recommendation. In International Conference on Web Search and Data Mining (WSDM), pages 544–552, 2023.
+[9] X. Chen, H. Xu, Y. Zhang, J. Tang, Y. Cao, Z. Qin, and H. Zha. Sequential recommendation with user memory networks. In ACM International Conference on Web Search and Data Mining (WSDM), pages 108–116, 2018.
+[10] A. Epasto and B. Perozzi. Is a single embedding enough? learning node representations that capture multiple social contexts. In The world wide web conference (WWW), pages 394–404, 2019.
+[11] S. Fan, J. Zhu, X. Han, C. Shi, L. Hu, B. Ma, and Y. Li. Metapathguided heterogeneous graph neural network for intent recommendation. In International Conference on Knowledge Discovery & Data Mining (KDD), pages 2478–2486, 2019.
+[12] W. Fan, Y. Ma, Q. Li, Y. He, E. Zhao, J. Tang, and D. Yin. Graph neural networks for social recommendation. In The Web Conference (WWW), pages 417–426, 2019.
+[13] B. Fu, W. Zhang, G. Hu, X. Dai, S. Huang, and J. Chen. Dual side deep context-aware modulation for social recommendation. In The Web Conference (WWW), pages 2524–2534, 2021.
+[14] X. Fu, J. Zhang, Z. Meng, and I. King. Magnn: Metapath aggregated graph neural network for heterogeneous graph embedding. In The Web Conference (WWW), pages 2331–2341. ACM, 2020.
+[15] T. Gu, C. Wang, C. Wu, Y. Lou, J. Xu, C. Wang, K. Xu, C. Ye, and Y. Song. Hybridgnn: Learning hybrid representation for recommendation in multiplex heterogeneous networks. In International Conference on Data Engineering (ICDE), pages 1355–1367. IEEE, 2022.
+[16] X. He, K. Deng, X. Wang, Y. Li, Y. Zhang, and M. Wang. Lightgcn: Simplifying and powering graph convolution network for recommendation. In International Conference on Research and Development in Information Retrieval (SIGIR), pages 639–648, 2020.
+[17] B. Hu, C. Shi, W. X. Zhao, and P. S. Yu. Leveraging meta-path based context for top-n recommendation with a neural co-attention model. In International Conference on Knowledge Discovery & Data Mining (KDD), pages 1531–1540, 2018.
+[18] Z. Hu, Y. Dong, K. Wang, and Y. Sun. Heterogeneous graph transformer. In The Web Conference (WWW), pages 2704–2710, 2020.
+[19] C. Huang, H. Xu, Y. Xu, P. Dai, L. Xia, M. Lu, L. Bo, H. Xing, X. Lai, and Y. Ye. Knowledge-aware coupled graph neural network for social recommendation. In AAAI Conference on Artiﬁcial Intelligence (AAAI), pages 4115–4122, 2021.
+
+[20] H. Ji, J. Zhu, X. Wang, C. Shi, B. Wang, X. Tan, Y. Li, and S. He. Who you would like to share with? a study of share recommendation in social e-commerce. In International Conference on Artiﬁcial Intelligence (AAAI), volume 35, pages 232–239, 2021.
+[21] B. Jin, K. Cheng, L. Zhang, Y. Fu, M. Yin, and L. Jiang. Partial relationship aware inﬂuence diffusion via a multi-channel encoding scheme for social recommendation. In International Conference on Information and Knowledge Management (CIKM), pages 585–594, 2020.
+[22] S. Kulkarni and S. F. Rodd. Context aware recommendation systems: A review of the state of the art techniques. Computer Science Review, 37:100255, 2020.
+[23] Z. Li, X. Shen, Y. Jiao, X. Pan, P. Zou, X. Meng, C. Yao, and J. Bu. Hierarchical bipartite graph neural networks: Towards largescale e-commerce applications. In International Conference on Data Engineering (ICDE), pages 1677–1688. IEEE, 2020.
+[24] C.-Y. Liu, C. Zhou, J. Wu, Y. Hu, and L. Guo. Social recommendation with an essential preference space. In International Conference on Artiﬁcial Intelligence (AAAI), 2018.
+[25] H. Liu, L. Jing, J. Yu, and M. K.-P. Ng. Social recommendation with learning personal and social latent factors. Transactions on Knowledge and Data Engineering (TKDE), 2019.
+[26] N. Liu, Q. Tan, et al. Is a single vector enough? exploring node polysemy for network embedding. In International Conference on Knowledge Discovery & Data Mining (KDD), pages 932–940, 2019.
+[27] X. Liu, C. Yu, Z. Zhang, Z. Zheng, Y. Rong, H. Lv, D. Huo, Y. Wang, D. Chen, J. Xu, et al. Neural auction: End-to-end learning of auction mechanisms for e-commerce advertising. In International Conference on Knowledge Discovery & Data Mining (KDD), pages 3354–3364, 2021.
+[28] X. Long, C. Huang, Y. Xu, H. Xu, P. Dai, L. Xia, and L. Bo. Social recommendation with self-supervised metagraph informax network. In International Conference on Information & Knowledge Management (CIKM), pages 1160–1169, 2021.
+[29] Y. Lyu, H. Yin, J. Liu, M. Liu, H. Liu, and S. Deng. Reliable recommendation with review-level explanations. In International Conference on Data Engineering (ICDE), pages 1548–1558. IEEE, 2021.
+[30] H. Ma, H. Yang, et al. Sorec: social recommendation using probabilistic matrix factorization. In International Conference on Information and Knowledge Management (CIKM), pages 931–940. ACM, 2008.
+[31] H. Mezni, D. Benslimane, and L. Bellatreche. Context-aware service recommendation based on knowledge graph embedding. Transactions on Knowledge and Data Engineering (TKDE), pages 5225–5238, 2021.
+[32] T. Qian, Y. Liang, Q. Li, X. Ma, K. Sun, and Z. Peng. Intent disentanglement and feature self-supervision for novel recommendation. Transactions on Knowledge and Data Engineering (TKDE), 2022.
+[33] A. Santoro, S. Bartunov, M. Botvinick, D. Wierstra, et al. Meta-learning with memory-augmented neural networks. In International Conference on Machine Learning (ICML), pages 1842–1850, 2016.
+[34] C. Shi, B. Hu, W. X. Zhao, and S. Y. Philip. Heterogeneous information network embedding for recommendation. Transactions on Knowledge and Data Engineering (TKDE), 31(2):357–370, 2018.
+[35] W. Song, Z. Xiao, Y. Wang, L. Charlin, M. Zhang, and J. Tang. Sessionbased social recommendation via dynamic graph attention networks. In International Conference on Web Search and Data Mining (WSDM), pages 555–563, 2019.
+[36] J. Tang, X. Hu, and H. Liu. Social recommendation: a review. Social Network Analysis and Mining (SNAM), 3(4):1113–1133, 2013.
+[37] M. M. Tanjim, C. Su, E. Benjamin, D. Hu, L. Hong, and J. McAuley. Attentive sequential models of latent intent for next item recommendation. In The Web Conference (WWW), pages 2528–2534, 2020.
+[38] L. Van der Maaten and G. Hinton. Visualizing data using t-sne. Journal of Machine Learning Research (JMLR), 9(11), 2008.
+[39] P. Velicˇkovic´, G. Cucurull, A. Casanova, A. Romero, P. Lio`, and Y. Bengio. Graph attention networks. In International Conference on Learning Representations (ICLR), 2018.
+[40] X. Wang, H. Chen, Y. Zhou, J. Ma, and W. Zhu. Disentangled representation learning for recommendation. Transactions on Pattern Analysis and Machine Intelligence (TPAMI), pages 408–424, 2022.
+[41] X. Wang, H. Chen, and W. Zhu. Multimodal disentangled representation for recommendation. In International Conference on Multimedia and Expo (ICME), pages 1–6. IEEE, 2021.
+
+[42] X. Wang, X. He, Y. Cao, M. Liu, and T.-S. Chua. Kgat: Knowledge graph attention network for recommendation. In International Conference on Knowledge Discovery & Data Mining (KDD), pages 950–958, 2019.
+[43] X. Wang, X. He, M. Wang, F. Feng, and T.-S. Chua. Neural graph collaborative ﬁltering. In International Conference on Research and Development in Information Retrieval (SIGIR), pages 165–174. ACM, 2019.
+[44] X. Wang, T. Huang, D. Wang, Y. Yuan, Z. Liu, X. He, and T.-S. Chua. Learning intents behind interactions with knowledge graph for recommendation. In The Web Conference (WWW), pages 878–887, 2021.
+[45] X. Wang, H. Ji, C. Shi, B. Wang, Y. Ye, P. Cui, and P. S. Yu. Heterogeneous graph attention network. In The Web conference (WWW), pages 2022–2032. ACM, 2019.
+[46] X. Wang, H. Jin, A. Zhang, X. He, et al. Disentangled graph collaborative ﬁltering. In International Conference on Research and Development in Information Retrieval (SIGIR), pages 1001–1010, 2020.
+[47] Y. Wang, S. Tang, Y. Lei, W. Song, S. Wang, and M. Zhang. Disenhan: Disentangled heterogeneous graph attention network for recommendation. In International Conference on Information & Knowledge Management (CIKM), pages 1605–1614, 2020.
+[48] W. Wei, C. Huang, L. Xia, Y. Xu, J. Zhao, and D. Yin. Contrastive meta learning with behavior multiplicity for recommendation. In International Conference on Web Search and Data Mining (WSDM), pages 1120– 1128, 2022.
+[49] L. Wu, C. Quan, C. Li, Q. Wang, B. Zheng, and X. Luo. A contextaware user-item representation learning for item recommendation. ACM Transactions on Information Systems (TOIS), 37(2):1–29, 2019.
+[50] L. Wu, P. Sun, Y. Fu, R. Hong, X. Wang, and M. Wang. A neural inﬂuence diffusion model for social recommendation. In International Conference on Research and Development in Information Retrieval (SIGIR), pages 235–244, 2019.
+[51] Q. Wu, H. Zhang, X. Gao, P. He, P. Weng, H. Gao, and G. Chen. Dual graph attention networks for deep latent representation of multifaceted social effects in recommender systems. In The Web conference (WWW), pages 2091–2102, 2019.
+[52] L. Xia, C. Huang, Y. Xu, J. Zhao, D. Yin, and J. Huang. Hypergraph contrastive collaborative ﬁltering. In International Conference on Research and Development in Information Retrieval (SIGIR), pages 70– 79, 2022.
+[53] L. Xiao, Z. Min, Z. Yongfeng, L. Yiqun, and M. Shaoping. Learning and transferring social and item visibilities for personalized recommendation. In International Conference on Information and Knowledge Management (CIKM), pages 337–346, 2017.
+[54] T. Xie, Y. Xu, L. Chen, Y. Liu, et al. Sequential recommendation on dynamic heterogeneous information network. In International Conference on Data Engineering (ICDE), pages 2105–2110. IEEE, 2021.
+[55] X. Xie, F. Sun, Z. Liu, S. Wu, J. Gao, J. Zhang, et al. Contrastive learning for sequential recommendation. In International Conference on Data Engineering (ICDE), pages 1259–1273. IEEE, 2022.
+[56] X. Xin, X. He, Y. Zhang, Y. Zhang, and J. Jose. Relational collaborative ﬁltering: Modeling multiple item relations for recommendation. In International Conference on Research and Development in Information Retrieval (SIGIR), pages 125–134, 2019.
+[57] F. Xu, J. Lian, Z. Han, Y. Li, Y. Xu, and X. Xie. Relation-aware graph convolutional networks for agent-initiated social e-commerce recommendation. In International Conference on Information and Knowledge Management (CIKM), 2019.
+[58] B. Yang, Y. Lei, J. Liu, and W. Li. Social collaborative ﬁltering by trust. IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI), 39(8):1633–1647, 2016.
+[59] Y. Yang, C. Huang, L. Xia, and C. Li. Knowledge graph contrastive learning for recommendation. In International Conference on Research and Development in Information Retrieval (SIGIR), pages 1434–1443, 2022.
+[60] J. Yu, H. Yin, J. Li, M. Gao, Z. Huang, and L. Cui. Enhance social recommendation with adversarial graph convolutional networks. Transactions on Knowledge and Data Engineering (TKDE), 2020.
+[61] J. Yu, H. Yin, J. Li, Q. Wang, N. Q. V. Hung, and X. Zhang. Selfsupervised multi-channel hypergraph convolutional network for social recommendation. In The Web conference (WWW), pages 413–424, 2021.
+

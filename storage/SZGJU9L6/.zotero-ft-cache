@@ -1,0 +1,88 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:1812.01661
+
+Help | Advanced Search
+Search
+Computer Science > Cryptography and Security
+(cs)
+[Submitted on 4 Dec 2018 ( v1 ), last revised 27 May 2020 (this version, v3)]
+Title: Graph-based Security and Privacy Analytics via Collective Classification with Joint Weight Learning and Propagation
+Authors: Binghui Wang , Jinyuan Jia , Neil Zhenqiang Gong
+Download a PDF of the paper titled Graph-based Security and Privacy Analytics via Collective Classification with Joint Weight Learning and Propagation, by Binghui Wang and 2 other authors
+Download PDF
+
+    Abstract: Many security and privacy problems can be modeled as a graph classification problem, where nodes in the graph are classified by collective classification simultaneously. State-of-the-art collective classification methods for such graph-based security and privacy analytics follow the following paradigm: assign weights to edges of the graph, iteratively propagate reputation scores of nodes among the weighted graph, and use the final reputation scores to classify nodes in the graph. The key challenge is to assign edge weights such that an edge has a large weight if the two corresponding nodes have the same label, and a small weight otherwise. Although collective classification has been studied and applied for security and privacy problems for more than a decade, how to address this challenge is still an open question. In this work, we propose a novel collective classification framework to address this long-standing challenge. We first formulate learning edge weights as an optimization problem, which quantifies the goals about the final reputation scores that we aim to achieve. However, it is computationally hard to solve the optimization problem because the final reputation scores depend on the edge weights in a very complex way. To address the computational challenge, we propose to jointly learn the edge weights and propagate the reputation scores, which is essentially an approximate solution to the optimization problem. We compare our framework with state-of-the-art methods for graph-based security and privacy analytics using four large-scale real-world datasets from various application scenarios such as Sybil detection in social networks, fake review detection in Yelp, and attribute inference attacks. Our results demonstrate that our framework achieves higher accuracies than state-of-the-art methods with an acceptable computational overhead. 
+
+Comments: 	Network and Distributed System Security Symposium (NDSS), 2019. Dataset link: this http URL
+Subjects: 	Cryptography and Security (cs.CR) ; Machine Learning (cs.LG)
+Cite as: 	arXiv:1812.01661 [cs.CR]
+  	(or arXiv:1812.01661v3 [cs.CR] for this version)
+  	https://doi.org/10.48550/arXiv.1812.01661
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Binghui Wang [ view email ]
+[v1] Tue, 4 Dec 2018 20:02:08 UTC (4,990 KB)
+[v2] Thu, 6 Dec 2018 02:33:54 UTC (4,989 KB)
+[v3] Wed, 27 May 2020 00:54:54 UTC (4,928 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Graph-based Security and Privacy Analytics via Collective Classification with Joint Weight Learning and Propagation, by Binghui Wang and 2 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.CR
+< prev   |   next >
+new | recent | 1812
+Change to browse by:
+cs
+cs.LG
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+DBLP - CS Bibliography
+listing | bibtex
+Binghui Wang
+Jinyuan Jia
+Neil Zhenqiang Gong
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

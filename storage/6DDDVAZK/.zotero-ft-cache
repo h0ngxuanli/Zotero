@@ -1,0 +1,2067 @@
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+1
+
+Debiased Graph Neural Networks with Agnostic Label Selection Bias
+Shaohua Fan, Xiao Wang, Member, IEEE, Chuan Shi†, Member, IEEE, Kun Kuang, Nian Liu, Bai Wang
+
+arXiv:2201.07708v2 [cs.LG] 25 Jan 2022
+
+Abstract—Most existing Graph Neural Networks (GNNs) are proposed without considering the selection bias in data, i.e., the inconsistent distribution between the training set with test set. In reality, the test data is not even available during the training process, making selection bias agnostic. Training GNNs with biased selected nodes leads to signiﬁcant parameter estimation bias and greatly impacts the generalization ability on test nodes. In this paper, we ﬁrst present an experimental investigation, which clearly shows that the selection bias drastically hinders the generalization ability of GNNs, and theoretically prove that the selection bias will cause the biased estimation on GNN parameters. Then to remove the bias in GNN estimation, we propose a novel Debiased Graph Neural Networks (DGNN) with a differentiated decorrelation regularizer. The differentiated decorrelation regularizer estimates a sample weight for each labeled node such that the spurious correlation of learned embeddings could be eliminated. We analyze the regularizer in causal view and it motivates us to differentiate the weights of the variables based on their contribution on the confounding bias. Then, these sample weights are used for reweighting GNNs to eliminate the estimation bias, thus help to improve the stability of prediction on unknown test nodes. Comprehensive experiments are conducted on several challenging graph datasets with two kinds of label selection biases. The results well verify that our proposed model outperforms the state-of-the-art methods and DGNN is a ﬂexible framework to enhance existing GNNs.
+Index Terms—Graph Neural Networks, Casual Inference, Selection Bias.
+I. INTRODUCTION
+G Raph Neural Networks (GNNs) are powerful deep learning algorithms on graphs with various applications [1], [2], [3], [4]. Existing GNNs mainly learn a node embedding through aggregating the features from its neighbors, and such message-passing framework is supervised by the node label in an end-to-end manner. During this training procedure, GNNs will effectively learn the correlation between the structure patterns and node features with the node labels, so that GNNs are capable of learning the embeddings of new nodes and inferring their labels.
+One basic requirement of GNNs making precise predictions on unseen test nodes is that the distribution of labeled training
+† Corresponding author. S. Fan, N. Liu and B. Wang are with the Department of Computer Science, Beijing University of Posts and Telecommunications, Beijing, China. E-mail: {fanshaohua, nianliu, wangbai}@bupt.edu.cn X. Wang and C. Shi are with the Key Laboratory of Trustworthy Distributed Computing and Service (MoE), Beijing University of Posts and Telecommunications, Beijing, China and the Peng Cheng Laboratory, Shenzhen, China. E-mail: {xiaowang,shichuan}@bupt.edu.cn K. Kuang is with the College of Computer Science and Technology, Zhejiang University, Zhejiang, China. E-mail: kunkuang@zju.edu.cn Manuscript received 05 Feb. 2021; revised 02 Sep. 2021; accepted 29 Dec 2021.
+
+nodes and test nodes is the same, i.e., the structure and feature of labeled training and test nodes follow the similar pattern, so that the learned correlation between the current graph and labels can be well generalized to the new nodes. However, in reality, there are two inevitable issues. (1) Because it is difﬁcult to control the graph collection in an unbiased manner, the relationship between the collected real-world graph and the labeled nodes is inevitably biased. Training on such a graph will cause biased correlation with node labels. Taking a scientist collaboration network as an example, if most scientists with “machine learning” (ML) label collaborate with those with “computer vision” (CV) label, existing GNNs may learn spurious correlation, i.e., scientists who cooperate with CV scientists are ML scientists. If a new ML scientist only connects with ML scientists or the scientists in other areas, it will be probably misclassiﬁed. (2) The test nodes in the real scenario are usually not available in the training phase, implying that the distribution of new nodes is agnostic. Once the distribution is inconsistent with that in the training nodes, the performance of all the current GNNs will be hindered. Even transfer learning is able to solve the distribution shift problem, however, it still needs the prior of test distribution, which actually cannot be obtained beforehand. Therefore, the agnostic label selection bias greatly affects the generalization ability of GNNs on unknown test data.
+In order to observe selection bias in real graph data, we conduct an experimental investigation to validate the effect of selection bias on GNNs (see Section II-A). We select training nodes with different biased degrees for each dataset, making the distribution of training nodes and test nodes inconsistent. The results clearly show that selection bias drastically hinders the performance of GNNs on unseen test nodes. Moreover, with heavier bias, the performance drops more. Further, we theoretically analyze how the data selection bias results in the estimation bias in GNN parameters (see Section II-B). Based on the stable learning technique [5], we can assume that the learned embeddings consist of two parts: stable variables and unstable variables. The data selection bias will cause spurious correlation between these two kinds of variables. Thereby we prove that with the inevitable model misspeciﬁcation, the spurious correlation will further cause the parameter estimation bias. Once the weakness of the current GNNs with selection bias is identiﬁed, one natural question is “how to remove the estimation bias in GNNs?”
+In this paper, we propose a novel Debiased Graph Neural Network (DGNN) framework for stable graph learning by jointly optimizing a differentiated decorrelation regularizer and a weighted GNN model. Speciﬁcally, the differentiated
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+2
+
+decorrelation regularizer is able to learn a set of sample weights under differentiated variable weights, so that the spurious correlation between stable and unstable variables would be greatly eliminated. Based on the causal view analysis of the decorrelation regularizer, we theoretically prove that the weights of variables can be differentiated by the regression coefﬁcients. Compared with existing decorrelation methods [5], [6], the proposed regularizer is able to remove the spurious correlation while maintaining a higher effective sample size and requiring less prior knowledge. Moreover, to better combine the decorrelation regularizer with existing GNN architecture, the theoretical result shows that adding the regularizer to the embeddings learned by the penultimate layer could be both theoretically sound and ﬂexible. Then the sample weights learned by the decorrelation regularizer are used to reweight the GNN loss so that the parameter estimation could be unbiased.
+In summary, the contributions of this paper are three-fold: i) We investigate a new problem of learning GNNs with agnostic label selection bias. The problem setting is general and practical for real applications. ii) We bring the idea of variable decorrelation into GNNs to relieve bias inﬂuence on model learning and propose a general framework DGNN that could be adopted to various GNNs. iii) We conduct experiments on real-world graph benchmarks with two kinds of agnostic label selection biases, and the experimental results demonstrate the effectiveness and ﬂexibility of our model.
+
+II. EFFECT OF LABEL SELECTION BIAS ON GNNS
+In this section, we ﬁrst summarize the main notations used in this paper in Table I and then formulate our target problem:
+
+Problem 1 (Semi-supervised Learning on Graph with
+
+Agnostic Label Selection Bias). Given a training graph
+
+Gtrain
+
+=
+
+{Atrain, Xtrain, Ytrain},
+
+where
+
+Atrain
+
+∈
+
+N ×N
+R
+
+(N
+
+nodes)
+
+represents
+
+the
+
+adjacency
+
+matrix,
+
+Xtrain
+
+∈
+
+N ×D
+R
+
+(D features) refers to the node feature vectors and Ytrain ∈
+
+n×C
+R
+
+(n
+
+labeled
+
+nodes,
+
+C
+
+classes)
+
+refers
+
+to
+
+the
+
+available
+
+labels for training (n ≪ N ), the task is to learn a GNN gθ(⋅)
+
+with parameter θ to precisely predict the label of nodes on
+
+test graph Gtest = {Atest, Xtest, Ytest}, where distribution Ψ(Gtrain) ≠ Ψ(Gtest).
+
+A. Experimental Investigation
+We conduct an experimental investigation to examine whether the existing GNNs are sensitive to the distribution shifts caused by the label selection bias. One motivating example is that due to the research interests of the researcher that they are more likely to label the interdisciplinary documents that cite more papers from different subjects in a citation network, while testing may be conducted on nodes with any neighborhood distribution. Based on this example, the main idea of the experimental investigation is that we will perform two representative GNNs: GCN [2] and GAT [3] on three widely used graph datasets: Cora, Citeseer, Pubmed [7] with different bias degrees. If the performance drops sharply comparing with the scenarios without selection bias, this will demonstrate that GNNs cannot generalize well in selection bias settings.
+
+TABLE I: Glossary of Notations.
+
+Notation
+Gtrain Gtest
+Atrain/test Xtrain/test Ytrain/test H/Gˆ(X, A; θg)
+S
+V S¯ V¯ β˜S β˜V g(⋅) βS βV T
+X
+w
+α
+ξ
+γ Yi(t)
+
+Description
+Training graph Test graph The adjacency matrix of Gtrain or Gtest The node feature vectors of Gtrain or Gtest The node label vectors of Gtrain or Gtest
+Node embeddings matrix learned by GNNs The stable variables in H The unstable variables in H The latent stable variables to generate Y The unstable variables to generate label Y
+The linear coefﬁcients for S
+The linear coefﬁcients for V The non-linear transformation for stable variables S The linear coefﬁcients for S¯ The linear coefﬁcients for V¯ Treatment variable Confounders Sample weights Variable weights in DVD term The linear coefﬁcients for confounders X The linear coefﬁcient for treatment T The potential outcome of sample i with treatment t
+
+To simulate the agnostic selection bias scenario, we ﬁrst
+
+follow the inductive setting in [8] that masks the validation
+
+and test nodes as the training graph Gtrain in the training phase, and then infer the labels of validation and test nodes
+
+with whole graph Gtest. In this way, the distribution of test node can be considered agnostic. Following [9], we design
+
+a biased label selection method on training graph Gtrain. The selection variable e is introduced to control whether the
+
+node will be selected as labeled nodes, where e = 1 means
+
+selected and 0 otherwise. For node i, we calculate its neighbor distribution ratio: ri = ∣{j∣j ∈ Ni, yj ≠ yi}∣/∣Ni∣, where Ni is neighborhood of node i in Gtrain and yj ≠ yi means the label of central node i is not the same as the label of its neighborhood
+
+node j. And ri measures the difference between the label of central node i with the labels of its neighborhood. Then we
+
+average all the nodes’ r to get a threshold t. For each node, the
+
+probability to be selected is: P (ei = 1∣ri) = 1 −
+
+ri ≥ t ri < t
+
+,
+
+where ∈ (0.5, 1) is used to control the degree of selection
+
+bias and a larger means a heavier bias. We set as {0.7,
+
+0.8, 0.9} to get three bias degrees for each dataset, termed as
+
+Light, Medium, Heavy, respectively. We select 20 nodes for
+
+each class for training and the validation and test nodes are
+
+the same as [10]. Furthermore, we take the unbiased datasets
+
+as baselines, where the labeled nodes are selected randomly.
+
+Figure 1 is the results of GCN, GAT and our proposed
+
+method, GCN/GAT-DVD, on these datasets with four bias
+
+degrees. We can ﬁnd that: i) Compared with the unbiased
+
+scenario, when performing GCN/GAT on biased datasets,
+
+they suffer from serious performance decrease, indicating that
+
+selection bias greatly affects the GNNs’ performance. ii) All
+
+lines decrease monotonically with the increase of bias degree,
+
+demonstrating that heavier biases will cause larger performance
+
+reduction. iii) GCN/GAT-DVD outperforms the corresponding
+
+base models (i.e., GCN/GAT) consistently and achieves larger
+
+improvements in heavier bias degree scenarios, indicating that
+
+our proposed method could relieve the effect of selection bias.
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+3
+
+(a) Cora
+
+(b) Citeseer
+Fig. 1: Effect of selection bias on GCN and GAT.
+
+(c) Pubmed
+
+B. Theoretical Analysis
+The above experiment empirically veriﬁes the effect of selection bias on GNNs. Here we theoretically analyze the effect of selection bias on estimating the parameters in GNNs. First, because biased labeled nodes have biased neighborhood structure and features, GNNs will encode this biased information into the node embeddings, which is validated by the experimental investigation. Based on stable learning technique [5], we make the following assumption:
+Assumption 1. The node embeddings learned by GNNs for each node can be decomposed as H = {S, V}, where S represents the stable variables and V represents the unstable variables. Speciﬁcally, for both training and test environments, E(Y∣S = s, V = v) = E(Y∣S = s).
+Under Assumption 1, the distribution shift between training set and test set is mainly induced by the variation in the joint distribution over (S, V), i.e., P(Strain, Vtrain) ≠ P(Stest, Vtest). However, there is an invariant relationship between stable variables S and outcome Y in both training and test environments, which can be expressed as P(Ytrain∣Strain) = P(Ytest∣Stest). Assumption 1 can be guaranteed by Y⊥V∣S. Thus, one can solve the stable prediction problem by developing a function g(⋅) based on S. However, one can hardly identify such variables in GNNs.
+Without loss of generality, we take Y as a continuous variable for analysis and have the following assumption:
+Assumption 2. The true generation process of target variable Y contains not only the linear combination of stable variables S, but also the nonlinear transformation of stable variables.
+Based on the above assumptions, we formalize the label generation process as follows:
+
+Y = f (X, A) + ε = S¯βS + V¯ βV + g(S¯) + ε,
+
+(1)
+
+For a classical GNN model with a linear regression predictor, its prediction function can be formulated as:
+
+Yˆ = Gˆ(X, A; θg)SβˆS + Gˆ(X, A; θg)V βˆV + ε, (2)
+
+where
+
+Gˆ(X, A; θg)
+
+∈
+
+N ×p
+R
+
+denotes
+
+the
+
+node
+
+embeddings
+
+learned by a GNN, such as GCN and GAT, the output
+
+variables of Gˆ(X, A; θg) can be decomposed as stable variables Gˆ(X, A; θg)S ∈ RN×m and unstable variables Gˆ(X, A; θg)V ∈ RN×q (m + q = p) corresponding to S¯ and V¯ in Eq. (1). Compared with Eq. (1), we can ﬁnd that the
+
+parameters of GNN model could be unbiasedly estimated if the nonlinear term g(S¯) = 0 (i.e., there does not exist any non-
+
+linear relationship in the label generation process that cannot
+
+be learned by GNNs), because the GNN model in Eq. (2) will
+
+have the same label generation mechanism as Eq. (1). However,
+
+as common used GNNs only have several layers which may
+
+limit their nonlinear power and the real-world graph data is
+
+far more complicated, it is reasonable to assume that there is a nonlinear term g(S¯) ≠ 0 that cannot be ﬁtted by the GNNs.
+
+Under this assumption, next, we taking a vanilla GCN [2] as
+
+an example to illustrate how the distribution shift will induce
+
+parameter estimation bias. A two-layer GCN can be formulated as Aˆ σ(Aˆ XW(0))W(1), where Aˆ is the normalized adjacency
+
+matrix, W is the transformation matrix at each layer and σ(⋅) is
+
+the Relu activation function. We decompose GCN as two parts: one is embedding learning part Aˆ σ(Aˆ XW(0)), which can be decomposed as [ST, VT], corresponding to Gˆ(X, A; θg)S and Gˆ(X, A; θg)V in Eq. (2), and the other part is W(1), where the learned parameters can be decomposed as [β˜S, β˜V ], corresponding to [βˆS, βˆV ] in Eq. (2). We aim at minimizing
+the least-square loss:
+
+n
+
+LGCN = (STi β˜S + ViTβ˜V − Yi)2.
+
+(3)
+
+i=1
+
+where S¯ and V¯ are latent stable variables and unstable variables
+to generate label Y, which can be learned by GNNs from
+raw graph data, βS and βV are the corresponding linear coefﬁcients and they represent the effect of each latent variable on outcome Y, ε is the independent random noise, and g(⋅) is the nonlinear transformation function of stable variables.
+According to Assumption 1, we know that coefﬁcients of unstable variables V¯ are actually 0 (i.e., βV = 0).
+
+According to the derivation rule of partitioned regression model [5], [11], with S = S¯ and V = V¯ , we have:
+
+β˜V − βV
+
+=
+
+(
+
+1 n
+
+n
+
+ViTVi
+
+)−1(
+
+1 n
+
+n
+
+ViTg(Si))
+
+i=1
+
+i=1
+
++
+
+(
+
+1 n
+
+n
+
+ViT
+
+Vi)−1
+
+(
+
+1 n
+
+n
+
+ViTSi)(βS − β˜S),
+
+(4)
+
+i=1
+
+i=1
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+4
+
+β˜S
+
+−
+
+βS
+
+=
+
+(
+
+1 n
+
+n
+
+STi Si)−1
+
+(
+
+1 n
+
+n
+
+STi g(Si))
+
+i=1
+
+i=1
+
++
+
+(
+
+1 n
+
+n
+
+STi
+
+Si
+
+)−1(
+
+1 n
+
+n
+
+STi Vi)(βV − β˜V ),
+
+(5)
+
+i=1
+
+i=1
+
+where n is labeled node size, Si is i-th sample of S,
+
+1 n
+
+∑ni=1
+
+ViTg(Si)
+
+=
+
+E(VTg(S)) + op(1),
+
+1 n
+
+∑ni=1
+
+ViTSi
+
+=
+
+E(VTS) + op(1) and op(1) is the error which is negligible.
+
+Ideally, β˜V − βV = 0 indicates that there is no bias between
+
+the estimated and the real parameter. However, if E(VTS) ≠ 0
+
+or E(VTg(S)) ≠ 0 in Eq. (4), β˜V will be biased, leading
+
+to the biased estimation on β˜S in Eq. (5) as well, i.e, the
+
+true effect of learned embeddings on label Y can not be
+
+estimated precisely. Since the correlation between V and S (or g(S)) 1 might shift in test phase, the biased parameters learned
+
+in training set is not the optimal parameters for predicting
+
+testing nodes. Therefore, to increase the stability of prediction,
+
+we need to unbiasedly estimate the parameters of β˜V by
+
+removing the correlation between V and S (or g(S)) on
+
+training graph, making E(VTS) = 0 and E(VTg(S)) = 0.
+
+Note
+
+that
+
+1 n
+
+∑ni=1
+
+STi g(Si)
+
+in
+
+Eq.
+
+(5)
+
+can
+
+also
+
+cause
+
+estimation
+
+bias, but the relation between S and g(S) is stable across
+
+environments, which do not affect the stability to some extent.
+
+III. PROPOSED MODEL
+
+A. Revisiting on Variable Decorrelation in Causal View
+
+To decorrelate V and S (or g(S)), we should decorrelate the output variables of Gˆ(X, A; θg). [5] proposes a Variable Decorrelation (VD) term with sample reweighting technique to eliminate the correlation between each variable pair, in which the sample weights are learned by jointly minimizing the moment discrepancy between each variable pair:
+
+p
+
+LV D(H) = ∣∣HT.j ΛwH.−j /n − HT.j w/n ⋅ HT.−j w/n∣∣22,
+
+j=1
+
+(6)
+
+where
+
+H
+
+∈
+
+n×p
+R
+
+means
+
+the
+
+variables
+
+needed
+
+to
+
+be
+
+decorrelated,
+
+i.e., Gˆ(X, A; θg) of GNNs, H.j is j-th variable of H, H.−j =
+
+H\H.j means all the remaining variables by setting the value
+
+of
+
+j-th
+
+variable
+
+in
+
+H
+
+as
+
+zero,
+
+w
+
+∈
+
+n×1
+R
+
+is
+
+the
+
+sample
+
+weights,
+
+∑ni=1 wi = n and Λw = diag(w1, ⋯, wn) is the corresponding
+
+diagonal matrix. As we can see, LV D(H) can be reformulated
+
+as ∑j≠k ∣∣HT.j ΛwH.k/n−HT.j w/n⋅HT.kw/n∣∣22, and it aims to
+
+let E(HT.jH.k) = E(HT.j)E(H.k) for each variable pair j and
+
+k. LV D(H) decorrelates all the variable pairs equally. However,
+
+decorrelating all the variables requires sufﬁcient samples [5],
+
+i.e., n → ∞, which is hard to be satisﬁed, especially in the
+
+semi-supervised setting. In this scenario, we cannot guarantee
+
+LV D(H) = 0. Therefore, the key challenge is the difﬁculties
+
+of removing the spurious correlation that has the largest impact
+
+on the unbiased estimation when LV D(H) ≠ 0. Inspired by confounding balancing technique in observational
+
+studies [12], we revisit the VD regularizer in causal view and
+
+1We assume all variables are centered with zero mean. This assumption could be satisﬁed by adding a normalization layer after the learned embeddings.
+
+show how to differentiate each variable pair. Confounding
+
+balancing techniques are often used for causal effect estimation
+
+of treatment T , where the distributions of confounders X are
+
+different between treated (T = 1) and control (T = 0) groups
+
+because of non-random treatment assignment. One could bal-
+
+ance the distribution of confounders between treatment and con-
+
+trol groups to unbiasedly estimate causal treatment effects [13],
+
+[14], [15]. Most balancing approaches exploit moments to
+
+characterize distributions, and balance them by adjusting sample
+
+weights
+
+w
+
+as
+
+follows:
+
+w
+
+=
+
+arg
+
+min
+w
+
+∣∣
+
+∑i∶Ti=1
+
+Xi −∑i∶Ti =0
+
+wi ⋅
+
+Xi∣∣22. After balancing, the treatment T and the confounders
+
+X tend to be independent.
+
+Given one targeted variable j, its decorrelation term, LV Dj = ∣∣HT.j ΛwH.−j /n − HT.j w/n ⋅ HT.−j w/n∣∣22, is to make H.j independent from H.−j 2, which is same as the confounding
+balancing term making treatment and confounders independent.
+
+Thereby, LV Dj can also be viewed as a confounding balancing term, where H.j is treatment and H.−j is confounders,
+illustrated in Fig. 2(a). Hence, our target can be explained as
+
+unbiased estimation of causal effect of each variable which is
+
+invariant across training and test set. As different variable may
+
+contribute unequally to the confounding bias, it is necessary
+
+to differentiate the confounders. The target of differentiating
+
+confounders exactly matches our target that removing the
+
+correlation of variables that has the largest impact on the
+
+unbiased estimation.
+
+B. Differetiated Variable Decorrelation
+
+Considering a continuous treatment, the causal effect of treat-
+
+ment can be measured by Marginal Treatment Effect Function
+
+(MTEF)
+
+[16],
+
+and
+
+deﬁned
+
+as:
+
+M T EF
+
+=
+
+E[Yi
+
+(t)]−E[Yi ∆t
+
+(t−∆t)]
+
+,
+
+where Yi(t) represents the potential outcome of sample i with
+
+treatment status T = t, and ∆t denotes the increasing level
+
+of treatment. With the sample weights w decorrelating the
+
+treatment and the confounders, we can estimate the MTEF by:
+
+M̂ T EF
+
+=
+
+1 ni
+
+∑i∶Ti=t
+
+wi
+
+⋅
+
+Yi(Ti)
+
+−
+
+1 nj
+
+∑j∶Tj =t−∆t
+
+wj
+
+⋅
+
+Yj (Tj ) ,
+
+∆t
+
+(7)
+
+where ni and nj are the number of samples for two groups,
+
+respectively. Next, we theoretically analyze how to differentiate
+
+confounders’ weights with the following theorem.
+
+Theorem 1. In observational studies, different confounders make unequal confounding bias on Marginal Treatment Effect Function (MTEF) with their own weights, and the weights can be learned via regressing outcome Y on confounders X and treatment variable T .
+
+Proof. Recalling the Assumption 1, we rewrite the label generation process Eq. (1) under MTEF setting as:
+
+Y (t) = ξkX.k + γt + gt(S) + ε,
+
+(8)
+
+k
+
+2Nonlinear relationships between variables can be incorporated by considering high-order moments in Eq. (6), for example, a polynomial augmented function f (H) = (H, H2, H.iH.j , H3, H.iH.j H.k, ⋯).
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+5
+
+Differentiated confounder
+X
+
+}
+
+...
+
+Input graph
+
+Aggregate
+
+K-th layer Aggregate
+
+loss
+
+Variance
+
+Reweight
+
+Neighbor nodes
+
+T
+
+Y
+
+Causal graph
+
+(a) Decorrelation in Causal View
+
+Differentiated variable weights
+w
+
+Sample weights
+
+Forward flow
+
+DVD term
+(b) GNN-DVD Framework
+
+Backward flow
+
+Fig. 2: (a) Diagram of decorrelating node embeddings with confounding balance. H˜ (K−1) is the node embedding matrix to be decorrelated. T is the treatment variable, corresponding to one target variable in H˜ (K−1). X means the confounders, corresponding to the remaining variables of the target variable in H˜ (K−1). Y is the outcome, corresponding to labels. (b) The
+framework of GNN-DVD. The same color in the two ﬁgures represents the same kind of variable.
+
+where α = [ξ, γ] are the linear coefﬁcients, and gT =t(S) is the output of nonlinear transformation of the stable variables S when treatment T is t. Note that if T ∉ S, changing the value of T will not change the value of gt(S), T ∈ S otherwise.
+Under above formulation, we write estimator of M̂ T EF as:
+
+late
+
+the
+
+term
+
+∑k ξk(
+
+1 ni
+
+) ∑i∶Ti
+
+=t
+
+wi
+
+Xik
+
+−
+
+1 nj
+
+∑j∶Tj =t−∆t wj Xjk
+
+∆t
+
+and
+
+, 1
+ni
+
+∑i∶Ti
+
+=t
+
+wi
+
+gt
+
+(Si
+
+)−
+
+1 nj
+
+∑j∶Tj =t−∆t wj gt−∆t(Si)
+
+∆t
+
+where
+
+the
+
+second
+
+term has the unknown term gT (Si) so that we can only try
+
+to reduce the ﬁrst term.
+
+1 ni
+
+∑i∶Ti =t
+
+wi Xik
+
+−
+
+1 nj
+
+∑j∶Tj =t−∆t wj Xjk
+
+∆t
+
+means the difference of the k-th confounder between treated and
+
+M̂ T EF
+
+=
+
+1 ni
+
+∑i∶Ti=t
+
+wiYi(Ti)
+
+−
+
+1 nj
+
+∑j∶Tj =t−∆t
+
+wj Yj (Tj )
+
+∆t
+
+=
+
+1 ni
+
+∑i∶Ti=t
+
+wi(∑k
+
+ξk Xik
+
++
+
+γt
+
++
+
+gT =t(Si)
+
++
+
+)
+
+∆t
+
+control samples. The parameter ξk represents the confounding bias weight of the k-th confounder, and it is the coefﬁcient of X.k. Moreover, because our target is to learn the weight of each variable pair, i.e., between treatment and each confounder, we also need to learn the weight γ of treatment T . Hence,
+
+−
+
+1 nj
+
+∑j∶Tj =t−∆t
+
+wj (∑k
+
+ξk Xj k
+
++
+
+γ(t
+
+−
+
+∆t)
+
++
+
+gt−∆t(Si)
+
++
+
+∆t
+
+)
+
+according to Eq. (8), the confounder weights and treatment weight can be learned by regressing observed outcome Y on confounders X and treatment T .
+
+1 ni
+
+∑i∶Ti=t
+
+wiγt −
+
+1 nj
+
+∑j∶Tj =t−∆t
+
+wj γ (t
+
+−
+
+∆t)
+
+=
+
+Due to the connection between treatment effect estimation
+
+∆t
+
+1 ni
+
+∑i∶Ti=t
+
+wi
+
+∑k
+
+ξk Xik
+
+−
+
+1 nj
+
+∑j∶Tj =t−∆t wj
+
+∑k
+
+ξk Xik
+
+with variable decorrelation as analyzed in Section III-A, we utilize Theorem 1 to reweight the variable weight in variable
+
++
+
+∆t
+
+decorrelation term. When apply the Theorem 1 to GNNs, the
+
++
+
+1 ni
+
+∑i∶Ti=t wigt(Si) −
+
+1 nj
+
+∑j∶Tj =t−∆t wj gt−∆t(Si)
+
+∆t
+
++ φ(
+
+)
+
+= MTEF
+
++
+
+ξk( ∑i∶Ti=t
+
+1 ni
+
+wi
+
+Xik
+
+− ∑j∶Tj =t−∆t ∆t
+
+1 nj
+
+wj Xjk
+
+)
+
+k≠t
+
++
+
+1 ni
+
+∑i∶Ti=t wigt(Si) −
+
+1 nj
+
+∑j∶Tj =t−∆t wj gt−∆t(Si)
+
+∆t
+
++ φ(
+
+),
+
+(9)
+
+where
+
+1 ni
+
+∑i∶Ti =t
+
+wi γ t−
+
+1 nj
+
+∑j∶Tj =t−∆t wj γ(t−∆t)
+
+∆t
+
+is the ground truth
+
+of M T EF , φ(ε) means the noise term, and φ(ε) ≃
+
+confounders X should be H.−j and treatment T is H.j, where the embedding H is learned by Gˆ(X, A; θg) in Eq. (2). And the
+variable weights α is equal to the regression coefﬁcients for H, i.e, βˆ in Eq. (2). Then the Differentiated Variable Decorrelation
+
+(DVD) term can be formulated as follows:
+
+min
+w
+
+LDV
+
+D (H)
+
+=
+
+p (αT
+j=1
+
+⋅
+
+abs(HT.j ΛwH.−j /n
+
+− HT.j w/n ⋅ HT.−j w/n))2
+
+λ1 +n
+
+n i=1
+
+wi2
+
++
+
+λ2(
+
+1 n
+
+n i=1
+
+wi
+
+−
+
+1)2,
+
+s.t.w ⪰ 0
+
+(10)
+
+0 with Gaussian noise. According to the last equa- where abs(⋅) means the element-wise absolute value operation, tion, to reduce the bias of M̂ T EF , we need regu- preventing positive and negative values from eliminating. Term
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+6
+
+λ1 n
+
+∑ni=1
+
+wi2
+
+is
+
+added
+
+to
+
+reduce
+
+the
+
+variance
+
+of
+
+sample
+
+weights
+
+to
+
+achieve
+
+stability,
+
+and
+
+the
+
+formula
+
+λ2(
+
+1 n
+
+∑ni=1
+
+wi −1)2
+
+avoids
+
+all the sample weights to be 0. The term w ⪰ 0 constrains each
+
+sample weight to be non-negative. After variable reweighting,
+
+the weighted decorrelation term in Eq. (10) can be rewritten as ∑j≠k αj2αk2 ∣∣HT.j ΛwH.k/n − HT.j w/n ⋅ HT.kw/n∣∣22, and the weight for variable pair j and k would be αj2αk2, hence it
+considers both the weights of treatment and confounder. Then
+
+we derive the uniqueness property of w as follows:
+
+Theorem 2 (Uniqueness). If λ1n ≫ p2 + λ2, p2 ≫ max(λ1, λ2), ∣Hi,j∣ ≤ c and ∣αi∣ ≤ c for some constant c, the solution wˆ ∈ {w ∶ ∣wi∣ ≤ c} to minimize Eq. (10) is
+unique.
+
+Proof. See Appendix A.
+
+C. Debiased GNN Framework
+
+In this section, we describe the framework of Debiased
+GNN (DGNN) that incorporates VD/DVD term with GNNs
+in a seamless way. As analyzed in Section II-B, decorrelating Aˆ σ(Aˆ XW(0)) could make parameter estimation of GCN unbiased. However, most GNNs follow a layer-by-layer stack-
+ing architecture, and the output embedding of each layer is more easy to obtain in implementing. Since Aˆ σ(Aˆ XW(0)) is the aggregation of the ﬁrst layer embedding σ(Aˆ XW(0)), decorrelating Aˆ σ(Aˆ XW(0)) may lack the ﬂexibility that incorporates VD/DVD term with other GNN architectures.
+Fortunately, we have the following theorem to identify a more
+ﬂexible way to combine variable decorrelation with GNNs.
+
+Theorem 3. Given p pairwise uncorrelated variables Z =
+(Z1, Z2, ⋯, Zp), with a linear aggregation operator Aˆ , the variables of Y = Aˆ Z are still pairwise uncorrelated.
+
+Proof. Let Z = {Z1, Z2, ⋯, Zp} be p pairwise uncorrelated variables. ∀Zi, Zj ∈ Z, (Z(i1), Z(i2), ⋯, Z(in)) and (Z(j1), Z(j2), ⋯, Z(jn)) are n simple random samples drawn
+from Zi and Zj respectively, and have same distribution with Zi and Zj. Given a linear aggregation matrix Aˆ = (aij), ∀s, v ∈ (1, 2, ⋯, n), let Yi(s) = ∑nk=1 askZ(ik) and Yj(v) = ∑nl=1 avlZ(jl), and we have following derivation:
+
+n
+
+n
+
+Cov(Yi(s), Yj(v)) = Cov( askZi(k), avlZ(jl))
+
+k=1
+
+l=1
+
+nn
+
+=
+
+askavlCov(Z(ik), Z(jl))
+
+k=1 l=1 nn
+
+=
+
+askavlδij ,
+
+k=1 l=1
+
+where δij = 0 when i ≠ j, otherwise δij = 1. Therefore, when i ≠ j, we have Cov(Yi(s), Yj(v)) = 0 and Cov(Yi, Yj) = 0. Extended the conclusion to multiple
+variable, Y = (Y1, Y2, ⋯, Yn) are pairwise uncorrelated.
+
+The theorem indicates that if the variables of embeddings Z are uncorrelated, after any form of linear neighborhood aggre-
+
+gation Aˆ , e.g., average, attention or sum, the variables of trans-
+formed embeddings Y would be also uncorrelated. Therefore, decorrelating σ(Aˆ XW(0)) can also reduce the estimation bias. For a K layers of GNN, we can directly decorrelate the output of (K − 1)-th layer, i.e., σ(Aˆ ⋯σ(Aˆ XW(0))⋯W(K−2)) for a K layers of GCN.
+The previous analysis ﬁnds a ﬂexible way to incorporate
+VD/DVD term with GNNs, however, recall that we analyze
+GNNs based on the least-squares loss in Eq. (3), and most ex-
+isting GNNs are designed for the classiﬁcation task. Therefore,
+in the following, we analyze that the previous conclusions are
+still applicable in classiﬁcation. We consider the cases that the
+softmax layer is used as the output layer of GNNs and loss is
+the cross-entropy error function. We use the Newton-Raphson
+update rule [17] to bridge the gap between linear regression and
+multi-classiﬁcation. According to the Newton-Raphson update rule, the update formula for transformation matrix W(K−1) of
+the last layer of GCN can be derived:
+W.(jnew) = W.(jold) − (HTRH)−1HT(HW.(jold) − Y.j )
+= (HTRH)−1{HTRHW.(jold) − HT(HW.(jold) − Y.j )}
+= (HTRH)−1HTRz, (11)
+where Rkj = − ∑Nn=1 HnW.(kold)(Ikj − HnW.(jold)) is a weighing matrix and Ikj is the element of the identity matrix, and z = HW.(jold) − R−1(Y.j − W.jH) is an effective target value. Eq. (11) takes the form of a set of normal equations for a
+weighted least-squares problem. As the weighing matrix R is not constant but depends on the parameter vector W.(jold), we must apply the normal equations iteratively. Each iteration uses the last iteration weight vector W.(jold) to calculate a revised weighing matrix R and regresses the target value z with HW.(jnew). Therefore, the variable decorrelation can also be applied to the GNNs with softmax classiﬁer to reduce
+the estimation bias in each iteration. Note that according to
+update formula Eq. (11), we should calculate the inverse matrix (HTRH)−1 in each iteration, which requires high computation. In practice, we use gradient descent methods to approximate
+Newton-Raphson update rule and it works well in experiments.
+Fig. 2(b) is the framework of GNN-DVD, where we input the labeled nodes’ embeddings H˜ (K−1) into the regularizer LDV D(H˜ (K−1)). As GCN has the formula softmax(Aˆ H(K−1)W(K−1)), the variable weights of H˜ (K−1) used for differentiating LDV D(H˜ (K−1)) can be computed from
+
+α = Var(W(K−1), axis = 1)
+
+(12)
+
+where Var(⋅, axis = 1) refers to calculating the variance of each row of some matrix and it reﬂects each variable’s weight
+
+for classiﬁcation which is similar to the regression coefﬁcients.
+
+Note that when incorporating VD term with GNNs, we do not need compute the variable weights. Then the sample weights w
+
+learned by DVD term have the ability to remove the correlation in H˜ (K−1). Inspired by sample weighting methods [18], we
+
+propose to use this sample weights to reweight softmax loss:
+
+min LG =
+θ
+
+wl ⋅ ln(q(H˜ (lK)) ⋅ Yl),
+
+(13)
+
+l∈YL
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+7
+
+where q(⋅) is the softmax function, YL is the set of labeled node indices and θ is the set of parameters of GCN. After reweighting nodes by these weights, we can create a pseudo-population where the biases in node neighborhood are effectively reduced, with which the off-the-shelf GNN models can achieve more accurate prediction under agnostic environments. The whole algorithm is summarized in Algorithm 1.
+
+Algorithm 1: GNN-DVD Algorithm
+
+Input
+
+: Training graph Gtrain = {A, X, Y}, and indices of labeled nodes YL; Max iteration:maxI ter
+
+Output : GNN parameter θ and sample weights w Initialization : Let w = ω ⊙ ω and initialize sample
+weights ω with 1; Initialize GNN’s
+
+parameters θ with random uniform distribution; Iteration t ← 0
+
+1 while not converged or t < maxIter do 2 Optimize θ(t) to minimize LG via Eq. (13); 3 Calculate variable weights α(t) from W(K−1) via
+Eq. (12); 4 Optimize ω(t) to minimize LDV D(H˜ (K−1)) via Eq.
+(10);
+5 t = t + 1;
+6 end
+7 Return: θ and w = ω ⊙ ω
+
+To optimize our GNN-DVD algorithm, we propose an iterative method. Firstly, we let w = ω ⊙ ω to ensure nonnegativity of w and initialize sample weight ωi = 1 for each sample i and GNN’s parameters θ with random uniform
+distribution. Once the initial values are given, in each iteration, we ﬁx the sample weights ω and update the GNN’s parameters θ by LG with gradient descent, then compute the confounder weights α from the linear transform matrix W(K−1). With α and ﬁxing the GNN’s parameters θ, we update the sample weights ω with gradient descent to minimize LDV D(H(K−1)). We iteratively update the sample weights w and GNN’s parameters θ until LG converges.
+
+D. Extension to GAT
+We can easily incorporate the VD/DVD term with other GNNs. We combine them with GAT and more extensions leave as future work. GAT utilizes an attention mechanism to aggregate neighbor information. It also follows the linear aggregation and transformation steps. Similar to GCN, the hidden embedding H˜ (K−1) is the input of VD/DVD term, and the variable weights α are calculated from the transformation matrix W(K−1) and the sample weights w are used to reweight the softmax loss. Note that the original paper utilizes the same transformation matrix W(K−1) for transforming embedding and learning attention values. Because α means the importance of each variable for classiﬁcation, and it should be calculated from transformation matrix W(K−1) for transforming embedding, hence we use separate matrices for transforming embedding
+
+and learning attention values, respectively. This modiﬁcation does not change the performance of GAT in experiments.
+
+E. Complexity Analysis
+
+Compared with base models (e.g., GCN and GAT), the main
+
+incremental time cost is the complexity from VD/DVD term.
+
+For a training graph with n labeled nodes, we analyze the
+
+time complexity of the VD/DVD term in each iteration. For calculating the VD loss, its complexity is O(np2), where p is
+
+the dimension of embeddings. And for DVD loss, its complexity
+
+is the same as VD, as the complexity of calculating variable
+
+weights α is O(np), which is relatively small comparing with O(np2). For updating w, the complexity is dominated by
+
+the step of calculating the partial gradients of the function
+
+LDV D(H) with respect to variable w. The complexity of
+
+∂LDV D (H) ∂w
+
+is
+
+O(np2).
+
+In
+
+total,
+
+the
+
+complexity
+
+of
+
+each
+
+iteration
+
+for VD/DVD term in Algorithm 1 is O(np2). And it is quite
+
+smaller than the base models (e.g., the complexity of GCN is O(Ecp2), where E is the number of edges and c is the
+
+dimension of input node features).
+
+F. Discussion
+In our paper, we propose to integrate two decorrelation terms (i.e., VD/DVD term) with GNN models to eliminate the estimation bias. Here we discuss the advantages and disadvantages of these two terms. VD term aggressively decorrelates all the variables learned by GNNs, however, it theoretically requires a large number of samples to achieve this goal. To overcome this dilemma, the DVD term is proposed to differentiate the variable weights in the VD term, aiming to remove the most unexpected correlation. However, due to the existence of unknown term g(S) in Eq. (8), introducing more parameters to optimize may increase the instability of the model. Hence, when the number of labeled samples is large, performing GNN-VD may induce more stable results.
+IV. EXPERIMENTS
+A. Datasets
+Here, we validate the effectiveness of our methods on node classiﬁcation with two kinds of selection bias, i.e., label selection bias and small sample selection bias. For label selection bias, we employ three widely used graph datasets: Cora, Citeseer and Pubmed [7]. As in Section II-A, we get three biased degrees as well as the original unbiased labeled nodes for each dataset. For small sample selection bias, we conduct the experiments on NELL dataset [19], where each class only has at most 1/5/10 labeled nodes for training. Due to the large scale of this dataset, the test nodes are easily to have distribution shifts from training nodes. The details of the datasets are summarized in Table II.
+
+B. Baselines
+We compare our proposed framework with several related baselines:
+• Base models: GCN [2] and GAT [3] are classical GNN methods. We utilize them as the base models in our
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+8
+
+TABLE II: Dataset statistics
+
+Dataset
+Cora Citeseer Pubmed NELL
+
+Type
+Citation network Citation network Citation network Knowledge graph
+
+Nodes
+2,708 3,327 19,717 65,755
+
+Edges
+5,429 4,732 44,338 266,144
+
+Classes
+7 6 3 210
+
+Features
+1,433 3,703 500 5,414
+
+Bias degree ( )
+0.7/0.8/0.9 0.7/0.8/0.9 0.7/0.8/0.9 1/5/10 labeled nodes per class
+
+Bias type
+Label selection bias Label selection bias Label selection bias Small sample selection bias
+
+framework, so they are the most related baselines to validate the effectiveness of the proposed framework. • GNM-GCN/GAT [20]: A GNN method which considers unbalanced label selection bias problem in transductive setting. They also utilize GCN/GAT as their base models. • Chebyshev [2]: It is a GCN-based method utilizing thirdorder Chebyshev ﬁlters. • SGC [8]: It is a simpliﬁed GCN-based method, which reduces the excess complexity through successively removing nonlinearities and collapsing weight matrices between consecutive layers. • APPNP [21]: It is one of the state-of-the-art GNN methods that combines PageRank with GCN. • Planetoid [10]: It is a classical semi-supervised graph embedding method. We use its inductive variant. • MLP: It is a two-layer multilayer perceptron trained on the labeled nodes with only node features as input. • DGNN: It is the debiased GNN framework proposed in this paper. We incorporate the VD/DVD term with GCN/GAT under our proposed framework called GCN/GAT-VD/DVD.
+C. Experimental Setup
+As the Section II-A has described, for all datasets, to simulate the agnostic selection bias scenario, we ﬁrst follow the inductive setting in [8] that masks the validation and test nodes in the training phase and validation and test with the whole graph so that the test nodes will be agnostic. For GCN and GAT, we utilize the same two-layer architecture as their original paper [2], [3]. We use the following sets of hyperparameters for GCN on Cora, Citeseer, Pubmed: 0.5 (dropout rate), 5⋅10−4 (L2 regularization) and 32 (number of hidden units); and for NELL: 0.1 (dropout rate), 1 ⋅ 10−5 (L2 regularization) and 64 (number of hidden units). For GAT on Cora, Citeseer, we use: 8 (ﬁrst layer attention heads), 8 (features each head), 1 (second layer attention head), 0.6 (dropout), 5⋅10−4 (L2 regularization); and for Pubmed: 8 (second layer attention head), 1 ⋅ 10−3 (L2 regularization), other parameters are the same as Cora and Citeseer. To fair comparison, the GNN part of our model uses the same architecture and hyper-parameters with the base model and we grid search λ1 and λ2 from {0.01, 0.1, 1, 10, 100}. For other baselines, we use the optimal hyper-parameters in the original literatures on each dataset. For all the experiments, we run each model 10 times with different random seeds and report its average Accuracy results.
+D. Results on Label Selection Bias Datasets
+The results are given in Table III, and we have the following observations. First, the proposed models (i.e., GCN/GAT with
+
+VD/DVD terms) always achieve the best performances in most cases, which well demonstrates that the effectiveness of our proposed debiased GNN framework. Second, comparing with base models, our proposed models all achieve up to 17.0% performance improvements, and gain larger improvements under heavier bias scenarios. Since the major difference between our model with base models is the VD/DVD regularizer, we can safely attribute the signiﬁcant improvements to the effective decorrelation term and its seamless joint with GNN models. Third, GCN/GAT-DVD achieves better results than GCN/GATVD in most cases. It validates the importance and effectiveness of differentiating variables’ weights in the semi-supervised setting. Moreover, our model still outperforms baselines in the unbiased setting. In real applications, it is hard to control the collection process without any distribution shift from the training set to the test set [23]. Therefore, the problem we study is ubiquitous in reality and our method is effective in most scenarios.
+E. Results on Small Sample Selection Bias Datasets
+As NELL is a large-scale graph, we cannot run GAT on a single GPU with 16GB memory. We only perform GCNVD/DVD and compare with representative methods which can perform on this dataset. The results are shown in Table IV. First, GCN-VD/DVD achieves signiﬁcant improvements over GCN. It indicates that selection bias could be induced by a small number of labeled nodes and our proposed method relieve the estimation bias. Moreover, with fewer labeled nodes, i.e., larger selection bias, our methods achieve larger improvements over base models. It further validates our method is an effective method against heavy bias. Moreover, GCN-DVD further improves GCN-VD with a large margin on NELL-1 dataset. It means that decorrelating all the variable pairs equally is suboptimal, and our differentiated strategy is effective when labeled nodes are scarce. With the number of labeled nodes increases, it may not necessary to differentiate the variable weights, but GCN-DVD achieves competitive results with GCN-VD and still outperforms the base model with a clear margin.
+F. Sample Weight Analysis
+Here we analyze the effect of sample weights w. We compute the amount of correlation in the labeled nodes’ embeddings H˜ (K−1) learned by standard GCN and the weighted embeddings of the same layer learned by GCN-DVD. Note that, the weights are the last iteration of sample weights of GCNDVD. Following [24], [25], the amount of correlation of GCN and GCN-DVD is measured by Frobenius norm of crosscorvairance matrix ∣∣C∣∣2F computed from variables of H˜ (K−1) and weighted H˜ (K−1) respectively, where Cij represents the
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+9
+
+TABLE III: Performance of three citation networks. The ‘*’ indicates the best results of the baselines. Best results of all methods are indicated in bold. ‘% gain over GCN/GAT’ means the improvement percent of GCN/GAT-DVD against GCN/GAT.
+
+Method
+MLP Planetoid [10] Chebyshev [22]
+SGC [8] APPNP [21] GNM-GCN [20] GNM-GAT [20]
+GCN [2] GCN-VD GCN-DVD % gain over GCN GAT [3] GAT-VD GAT-DVD % gain over GAT
+
+Unbiased
+0.5296 0.6650 0.7407 0.779 0.8132∗ 0.7594 0.7976
+0.7909 0.7980 0.7951 0.53%
+0.8100 0.8133 0.8139 0.48%
+
+Cora Light Medium
+
+0.5624 0.5890
+
+0.5197 0.5240
+
+0.7116 0.7006
+
+0.7800 0.7800
+
+0.7913 0.7423 0.7875
+
+0.7689 0.7531 0.7638
+
+0.7851 0.7951 0.7959 1.38% 0.8067∗ 0.8146 0.8179 1.39%
+
+0.7775 0.7855 0.7885 1.41% 0.8019∗ 0.8079 0.8119 1.26%
+
+Heavy
+0.5087 0.5180 0.6809 0.7530 0.7629 0.7196 0.7404
+0.7422 0.7522 0.7555 1.79%
+0.7578 0.7708 0.7694 1.53%
+
+Unbiased
+0.5438 0.6720 0.7232∗
+0.724 0.6862 0.6054 0.6832
+0.7075 0.7122 0.7128 0.75%
+0.7224 0.7288 0.7294 0.97%
+
+Citeseer Light Medium
+
+0.4532 0.5160
+
+0.3757 0.5140
+
+0.6542 0.6276 0.6780 0.6730∗
+
+0.6478 0.5793 0.6524
+
+0.6052 0.5717 0.6487
+
+0.6786 0.6844 0.6908 1.8% 0.7033∗ 0.7149 0.7172 1.97%
+
+0.5952 0.6676 0.6769 14.2%
+0.6683 0.6833 0.6825 2.12%
+
+Heavy
+0.3893 0.4880 0.5920 0.6200 0.5903 0.5125 0.5865
+0.5551 0.6408 0.6496 17.0% 0.6475∗ 0.6611 0.6627 2.34%
+
+Unbiased
+0.6914 0.744 0.7450 0.781 0.7731 0.7654 0.7666 0.7845∗ 0.7888 0.7874 0.37%
+0.7714 0.7732 0.7735 0.27%
+
+Pubmed Light Medium
+
+0.6852 0.7160
+
+0.6620 0.6770
+
+0.7358 0.6862 0.7880∗ 0.7560
+
+0.7639 0.7552 0.7438
+
+0.7369 0.7381 0.7568
+
+0.7673 0.7727 0.7741 0.89%
+0.7665 0.7783 0.7788 1.6%
+
+0.7545 0.7729 0.7746 2.67% 0.7579∗ 0.7689 0.7723 1.9%
+
+Heavy
+0.6378 0.6680 0.6732 0.6800 0.6862 0.7072 0.6891 0.7247∗ 0.7399 0.7542 4.07%
+0.7068 0.7149 0.7210 2.0%
+
+TABLE IV: Performance of NELL. The ‘*’ indicates the best results of the baselines. Best results of all methods are indicated in bold. ‘Improvement’ means the improvement percent of GCN-VD/DVD (selected better results) against GCN.
+
+Dataset NELL-1 NELL-5 NELL-10
+
+MLP 0.2385 0.4938 0.5838
+
+Planetoid 0.3901 0.3519 0.5149
+
+SGC 0.4128 0.6295 0.6275
+
+GCN 0.4416∗ 0.7030∗ 0.7615∗
+
+GCN-VD 0.4652 0.7424 0.7734
+
+GCN-DVD 0.4734 0.7361 0.7727
+
+Improvement 7.2% 5.6% 1.6%
+
+(a) Cora
+
+(b) Citeseer
+
+(c) Pubmed
+
+Fig. 3: Embedding correlation analysis on unweighted and weighted GCN.
+
+covariance between pairwise variable i and j and the main diagonal of C is set as zero vector. Figure 3 shows the amount of correlation in unweighted and weighted embeddings, and we observe that the embeddings’ correlations in all datasets are reduced, indicating that the weights learned by GCN-DVD can reduce the correlation between embedded variables. Moreover, as it is hard to reduce the correlation to zero, the necessity of differentiating variables’ weights is further validated.
+G. Parameter sensitivity
+We study the sensitiveness of parameters and report the results of GCN-DVD on three citation networks in Fig. 4-6. The experimental results show that GCN-DVD is relatively stable to λ1 and λ2 with wide ranges in most cases, indicating the robustness of our model.
+H. Training time per epoch
+We report the results for the mean training time of GCN and GCN-DVD per epoch (forward pass, cross-entropy calculation, backward pass) for 200 epochs on Cora, Citeseer and Pubmed datasets, measured in seconds wall-clock time, in Table V. These methods are performed on a RTX 3090 GPU Card. As
+
+we can see, the training time of GCN-DVD term has the same order of magnitude with GCN. More importantly, the training time of the DVD term will not be inﬂuenced by the base model we choose, i.e., when the base model is GAT, the running time of DVD term will not change.
+TABLE V: The training time per epoch.
+
+GCN GCN-DVD
+
+Cora
+1.29 × 10−2 6.19 × 10−2
+
+Citeseer
+2.00 × 10−2 8.46 × 10−2
+
+Pubmed
+1.11 × 10−1 2.42 × 10−1
+
+V. RELATED WORKS
+In the past few years, Graph Neural Networks (GNNs) [1], [2], [3], [21], [26], [27], [28], [29], [30] have become the major technology to capture patterns encoded in the graph due to its powerful representation capacity. Recently, KPGNN [31] applies GNNs to the social event detection task by preserving the incremental knowledge emerging in social data. MRFasGCN [32] integrates GCN with a Markov Random Fields (MRF) model to deal with the semi-supervised community detection problem. Not only pursuing the performance of GNNs
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+10
+
+(a) Light
+
+(b) Medium
+
+(c) Heavy
+
+Fig. 4: Accuracy of GCN-DVD with different λ1 and λ2 on different biased Cora datasets.
+
+(a) Light
+
+(b) Medium
+
+(c) Heavy
+
+Fig. 5: Accuracy of GCN-DVD with different λ1 and λ2 on different biased Citeseer datasets.
+
+(a) Light
+
+(b) Medium
+
+(c) Heavy
+
+Fig. 6: Accuracy of GCN-DVD with different λ1 and λ2 on different biased Pubmed datasets.
+
+on clean data, [33] proposes an exploratory adversarial attack method, called EpoAtk, to test whether existing GNNs are robust with adversarial perturbations on graphs. Although the current GNNs have achieved great success, when applied to the inductive setting, they all assume that training nodes and test nodes follow the same distribution. However, this assumption does not always hold in real applications. GNM [20] ﬁrst pays attention to the label selection problem on graph learning, and it learns an IPW estimator to estimate the probability of each node to be selected and uses this probability to reweight the labeled nodes. However, it heavily relies on the accuracy of the IPW estimator, which depends on the label assignment distribution of the whole graph, hence it is more suitable for the transductive setting.
+To enhance the stability in unseen varied distributions, some literatures [5], [34] have revealed the connection between correlation and prediction stability under model misspeciﬁcation. Moreover, a kind of literatures [35], [36], [37] have studied the problem of removing the features correlation effect
+
+in neural networks, which brings great beneﬁts for deep neural networks. However, these methods are built on simple regressions or regular neural networks such as CNNs, but GNNs have more complex architectures and properties needed to be considered. We also notice that [6] propose a differentiated variable decorrelation term for linear regression. However, this decorrelation term requires multiple environments with different correlations between stable variables and unstable variables available in the training stage while our method does not require this prior knowledge.
+VI. CONCLUSION
+In this paper, we investigate a general and practical problem: learning GNNs with agnostic label selection bias. The selection bias will inevitably cause the GNNs to learn the biased correlation between aggregation mode and class label and make the prediction unstable. We propose a novel debiased GNN framework, which combines the decorrelation technique with GNNs in a uniﬁed framework. Extensive experiments well demonstrate the effectiveness and ﬂexibility of DGNN.
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+11
+
+ACKNOWLEDGMENT
+
+With some algebras, we can also have
+
+This work is partially supported by the National Natural Science Foundation of China (No. U20B2045, 62192784, 62172052, 61772082, 62002029) and the Fundamental Research Funds for the Central Universities (No. 2021RC28). Kun Kuang is supported in part by National Natural Science Foundation of China (No. 62006207), Young Elite Scien-
+
+∂2L2 ∂w2
+
+=
+
+1 n I,
+
+∂2L3 ∂w2
+
+=
+
+1 n2
+
+11T,
+
+thus,
+
+He
+
+=
+
+O(
+
+p2 n2
+
+)
+
++
+
+λ1 n
+
+I
+
++
+
+λ2 n2
+
+11T
+
+=
+
+λ1 n
+
+I
+
++
+
+O(
+
+p2
+
++ n2
+
+λ2
+
+).
+
+tists Sponsorship Program by CAST and Zhejiang Province Natural Science Foundation (No. LQ21F020020). Shaohua Fan is supported by BUPT Excellent Ph.D. Students Foundation (No. CX2021311) and China Scholarship Council. We thank Dr. Tianchi Yang for discussion on the proof of Theorem 3.
+
+Therefore,
+
+if
+
+λ1 n
+
+≫
+
+, p2 +λ2
+n2
+
+equivalent
+
+to
+
+λ1n
+
+≫
+
+p2 +λ2,
+
+He
+
+is
+
+an almost diagonal matrix. Hence, He is positive deﬁnite [38].
+
+Then the function F (w) is convex on C = {w ∶ ∣wi∣ ≤ c},
+
+and has unique optimal solution wˆ .
+
+Moreover, because L1 is our major decorrelation term, we
+
+APPENDIX A PROOF OF THEOREM 2
+
+p
+
+wˆ = arg min
+w
+
+(αTabs(HT.j ΛwH.−j /n
+
+j=1
+
+hope L1 to dominate the terms λ1L2 and λ2L3. On C, we have
+
+L1
+
+(
+
+1 n
+
+= O(1), L2 =
+
+∑ni=1
+
+Hi,j
+
+wi)(
+
+1 n
+
+O(1), and αi2αk2 ∑ni=1 Hi,kwi))2
+
+(
+
+1 n
+
+=
+
+∑ni=1 Hi,j Hi,kwi O(1). Thus L1
+
+− =
+
+O(p2). When p2 ≫ max(λ1, λ2), L1 will dominate the
+
+regularization terms L2 and L3.
+
+−
+
+HT.j w/n
+
+⋅
+
+HT.−j w/n))2
+
++
+
+λ1 n
+
+n
+
+wi2
+
++
+
+λ2
+
+(
+
+1 n
+
+n
+
+wi − 1)2
+
+i=1
+
+i=1
+
+(14)
+
+REFERENCES
+[1] F. Scarselli, M. Gori, A. C. Tsoi, M. Hagenbuchner, and G. Monfardini, “The graph neural network model,” IEEE Transactions on Neural
+
+Proof. For simplicity, we denote L1 = ∑pj=1(αT ⋅
+
+abs(HT.j ΛwH.−j /n − HT.j w/n ⋅ HT.−j w/n))2,
+
+L2
+
+=
+
+1 n
+
+∑ni=1
+
+wi2,
+
+L3
+
+=
+
+(
+
+1 n
+
+∑ni=1
+
+wi
+
+−
+
+1)2
+
+and
+
+F (w) = L1 + λ1L1 + λ2L2. We ﬁrst calculate the
+
+Hessian matrix of F (w), denoted as He, to prove the
+
+uniqueness of the optimal solution wˆ , as follows:
+
+He
+
+=
+
+∂2L1 ∂w2
+
++
+
+λ1
+
+∂2L2 ∂w2
+
++
+
+λ2
+
+∂2L3 ∂w2
+
+Networks, vol. 20, no. 1, pp. 61–80, 2008. [2] T. N. Kipf and M. Welling, “Semi-supervised classiﬁcation with graph
+convolutional networks,” in ICLR, 2016. [3] P. Velicˇkovic´, G. Cucurull, A. Casanova, A. Romero, P. Lio, and
+Y. Bengio, “Graph attention networks,” in ICLR, 2017. [4] W. Hamilton, Z. Ying, and J. Leskovec, “Inductive representation learning
+on large graphs,” in NeurIPS, 2017, pp. 1024–1034. [5] K. Kuang, R. Xiong, P. Cui, S. Athey, and B. Li, “Stable prediction with
+model misspeciﬁcation and agnostic distribution shift,” in AAAI, 2020. [6] Z. Shen, P. Cui, J. Liu, T. Zhang, B. Li, and Z. Chen, “Stable learning
+via differentiated variable decorrelation,” in KDD, 2020, pp. 2185–2193. [7] P. Sen, G. Namata, M. Bilgic, L. Getoor, B. Galligher, and T. Eliassi-Rad,
+
+For the term L1, we can rewrite it as:
+
+L1 =
+
+αi2
+
+αk2
+
+(
+
+1 n
+
+n
+
+Hi,j Hi,kwi
+
+j≠k
+
+i=1
+
+−
+
+(
+
+1 n
+
+n
+
+1 Hi,j wi)( n
+
+n
+
+Hi,k wi ))2
+
+i=1
+
+i=1
+
+=
+
+αi2
+
+αk2
+
+((
+
+1 n
+
+n
+
+Hi,j Hi,kwi)2
+
+j≠k
+
+i=1
+
+2n
+
+1n
+
+1n
+
+− ( n Hi,j Hi,kwi)( n Hi,j wi)( n Hi,kwi)
+
+i=1
+
+i=1
+
+i=1
+
+“Collective classiﬁcation in network data,” AI magazine, vol. 29, no. 3, pp. 93–93, 2008. [8] F. Wu, A. Souza, T. Zhang, C. Fifty, T. Yu, and K. Weinberger, “Simplifying graph convolutional networks,” in ICML. PMLR, 2019, pp. 6861–6871. [9] B. Zadrozny, “Learning and evaluating classiﬁers under sample selection bias,” in ICML, 2004, p. 114. [10] Z. Yang, W. W. Cohen, and R. Salakhutdinov, “Revisiting semi-supervised learning with graph embeddings,” in ICML, 2016. [11] M. Nurhonen and S. Puntanen, “A property of partitioned generalized regression,” Communications in statistics-theory and methods, vol. 21, no. 6, pp. 1579–1583, 1992. [12] J. Hainmueller, “Entropy balancing for causal effects: A multivariate reweighting method to produce balanced samples in observational studies,” Political Analysis, vol. 20, no. 1, pp. 25–46, 2012. [13] K. Kuang, L. Li, Z. Geng, L. Xu, K. Zhang, B. Liao, H. Huang, P. Ding,
+
++
+
+((
+
+1 n
+
+n
+
+Hi,j
+
+wi)(
+
+1 n
+
+n
+
+Hi,k wi ))2 )
+
+i=1
+
+i=1
+
+W. Miao, and Z. Jiang, “Causal inference,” Engineering, vol. 6, no. 3, pp. 253–263, 2020. [14] K. Kuang, P. Cui, S. Athey, R. Xiong, and B. Li, “Stable prediction across unknown environments,” in SIGKDD, 2018, pp. 1617–1626.
+
+And when ∣Hi,j ∣ ≤ c, for any variable j and k, and [15] K. Kuang, P. Cui, H. Zou, B. Li, J. Tao, F. Wu, and S. Yang, “Data-driven
+
+∣wi∣
+
+≤
+
+c,
+
+we
+
+have
+
+∂2 ∂w2
+
+(
+
+1 n
+
+∑ni=1
+
+Hi,j Hi,kwi)2
+
+=
+
+O(
+
+1 n2
+
+),
+
+variable decomposition for treatment effect estimation,” TKDE, 2020. [16] N. Kreif, R. Grieve, I. Díaz, and D. Harrison, “Evaluation of the effect of
+
+∂2 ∂w2
+
+(
+
+1 n
+
+∑ni=1
+
+Hi,j wi)(
+
+1 n
+
+∑ni=1
+
+Hi,k wi )
+
+=
+
+O(
+
+1 n2
+
+)
+
+and
+
+∂2 ∂w2
+
+((
+
+2 n
+
+O(
+
+1 n2
+
+).
+
+∑ni=1
+
+Hi,j
+
+Hi,k
+
+wi)(
+
+1 n
+
+Then with
+
+∑ni=1 ∣αi∣
+
+Hi,j
+
+wi
+
+)(
+
+1 n
+
+≤
+
+∑ni=1 Hi,kwi)) c, we
+
+=
+[17]
+
+a continuous treatment: a machine learning approach with an application to treatment for traumatic brain injury,” Health economics, vol. 24, no. 9, pp. 1213–1228, 2015. C. M. Bishop, Pattern recognition and machine learning. springer, 2006.
+
+have
+
+αi2αk2
+
+∂2 ∂w2
+
+(
+
+1 n
+
+∑ni=1
+
+Hi,j Hi,kwi
+
+−
+
+(
+
+1 n
+
+∑ni=1
+
+Hi,j
+
+wi
+
+)(
+
+1 n
+
+∑ni=1
+
+Hi,k wi ))2
+
+=
+
+O(
+
+1 n2
+
+).
+
+L1
+
+is
+
+[18] H. Zou, P. Cui, B. Li, Z. Shen, J. Ma, H. Yang, and Y. He, “Counterfactual prediction for bundle treatment,” in NeurIPS, vol. 33, 2020.
+[19] A. Carlson, J. Betteridge, B. Kisiel, B. Settles, E. R. Hruschka, and T. M.
+
+sum of p(p − 1) such terms. Then we have
+
+Mitchell, “Toward an architecture for never-ending language learning,”
+
+∂2L1 ∂w2
+
+=
+
+O(
+
+p2 n2
+
+).
+
+in Twenty-Fourth AAAI Conference on Artiﬁcial Intelligence, 2010. [20] F. Zhou, T. Li, H. Zhou, H. Zhu, and J. Ye, “Graph-based semi-supervised
+learning with non-ignorable non-response,” in NeurIPS, 2021.
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+[21] J. Klicpera, A. Bojchevski, and S. Günnemann, “Predict then propagate: Graph neural networks meet personalized pagerank,” in ICLR, 2019.
+[22] M. Defferrard, X. Bresson, and P. Vandergheynst, “Convolutional neural networks on graphs with fast localized spectral ﬁltering,” in NeurIPS, 2016, pp. 3844–3852.
+[23] J. Huang, A. Gretton, K. Borgwardt, B. Schölkopf, and A. Smola, “Correcting sample selection bias by unlabeled data,” in NeurIPS, 2007, pp. 1–8.
+[24] M. Cogswell, F. Ahmed, R. Girshick, L. Zitnick, and D. Batra, “Reducing overﬁtting in deep networks by decorrelating representations,” in ICLR, 2016.
+[25] X. Wang, S. Fan, K. Kuang, C. Shi, J. Liu, and B. Wang, “Decorrelated clustering with data selection bias,” in IJCAI, 2020.
+[26] K. Xu, W. Hu, J. Leskovec, and S. Jegelka, “How powerful are graph neural networks?” in ICLR, 2019. [Online]. Available: https://openreview.net/forum?id=ryGs6iA5Km
+[27] D. Jin, X. Song, Z. Yu, Z. Liu, H. Zhang, Z. Cheng, and J. Han, “Bitegcn: A new gcn architecture via bidirectional convolution of topology and features on text-rich networks,” in WSDM, 2021, pp. 157–165.
+[28] S. Fan, J. Zhu, X. Han, C. Shi, L. Hu, B. Ma, and Y. Li, “Metapathguided heterogeneous graph neural network for intent recommendation,” in Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, 2019, pp. 2478–2486.
+[29] S. Fan, X. Wang, C. Shi, E. Lu, K. Lin, and B. Wang, “One2multi graph autoencoder for multi-view graph clustering,” in Proceedings of The Web Conference 2020, 2020, pp. 3070–3076.
+[30] L. Bai, L. Cui, Y. Jiao, L. Rossi, and E. Hancock, “Learning backtrackless aligned-spatial graph convolutional networks for graph classiﬁcation,” IEEE Transactions on Pattern Analysis and Machine Intelligence, 2020.
+[31] Y. Cao, H. Peng, J. Wu, Y. Dou, J. Li, and P. S. Yu, “Knowledgepreserving incremental social event detection via heterogeneous gnns,” in WWW, 2021, pp. 3383–3395.
+[32] D. Jin, Z. Liu, W. Li, D. He, and W. Zhang, “Graph convolutional networks meet markov random ﬁelds: Semi-supervised community detection in attribute networks,” in AAAI, vol. 33, no. 01, 2019, pp. 152–159.
+[33] X. Lin, C. Zhou, H. Yang, J. Wu, H. Wang, Y. Cao, and B. Wang, “Exploratory adversarial attacks on graph neural networks,” in ICDM. IEEE, 2020, pp. 1136–1141.
+[34] Z. Shen, P. Cui, T. Zhang, and K. Kuang, “Stable learning via sample reweighting.” in AAAI, 2020, pp. 5692–5699.
+[35] Z. Ma, J.-H. Xue, A. Leijon, Z.-H. Tan, Z. Yang, and J. Guo, “Decorrelation of neutral vector variables: Theory and applications,” IEEE transactions on neural networks and learning systems, vol. 29, no. 1, pp. 129–143, 2016.
+[36] P. Rodríguez, J. Gonzalez, G. Cucurull, J. M. Gonfaus, and X. Roca, “Regularizing cnns with locally constrained decorrelations,” in ICLR, 2016.
+[37] Z. Zhang, Y. Zhang, and Z. Li, “Removing the feature correlation effect of multiplicative noise,” in NeurIPS, 2018.
+[38] Y. Nakatsukasa, “Absolute and relative weyl theorems for generalized eigenvalue problems,” Linear Algebra and its Applications, vol. 432, no. 1, pp. 242–248, 2010.
+Shaohua Fan received the B.E. degree in 2015 from Northeastern University and M.S. degree in 2018 from Beijing University of Posts and Telecommunications. He is a fourth-year Ph.D. student in the Department of Computer Science of Beijing University of Posts and Telecommunications and currently works as a visiting student at MILA. His main research interests including graph mining and causal machine learning. He has published several papers in major international conferences, including KDD, WWW, IJCAI, and CIKM etc.
+
+12
+Xiao Wang is an Associate Professor in the School of Computer Science, Beijing University of Posts and Telecommunications. He received his Ph.D. degree from the School of Computer Science and Technology, Tianjin University, Tianjin, China, in 2016. He was a postdoctoral researcher in Department of Computer Science and Technology, Tsinghua University, Beijing, China. His current research interests include data mining, social network analysis, and machine learning. Until now, he has published more than 70 papers in refereed journals and conferences.
+Chuan Shi received the B.S. degree from the Jilin University in 2001, the M.S. degree from the Wuhan University in 2004, and Ph.D. degree from the ICT of Chinese Academic of Sciences in 2007. He is a professor and deputy director of Beijing Key Lab of Intelligent Telecommunications Software and Multimedia at present. His research interests are in data mining, machine learning, and evolutionary computing. He has published more than 100 papers in refereed journals and conferences.
+Kun Kuang received his Ph.D. degree from Tsinghua University in 2019. He is now an Associate Professor in the College of Computer Science and Technology, Zhejiang University. He was a visiting scholar with Prof. Susan Athey’s Group at Stanford University. His main research interests include Causal Inference, Artiﬁcial Intelligence, and Causally Regularized Machine Learning. He has published over 40 papers in major international journals and conferences, including SIGKDD, ICML, ACM MM, AAAI, IJCAI, TKDE, TKDD, Engineering, and ICDM, etc.
+Nian Liu received the B.E. degree in 2020 from Beijing University of Posts and Telecommunications. He is a second-year M.S. student in the Department of Computer Science of Beijing University of Posts and Telecommunications. His main research interests including graph mining and contrastive learning.
+Bai Wang received the B.S. degree from the Xian Jiaotong University, Xian, China and Ph.D. degree from the Beijing University of Posts and Telecommunications, Beijing, China. And she is currently a professor of computer science in BUPT. She was the director of Beijing Key Lab of Intelligent Telecommunications Software and Multimedia.
+

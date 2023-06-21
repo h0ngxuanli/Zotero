@@ -1,0 +1,80 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2205.07424
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 16 May 2022]
+Title: Trustworthy Graph Neural Networks: Aspects, Methods and Trends
+Authors: He Zhang , Bang Wu , Xingliang Yuan , Shirui Pan , Hanghang Tong , Jian Pei
+Download a PDF of the paper titled Trustworthy Graph Neural Networks: Aspects, Methods and Trends, by He Zhang and 5 other authors
+Download PDF
+
+    Abstract: Graph neural networks (GNNs) have emerged as a series of competent graph learning methods for diverse real-world scenarios, ranging from daily applications like recommendation systems and question answering to cutting-edge technologies such as drug discovery in life sciences and n-body simulation in astrophysics. However, task performance is not the only requirement for GNNs. Performance-oriented GNNs have exhibited potential adverse effects like vulnerability to adversarial attacks, unexplainable discrimination against disadvantaged groups, or excessive resource consumption in edge computing environments. To avoid these unintentional harms, it is necessary to build competent GNNs characterised by trustworthiness. To this end, we propose a comprehensive roadmap to build trustworthy GNNs from the view of the various computing technologies involved. In this survey, we introduce basic concepts and comprehensively summarise existing efforts for trustworthy GNNs from six aspects, including robustness, explainability, privacy, fairness, accountability, and environmental well-being. Additionally, we highlight the intricate cross-aspect relations between the above six aspects of trustworthy GNNs. Finally, we present a thorough overview of trending directions for facilitating the research and industrialisation of trustworthy GNNs. 
+
+Comments: 	36 pages, 7 tables, 4 figures
+Subjects: 	Machine Learning (cs.LG) ; Artificial Intelligence (cs.AI)
+Cite as: 	arXiv:2205.07424 [cs.LG]
+  	(or arXiv:2205.07424v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2205.07424
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Shirui Pan [ view email ]
+[v1] Mon, 16 May 2022 02:21:09 UTC (6,440 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Trustworthy Graph Neural Networks: Aspects, Methods and Trends, by He Zhang and 5 other authors
+    PDF
+    Other formats 
+
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2205
+Change to browse by:
+cs
+cs.AI
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

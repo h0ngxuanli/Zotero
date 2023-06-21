@@ -1,0 +1,697 @@
+
+ACM Digital Library home
+ACM home
+
+    Browse
+    About
+        Sign in
+        Register
+
+    Journals
+    Magazines
+    Proceedings
+    Books
+    SIGs
+    Conferences
+    People
+
+Search ACM Digital Library
+Search Search
+Advanced Search
+
+    Journal Home
+    Just Accepted
+    Latest Issue
+    Archive
+    Authors
+    Editors
+    Reviewers
+    About
+    Contact Us
+
+    Home
+    ACM Journals
+    ACM Transactions on Information Systems
+    Vol. 41, No. 1
+    KR-GCN: Knowledge-Aware Reasoning with Graph Convolution Network for Explainable Recommendation 
+
+research-article
+Open Access
+KR-GCN: Knowledge-Aware Reasoning with Graph Convolution Network for Explainable Recommendation
+
+    Authors:
+    Ting Ma
+
+    School of Cyber Security, University of Chinese Academy of Sciences; Institute of Information Engineering, Chinese Academy of Sciences, Beijing, China
+
+    0000-0002-9114-2148
+    View Profile
+    ,
+    Longtao Huang
+
+    Alibaba Group, Beijing, China
+
+    0000-0002-0517-1592
+    View Profile
+    ,
+    Qianqian Lu
+
+    Institute of Information Engineering, Chinese Academy of Sciences, Beijing, China
+
+    0000-0003-0155-1683
+    View Profile
+    ,
+    Songlin Hu
+
+    School of Cyber Security, University of Chinese Academy of Sciences; Institute ofInformation Engineering, Chinese Academy of Sciences, Beijing, China
+
+    0000-0002-7170-3809
+    View Profile
+
+Authors Info & Claims
+ACM Transactions on Information Systems Volume 41 Issue 1 Article No.: 4 pp 1–27 https://doi.org/10.1145/3511019
+Published: 20 January 2023 Publication History Check for updates on crossmark
+
+    1 citation
+    1,910
+    Downloads 
+
+Metrics
+Total Citations 1
+Total Downloads 1,910
+Last 12 Months 1,659
+Last 6 weeks 691
+
+    Get Citation Alerts
+    Save to Binder
+    Export Citation
+
+    View all Formats
+    PDF 
+
+ACM Transactions on Information Systems
+Volume 41, Issue 1
+Previous Article Next Article
+
+        Abstract
+        1 INTRODUCTION
+        2 RELATED WORK
+        3 METHODOLOGY
+        4 EXPERIMENTS
+        5 CONLUSION
+        REFERENCES
+        Cited By
+        Index Terms
+        Recommendations
+        Comments 
+
+ACM Digital Library
+
+Skip Abstract Section
+Abstract
+
+Incorporating knowledge graphs (KGs) into recommender systems to provide explainable recommendation has attracted much attention recently. The multi-hop paths in KGs can provide auxiliary facts for improving recommendation performance as well as explainability. However, existing studies may suffer from two major challenges: error propagation and weak explainability. Considering all paths between every user-item pair might involve irrelevant ones, which leads to error propagation of user preferences. Defining meta-paths might alleviate the error propagation, but the recommendation performance would heavily depend on the pre-defined meta-paths. Some recent methods based on graph convolution network (GCN) achieve better recommendation performance, but fail to provide explainability. To tackle the above problems, we propose a novel method named K nowledge-aware R easoning with G raph C onvolution N etwork (KR-GCN). Specifically, to alleviate the effect of error propagation, we design a transition-based method to determine the triple-level scores and utilize nucleus sampling to select triples within the paths between every user-item pair adaptively. To improve the recommendation performance and guarantee the diversity of explanations, user-item interactions and knowledge graphs are integrated into a heterogeneous graph, which is performed with the graph convolution network. A path-level self-attention mechanism is adopted to discriminate the contributions of different selected paths and predict the interaction probability, which improves the relevance of the final explanation. Extensive experiments conducted on three real-world datasets show that KR-GCN consistently outperforms several state-of-the-art baselines. And human evaluation proves the superiority of KR-GCN on explainability.
+Skip 1INTRODUCTION Section
+1 INTRODUCTION
+
+Recommender systems have played an increasingly important role in online platforms, which aim to alleviate the impact of information explosion and provide personalized recommendation sticking to the interests of users. In recent years, Knowledge Graphs ( KGs ), which can provide auxiliary information about users and items in heterogeneous graphs, have been proved to be effective in improving recommendation performance [ 5 , 42 , 46 , 64 ].
+
+KGs can organize well-structured external information to connect users and items, which cannot only provide extra facts about items to generate more accurate recommendation, but also expand users’ interests to a certain extent. Figure 1 shows an example of the KG enhanced recommendation, where the KG and user-item interactions are integrated. The historical interaction items of users, such as The Three Musketeers and A Tale of Two Cities , can be linked to entities in the given KG. Then, the attributes of the entities can be utilized to enhance recommendation, such as book titles, writers, genre, and so on. Because historical interaction items and recommended items are connected by entities as well as users, the recommendation enhanced by KGs can explore richer path information than collaborative filtering methods [ 52 , 57 ]. For example, the book Barnaby Rudge can be recommended to Bob because they are connected by the entities Charles Dickens and A Tale of Two Cities , which can hardly be recommended based on users’ historical interaction in collaborative filtering methods. Meanwhile, one of the reasoning paths Bob − → − − − − 𝐼 𝑛 𝑡 𝑒 𝑟 𝑎 𝑐 𝑡 → I n t e r a c t A Tale of Two Cities − → − − − − − 𝑊 𝑟 𝑖 𝑡 𝑡 𝑒 𝑛 𝐵 𝑦 → W r i t t e n B y Charles Dickens − → − − − 𝑊 𝑟 𝑖 𝑡 𝑒 → W r i t e Barnaby Rudge can be provided as the reason for the explainable recommendation.
+Fig. 1.
+
+Fig. 1. View Figure
+
+Fig. 1. An example of KG enhanced recommendation, where user-item interactions and KG are integrated. The items are connected with users and entities, so as to explore rich path information and improve the recommendation performance. The dotted line indicates that the path has little effect on the recommendation and may even introduce noise, leading to error propagation.
+
+A number of recent efforts have attempted to leverage KGs to make the knowledge-aware recommendation. These knowledge-aware recommendation methods can be roughly categorized into two types: path-based methods [ 19 , 62 ] and embedding-based methods [ 4 , 51 ]. Although these knowledge-aware methods have achieved promising recommendation performance, challenges still exist, mainly including error propagation in the path-based methods and weak explainability in the embedding-based methods.
+
+Path-based methods need to identify paths that carry the connectivity information between users and items first, and then feed them into predictive models [ 10 , 19 , 38 , 47 , 50 , 64 ]. However, when modeling the interactions between the given user-item pair, the paths between the user node and the item node are extracted as the propagation paths, and user preferences propagate along these propagation paths in the graph. Considering all paths between the given pair might involve irrelevant ones, which leads to error propagation of the user preferences. Taking Figure 1 as an example, the path Bob − → − − − − 𝐼 𝑛 𝑡 𝑒 𝑟 𝑎 𝑐 𝑡 → I n t e r a c t Oliver Twist − → − − − − − 𝐿 𝑎 𝑛 𝑔 𝑢 𝑎 𝑔 𝑒 → L a n g u a g e English − → − − − − − − 𝐿 𝑎 𝑛 𝑔 𝑢 𝑎 𝑔 𝑒 − 1 → L a n g u a g e − 1 Barnaby Rudge has little effect on the recommendation and can be regarded as noise path. Using this path as the reasoning path might introduce noise information into the user preferences, i.e., the error propagation of the user preferences. Defining meta-path patterns [ 10 , 64 ] might alleviate the problem of error propagation, but the final recommendation performance would heavily depend on the pre-defined meta-paths, which is impossible to reflect the complicated inference relations in reality and there is no way to modify meta-paths during the learning process for optimization. Furthermore, designing proper meta-paths requires a deep understanding of the specific application domain, which is usually labor-intensive and almost impractical to be generalized.
+
+Embedding-based methods tend to distill user preferences by mapping the embeddings of users and items into a preference score. Specifically, more and more recent works start to utilize Graph Convolution Network ( GCN ) [ 23 ] for computing the embeddings of users and items via propagation and aggregation of their neighbors in the heterogeneous graphs [ 45 , 46 ]. Such GCN-based recommendation methods have proved to be successful in modeling the high-order relations in KGs to provide better recommendations. And the state-of-the-art performance on public datasets is mostly achieved by GCN-based methods. However, these GCN-based methods also have some disadvantages. They compute the preference score only from the embeddings of users and items, lacking much key information on the paths for multi-hop reasoning. Moreover, the explainable recommendation can improve the acceptance and conversion rates of the recommended items. GCN-based methods cannot output multi-hop paths as reasons for the recommendation, failing to provide explainability.
+
+To tackle the aforementioned problems, we propose a novel recommendation model named Knowledge-aware Reasoning with Graph Convolution Network ( KR-GCN ), which aims to study how accurate recommendation and trustworthy explainability can be achieved at the same time. Specifically, to cope with the problem of error propagation, we design a transition-based method to determine the triple-level scores and utilize the nucleus sampling strategy [ 18 ] to select triplets within the reasoning paths between every user-item pair adaptively. This strategy not only alleviates the problem of error propagation, but also releases the domain knowledge dependency on the pre-defined meta-paths. To improve the recommendation performance and guarantee the diversity of explanations, we integrate user-item interactions in recommendation and the KG (i.e., user collaboration information and auxiliary knowledge about items) into a heterogeneous graph, where the high-order relations in the heterogeneous graph are performed by the GCN. A path-level self-attention mechanism is applied in our framework to discriminate the different contributions of selected paths. The path with the highest weight is provided as the explanation for recommendation, so as to improve the relevance of the final explanation. For example, providing the explanation “The user who has bought the item A has also bought this item ” is more persuasive than the explanation “The user who has seen the item A has also seen this item ” for recommendation. The interaction probability between the given user and the candidate item is predicted via aggregating these selected path representations with various attention scores. To evaluate the recommendation performance of the proposed model KR-GCN, we conduct a serial of experiments on three public benchmarks. The results indicate that our proposed KR-GCN outperforms state-of-the-art methods like RippleNet [ 42 ], KGAT [ 46 ], and JNSKR [ 5 ]. And human evaluation proves the superiority of the proposed model on explainability.
+
+The main contributions of this article can be summarized as follows:
+
+—
+	
+
+We propose a novel knowledge-aware reasoning model named KR-GCN for the explainable recommendation. A transition-based method is designed to score triplets, and nucleus sampling is utilized to select triplets within the paths between every user-item pair adaptively, which can reduce the impact of error propagation and does not rely on domain knowledge.
+
+—
+	
+
+To improve the recommendation performance and provide trustworthy explainability, GCN is performed to learning node representations of the heterogeneous graph, including user-item interactions and KG, which can guarantee the diversity of explanations. Then a path-level self-attention mechanism is applied to discriminate the different contributions of selected paths, which improves the relevance of the final explanation.
+
+—
+	
+
+Extensive experiments on three real-world datasets about books, business, and music demonstrate that the proposed KR-GCN achieves improvements over state-of-the-art baselines. And human evaluation proves that KR-GCN can provide trustworthy explainability compared with baselines.
+
+The rest of this article is organized as follows. In Section 2 , we provide a comprehensive overview of the related work, including KG-aware recommendation, explainable recommendation, and graph neural network ( GNN ). In Section 3 , we formulate the knowledge-aware recommendation problem and describe the details of our proposed model KR-GCN. The experimental results and analyses of the recommendation performance and explainability are presented in Section 4 . Finally, we conclude our work and plan future research directions in Section 5 .
+Skip 2RELATED WORK Section
+2 RELATED WORK
+
+In this section, we review the related work of the proposed KR-GCN, mainly including the KG-aware recommendation, the explainable recommendation, and the GNN.
+2.1 KG-Aware Recommendation
+
+The related studies of KG-aware recommendation can be grouped into path-based and embedding-based methods. Path-based recommendation methods [ 10 , 19 , 20 , 29 , 36 , 47 , 50 ] usually utilize multi-hop paths in KGs to improve recommendation performance. Moreover, these multi-hop paths can also be used as the propagation paths of user preferences, which can represent the propagation of user preferences more intuitively. MCRec [ 19 ] and MEIRec [ 10 ] explicitly encode meta-paths as interactions between the users and the items, where the meta-paths are pre-defined according to the recommendation datasets. KPRN [ 47 ] extracts multi-hop paths from KGs for recommendation and generates path representations that contain the information of entities, entity-type, and relations. PGPR [ 50 ] finds the multi-hop paths between users and items via reinforcement learning and provides recommendation results along the reasoning paths. RuleRec [ 29 ] proposes a joint learning framework to generate the rule-guided neural recommendation, where the joint learning framework consists of a rule learning module and a recommendation module. The work [ 64 ] devises a meta-heuristic based demonstration extractor and perform path finding by leveraging these path demonstrations.
+
+Embedding-based recommendation methods [ 1 , 4 , 43 , 51 , 54 , 58 ] usually utilize knowledge graph embedding ( KGE ) methods, such as TransE [ 3 ], TransH [ 48 ], DistMult [ 53 ], and ComplEx [ 40 ], to learn the entity embeddings in KGs for the corresponding items and enhance the representations for user-item interactions. CKE [ 58 ] adopts the KGE method TransR [ 27 ] to extract KG information and then combines the KG representations with textual and visual representations to generate multi-modal representations for items. DKN [ 43 ] learns the entities contained in the news via KGE methods and incorporates these entity embeddings in the KGs into news recommendation to capture the connections among different news, so as to perform click-through rate prediction. KTUP [ 4 ] joins the tasks of item recommendation and KG completion to enhance the item embeddings and user preferences, where the user preferences are induced by the user-item interactions and the relations in KG. Some models [ 32 , 39 , 42 , 44 , 45 , 46 , 55 , 63 ] incorporate path features into embedding-based methods to perform recommendation. RippleNet [ 42 ] models the propagation of user’s preference from historical interests along paths in the KG to predict the user clicking probability. KGCN [ 46 ] utilizes GCN to embed the entities in the KG, and then use these entities to capture users’ interests. KGAT [ 45 ] models the high-order connections between user-item pairs with embeddings refined by recursive propagation.
+
+However, the path-based recommendation methods usually ignore the graph structure information when capturing multi-hop paths, and most methods that utilize meta-paths to model user preferences are difficult to reflect the complicated inference relations and inefficient to optimize in reality. Furthermore, defining meta-paths requires domain knowledge and is usually labor-intensive. Although the embedding-based recommendation methods are flexible and efficient, they cannot output multi-hop paths as recommendation reasons, failing to provide explainability.
+2.2 Explainable Recommendation
+
+Explainable recommender systems [ 1 , 6 , 8 , 9 , 12 , 13 , 20 , 26 , 28 , 29 , 47 ] have played an increasingly important role in recommendation task, or even in machine learning. This is mainly because the explainable recommendation can greatly improve the effectiveness of recommendation (to help users make decisions quickly) and the persuasiveness of recommendation (to improve the possibility of users accepting or buying recommended items, i.e., acceptance and conversion rates). The explainable recommendation can provide a better interactive experience for users and bring considerable benefits to application manufacturers. KPRN [ 47 ] extracts multi-hop reasoning paths from KGs to infer user preferences. These multi-hop reasoning paths are assigned different weights and used as explanations for the recommendation results. EIUM [ 20 ] captures the semantic paths between specific user-item pair in KGs. Then these multi-hop paths are encoded and weighted, so as to provide the path-wise explanations for the sequential recommendation. RuleRec [ 29 ] is a rule-guided recommendation method that utilizes the KG as an information source. RuleRec induces rules via a rule learning module and then explores item associations between item pairs based on these deduced rules, where the associations between item pairs are used as explanations. To improve the fairness of explainable recommendation, [ 12 ] proposes a fairness-aware algorithm to alleviate the algorithmic bias and perform fair explainable diversity. DEAML [ 13 ] utilizes an attentive multi-view learning framework to combine predictions with different weights and proposes a dynamic programming algorithm to generate explanations for the personalized recommendation. To perform the explainable recommendation, TMER [ 6 ] captures meta-path patterns between items to explore the dynamic evolutions of user-item pairs based on temporal KGs. DESR [ 26 ] uses the Gaussian Mixture Model ( GMM ) and the capsule network to obtain users’ long-term preferences and short-term demands, and combines these two via the serendipity vector. Then DESR devises a back-routing scheme to provide explanations for the recommendation. The work [ 8 ] uses the multi-task learning framework to learn the recommendation task and the explanation task, and designs a hierarchical co-attention selector to model the interaction between two tasks. The work [ 64 ] proposes a demonstration-based explainable recommendation method, which extracts reasoning paths by using several path demonstrations. AnchorKG [ 28 ] performs news recommendation by generating anchor KG for each article, and provides explanations in the form of multi-hop relational reasoning paths.
+
+Existing explainable recommendation methods usually provide the explainability by extracting paths from the KGs and then encoding path information via some sequence algorithms, such as RNN and LSTM. These methods can provide explanations for the recommendation, but the graph structure information is not fully utilized. The graph structure information can reflect the influence of nodes by their neighbors, so using the graph structure information can improve user-item interaction modeling to some extent.
+2.3 Graph Neural Network
+
+In recent years, the GNN has shown great potential in representation learning, and has achieved considerable performance in many natural language processing tasks, such as text classification [ 34 , 61 ] and recommendation system [ 7 , 31 , 60 ], and so on. GNN aims to model the graph structure information and node representation information. The nodes in the graph are represented as low-dimensional vectors, and then the learned node representations are used for the downstream tasks by employing neural network models. Several typical GNNs include GCN [ 23 ], Graph Attention Networks ( GAT ) [ 41 ], Graph Auto-Encoders ( GAE ) [ 22 ], Graph Generative Networks [ 24 ], and so on. In the recommendation task, GNN is typically employed to learn the node representations for users and items. GraphRec [ 11 ] utilizes the GNN framework to embed the nodes and interactions in the social graph and the user-item graph for the social recommendation. Three aggregators are devised to perform node aggregation in two heterogeneous graphs. V2HT [ 25 ] introduces a multi-view interactive feature recommendation framework based on graph information propagation, which aims to alleviate the problem of data sparsity and long-tail distributions. DGRec [ 37 ] employs dynamic graph attention neural network to perform social recommendation, where the dynamic user behaviors and context-dependent social influence are utilized to infer users’ interests. KGCN [ 45 ], KGCN-LS [ 44 ], and KGAT [ 46 ] automatically discover the high-order connections in the KG and update node representations by aggregating the neighborhood information. DANSER [ 49 ] uses two dual GAT for the social recommendation. The GAT in DANSER are composed of a user-specific dual GAT and a dynamic and context-aware dual GAT. STAR-GCN [ 59 ] learns the node representations in the graph via a multi-link graph convolutional encoder. To enhance the representations and alleviate the cold start problem, STAR-GCN masks a few nodes and reconstructs these nodes via their neighborhood information. IntentGC [ 63 ] adopts GCN to capture users’ preferences and heterogeneous relationships, and devises a vector-wise convolution function to perform faster recommendation.
+
+Although the GCN-based methods have proved to be successful in modeling the high-order relations in KGs to provide better recommendation. And the state-of-the-art performance on public datasets is mostly achieved by GCN-based methods. However, these GCN-based methods also have some disadvantages. They compute the preference score only from the embeddings of users and items, lacking much key information on the paths for multi-hop reasoning and failing to provide explainability.
+
+Different from previous KG-aware and explainable recommendation methods, KR-GCN not only makes full use of the graph structure information, but also adaptively captures multi-hop paths in the graph to solve the problem of error propagation without defining meta-path patterns. The heterogeneous graph and the multi-hop paths are encoded via GCN and LSTM, respectively. Since the heterogeneous graph that we construct includes the user-item interactions and the KG, KR-GCN can guarantee the diversity of explanations compared with the methods that rely solely on either the KG or the user-item interactions. Furthermore, the relevance of the explanations is improved via the path-level self-attention mechanism in KR-GCN.
+Skip 3METHODOLOGY Section
+3 METHODOLOGY
+
+In this section, we present the proposed recommendation model KR-GCN. Firstly, we formulate the knowledge-aware recommendation problem. Then, we elaborate on the core components of the proposed model KR-GCN, including Graph Encoding module, Path Extraction and Selection module, Path Encoding module, and Preference Prediction module, as illustrated in Figure 2 . Lastly, we describe the training and optimization of KR-GCN. Specifically, we define the training objective function of our model.
+Fig. 2.
+
+Fig. 2. View Figure
+
+Fig. 2. An illustration of KR-GCN model architecture. Four modules are included: Graph Encoding, Path Extraction and Selection, Path Encoding, and Preference Prediction.
+3.1 Problem Formulation
+
+The goal of our work is to learn a prediction function for user preferences that can predict the interaction probability between the given user and the target item, i.e., whether the user will interact with the item that he has not interacted with before. Given a user set  U and an item set  V , for the user 𝑢 ∈  u ∈ U , the items that 𝑢 u interacts with are denoted as 𝑉 𝑢 = { 𝑣 1 , 𝑣 2 , … , 𝑣 𝑀 } ⊂  V u = { v 1 , v 2 , … , v M } ⊂ V , where 𝑀 M denotes the number of 𝑢 u ’s historical interaction items.
+
+The KG  (  ,  ) G ( E , R ) is introduced as the complementary information and organized as structured triples, where  E and  R are the entity set and relation set. In the KG enhanced recommendation, the item 𝑣 ∈  v ∈ V is linked to the corresponding entity 𝑒 ∈  e ∈ E in the given KG  G (Noting that in the news recommendation scenario, an item corresponds to many entities). Then, the knowledge can be incorporated into the recommendation by introducing the triplets that contain the entity 𝑒 e . Taking Figure 1 as an example, the item Oliver Twist can be linked to the entity OliverTwist , which relates to other entities in the form of triplets in  G , such as the entity Charles Dickens . Given the historical interaction items 𝑉 𝑢 V u of 𝑢 u , the target item 𝑣 ∉ 𝑉 𝑢 v ∉ V u , as well as the KG  G , the prediction function for user preferences can be defined as (1) 𝑦 ̂  𝑢 𝑣 = 𝑓 Ω ( 𝑢 , 𝑣 | 𝑉 𝑢 , 𝐺 ) , y ^ u v = f Ω ( u , v | V u , G ) , where 𝑦 ̂  𝑢 𝑣 y ^ u v denotes the interaction probability between the user 𝑢 u and the target item 𝑣 v , and 𝑓 f is our recommendation model with the parameter set Ω Ω .
+3.2 KR-GCN
+
+The proposed recommendation model KR-GCN consists of four modules: Graph Encoding, Path Extraction and Selection, Path Encoding, and Preference Prediction. The architecture of KR-GCN is illustrated in Figure 2 . The Graph Encoding module is designed to learn the representations of nodes in the heterogeneous graph. The Path Extraction and Selection module is devised to extract paths between users and items from the heterogeneous graph and select higher-quality reasoning paths. The Path Encoding module is used to learn the representations of the selection reasoning paths. The Preference Prediction module predicts users’ preferences according to the reasoning paths.
+3.2.1 Graph Encoding.
+
+To accommodate embeddings for users, items, and entities, KR-GCN encodes the heterogeneous graph including user-item interactions and KG by utilizing the graph representation model GCN. The embeddings of nodes are computed via performing graph convolution iteratively and aggregating local network neighborhood information. Then, the structure information of the heterogeneous graph can be modeled and the high-order connectivities in the graph can be captured. Moreover, because GCN updates each node embeddings by utilizing adjacent node embeddings, the problem of node ambiguity can be solved well. For example, the nodes Dumas Jr. and Dumas Sr. can be distinguished according to their neighborhood nodes The Lady of the Camellias and The Three Musketeers in the graph.
+
+In KR-GCN, we adopt the weighted sum aggregator to capture the features of each given node and their neighborhood nodes, where the neighborhood nodes are aggregated via mean function. The sum aggregator combines these two representations with a non-linear activation function 𝜎 σ . Specifically, for a given node 𝑖 i (i.e., a user, an item, or an entity), the embeddings can be initialized randomly or using original node features pre-trained with external knowledge at the 0th layer. At higher layers, the node embeddings are computed via graph convolution operation. The operation on the node 𝑖 i at the ( 𝑙 + 1 l + 1 )th layer can be abstracted as (2) 𝑒 ( 𝑙 + 1 ) 𝑖 = 𝜎 ( 𝑊 ( 𝑙 ) 𝑠 𝑒 𝑙 𝑓 𝑒 ( 𝑙 ) 𝑖 + ∑ 𝑗 ∈ 𝑁 𝑖 1 | 𝑁 𝑖 | 𝑊 ( 𝑙 ) 𝑒 ( 𝑙 ) 𝑗 ) , e i ( l + 1 ) = σ ( W s e l f ( l ) e i ( l ) + ∑ j ∈ N i 1 | N i | W ( l ) e j ( l ) ) , where 𝑒 ( 𝑙 + 1 ) 𝑖 e i ( l + 1 ) and 𝑒 ( 𝑙 ) 𝑖 e i ( l ) are the embeddings of the node 𝑖 i at the ( 𝑙 + 1 l + 1 )th layer and 𝑙 l th layer, respectively. 𝑁 𝑖 N i is the set of 𝑖 i ’s neighborhood nodes and 𝑒 ( 𝑙 ) 𝑗 e j ( l ) is the 𝑗 j th neighborhood node of 𝑖 i at the 𝑙 l th layer. 𝑊 ( 𝑙 ) 𝑠 𝑒 𝑙 𝑓 W s e l f ( l ) and 𝑊 ( 𝑙 ) W ( l ) are the transformation weight matrices of 𝑖 i and 𝑖 i ’s neighborhood node, respectively. After 𝐿 L layers convolution operations, there are 𝐿 L representations for the given node 𝑖 i . Then, the weighted sum operation is applied for the embeddings that calculated at each layer, i.e., from 𝑒 ( 1 ) 𝑖 e i ( 1 ) to 𝑒 ( 𝐿 ) 𝑖 e i ( L ) , so as to encode the given node 𝑖 i . Let 𝑒 𝑖 e i denote the final representation of the node 𝑖 i , and the weighted sum calculation of 𝑖 i ’s representation is defined as (3) 𝑒 𝑖 = ∑ 𝐿 𝑙 = 0 𝛼 𝑙 𝑒 ( 𝑙 ) 𝑖 , e i = ∑ l = 0 L α l e i ( l ) , where 𝛼 𝑙 α l denotes the weight of the 𝑙 l th layer, i.e., the importance of the 𝑙 l th layer to the final target node representation. Combining the embeddings that are calculated at each layer can help capture different semantic information and make the representation more comprehensive [ 16 ].
+3.2.2 Path Extraction and Selection.
+
+The latent relations among nodes are the high-order connectivities in the graph, which can be extracted and formed as multi-hop paths explicitly between node pairs, such as user-item pairs. Because the high-order connectivities between the given users and the candidate items can reflect the potential interests of users, we explicitly extract multi-hop paths between each user-item pair over the heterogeneous graph to obtain the representations of the user’s potential interests. Reasoning on paths suffers from the problem of error propagation, because considering all paths might involve the irrelevant ones. Defining meta-paths might alleviate the problem of error propagation, but designing proper meta-paths requires a deep understanding of domain-specific knowledge, which is labor-intensive and almost impractical to be generalized. To cope with the error propagation and the knowledge dependence issues, we prune irrelevant paths between each user-item pair. For each user-item pair ( 𝑢 u , 𝑣 v ), where 𝑢 ∈  u ∈ U and 𝑣 ∈  v ∈ V , we can efficiently find reasoning paths between 𝑢 u and 𝑣 v over the graph and form the selected paths as a path set 𝑆 𝑢 𝑣 S u v . Since the number of paths between the user-item pairs grows exponentially with path hops, we extract multi-hop paths with the limitation that hops in every single path are less than 𝑙 l . Following the setting in the work of [ 47 ], we set 𝑙 l = 3 in the experiment to gather three-hop paths. The 𝑗 j th path in the path set 𝑆 𝑢 𝑣 S u v can be described as (4) 𝑆 𝑢 𝑣 [ 𝑗 ] = [ 𝑖 1 , 𝑟 1 , 𝑖 2 , 𝑟 2 , … , 𝑖 𝑛 ] , S u v [ j ] = [ i 1 , r 1 , i 2 , r 2 , … , i n ] , where 𝑖 i is the single node (i.e., a user, an item, or an entity) and 𝑟 r is the relation that connects two nodes within the path 𝑆 𝑢 𝑣 [ 𝑗 ] S u v [ j ] . 𝑖 1 = 𝑢 i 1 = u , 𝑖 𝑛 = 𝑣 i n = v , and 𝑛 n is the number of nodes within 𝑆 𝑢 𝑣 [ 𝑗 ] S u v [ j ] .
+
+Considering that iterating all paths for each user-item pair is inefficient in real-world large-scale KGs, we use the heuristic path search algorithm for path extraction and selection. Specifically, we design a transition-based method to determine the triple-level scores and utilize nucleus sampling to adaptively select triples within the paths between every user-item pair. This strategy captures the transition features within a path and does not rely on any meta-path patterns. We use Δ 𝑘 − 1 Δ k − 1 and Δ 𝑘 Δ k to denote the selected node sets in the 𝑘 − 1 k − 1 th hop and the 𝑘 k th hop of path search. For the node 𝑖 𝑘 − 1 i k − 1 in the node set Δ 𝑘 − 1 Δ k − 1 , we search its neighbors in the graph as next hop nodes of the node 𝑖 𝑘 − 1 i k − 1 . For the neighbor node 𝑖 𝑘 i k , the score of the corresponding triplet ( 𝑖 𝑘 − 1 , 𝑟 𝑘 − 1 , 𝑖 𝑘 ) ∈ 𝑇 𝑘 − 1 , 𝑘 ( i k − 1 , r k − 1 , i k ) ∈ T k − 1 , k is calculated via the KGE method to measure the quality, where 𝑇 𝑘 − 1 , 𝑘 T k − 1 , k is the triple set between the 𝑘 − 1 k − 1 th and the 𝑘 k th hops.
+
+In knowledge-aware recommendation, the recommendation data includes user-item interactions and KG, and there are associations and constraints within the triple in the KG. In this article, the scores for all triplets are calculated via the KGE method TransH [ 48 ]. The KGE methods, such as TransE and TransH, can be used to measure the quality of the paths by calculating the scores of the triplets within the paths, so as to prune irrelevant paths from noisy graphs [ 56 ]. TransH is a transition-based KGE method, which associates each relation with a relation-specific hyperplane and projects entity vectors on that hyperplane. The main reasons we choose TransH include: (i) Many transition-based KGE methods, such as TransH, aim to model associations and constraints within triples, which are simple but efficient; (ii). TransH can deal with one-to-many, many-to-one, and many-to-many relation patterns in the graph. Considering that these relation patterns widely exist in user-item interactions and KG, for example, a user clicks on multiple movies, or a singer sings multiple songs, TransH is a proper choice to calculate the scores of triples in the path extraction and selection module. In the experiment, TransH is trained in advance. For simplicity, we use ( ℎ , 𝑟 , 𝑡 ) ( h , r , t ) to denote the representations of target triplet, and the score calculation of the triplet is defined as (5) 𝑓 ( ℎ , 𝑟 , 𝑡 ) = − 𝑑 ( ℎ , 𝑟 , 𝑡 ) , f ( h , r , t ) = − d ( h , r , t ) , (6) 𝑑 ( ℎ , 𝑟 , 𝑡 ) = | | ℎ ⊥ + 𝑟 − 𝑡 ⊥ | | 2 2 , d ( h , r , t ) = | | h ⊥ + r − t ⊥ | | 2 2 , where 𝑓 ( ℎ , 𝑟 , 𝑡 ) f ( h , r , t ) is the score function, and 𝑑 ( ℎ , 𝑟 , 𝑡 ) d ( h , r , t ) is the distance function. The vectors ℎ ⊥ h ⊥ and 𝑡 ⊥ t ⊥ are obtained by projecting ℎ h and 𝑡 t on the hyperplane of the relation 𝑟 r : (7) ℎ ⊥ = ℎ − 𝑤 𝑇 𝑟 ℎ 𝑤 𝑟 , h ⊥ = h − w r T h w r , (8) 𝑡 ⊥ = 𝑡 − 𝑤 𝑇 𝑟 𝑡 𝑤 𝑟 , t ⊥ = t − w r T t w r , where 𝑤 𝑇 𝑟 w r T and 𝑤 𝑟 w r are normal vector of 𝑟 r .
+
+For the purpose of comparison, we also choose TransE [ 3 ] and DistMult [ 53 ], two typical KGE methods, as triplet scoring functions. Different from TransH, TransE assumes that the relation 𝑟 r is a translation vector connecting the embedded head entity ℎ h and tail entity 𝑡 t . The distance function of ( ℎ , 𝑟 , 𝑡 ) ( h , r , t ) in TransE is defined as (9) 𝑑 ( ℎ , 𝑟 , 𝑡 ) = | | ℎ + 𝑟 − 𝑡 | | 2 2 . d ( h , r , t ) = | | h + r − t | | 2 2 . DistMult represents each relation as a diagonal matrix and projects the head entity vector to the tail entity vector via this relation matrix. The distance function of ( ℎ , 𝑟 , 𝑡 ) ( h , r , t ) in DistMult is defined as (10) 𝑑 𝑟 ( ℎ , 𝑡 ) = − ℎ 𝑇 𝑀 𝑟 𝑡 , d r ( h , t ) = − h T M r t , where 𝑀 𝑟 M r denotes the projection matrix associated with the relation 𝑟 r , and ℎ 𝑇 h T is the transposed vector of the vector ℎ h . In DistMult, the larger the ℎ 𝑇 𝑀 𝑟 𝑡 h T M r t is, the greater the plausibility of the triplet, which is different from TransE and TransH. Therefore, we add a negative sign before the distance function of DistMult to be consistent with the methods TransE and TransH.
+
+After calculating the score of the triplet ( 𝑖 𝑘 − 1 , 𝑟 𝑘 − 1 , 𝑖 𝑘 ) ( i k − 1 , r k − 1 , i k ) , we utilize nucleus sampling [ 18 ] to adaptively select triples within the paths between every user-item pair. TransH and the nucleus sampling are used to perform path ranking and selection, and then solve the problem of error propagation, i.e., filtering low-quality paths. The KGE methods (such as TransE and TransH) can be used to measure the quality of the paths by calculating the scores of the triplets within the paths [ 56 ]. Specifically, the triplets are ranked according to their scores calculated in formulas (5) and (6), so as to prune irrelevant triplets as well as paths between each user-item pair. Nucleus sampling aims to sample the top- 𝑝 p portion of the candidate probability distribution adaptively. Our goal is to make low-quality paths score lower through formulas (5) (6) and filter them. For example, the path Oliver Twist − → − − − − − 𝐿 𝑎 𝑛 𝑔 𝑢 𝑎 𝑔 𝑒 → L a n g u a g e English − → − − − − − − 𝐿 𝑎 𝑛 𝑔 𝑢 𝑎 𝑔 𝑒 − 1 → L a n g u a g e − 1 Barnaby Rudge in Figure 1 is a low-quality path. The formulas (5) and (6) are mainly used to model associations and constraints within triples. The higher the semantic association within the triple (i.e., confidence), the higher the score of the triple. Then, the probability of the path being selected is greater; that is, the triples with higher scores contribute more to the path selection. Therefore, TransH and the nuclear sampling strategy mainly filter out the paths with low confidence.
+
+Instead of setting a fixed number of samples and sampling from the triple sets, such as top- 𝑘 k sampling [ 33 ], the number of samples for nucleus sampling is determined by the sum of probability values. At each hop, the triples are selected from the smallest possible triples set whose cumulative probability exceeds a threshold, where the cumulative probability is calculated via summing the triples’ probability scores. In this way, the number of sampling triples in the triple set can be dynamically increased or decreased based on the probability distribution. In order to perform nuclear sampling, the triple scores are normalized to compute the probabilities of the triples. The probability score of the triple ( 𝑖 𝑘 − 1 , 𝑟 𝑘 − 1 , 𝑖 𝑘 ) ( i k − 1 , r k − 1 , i k ) is obtained via softmax function: (11) 𝑃 ( 𝑖 𝑘 − 1 , 𝑟 𝑘 − 1 , 𝑖 𝑘 ) = e x p ( 𝑓 ( 𝑒 𝑘 − 1 𝑖 , 𝑒 𝑘 − 1 𝑟 , 𝑒 𝑘 𝑖 ) ) ∑ ( 𝑖 ′ 𝑘 − 1 , 𝑟 ′ 𝑘 − 1 , 𝑖 ′ 𝑘 ) ∈ 𝑇 𝑘 − 1 , 𝑘 e x p ( 𝑓 ( 𝑒 𝑘 − 1 𝑖 ′ , 𝑒 𝑘 − 1 𝑟 ′ , 𝑒 𝑘 𝑖 ′ ) ) , P ( i k − 1 , r k − 1 , i k ) = e x p ( f ( e i k − 1 , e r k − 1 , e i k ) ) ∑ ( i ′ k − 1 , r ′ k − 1 , i ′ k ) ∈ T k − 1 , k e x p ( f ( e i ′ k − 1 , e r ′ k − 1 , e i ′ k ) ) , where 𝑒 𝑘 − 1 𝑖 e i k − 1 , 𝑒 𝑘 − 1 𝑟 e r k − 1 , 𝑒 𝑘 𝑖 e i k are the vectors of 𝑖 𝑘 − 1 i k − 1 , 𝑟 𝑘 r k , and 𝑖 𝑘 i k , 𝑓 ( 𝑒 𝑘 − 1 𝑖 , 𝑒 𝑘 − 1 𝑟 , 𝑒 𝑘 𝑖 ) f ( e i k − 1 , e r k − 1 , e i k ) is the score of the triple ( 𝑖 𝑘 − 1 , 𝑟 𝑘 − 1 , 𝑖 𝑘 ) ( i k − 1 , r k − 1 , i k ) calculated by TransH, ( 𝑖 ′ 𝑘 − 1 , 𝑟 ′ 𝑘 − 1 , 𝑖 ′ 𝑘 ) ( i ′ k − 1 , r ′ k − 1 , i ′ k ) is the triple in the set 𝑇 𝑘 − 1 , 𝑘 T k − 1 , k . Given the probability distribution of all triples between the 𝑘 − 1 k − 1 th hop and 𝑘 k th hop, the selected triples 𝑡 𝑜 𝑝 𝑝 ( 𝑇 𝑘 − 1 , 𝑘 ) ⊂ 𝑇 𝑘 − 1 , 𝑘 t o p p ( T k − 1 , k ) ⊂ T k − 1 , k are defined as the smallest set that satisfies the following conditions: (12) ∑ ( 𝑖 𝑘 − 1 , 𝑟 𝑘 − 1 , 𝑖 𝑘 ) ∈ 𝑡 𝑜 𝑝 𝑝 ( 𝑇 𝑘 − 1 , 𝑘 ) 𝑃 ( 𝑖 𝑘 − 1 , 𝑟 𝑘 − 1 , 𝑖 𝑘 ) > = 𝑝 , ∑ ( i k − 1 , r k − 1 , i k ) ∈ t o p p ( T k − 1 , k ) P ( i k − 1 , r k − 1 , i k ) >= p ,
+
+where 𝑝 p is the probability threshold. Then, the triples in 𝑡 𝑜 𝑝 𝑝 ( 𝑇 𝑘 − 1 , 𝑘 ) t o p p ( T k − 1 , k ) are selected as the reasoning triples within the reasoning paths. At each hop, the triples are selected in the same way as described above. Finally, the reasoning path set 𝑆 𝑢 𝑣 S u v can be formed to reflect the user 𝑢 u ’s potential interests, so as to alleviate the effect of error propagation.
+3.2.3 Path Encoding.
+
+Inspired by [ 65 ], each user’s historical interaction items are encoded and concatenated with corresponding embedded paths to enhance the representations of the multi-hop paths, so as to reflect the user’s interests. In KR-GCN, the historical interaction set 𝑉 𝑢 V u serves as an additional input. Although 𝑆 𝑢 𝑣 S u v already contains the path information between 𝑢 u and 𝑣 v , these paths are mainly for the item 𝑣 v and cannot reflect other interests of the user 𝑢 u . For example, if 𝑢 u clicks on a comedy and a documentary, 𝑢 u ’ interest in the documentary is not considered when exploring the correlation between 𝑢 u and comedy. To explore more interests of users, the mutual effects between selected paths and the user’s historical interactions are captured by incorporating the user’s historical interactions into selected paths. Moreover, the mutual effects will be weakened if their embeddings are combined after encoding by path encoder separately, because the later the combination is, the weaker the semantic interaction. Considering that there is no timestamp that corresponds to user-item interactions in the datasets, we combine the historical interaction items with selected paths without exploiting the chronological order of historical interaction items. To capture the mutual effects between selected paths and the user’s historical interactions, we design a method of sequence combination, namely sequence concatenation. The combination of the path sequence 𝑆 𝑢 𝑣 [ 𝑗 ] ∈ 𝑆 𝑢 𝑣 S u v [ j ] ∈ S u v and the historical interaction set 𝑉 𝑢 V u can be described as (13) 𝑇 𝑢 𝑣 [ 𝑗 ] = 𝑆 𝑢 𝑣 [ 𝑗 ] ⊕ 𝑉 𝑢 , T u v [ j ] = S u v [ j ] ⊕ V u , where ⊕ ⊕ is the sequence concatenation operation, and 𝑇 𝑢 𝑣 [ 𝑗 ] T u v [ j ] is the concatenated sequence.
+
+KR-GCN utilizes the stack of the long short-term memory ( LSTM ) and the attention network to encode the selected reasoning paths based on the embeddings learned via graph convolutional network. The LSTM path encoder is utilized for encoding the heterogeneous graph with respect to the multi-hop reasoning paths between the user-item pairs. This module takes the outputs of the graph encoding module and the path extraction and selection module as input. The graph encoding module provides node representations, and the path extraction and selection module provides path information for the path encoding module. Because there are multi-hop relational information and sequential dependencies between different nodes in the paths, this module aims at capturing the multi-hop relational information and encode the sequential dependencies within every single path. The path sequence 𝑆 𝑢 𝑣 [ 𝑗 ] S u v [ j ] is initially embedded as [ 𝑒 1 , 𝑒 2 , … , 𝑒 𝑛 ] [ e 1 , e 2 , … , e n ] , which is computed via convolution and aggregation operations in graph convolutional networks. For the path sequence 𝑆 𝑢 𝑣 [ 𝑗 ] S u v [ j ] , the hidden state at the time slice 𝑡 t in LSTMs can be described as follows: (14) ℎ 𝑡 = 𝐿 𝑆 𝑇 𝑀 ( ℎ 𝑡 − 1 , 𝑒 𝑖 ) , h t = L S T M ( h t − 1 , e i ) , where ℎ 𝑡 h t is the representation of the node 𝑖 𝑡 i t . Then attention mechanism is performed to choose important features within the path 𝑆 𝑢 𝑣 [ 𝑗 ] S u v [ j ] , which returns a vector to represent the single path sequence 𝑆 𝑢 𝑣 [ 𝑗 ] S u v [ j ] . (15) 𝛼 ℎ 𝑡 = e x p ( 𝑅 𝑒 𝐿 𝑈 ( 𝑤 ℎ 𝑡 + 𝑏 ) ) ∑ 𝑛 𝑡 ′ = 1 e x p ( 𝑅 𝑒 𝐿 𝑈 ( 𝑤 ℎ 𝑡 ′ + 𝑏 ′ ) ) , α h t = e x p ( R e L U ( w h t + b ) ) ∑ t ′ = 1 n e x p ( R e L U ( w h t ′ + b ′ ) ) , (16) 𝑃 𝑢 𝑣 [ 𝑗 ] = ∑ 𝑡 = 1 𝑛 𝛼 ℎ 𝑡 ⋅ ℎ 𝑡 , P u v [ j ] = ∑ t = 1 n α h t ⋅ h t , where 𝑝 𝑢 𝑣 [ 𝑗 ] p u v [ j ] is the learned representation of the selected path 𝑆 𝑢 𝑣 [ 𝑗 ] S u v [ j ] between the user 𝑢 u and the item 𝑣 v , and 𝛼 ℎ 𝑡 α h t denotes the importance of the node 𝑖 𝑡 i t to the path 𝑆 𝑢 𝑣 [ 𝑗 ] S u v [ j ] . Then the multi-hop reasoning paths (or latent relationships) 𝑆 𝑢 𝑣 S u v between the user 𝑢 u and the item 𝑣 v are represented by a set of vectors 𝑝 𝑢 𝑣 p u v . These path representations can reflect the propagation of 𝑢 u ’s potential interests.
+3.2.4 Preference Prediction.
+
+In recommendation, different paths usually make varying contributions to predict user preferences. To discriminate the different contributions of different paths between each user-item pair on reasoning, a path-level self-attention mechanism is applied in KR-GCN. With path-level self-attention, the path-specific weight over each path can be learned. Then, the different importance of different paths can be obtained. And after that, all selected multi-hop paths with different weights are aggregated to represent the user’s preferences. The path-level self-attention mechanism is implemented as follows: (17) 𝑃 𝑢 𝑣 = 𝑠 𝑜 𝑓 𝑡 𝑚 𝑎 𝑥 ( 𝑄 𝐾 𝑇 𝑑 √ ) 𝑉 , P u v = s o f t m a x ( Q K T d ) V , (18) 𝑝 𝑢 𝑣 = 𝑚 𝑎 𝑥 𝑝 𝑜 𝑜 𝑙 ( 𝑃 𝑢 𝑣 ) , p u v = m a x p o o l ( P u v ) , where 𝑝 𝑢 𝑣 p u v is the representation of the path set 𝑆 𝑢 𝑣 S u v through the self-attention mechanism and max-pool operation. 𝑠 𝑜 𝑓 𝑡 𝑚 𝑎 𝑥 ( 𝑄 𝐾 𝑇 𝑑 √ ) s o f t m a x ( Q K T d ) aims to normalize representations into the probability distribution, which returns the importance of each path on reasoning. 𝑚 𝑎 𝑥 𝑝 𝑜 𝑜 𝑙 ( 𝑃 𝑢 𝑣 ) m a x p o o l ( P u v ) is used to learn vector representation for the path set 𝑆 𝑢 𝑣 S u v between the user 𝑢 u and the candidate item 𝑣 v . 𝑄 Q , 𝐾 K , and 𝑉 V denote query, key, and value representations, and are calculated as follows: (19) 𝑄 = 𝑊 𝑄 𝐸 , Q = W Q E , (20) 𝐾 = 𝑊 𝐾 𝐸 , K = W K E , (21) 𝑉 = 𝑊 𝑉 𝐸 , V = W V E , where 𝑊 𝑄 W Q , 𝑊 𝐾 W K , and 𝑊 𝑉 W V denote the weight matrices, E is the input matrix of the path set 𝑆 𝑢 𝑣 S u v . Finally, we conduct the Multi-Layer Perceptron ( MLP ) layers and an activation function on the output 𝑃 𝑢 𝑣 P u v to compute the preference prediction score between the user 𝑢 u and the item 𝑣 v , i.e., the probability of the user 𝑢 u interacting with the candidate item 𝑣 v . (22) 𝑦 ̂  𝑢 𝑣 = 𝜎 ( 𝑀 𝐿 𝑃 ( 𝑝 𝑢 𝑣 ) ) , y ^ u v = σ ( M L P ( p u v ) ) , where 𝜎 ( 𝑥 ) = 1 1 + e x p ( − 𝑥 ) σ ( x ) = 1 1 + e x p ( − x ) is the sigmoid function, and 𝑀 𝐿 𝑃 ( ⋅ ) M L P ( ⋅ ) is the MLP layers with one output. The final prediction score 𝑦 ̂  𝑢 𝑣 y ^ u v is the interaction probability between the user 𝑢 u and the item 𝑣 v , i.e., the score of user preference prediction.
+
+After computing the interaction probability of the given user-item pair, the reasoning path with the highest weight is outputted as the explanation for the recommendation.
+3.3 Training and Optimization
+
+In the recommendation models, observed interactions are usually set as positive instances, and unobserved interactions are set as negative instances. To train our recommendation model, we employ the Bayesian Personalized Ranking ( BPR ) loss [ 35 ] in KR-GCN. BPR loss function is a pairwise loss function. Specifically, BPR loss is devised to predict a positive instance higher than a negative one, where the negative instance is randomly sampled from all items (removing the items that the user has interacted with). The following objective function is minimized to train our model: (23)  𝐵 𝑃 𝑅 = ∑ ( 𝑢 , 𝑣 ) ∈ Δ ∑ ( 𝑢 , 𝑣 ′ ) ∈ Δ ′ − 𝑙 𝑛 𝜎 ( 𝑦 ̂  𝑢 𝑣 − 𝑦 ̂  𝑢 𝑣 ′ ) + 𝜆 | | 𝛀 | | 2 2 , L B P R = ∑ ( u , v ) ∈ Δ ∑ ( u , v ′ ) ∈ Δ ′ − l n σ ( y ^ u v − y ^ u v ′ ) + λ | | Ω | | 2 2 , where 𝜎 ( ⋅ ) σ ( ⋅ ) is the sigmoid function, Δ Δ and Δ ′ Δ ′ are the sets that contain positive and negative user-item interactions, respectively. The parameter set 𝛀 Ω mainly contains learned embeddings in the model as well as hyper-parameters, such as the weight matrices and bias. 𝜆 | | 𝛀 | | 2 2 λ | | Ω | | 2 2 is conducted to prevent overfitting of the model, where 𝜆 λ is the regularization parameter. The optimization of the above parameters is alternatively performed using Adam optimizer [ 21 ] with mini-batch.
+Skip 4EXPERIMENTS Section
+4 EXPERIMENTS
+
+In this section, we evaluate the effectiveness of the proposed KR-GCN on three real-world datasets about books, music, and business. In the following subsections, we first introduce the experimental setup briefly, mainly including the description of the datasets, baselines, evaluation metrics, and implementation details. Then, the performance comparison and analysis will be shown, in which we compare the proposed KR-GCN with several baselines, discuss the effectiveness of our major model components, and investigate the effects of several hyper-parameters on the performance. Finally, the discussion on explainability will be presented. Human evaluation, statistical analysis, and case study are conducted to demonstrate that KR-GCN can provide trustworthy explainability compared with baselines.
+4.1 Experimental Setup
+4.1.1 Datasets.
+
+We conduct extensive experiments on three widely-used public datasets about books, music, and business: Amazon-book, Last-FM, and Yelp2018. The detailed descriptions of the datasets are shown in Table 1 , including the information of user-item interactions and KGs, where the KGs are introduced as complementary information to help generate more accurate and diverse recommendations. The user-item interactions are organized in the form of 𝑢 : ( 𝑖 1 , 𝑖 2 , … , 𝑖 𝑛 ) u : ( i 1 , i 2 , … , i n ) , where 𝑖 1 , 𝑖 2 , … , 𝑖 𝑛 i 1 , i 2 , … , i n denote the items that the user 𝑢 u has interacted with. These three datasets with KGs are publicly available, which are released by [ 46 ].
+Table 1.
+
+		Amazon-book	Last-FM	Yelp2018
+User-Item Interaction	#Users	70,679	23,566	45,919
+#Items	24,915	48,123	45,538
+#Interactions	847,733	3,034,796	1,185,068
+Knowledge graph	#Entities	88,572	58,266	90,961
+#Relations	39	9	42
+#Triplets	2,557,746	464,567	1,853,704
+Show More
+
+Table 1. Statistics of Three Benchmark Datasets
+
+—
+	
+
+Amazon-book : Amazon-book is a popular dataset for the book recommendation, which is selected from the dataset Amazon-review (including product reviews, product metadata, and behavior links). Amazon-book contains binary implicit feedback between users and books. If a user interacts with an item (a book), the interaction between them is 1; otherwise, the interaction is 0. The KG for this dataset is constructed by mapping the book titles in Amazon-book to the corresponding entities in Freebase [ 2 ]. The relations in the KG corresponding to Amazon-book mainly relate to books, such as Genre , Topic , and Author .
+
+—
+	
+
+Last-FM : Last-FM is a recommendation dataset about music, which is extracted from Last.fm online music systems. Last-FM also contains binary implicit feedback between users and music. If a user interacts with a piece of music, the interaction between them is 1; otherwise, the interaction is 0. The KG for Last-FM is also constructed by mapping the music to the corresponding entities in Freebase. The relations in the KG corresponding to Last-FM mainly relate to music, such as Artist , Producer , and Type .
+
+—
+	
+
+Yelp2018 : Yelp2018 is extracted from Yelp challenge for Point of Interest ( POI ) recommendation. This dataset contains users and their check-in business data, such as restaurants, museums, parks, and so on. If a user interacts with an item (e.g., a restaurant), the interaction between them is 1; otherwise, the interaction is 0. The KG for Yelp2018 is constructed from the local business information network. The relations in the KG corresponding to Yelp2018 mainly relate to restaurants information, such as Reservation and PriceRange .
+
+In this article, we directly adopt the dataset division results from KGAT [ 46 ] for fair comparison. For each dataset, the ratio of training and test set is 8 : 2, and the valid set is selected from the training set to tune hyperparameters. Following previous recommendation models, the negative training instances are generated via the negative sampling strategy, which pairs each positive user-item instance with one negative item that the user has not interacted with before.
+4.1.2 Baselines.
+
+To examine the effectiveness of the proposed model KR-GCN, we compare KR-GCN with the following baselines in the experiments, in which NFM, NCF, and MCRec are knowledge-agnostic models while CKE, RippleNet, KGAT, and JNSKR are knowledge-aware models.
+
+—
+	
+
+NFM [ 15 ] combines second-order feature interactions captured by FM and high-order feature interactions captured by neural networks to solve the crossover problem of sparse features. The factorization machine is considered a part of the neural network.
+
+—
+	
+
+NCF [ 17 ] replaces the inner product operation on the latent features of users and items with a neural architecture. The user-item interactions are learned by leveraging a MLP, so as to break through the limitations of the collaborative filtering methods.
+
+—
+	
+
+MCRec [ 19 ] explicitly encodes meta-paths as interactions between the users and the items, where the meta-paths are pre-defined according to the recommendation datasets. To enhance the interactions, a co-attention mechanism is used to learn representations effectively.
+
+—
+	
+
+CKE [ 58 ] extracts the KG information using the KGE method TransR [ 27 ] and then combines the KG representations with textual and visual representations to generate multi-modal representations for items.
+
+—
+	
+
+RippleNet [ 42 ] is a memory-network-like model. To predict the interaction probabilities between the users and the items, RippleNet models the propagation of users’ preferences from users’ historical interests along reasoning paths in the KG.
+
+—
+	
+
+KGAT [ 46 ] models the high-order relations between users and items. The embeddings of users and items are refined by recursive propagation. And an attention mechanism is used to discriminate the importance of different neighbors of the given node.
+
+—
+	
+
+JNSKR [ 5 ] applies a non-sampling optimization strategy for learning KGE. To characterize user’s preferences over items, JNSKR encodes subgraphs via the knowledge-aware attentive neural networks.
+
+4.1.3 Evaluation Metrics.
+
+To evaluate the recommendation performance of the proposed KR-GCN and the baseline models, we adopt the same evaluation metrics widely used in previous recommendation methods for fair comparisons. The evaluation metrics in our experiments include Recall and Normalized Discounted cumulative gain ( NDCG ) with the given cut-off value k (k = 10, 20, 40). Recall@k is the metric for calculating the percentage of the desired recommendation items ranked among the top 𝑘 k items, which is more concerned with the number of desired items among the top 𝑘 k items than the ranking. NDCG@k is designed to measure whether the ground truth appears in more advanced positions. This metric focuses more on the ranking of the desired recommendation items. The all-ranking protocol is adopted in our experiments, which ranks all items that have not been interacted with the given user.
+4.1.4 Implementation Details.
+
+In our implementation, we randomly initialize the model parameters with the Xavier method [ 14 ] and set the size of the mini-batch to 1024, the learning rate to 0.001. We select the number of GCN layers from { 2 , 3 , 4 } { 2 , 3 , 4 } , the corresponding layer combination coefficient 𝛼 𝑙 α l from { 1 / 3 , 1 / 4 , 1 / 5 } { 1 / 3 , 1 / 4 , 1 / 5 } . The probability threshold 𝑝 p in the nucleus sampling strategy is selected from { 0.86 , 0.88 , 0.9 , 0.92 , 0.94 } { 0.86 , 0.88 , 0.9 , 0.92 , 0.94 } . We also set the maximum hop of the path to 3, the dimension of the embeddings to 128 in the GCN and LSTM path encoder, and the unit number of the LSTM to 256, the training epoch to 1,000. The probabilities of the triplets within every single path are calculated by TransH, TransE, and DistMult, in which the dimension of the embeddings is fixed to 200. The 𝐿 2 L 2 regularization coefficient 𝜆 λ is selected from { { 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } } . For the baseline MCRec, following the setting in the work of KGAT [ 46 ], we manually define several types of meta-paths for Amazon-book dataset, such as user-book-user-book, user-book-author-book, and user-book-genre-book. The types of entities are obtained by using the relations author and genre in the KG, such as the triples ( 𝑒 1 , 𝑎 𝑢 𝑡 ℎ 𝑜 𝑟 , 𝑎 1 ) ( e 1 , a u t h o r , a 1 ) and ( 𝑒 1 , 𝑔 𝑒 𝑛 𝑟 𝑒 , 𝑔 1 ) ( e 1 , g e n r e , g 1 ) .
+4.2 Performance Comparison and Analysis
+
+In the experiments, we compare the proposed model KR-GCN with several baselines on three real-world datasets, so as to evaluate the effectiveness of KR-GCN as a whole. Then, we conduct an ablation study to discuss the effectiveness of our major model components, including users’ historical interaction items, path-level attention mechanism, GCN propagation layers, and selected paths. Finally, we investigate the effect of several hyper-parameters on recommendation performance.
+4.2.1 Comparison with Baselines.
+
+Tables 2 and 3 present the performance comparison results of the proposed model KR-GCN and several baselines on three datasets. Specifically, KR-GCN is the proposed model that utilizes nucleus sampling, and KR-GCN (top- 𝑘 k ) is a variant of KR-GCN, which uses top- 𝑘 k sampling. KR-GCN (random) is the variant that samples 𝑘 k paths as input randomly. KR-GCN (TransE) and KR-GCN (DistMult) are also variants of KR-GCN, which utilize TransE and DistMult as triplet scoring functions. The major observations from the experimental results are summarized as follows:
+Table 2.
+
+	Models	Recall@10	Recall@20	Recall@40	NDCG@10	NDCG@20	NDCG@40
+Amazon-book	NFM	0.0891	0.1366	0.1975	0.0723	0.0913	0.1152
+NCF	0.0874	0.1319	0.1924	0.0724	0.0895	0.1111
+MCRec	–	0.1113	–	–	0.0783	–
+CKE	0.0875	0.1343	0.1946	0.0705	0.0885	0.1114
+RippleNet	0.0883	0.1336	0.2008	0.0747	0.0910	0.1164
+KGAT	0.1017	0.1489	0.2094	0.0814	0.1006	0.1225
+JNSKR	0.1056	0.1558	0.2178	0.0842	0.1068	0.1271
+KR-GCN(top- 𝑘 k )	0.1058	0.1573	0.2196	0.0863	0.1076	0.1296
+KR-GCN(random)	0.1016	0.1493	0.2098	0.0809	0.1001	0.1228
+KR-GCN(TransE)	0.1074	0.1582	0.2186	0.0874	0.1090	0.1305
+KR-GCN(DistMult)	0.1095	0.1603	0.2203	0.0885	0.1107	0.1319
+KR-GCN	0.1117 	0.1635 	0.2246 	0.0892 	0.1116 	0.1332
+improvement %	5.7%	4.9%	3.1%	5.9%	4.5%	4.7%
+Yelp2018	NFM	0.0396	0.0660	0.1082	0.0603	0.0810	0.1094
+NCF	0.0389	0.0653	0.1060	0.0603	0.0802	0.1087
+CKE	0.0399	0.0657	0.1074	0.0608	0.0805	0.1091
+RippleNet	0.0402	0.0664	0.1088	0.0613	0.0822	0.1097
+KGAT	0.0418	0.0712	0.1128	0.0630	0.0867	0.1129
+JNSKR	0.0456	0.0749	0.1209	0.0687	0.0917	0.1211
+KR-GCN(top- 𝑘 k )	0.0461	0.0758	0.1213	0.0697	0.0921	0.1220
+KR-GCN(random)	0.0420	0.0715	0.1128	0.0638	0.0869	0.1134
+KR-GCN(TransE)	0.0473	0.0767	0.1249	0.0709	0.0937	0.1235
+KR-GCN(DistMult)	0.0479	0.0805	0.1281	0.0714	0.0947	0.1248
+KR-GCN	0.0491 	0.0813 	0.1297 	0.0725 	0.0963 	0.1267
+improvement %	7.6%	8.5%	7.2%	5.5%	5.0%	4.6%
+Show More
+
+Table 2. Performance Comparisons of KR-GCN and Baselines on Amazon-Book and Yelp2018
+
+    Best results are in bold.
+
+Table 3.
+
+Models	NFM	CKE	RippleNet	KGAT	KR-GCN(top- 𝑘 k )	KR-GCN (random)	KR-GCN (TransE)	KR-GCN (DistMult)	KR-GCN
+Recall@20	0.0829	0.0736	0.0791	0.0870	0.0876	0.0872	0.0880	0.0886	0.0892
+NDCG@20	0.1214	0.1184	0.1238	0.1325	0.1332	0.1327	0.1338	0.1349	0.1353
+
+Table 3. Performance Comparisons of KR-GCN and Baselines on Last-FM
+
+    Best results are in bold.
+
+The proposed KR-GCN consistently outperforms the baselines and the variants by a margin on three datasets. The performance comparison results demonstrate the high effectiveness of KR-GCN. We attribute it to the fact that KR-GCN alleviates the challenges in the existing models.
+
+Among all baselines, knowledge-aware models achieve better performance compared with knowledge-agnostic models in most cases, which indicates the usefulness of incorporating KGs into recommender systems to enhance recommendation performance. For knowledge-agnostic models, NFM performs better than NCF on Amazon-book and Yelp2018, because NFM combines the second-order feature interactions captured by FM and the higher-order feature interactions captured by neural networks, which can alleviate the problem of sparse features. The performance of the path-based model MCRec is limited by the design of the meta-paths. Compared with knowledge-agnostic models, knowledge-aware models usually generate more accurate and diverse recommendation results by introducing auxiliary knowledge about items. The knowledge-aware models KGAT and JNSKR yield better performance than CKE and RippleNet. This is because that CKE ignores the global structure information of the graph, while KGAT captures the high-order relations between users and items via a KG attention network. JNSKR improves recommendation performance by applying an efficient non-sampling optimization strategy for learning KGE.
+
+KR-GCN performs better than the GCN-based model KGAT, indicating that the recommendation performance improvements of the proposed model KR-GCN are not just due to the high performance of GCN. JNSKR might achieve good performance on Amazon-book and Yelp2018, but lead to low efficiency as well. The negative sampling strategy is adopted in our KR-GCN in the training process, and the non-sampling strategy could also be adopted in the follow-up work to further improve the recommendation performance.
+
+KR-GCN (top- 𝑘 k ) is a comparison model with top- 𝑘 k sampling; that is, the number of selected paths in the path selection module is fixed. The performance of KR-GCN is better than that of KR-GCN (top- 𝑘 k ), illustrating that adaptive path selection has advantages over static path selection. KR-GCN (random) is a variant model that samples 𝑘 k paths randomly. KR-GCN (random) performs worse than KR-GCN and KR-GCN (top- 𝑘 k ), indicating the importance and the effectiveness of the path selection module, i.e., verifying the high quality and usefulness of the extracted paths in KR-GCN. This also illustrates that the irrelevant paths will induce error propagation and further impact recommendation performance, which is consistent with the motivation of our article. KR-GCN uses the KGE method TransH to calculate the scores of triplets within the multi-hop paths in the path selection module, while KR-GCN (TransE) and KR-GCN (DistMult) use TransE and DistMult as triplet scoring functions, respectively. KR-GCN outperforms KR-GCN (TransE) and KR-GCN (DistMult), indicating that TransH is a more appropriate choice than TransE and DistMult for the recommendation task in calculating the scores of triplets within the multi-hop reasoning paths. We attribute this to the fact that TransH can deal with the one-to-many, many-to-one, and many-to-many relation patterns in the graph, and these relation patterns widely exist in the user-item interactions and KG, especially in the user-item interactions. Although TransE and DistMult can also be used to calculate multi-hop path scores, TransE cannot model the relation patterns mentioned above very well, and DistMult cannot model symmetric relations in the paths. For example, two triplets ( A Tale of Two cities , WrittenBy , Charles Dickens ) and ( Charles Dickens , WrittenBy , A Tale of Two Cities ) within the path would be calculated as the same scores via DistMult, and the second triplet is clearly wrong.
+
+Compared with the best performance results in baselines (i.e., JNSKR in Amazon-book, Yelp2018, and KGAT in Last-FM), KR-GCN improves by 4.9%, 8.5%, and 2.5% measured by Recall@20, and improves by 4.4%, 5.0%, and 2.1% measured by NDCG@20. We attribute the superior recommendation performance of the proposed KR-GCN to leveraging graph structure information as well as semantic information, and selecting reasoning paths that are more helpful for predicting user preferences. To verify that KR-GCN outperforms baselines significantly, we conduct significance testing, and differences between KR-GCN and baselines are significant ( p < 0.05) using the t -test. Specifically, to perform significance testing, we assume that it is no difference between the experimental results of baselines and KR-GCN. The experimental results are compared to calculate the p -value between each baseline and KR-GCN. Finally, we find that p < 0.05 for every two groups, so the null hypothesis is rejected,. i.e., there is a significant difference between the experimental results of KR-GCN and baselines.
+
+Among all these models, path-based models MCRec, RippleNet, and the proposed KR-GCN can provide explainability by providing reasoning paths for the recommendation. MCRec explicitly encodes meta-paths as the interactions between user-item pairs, in which the diversity of reasoning paths (i.e., the explanations for the recommendation results) is limited because of the design of the meta-paths. RippleNet tracks the paths from the user’s historical interactions to the items in the KG, and then discovers possible reasoning paths as the explanations. However, the collaborative information is ignored in RippleNet, for example, the multi-hop path 𝑢 1 − → − − − − 𝐼 𝑛 𝑡 𝑒 𝑟 𝑎 𝑐 𝑡 𝑖 1 − → − − − − 𝐼 𝑛 𝑡 𝑒 𝑟 𝑎 𝑐 𝑡 𝑢 2 − → − − − − 𝐼 𝑛 𝑡 𝑒 𝑟 𝑎 𝑐 𝑡 𝑖 2 u 1 → I n t e r a c t i 1 → I n t e r a c t u 2 → I n t e r a c t i 2 is not considered and utilized to reason user preferences. Different from MCRec and RippleNet, KR-GCN first integrates the user-item interactions and KG (i.e., user collaboration information and auxiliary knowledge about items) into a heterogeneous graph. Then, KR-GCN extracts reasoning paths from the heterogeneous graph, and utilizes an attention mechanism to discriminate the effects of different multi-hop paths between users and items, thus providing trustworthy explainability. Moreover, KR-GCN prunes irrelevant paths in the path selection module to mitigate interference in the reasoning and explanations.
+4.2.2 Ablation Study.
+
+To investigate the effects of different model components on the performance of KR-GCN, we first conduct an ablation study to analyze the effect of the users’ historical interaction items and path-level attention mechanism. Then, we explore the components of GCN propagation layers and the selected paths on the experimental results on three datasets.
+
+We analyze the effects of the historical interaction items and path-level self-attention mechanism and then summarize the recommendation performance comparisons in Table 4 . These two components are abbreviated as HI and Att. Removing either the historical interaction items component or path-level self-attention mechanism component degrades the recommendation performance, and the performance is worst when both components are removed. The evaluation results prove that both the historical interaction items and the path-level self-attention mechanism make contributions to infer user preferences. The component of users’ historical interaction items is encoded as additional input features and combined with each path to reflect users’ interests, which can also enhance the representations of the path sequences. Leveraging the path-level self-attention mechanism in KR-GCN can learn path-specific weight and discriminate the contributions of different reasoning paths between users and items, so as to capture more reasonable user interests and provide a more accurate recommendation.
+Table 4.
+
+Models	Amazon-book	Last-FM	Yelp2018
+Recall@20	NDCG@20	Recall@20	NDCG@20	Recall@20	NDCG@20
+w/o HI	0.1548	0.1048	0.0879	0.1329	0.0735	0.0903
+w/o Att	0.1439	0.0993	0.0809	0.1257	0.0698	0.0859
+w/o HI& Att	0.1422	0.0987	0.0783	0.1230	0.0664	0.0832
+KR-GCN	0.1635	0.1116	0.0892	0.1353	0.0813	0.0963
+Show More
+
+Table 4. Effects of Historical Interaction Items and Path-Level Attention
+
+To explore the effects of components of GCN propagation layers and selected paths, we conduct experiments on different GCN propagation layers, probability threshold of triplets, and path hops, i.e., the length of paths. Figure 3 shows the recommendation performance comparisons of different GCN propagation layers, probability threshold, and path hops. The comparison results are measured by the metrics Recall@20 and NDCG@20 on the datasets Amazon-book, Last-FM, and Yelp2018. 𝐿 L , 𝑝 p , and 𝑙 l denote the number of propagation layers in the graph encoding module, the probability threshold in the nucleus sampling strategy, and the path hop in the path extraction module, respectively. For different GCN propagation layers and probability threshold, we can observe that when 𝐿 = 3 L = 3 and 𝑝 = 0.9 p = 0.9 , KR-GCN obtains better recommendation performance on Amazon-book with all metrics, and when 𝐿 = 4 L = 4 and 𝑝 = 0.92 p = 0.92 , KR-GCN obtains better performance on Last-FM and Yelp2018, as shown in Figure 3 (a)–(f). An intuitive explanation is that there are more user-item interactions in Last-FM and Yelp2018 than in Amazon-book. More GCN propagation layers and higher path probability threshold represent richer training information. However, the recommendation performance does not grow with the number of GCN propagation layers and path probability threshold because more GCN propagation layers and higher path probability threshold can also cause over-smooth and introduce interference information. For different path hops, we compare the model performance when 𝑙 = 3 l = 3 and 𝑙 = 5 l = 5 . The main reason is that the model cannot utilize path information when 𝑙 = 1 l = 1 , when 𝑙 = 2 l = 2 or 𝑙 = 4 l = 4 , path extraction is unreasonable, and when 𝑙 > 5 l > 5 , the path extraction and selection is very inefficient. When 𝐼 = 3 I = 3 , the path types include: 𝑢 − 𝑖 − 𝑢 / 𝑒 − 𝑖 u − i − u / e − i , and when 𝐼 = 5 I = 5 , the path types include: 𝑢 − 𝑖 − 𝑢 / 𝑒 − 𝑖 − 𝑢 / 𝑒 − 𝑖 u − i − u / e − i − u / e − i and 𝑢 − 𝑖 − 𝑒 − 𝑒 / 𝑖 − 𝑒 − 𝑖 u − i − e − e / i − e − i . As shown in Figure 3 (g)–(i), when 𝑙 = 3 l = 3 , the performance is better than when 𝑙 = 5 l = 5 on three datasets. We attribute this to the fact that long paths enhance semantic information but also weaken the associations between users and items.
+Fig. 3.
+
+Fig. 3. View Figure
+
+Fig. 3. Performance comparisons of different GCN propagation layers, path probability thresholds, and path hops on three datasets.
+4.2.3 Hyper-Parameter Study.
+
+KR-GCN involves a number of hyper-parameters. In this subsection, we investigate the sensitivity of hyper-parameters on the recommendation performance and report the experimental results on two datasets in Figures 4 and 5 .
+Fig. 4.
+
+Fig. 4. View Figure
+
+Fig. 4. The experimental results of different embedding dimension in the GCN on Amazon-book, Last-FM, and Yelp2018.
+Fig. 5.
+
+Fig. 5. View Figure
+
+Fig. 5. The experimental results of different embedding dimension in the TransH on Amazon-book, Last-FM, and Yelp2018.
+
+—
+	
+
+Dimension of the embeddings in the GCN. We first test the effects of the embedding dimension 𝑑 1 d 1 in the GCN on the performance. GCN is utilized to encode the heterogeneous graph that integrates the user-item interactions and the KG. Therefore, parameter setting in the GCN has a key effect on recommendation performance. Figure 4 shows the experimental results of different embedding dimension in the GCN on Amazon-book, Last-FM, and Yelp2018, which are evaluated by the metrics Recall@20 and NDCG@20. The experimental results demonstrate that with the growth of the embedding dimension, the recommendation performance raises first and then starts to drop. We can see that KR-GCN achieves the best recommendation performance when the embedding dimension 𝑑 1 d 1 is set to 128. This indicates that the high embedding dimension can enhance node representations and improve model performance, but the higher dimension is not always better, because additional dependencies are also introduced.
+
+—
+	
+
+Dimension of the embeddings in the TransH. TransH is used to calculate the scores of multi-hop paths in the path selection module. The parameters in TransH affect the selection of reasoning paths, and then affect the model performance. To explore the effects of the parameters in TransH on the model performance, we start experiments with different embedding dimension 𝑑 2 d 2 in the TransH to check on its influence. The experimental results of different embedding dimension in the TransH on Amazon-book, Last-FM, and Yelp2018 are shown in Figure 5 . Recall@20 and NDCG@20 are also used as evaluation metrics. From the experimental results, we can find that the embedding dimension 𝑑 2 = 200 d 2 = 200 is the best choice for KR-GCN. Similar to the conclusion of the embedding dimension in GCN, the high embedding dimension can improve model performance, but the higher dimension is not always better, because the higher dimension will lead to overfitting of the model.
+
+4.3 Discussion on Explainability
+
+In this subsection, we conduct the human evaluation, statistical analysis and case study to discuss the explainability provided by KR-GCN and comparison models.
+4.3.1 Human Evaluation on Explainability.
+
+To verify that the proposed model can provide more trustworthy explainability for recommended items, the reasoning paths (i.e., recommendation explanations) that provided by models are evaluated manually. The evaluation metrics include Relevance and Diversity . Relevance is used to evaluate whether the explanations are closely related to the recommended items, for example, for the item Hamlet , taking Romeo and Juliet as an explanation is more relevant than English . Diversity is used to evaluate whether the explanations include multiple relationships between every user-item pair. We define the Diversity of the path 𝑝 p between the given user-item pair as follows: (24) 𝐷 𝑖 𝑣 𝑒 𝑟 𝑠 𝑖 𝑡 𝑦 ( 𝑝 ) = 𝛼 ( 𝑁 ( 𝑅 𝑝 ) + 𝑁 ( 𝑡 𝑦 𝑝 𝑒 ( 𝐸 𝑝 ) ) ) , D i v e r s i t y ( p ) = α ( N ( R p ) + N ( t y p e ( E p ) ) ) , where 𝑁 ( 𝑅 𝑝 ) N ( R p ) is the number of the relations within the path 𝑝 p , 𝑡 𝑦 𝑝 𝑒 ( 𝐸 𝑝 ) t y p e ( E p ) is the types of the entities within the path 𝑝 p , 𝑁 ( 𝑡 𝑦 𝑝 𝑒 ( 𝐸 𝑝 ) ) N ( t y p e ( E p ) ) is the number of these types, and 𝛼 α is a scale parameter of the direct proportional function. The diversity of explanation is mainly related to the number of relations and the number of entity types. For example, given the path 𝑝 1 p 1 and 𝑝 2 p 2 : (25) 𝑝 1 : 𝑢 165 − → − − − − 𝐼 𝑛 𝑡 𝑒 𝑟 𝑎 𝑐 𝑡 𝐵 𝑙 𝑖 𝑛 𝑑 𝐿 𝑎 𝑘 𝑒 − → − − − − 𝐼 𝑛 𝑡 𝑒 𝑟 𝑎 𝑐 𝑡 𝑢 28177 − → − − − − 𝐼 𝑛 𝑡 𝑒 𝑟 𝑎 𝑐 𝑡 𝐹 𝑙 𝑎 𝑠 ℎ 𝑓 𝑜 𝑟 𝑤 𝑎 𝑟 𝑑 , p 1 : u 165 → I n t e r a c t B l i n d L a k e → I n t e r a c t u 28177 → I n t e r a c t F l a s h f o r w a r d , (26) 𝑝 2 : 𝑢 165 − → − − − − 𝐼 𝑛 𝑡 𝑒 𝑟 𝑎 𝑐 𝑡 𝐵 𝑙 𝑖 𝑛 𝑑 𝐿 𝑎 𝑘 𝑒 − → − − − 𝐺 𝑒 𝑛 𝑟 𝑒 𝑆 𝑐 𝑖 𝑒 𝑛 𝑐 𝑒 𝐹 𝑖 𝑐 𝑡 𝑖 𝑜 𝑛 − → − − − − 𝐼 𝑛 𝐺 𝑒 𝑛 𝑟 𝑒 𝐹 𝑙 𝑎 𝑠 ℎ 𝑓 𝑜 𝑟 𝑤 𝑎 𝑟 𝑑 , p 2 : u 165 → I n t e r a c t B l i n d L a k e → G e n r e S c i e n c e F i c t i o n → I n G e n r e F l a s h f o r w a r d , where the number of relations within the path 𝑝 1 p 1 and 𝑝 2 p 2 is 1 and 3, and the number of entity types is 2 and 3, respectively. So the path 𝑝 1 p 1 will be scored lower than the path 𝑝 2 p 2 and more likely to be the explanation for recommendation.
+
+On one hand, when the length of the path is too long, the path extraction and selection will be very inefficient, and the associations between users and items will also be weakened. On the other hand, the diversity of the path is correlated with the number of path hops. How to make a good balance within the length of the paths, the diversity of the paths, and the explainability is a key issue.
+
+We first determine the number of path hops. Because we mainly focus on the recommendation performance and explainability in this article, where the performance should be considered a priority. And, the number of path hops is directly related to the recommendation performance. In this article, the best choice for the number of hops is three hops on three datasets. After the number of path hops is determined, we focus on the explainability of the model, i.e., the reasoning paths provided by the model. Because the relevance of the reasoning paths will affect the model performance, we first focus on the relevance of explanations, which is guaranteed by the path selection module and the attention mechanism. Then, we focus on the diversity of explanations. Specifically, when the number of paths hops is set, our goal is to make the reasoning paths include more entity types and relations. In this article, we do not use the meta-path patterns to mine the reasoning paths, so the limitations of entity type can be alleviated to a certain extent. To conclude, our goal is to focus on the explainability of the recommendation model under the premise that the recommendation performance is considerable; that is, we first focus on the path length, then the relevance of the explanations, and finally, the diversity of the explanations.
+
+To evaluate the explainability, we randomly sample 100 user-item pairs, and output reasoning paths provided by models. Specifically, five reasoning paths with higher attention scores between every user-item pair are selected for comparison. Then, we select 10 raters who have the machine learning experience to evaluate the relevance and diversity of these reasoning paths. The evaluation scores range from 0 to 10 for both metrics. Specifically, each model output 500 (100*5) paths. We divide these paths into 5 groups, and each group contains 100 paths that correspond to 20 user-item pairs. To avoid the problem of inconsistent labeling results between different raters, each group (100 paths) is assigned to 2 raters for evaluation and the score of each path is obtained by averaging the scores provided by two raters. Finally, the scores of all the comparison paths are obtained.
+
+Among the baselines, the path-based models MCRec and RippleNet have the ability to provide explainability. The explainability comparisons of MCRec, RippleNet, and the proposed KR-GCN on the Amazon-book are shown in Table 5 . The evaluation results prove that our KR-GCN can provide more relevant and diverse explanations compared with MCRec and RippleNet. We attribute this to solving the error propagation problem of the paths and integrating the user-item interactions and KG. The former improves relevance, and the latter improves diversity. In terms of relevance, KR-GCN filters the irrelevant paths between user-item pairs to solve the problem of error propagation, so the final reasoning paths are more relevant to the recommended items. In terms of diversity, KR-GCN constructs a heterogeneous graph including user collaboration information and auxiliary knowledge about items. Nodes and relations within the final explanation paths are not limited by the types of user/item/entity/relations, that is, the diversity of explanations is not limited by data. The diversity of reasoning paths in McRec is limited by designing meta-paths for KGs, and RippleNet ignores user collaborative information, so the diversity of reasoning paths is also limited. Compared with McRec and RippleNet, KR-GCN can provide more diverse explanations.
+Table 5.
+
+Models	Amazon-book
+Relevance	Diversity
+MCRec	7.21	6.43
+RippleNet	6.82	7.16
+KR-GCN	7.61	7.85
+
+Table 5. The Explainability Comparisons of MCRec, RippleNet, and KR-GCN on Amazon-Book
+4.3.2 Statistical Analysis.
+
+To further demonstrate the explanations, we compare reasoning subgraphs provided by the proposed model KR-GCN and two baselines MCRec and RippleNet, where the reasoning subgraphs are composed of the reasoning paths and have more complicated structures than the reasoning paths. Specifically, five reasoning paths with higher attention scores between every user-item pair are selected and formed into reasoning subgraphs for comparison. The subgraphs provided by the three models are compared by computing the similarity of their topological sequences, where the similarity of each two topological sequences is measured via Levenshtein distance [ 30 ]. Figure 6 shows the statistical results of the subgraph similarity between KR-GCN and two baselines (i.e., MCRec and RippleNet). The statistical results demonstrate that a large number of reasoning subgraphs provided by KR-GCN and by baselines (especially RippleNet) have high similarity, because many reasoning subgraphs are in the similarity interval of 50%–100%. This indicates that the reasoning subgraphs provided by KR-GCN have some overlap with those provided by baselines; that is, most of the reasoning paths provided by baselines can be covered by KR-GCN. Furthermore, compared with the baselines, KR-GCN performs higher relevance because of the attention mechanism, and the diversity is not limited. In general, we believe that KR-GCN can generate higher-quality reasoning subgraphs to provide explanations for the recommendation.
+Fig. 6.
+
+Fig. 6. View Figure
+
+Fig. 6. The statistical results of the subgraph similarity between baselines (i.e., MCRec and RippleNet) and KR-GCN. The horizontal axis shows the similarity interval, and the vertical axis shows the proportion of the number of subgraphs in a certain similarity interval to the number of all subgraphs.
+4.3.3 Case Study on Explainability.
+
+We present an example from Amazon-book to demonstrate the explainability of MCRec, RippleNet, and the proposed KR-GCN. Figure 7 shows the interactions between the user 𝑢 165 u 165 and the item Flashforward that are explored by three models. For all models, five reasoning paths with higher attention scores are selected and formed into reasoning subgraphs for comparison and display. We can find that KR-GCN provides more types of relationships between the user 𝑢 165 u 165 and the item Flashforward than MCRec and RippleNet. The main reason is that McRec only defines a limited number of meta-paths, and RippleNet ignores the user collaboration information in the graph. As shown in Figure 7 , three paths in MCRec only contain the user-item interactions, i.e., the paths 𝑝 3 p 3 , 𝑝 4 p 4 , and 𝑝 5 p 5 , and all paths in RippleNet only contain the KG information. In addition, the reasoning paths are not sorted and pruned in MCRec and RippleNet, the final reasoning paths/subgraphs might include some low-quality and irrelevant paths, such as the path 𝑢 165 − → − − − − 𝐼 𝑛 𝑡 𝑒 𝑟 𝑎 𝑐 𝑡 u 165 → I n t e r a c t Blind Lake − → − − 𝑇 𝑦 𝑝 𝑒 → T y p e Book − → − − − 𝐼 𝑛 𝑇 𝑦 𝑝 𝑒 → I n T y p e Flashforward in RippleNet. For KR-GCN, the path 𝑝 2 p 2 obtains the highest attention score as shown in Figure 7 . We can summarize the reason for recommending Flashforward to 𝑢 165 u 165 as follows: the user 𝑢 165 u 165 likes the book Blind Lake, whose genre is science fiction, and Flashforward is also a science fiction .
+Fig. 7.
+
+Fig. 7. View Figure
+
+Fig. 7. Real example from Amazon-book. The interactions between the user 𝑢 165 u 165 and the item Flashforward are explored by MCRec, RippleNet, and KR-GCN. The reasoning paths in red indicate the explanations for recommendation.
+Skip 5CONLUSION Section
+5 CONLUSION
+
+In this article, we propose a novel method named KR-GCN for the explainable recommendation. We integrate user-item interactions and KG into a heterogeneous graph and encode the graph with the GCN to improve the recommendation performance. To cope with the error propagation in the graph, we develop a transition-based method to score triplets within multi-hop paths between every user-item pair and utilize nucleus sampling to adaptively select triplets. To provide trustworthy explainability, we introduce a path-level self-attention mechanism to discriminate the contributions of different selected paths and predict the interaction probability, and the path with the highest weight is provided as the explanation for the recommendation. Extensive experiments on three real-world datasets show that the proposed KR-GCN achieves improvements over state-of-the-art baselines. And, human evaluation proves that KR-GCN can provide more trustworthy explainability compared with baselines.
+
+Future research directions include (1) exploring other ways to take advantage of both GCN-based methods and path-based methods, and (2) trying to apply path selection strategy in other tasks, such as link prediction. On one hand, GCN-based methods have proved to be successful in modeling the high-order relations in KGs to provide better recommendation. And the state-of-the-art performance on public datasets is mostly achieved by GCN-based methods. Path-based methods can make full use of reasoning paths to model the propagation of users’ interests, so as to provide more accurate and explainable recommendation. So exploring ways to take advantage of both can provide high-performance and user-friendly recommendation. On the other hand, the path selection strategy is important for path-related tasks, not just for recommendation task. The path selection strategy aims at finding more potential reasoning paths and avoid introducing interference information, which can also alleviate the problem of error propagation in other path-related tasks.
+
+REFERENCES
+
+    [1] Ai Qingyao , Azizi Vahid , Chen Xu , and Zhang Yongfeng . 2018 . Learning heterogeneous knowledge base embeddings for explainable recommendation . Algorithms 11 , 9 ( 2018 ), 137 . Google Scholar Google Scholar Cross Ref Cross Ref
+    Reference 1 Reference 2
+    [2] Bollacker Kurt , Evans Colin , Paritosh Praveen , Sturge Tim , and Taylor Jamie . 2008 . Freebase: A collaboratively created graph database for structuring human knowledge . In Proceedings of the ACM SIGMOD International Conference on Management of Data, SIGMOD . 1247 – 1250 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [3] Bordes Antoine , Usunier Nicolas , Garcia-Duran Alberto , Weston Jason , and Yakhnenko Oksana . 2013 . Translating embeddings for modeling multi-relational data . In Proceedings of the Advances in Neural Information Processing Systems 26: The 27th Annual Conference on Neural Information Processing Systems . 2787 – 2795 . Google Scholar Google Scholar
+    Reference 1 Reference 2
+    [4] Cao Yixin , Wang Xiang , He Xiangnan , Hu Zikun , and Chua Tat-Seng . 2019 . Unifying knowledge graph learning and recommendation: Towards a better understanding of user preferences . In Proceedings of the 2019 World Wide Web Conference on World Wide Web,WWW . 151 – 161 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference 1 Reference 2 Reference 3
+    [5] Chen Chong , Zhang Min , Ma Weizhi , Liu Yiqun , and Ma Shaoping . 2020 . Jointly non-sampling learning for knowledge graph enhanced recommendation . In Proceedings of the 43rd International ACM SIGIR Conference on Research and Development in Information Retrieval, SIGIR . 189 – 198 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference 1 Reference 2 Reference 3
+    [6] Chen Hongxu , Li Yicong , Sun Xiangguo , Xu Guandong , and Yin Hongzhi . 2021 . Temporal meta-path guided explainable recommendation . In Proceedings of the WSDM’21, The Fourteenth ACM International Conference on Web Search and Data Mining, 2021 . ACM , 1056 – 1064 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference 1 Reference 2
+    [7] Chen Xu , Xiong Kun , Zhang Yongfeng , Xia Long , Yin Dawei , and Huang Jimmy Xiangji . 2020 . Neural feature-aware recommendation with signed hypergraph convolutional network . ACM Transactions on Information Systems 39 , 1 ( 2020 ), 8:1–8:22 . Google Scholar Google Scholar
+    Reference
+    [8] Chen Zhongxia , Wang Xiting , Xie Xing , Wu Tong , Bu Guoqing , Wang Yining , and Chen Enhong . 2019 . Co-Attentive multi-task learning for explainable recommendation . In Proceedings of the 28th International Joint Conference on Artificial Intelligence, IJCAI 2019 , Kraus Sarit (Ed.). 2137 – 2143 . Google Scholar Google Scholar Cross Ref Cross Ref
+    Reference 1 Reference 2
+    [9] Cheng Zhiyong , Chang Xiaojun , Zhu Lei , Kanjirathinkal Rose Catherine , and Kankanhalli Mohan S. . 2019 . MMALFM: Explainable recommendation by leveraging reviews and images . ACM Transactions on Information Systems 37 , 2 ( 2019 ), 16:1–16:28 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [10] Fan Shaohua , Zhu Junxiong , Han Xiaotian , Shi Chuan , Hu Linmei , Ma Biyu , and Li Yongliang . 2019 . Metapath-guided heterogeneous graph neural network for intent recommendation . In Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, KDD . 2478 – 2486 . Google Scholar Google Scholar Digital Library Digital Library
+    Navigate to
+    [11] Fan Wenqi , Ma Yao , Li Qing , He Yuan , Zhao Yihong Eric , Tang Jiliang , and Yin Dawei . 2019 . Graph neural networks for social recommendation . In Proceedings of the World Wide Web Conference, WWW 2019 . 417 – 426 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [12] Fu Zuohui , Xian Yikun , Gao Ruoyuan , Zhao Jieyu , Huang Qiaoying , Ge Yingqiang , Xu Shuyuan , Geng Shijie , Shah Chirag , Zhang Yongfeng , and Melo Gerard de . 2020 . Fairness-Aware explainable recommendation over knowledge graphs . In Proceedings of the 43rd International ACM SIGIR Conference on Research and Development in Information Retrieval, SIGIR 2020 . 69 – 78 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference 1 Reference 2
+    [13] Gao Jingyue , Wang Xiting , Wang Yasha , and Xie Xing . 2019 . Explainable Recommendation through Attentive Multi-View Learning . In Proceedings of the 33rd AAAI Conference on Artificial Intelligence, AAAI 2019 . 3622 – 3629 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference 1 Reference 2
+    [14] Glorot Xavier and Bengio Yoshua . 2010 . Understanding the difficulty of training deep feedforward neural networks . In Proceedings of the 13th International Conference on Artificial Intelligence and Statistics, AISTATS 2010 ( JMLR Proceedings , Vol. 9 ). 249 – 256 . Google Scholar Google Scholar
+    Reference
+    [15] He Xiangnan and Chua Tat-Seng . 2017 . Neural factorization machines for sparse predictive analytics . In Proceedings of the 40th International ACM SIGIR Conference on Research and Development in Information Retrieval, SIGIR . 355 – 364 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [16] He Xiangnan , Deng Kuan , Wang Xiang , Li Yan , Zhang Yong-Dong , and Wang Meng . 2020 . LightGCN: Simplifying and powering graph convolution network for recommendation . In Proceedings of the 43rd International ACM SIGIR Conference on Research and Development in Information Retrieval, SIGIR . 639 – 648 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [17] He Xiangnan , Liao Lizi , Zhang Hanwang , Nie Liqiang , Hu Xia , and Chua Tat-Seng . 2017 . Neural collaborative filtering . In Proceedings of the 26th International Conference on World Wide Web, WWW . 173 – 182 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [18] Holtzman Ari , Buys Jan , Du Li , Forbes Maxwell , and Choi Yejin . 2020 . The curious case of neural text degeneration . In Proceedings of the 8th International Conference on Learning Representations, ICLR 2020 . Google Scholar Google Scholar
+    Reference 1 Reference 2
+    [19] Hu Binbin , Shi Chuan , Zhao Wayne Xin , and Yu Philip S. . 2018 . Leveraging meta-path based Context for Top-N recommendation with a neural co-attention model . In Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, KDD . 1531 – 1540 . Google Scholar Google Scholar Digital Library Digital Library
+    Navigate to
+    [20] Huang Xiaowen , Fang Quan , Qian Shengsheng , Sang Jitao , Li Yan , and Xu Changsheng . 2019 . Explainable interaction-driven user modeling over knowledge graph for sequential recommendation . In Proceedings of the 27th ACM International Conference on Multimedia, MM 2019 . 548 – 556 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference 1 Reference 2 Reference 3
+    [21] Kingma , Diederik , and Jimmy Ba . 2015 . Adam: A method for stochastic optimization . In Proceedings of the 3th International Conference on Learning Representations (ICLR’15) . Google Scholar Google Scholar
+    Reference
+    [22] Kipf Thomas N. and Welling Max . 2016 . Variational graph auto-encoders . CoRR abs/1611.07308 (2016). Google Scholar Google Scholar
+    Reference
+    [23] Kipf Thomas N. and Welling Max . 2017 . Semi-Supervised classification with graph convolutional networks . In Proceedings of the 5th International Conference on Learning Representations, ICLR . Google Scholar Google Scholar
+    Reference 1 Reference 2
+    [24] Li Chongxuan , Welling Max , Zhu Jun , and Zhang Bo . 2018 . Graphical generative adversarial networks . In Proceedings of the Advances in Neural Information Processing Systems 31: Annual Conference on Neural Information Processing Systems, NeurIPS 2018 . 6072 – 6083 . Google Scholar Google Scholar
+    Reference
+    [25] Li Mengmeng , Gan Tian , Liu Meng , Cheng Zhiyong , Yin Jianhua , and Nie Liqiang . 2019 . Long-tail hashtag recommendation for micro-videos with graph convolutional network . In Proceedings of the 28th ACM International Conference on Information and Knowledge Management, CIKM 2019 . 509 – 518 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [26] Li Xueqi , Jiang Wenjun , Chen Weiguang , Wu Jie , Wang Guojun , and Li Kenli . 2020 . Directional and explainable serendipity recommendation . In Proceedings of the WWW’20: The Web Conference, 2020 . 122 – 132 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference 1 Reference 2
+    [27] Lin Yankai , Liu Zhiyuan , Sun Maosong , Liu Yang , and Zhu Xuan . 2015 . Learning entity and relation embeddings for knowledge graph completion . In Proceedings of the 29th AAAI Conference on Artificial Intelligence Learning . 2181 – 2187 . Google Scholar Google Scholar Cross Ref Cross Ref
+    Reference 1 Reference 2
+    [28] Liu Danyang , Lian Jianxun , Liu Zheng , Wang Xiting , Sun Guangzhong , and Xie Xing . 2021 . Reinforced anchor knowledge graph generation for news recommendation reasoning . In Proceedings of the KDD’21: The 27th ACM SIGKDD Conference on Knowledge Discovery and Data Mining . 1055 – 1065 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference 1 Reference 2
+    [29] Ma Weizhi , Zhang Min , Cao Yue , Jin Woojeong , Wang Chenyang , Liu Yiqun , Ma Shaoping , and Ren Xiang . 2019 . Jointly learning explainable rules for recommendation with knowledge graph . In Proceedings of the World Wide Web Conference, WWW 2019 . 1210 – 1221 . Google Scholar Google Scholar Digital Library Digital Library
+    Navigate to
+    [30] Navarro Gonzalo . 2001 . A guided tour to approximate string matching . ACM Computing Surveys 33 , 1 ( 2001 ), 31 – 88 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [31] Qiu Ruihong , Huang Zi , Li Jingjing , and Yin Hongzhi . 2020 . Exploiting cross-session information for session-based recommendation with graph neural networks . ACM Transactions on Information Systems 38 , 3 ( 2020 ), 22:1–22:23 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [32] Qu Yanru , Bai Ting , Zhang Weinan , Nie Jian-Yun , and Tang Jian . 2019 . An end-to-end neighborhood-based interaction model for knowledge-enhanced recommendation . CoRR abs/1908.04032 (2019). Google Scholar Google Scholar
+    Reference
+    [33] Radford Alec , Wu Jeffrey , Child Rewon , Luan David , Amodei Dario , and Sutskever Ilya . 2019 . Language models are unsupervised multitask learners . In Proceedings of the Unpublished Manuscript . Retrieved from https://d4mucfpksywv.cloudfront.net/better-language-models/language_models_are_unsupervised_multitask_learners.pdf . Google Scholar Google Scholar
+    Reference
+    [34] Ragesh Rahul , Sellamanickam Sundararajan , Iyer Arun , Bairi Ramakrishna , and Lingam Vijay . 2021 . HeteGCN: Heterogeneous graph convolutional networks for text classification . In Proceedings of the 14th ACM International Conference on Web Search and Data Mining . 860 – 868 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [35] Rendle Steffen , Freudenthaler Christoph , Gantner Zeno , and Schmidt-Thieme Lars . 2009 . BPR: Bayesian personalized ranking from implicit feedback . In Proceedings of the 25th Conference on Uncertainty in Artificial Intelligence . 452 – 461 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [36] Song Weiping , Duan Zhijian , Yang Ziqing , Zhu Hao , Zhang Ming , and Tang Jian . 2019 . Explainable knowledge graph-based recommendation via deep reinforcement learning . CoRR abs/1906.09506 (2019). Google Scholar Google Scholar
+    Reference
+    [37] Song Weiping , Xiao Zhiping , Wang Yifan , Charlin Laurent , Zhang Ming , and Tang Jian . 2019 . Session-based social recommendation via dynamic graph attention networks . In Proceedings of the 12th ACM International Conference on Web Search and Data Mining, WSDM 2019 . 555 – 563 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [38] Sun Zhu , Yang Jie , Zhang Jie , Bozzon Alessandro , Huang Long-Kai , and Xu Chi . 2018 . Recurrent knowledge graph embedding for effective recommendation . In Proceedings of the 12th ACM Conference on Recommender Systems . 297 – 305 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [39] Tang Xiaoli , Wang Tengyun , Yang Haizhi , and Song Hengjie . 2019 . AKUPM: Attention-Enhanced knowledge-aware user preference model for recommendation . In Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, KDD 2019 . 1891 – 1899 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [40] Trouillon , Welb Johannes , Riedel Sebastian , Gaussier , and Bouchard Guillaume . 2016 . Complex embeddings for simple link prediction . In Proceedings of the 33th International Conference on Machine Learning . 2071 – 2080 . Google Scholar Google Scholar
+    Reference
+    [41] Velickovic Petar , Cucurull Guillem , Casanova Arantxa , Romero Adriana , Liò Pietro , and Bengio Yoshua . 2018 . Graph attention networks . In Proceedings of the 6th International Conference on Learning Representations, ICLR 2018 . OpenReview.net . Google Scholar Google Scholar
+    Reference
+    [42] Wang Hongwei , Zhang Fuzheng , Wang Jialin , Zhao Miao , Li Wenjie , Xie Xing , and Guo Minyi . 2018 . RippleNet: Propagating user preferences on the knowledge graph for recommender systems . In Proceedings of the 27th ACM on Conference on Information and Knowledge Management, CIKM . 417 – 426 . Google Scholar Google Scholar Digital Library Digital Library
+    Navigate to
+    [43] Wang Hongwei , Zhang Fuzheng , Xie Xing , and Guo Minyi . [n.d.]. DKN: Deep knowledge-aware network for news recommendation . In Proceedings of the 2018 World Wide Web Conference on World Wide Web, WWW . Google Scholar Google Scholar
+    Reference 1 Reference 2
+    [44] Wang Hongwei , Zhang Fuzheng , Zhang Mengdi , Leskovec Jure , Zhao Miao , Li Wenjie , and Wang Zhongyuan . 2019 . Knowledge-aware graph neural networks with label smoothness regularization for recommender systems . In Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, KDD 2019 . 968 – 977 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference 1 Reference 2
+    [45] Wang Hongwei , Zhao Miao , Xie Xing , Li Wenjie , and Guo Minyi . 2019 . Knowledge graph convolutional networks for recommender systems . In Proceedings of the 2019 World Wide Web Conference on World Wide Web, WWW . 3307 – 3313 . Google Scholar Google Scholar Digital Library Digital Library
+    Navigate to
+    [46] Wang Xiang , He Xiangnan , Cao Yixin , Liu Meng , and Chua Tat-Seng . 2019 . KGAT: Knowledge graph attention network for recommendation . In Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, KDD . 950 – 958 . Google Scholar Google Scholar Digital Library Digital Library
+    Navigate to
+    [47] Wang Xiang , Wang Dingxian , Xu Canran , He Xiangnan , Cao Yixin , and Chua Tat-Seng . 2019 . Explainable reasoning over knowledge graphs for recommendation . In Proceedings of the 33rd AAAI Conference on Artificial Intelligence, AAAI . 5329 – 5336 . Google Scholar Google Scholar Digital Library Digital Library
+    Navigate to
+    [48] Wang Zhen , Zhang Jianwen , Feng Jianlin , and Chen Zheng . 2014 . Knowledge graph embedding by translating on hyperplanes . In Proceedings of the 28th AAAI Conference on Artificial Intelligence . 1112 – 1119 . Google Scholar Google Scholar Cross Ref Cross Ref
+    Reference 1 Reference 2
+    [49] Wu Qitian , Zhang Hengrui , Gao Xiaofeng , He Peng , Weng Paul , Gao Han , and Chen Guihai . 2019 . Dual graph attention networks for deep latent representation of multifaceted social effects in recommender systems . In Proceedings of the World Wide Web Conference, WWW 2019 . 2091 – 2102 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [50] Xian Yikun , Fu Zuohui , Muthukrishnan S. , Melo Gerard de , and Zhang Yongfeng . 2019 . Reinforcement knowledge graph reasoning for explainable recommendation . In Proceedings of the 42nd International ACM SIGIR Conference on Research and Development in Information Retrieval, SIGIR . 285 – 294 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference 1 Reference 2 Reference 3
+    [51] Xin Xin , He Xiangnan , Zhang Yongfeng , Zhang Yongdong , and Jose Joemon M. . 2019 . Relational collaborative filtering: Modeling multiple item relations for recommendation . In Proceedings of the 42nd International ACM SIGIR Conference on Research and Development in Information Retrieval, SIGIR 2019 . 125 – 134 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference 1 Reference 2
+    [52] Xue Feng , He Xiangnan , Wang Xiang , Xu Jiandong , Liu Kai , and Hong Richang . 2019 . Deep item-based collaborative filtering for Top-N recommendation . ACM Transactions on Information Systems 37 , 3 ( 2019 ), 33:1–33:25 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [53] Yang Bishan , Yih Wen tau , He Xiaodong , Gao Jianfeng , and Deng Li . 2015 . Embedding entities and relations for learning and inference in knowledge bases . In Proceedings of the 3rd International Conference on Learning Representations, ICLR . Google Scholar Google Scholar
+    Reference 1 Reference 2
+    [54] Yang Deqing , Guo Zikai , Wang Ziyi , Jiang Juyang , Xiao Yanghua , and Wang Wei . 2018 . A knowledge-enhanced deep recommendation framework incorporating GAN-Based models . In Proceedings of the IEEE International Conference on Data Mining, ICDM 2018 . IEEE Computer Society , 1368 – 1373 . Google Scholar Google Scholar Cross Ref Cross Ref
+    Reference
+    [55] Yang Deqing , Song Zengchun , Xue Lvxin , and Xiao Yanghua . 2020 . A knowledge-enhanced recommendation model with attribute-level co-attention . In Proceedings of the 43rd International ACM SIGIR conference on research and development in Information Retrieval, SIGIR 2020 . 1909 – 1912 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [56] Yuchen Lin Bill , Xinyue Chen , Jamin Chen , and Xiang Ren . 2019 . KagNet: Knowledge-Aware graph networks for commonsense reasoning . In Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP) . 2829 – 2839 . Google Scholar Google Scholar
+    Reference 1 Reference 2
+    [57] Zeng Zijie , Lin Jing , Li Lin , Pan Weike , and Ming Zhong . 2020 . Next-Item recommendation via collaborative filtering with bidirectional item similarity . ACM Transactions on Information Systems 38 , 1 ( 2020 ), 7:1–7:22 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [58] Zhang Fuzheng , Yuan Nicholas Jing , Lian Defu , Xie Xing , and Ma Wei-Ying . 2016 . Collaborative knowledge base embedding for recommender systems . In Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, KDD . 353 – 362 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference 1 Reference 2 Reference 3
+    [59] Zhang Jiani , Shi Xingjian , Zhao Shenglin , and King Irwin . 2019 . STAR-GCN: Stacked and reconstructed graph convolutional networks for recommender systems . In Proceedings of the 28th International Joint Conference on Artificial Intelligence, IJCAI 2019 . 4264 – 4270 . Google Scholar Google Scholar Cross Ref Cross Ref
+    Reference
+    [60] Zhang Yuan , Sun Fei , Yang Xiaoyong , Xu Chen , Ou Wenwu , and Zhang Yan . 2020 . Graph-based regularization on embedding layers for recommendation . ACM Transactions on Information Systems 39 , 1 ( 2020 ), 2:1–2:27 . Google Scholar Google Scholar
+    Reference
+    [61] Zhang Yufeng , Yu Xueli , Cui Zeyu , Wu Shu , Wen Zhongzhen , and Wang Liang . 2020 . Every document owns its structure: Inductive text classification via graph neural networks . In Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics, ACL, 2020 . 334 – 339 . Google Scholar Google Scholar Cross Ref Cross Ref
+    Reference
+    [62] Zhao Huan , Yao Quanming , Li Jianda , Song Yangqiu , and Lee Dik Lun . 2017 . Meta-Graph based recommendation fusion over heterogeneous information networks . In Proceedings of the 23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, KDD . 635 – 644 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference
+    [63] Zhao Jun , Zhou Zhou , Guan Ziyu , Zhao Wei , Ning Wei , Qiu Guang , and He Xiaofei . 2019 . IntentGC: A scalable graph convolution framework fusing heterogeneous information for recommendation . In Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, KDD 2019 . 2347 – 2357 . Google Scholar Google Scholar Digital Library Digital Library
+    Reference 1 Reference 2
+    [64] Zhao Kangzhi , Wang Xiting , Zhang Yuren , Zhao Li , Liu Zheng , Xing Chunxiao , and Xie Xing . 2020 . Leveraging demonstrations for reinforcement recommendation reasoning over knowledge graphs . In Proceedings of the 43rd International ACM SIGIR Conference on Research and Development in Information Retrieval, SIGIR . 239 – 248 . Google Scholar Google Scholar Digital Library Digital Library
+    Navigate to
+    [65] Zhu Qiannan , Zhou Xiaofei , Wu Jia , Tan Jianlong , and Guo Li . 2020 . A knowledge-aware attentional reasoning network for recommendation . In Proceedings of the 34th AAAI Conference on Artificial Intelligence, AAAI . 6999 – 7006 . Google Scholar Google Scholar Cross Ref Cross Ref
+    Reference
+
+Cited By
+View all
+
+    Lu H , Ma W , Wang Y , Zhang M , Wang X , Liu Y , Chua T and Ma S . (2023). User Perception of Recommendation Explanation: Are Your Explanations What Users Need? . ACM Transactions on Information Systems . 41 :2 . (1-31) . Online publication date: 30-Apr-2023 .
+
+    https://doi.org/10.1145/3565480
+
+Index Terms
+
+    KR-GCN: Knowledge-Aware Reasoning with Graph Convolution Network for Explainable Recommendation
+
+        Information systems
+
+            Information retrieval
+
+                Retrieval tasks and goals
+
+                    Recommender systems
+
+Recommendations
+
+    Fairness-Aware Explainable Recommendation over Knowledge Graphs
+
+    There has been growing attention on fairness considerations recently, especially in the context of intelligent decision making systems. For example, explainable recommendation systems may suffer from both explanation bias and performance disparity. We ...
+    Read More
+    Bidirectional Knowledge-Aware Attention Network over Knowledge Graph for Explainable Recommendation
+
+    Now recommendation systems are introduced into various online applications to help users find the content they want from massive data. Although the recommendation method based on collaborative filtering can adapt to the change of recommendation ...
+    Read More
+    Personalized Reason Generation for Explainable Song Recommendation
+
+    Personalized recommendation has received a lot of attention as a highly practical research topic. However, existing recommender systems provide the recommendations with a generic statement such as “Customers who bought this item also bought…”. ...
+    Read More
+
+Comments
+Please enable JavaScript to view the comments powered by Disqus.
+
+    65 References
+
+View Issue’s Table of Contents
+back
+Categories
+
+    Journals
+    Magazines
+    Books
+    Proceedings
+    SIGs
+    Conferences
+    Collections
+    People
+
+About
+
+    About ACM Digital Library
+    ACM Digital Library Board
+    Subscription Information
+    Author Guidelines
+    Using ACM Digital Library
+    All Holdings within the ACM Digital Library
+    ACM Computing Classification System
+    Digital Library Accessibility
+
+Join
+
+    Join ACM
+    Join SIGs
+    Subscribe to Publications
+    Institutions and Libraries
+
+Connect
+
+    Contact
+    Facebook
+    Twitter
+    Linkedin
+    Feedback
+    Bug Report
+
+The ACM Digital Library is published by the Association for Computing Machinery. Copyright © 2023 ACM, Inc.
+
+    Terms of Usage
+    Privacy Policy
+    Code of Ethics
+
+ACM Digital Library home
+ACM home
+
+PDF Help
+Feedback
+What would you like to report?
+Please select your feedback category: *
+Other
+Bug
+Compliment
+Content Error
+Suggestion
+Please leave your feedback below:
+What is your opinion of this page? *
+If you 'd like us to contact you regarding your feedback, please provide your contact details here.
+Name
+E-mail
+Send
+Powered by

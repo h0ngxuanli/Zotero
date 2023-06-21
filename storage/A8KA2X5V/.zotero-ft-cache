@@ -1,0 +1,84 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > stat > arXiv:2301.01642
+
+Help | Advanced Search
+Search
+Statistics > Machine Learning
+(stat)
+[Submitted on 4 Jan 2023]
+Title: CI-GNN: A Granger Causality-Inspired Graph Neural Network for Interpretable Brain Network-Based Psychiatric Diagnosis
+Authors: Kaizhong Zheng , Shujian Yu , Badong Chen
+Download a PDF of the paper titled CI-GNN: A Granger Causality-Inspired Graph Neural Network for Interpretable Brain Network-Based Psychiatric Diagnosis, by Kaizhong Zheng and 2 other authors
+Download PDF
+
+    Abstract: There is a recent trend to leverage the power of graph neural networks (GNNs) for brain-network based psychiatric diagnosis, which,in turn, also motivates an urgent need for psychiatrists to fully understand the decision behavior of the used GNNs. However, most of the existing GNN explainers are either post-hoc in which another interpretive model needs to be created to explain a well-trained GNN, or do not consider the causal relationship between the extracted explanation and the decision, such that the explanation itself contains spurious correlations and suffers from weak faithfulness. In this work, we propose a granger causality-inspired graph neural network (CI-GNN), a built-in interpretable model that is able to identify the most influential subgraph (i.e., functional connectivity within brain regions) that is causally related to the decision (e.g., major depressive disorder patients or healthy controls), without the training of an auxillary interpretive network. CI-GNN learns disentangled subgraph-level representations {\alpha} and \b{eta} that encode, respectively, the causal and noncausal aspects of original graph under a graph variational autoencoder framework, regularized by a conditional mutual information (CMI) constraint. We theoretically justify the validity of the CMI regulation in capturing the causal relationship. We also empirically evaluate the performance of CI-GNN against three baseline GNNs and four state-of-the-art GNN explainers on synthetic data and two large-scale brain disease datasets. We observe that CI-GNN achieves the best performance in a wide range of metrics and provides more reliable and concise explanations which have clinical evidence. 
+
+Comments: 	42 pages, 12 figures
+Subjects: 	Machine Learning (stat.ML) ; Machine Learning (cs.LG); Neurons and Cognition (q-bio.NC)
+Cite as: 	arXiv:2301.01642 [stat.ML]
+  	(or arXiv:2301.01642v1 [stat.ML] for this version)
+  	https://doi.org/10.48550/arXiv.2301.01642
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Badong Chen [ view email ]
+[v1] Wed, 4 Jan 2023 14:36:44 UTC (7,007 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled CI-GNN: A Granger Causality-Inspired Graph Neural Network for Interpretable Brain Network-Based Psychiatric Diagnosis, by Kaizhong Zheng and 2 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+stat.ML
+< prev   |   next >
+new | recent | 2301
+Change to browse by:
+cs
+cs.LG
+q-bio
+q-bio.NC
+stat
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

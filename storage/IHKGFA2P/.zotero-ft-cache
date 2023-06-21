@@ -1,0 +1,1154 @@
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+1
+
+Faithful and Consistent Graph Neural Network Explanations with Rationale Alignment
+
+Tianxiang Zhao, Dongsheng Luo, Xiang Zhang, and Suhang Wang
+
+arXiv:2301.02791v1 [cs.LG] 7 Jan 2023
+
+Abstract—Uncovering rationales behind predictions of graph neural networks (GNNs) has received increasing attention over recent years. Instance-level GNN explanation aims to discover critical input elements, like nodes or edges, that the target GNN relies upon for making predictions. Though various algorithms are proposed, most of them formalize this task by searching the minimal subgraph which can preserve original predictions. However, an inductive bias is deep-rooted in this framework: several subgraphs can result in the same or similar outputs as the original graphs. Consequently, they have the danger of providing spurious explanations and failing to provide consistent explanations. Applying them to explain weakly-performed GNNs would further amplify these issues. To address this problem, we theoretically examine the predictions of GNNs from the causality perspective. Two typical reasons for spurious explanations are identiﬁed: confounding effect of latent variables like distribution shift, and causal factors distinct from the original input. Observing that both confounding effects and diverse causal rationales are encoded in internal representations, we propose a new explanation framework with an auxiliary alignment loss, which is theoretically proven to be optimizing a more faithful explanation objective intrinsically. Concretely for this alignment loss, a set of different perspectives are explored: anchor-based alignment, distributional alignment based on Gaussian mixture models, mutual-information-based alignment, etc. A comprehensive study is conducted both on the effectiveness of this new framework in terms of explanation faithfulness/consistency and on the advantages of these variants. For our codes, please refer to the following URL link: https://github.com/TianxiangZhao/GraphNNExplanation.
+
+Index Terms—Graph Neural Network, Explainable AI, Machine Learning
+! 1 INTRODUCTION
+
+G RAPH-STRUCTURED data is ubiquitous in the real world, such as social networks [1], [2], molecular structures [3], [4] and knowledge graphs [5]. With the growing interest in learning from graphs, graph neural networks (GNNs) are receiving more and more attention over the years. Generally, GNNs adopt message-passing mechanisms, which recursively propagate and fuse messages from neighbor nodes on the graphs. Hence, the learned node representation captures both node attributes and neighborhood information, which facilitate various downstream tasks such as node classiﬁcation [6], [7], [8], graph classiﬁcation [9], and link prediction [10].
+Despite the success of GNNs for various domains, as with other neural networks, GNNs lack interpretability. Understanding the inner working of GNNs can bring several beneﬁts. First, it enhances practitioners’ trust in the GNN model by enriching their understanding of the model characteristics such as if the model is working as desired. Second, it increases the models’ transparency to enable trusted applications in decision-critical ﬁelds sensitive to fairness, privacy and safety challenges, such as healthcare and drug discovery [11]. Thus, studying the explainability of GNNs is attracting increasing attention and many efforts have been taken [12], [13], [14].
+Particularly, we focus on post-hoc instance-level explanations. Given a trained GNN and an input graph, this
+• T. Zhao, X. Zhang and S. Wang are with the College of Information Sciences and Technology, The Pennsylvania State University, University Park, PA 16802. D. Luo is with the Knight Foundation School of Computing and Information Sciences, Florida International University, FL 33199. E-mail: {tkz5084, xzz89, szw494}@psu.edu, dluo@ﬁu.edu
+Manuscript received April 19, 2005; revised August 26, 2015.
+
+task seeks to discover the substructures that can explain the prediction behavior of the GNN model. Some solutions have been proposed in existing works [12], [15], [16]. For example, in search of important substructures that predictions rely upon, GNNExplainer learns an importance matrix on node attributes and edges via perturbation [12]. The identiﬁed minimal substructures that preserve original predictions are taken as the explanation. Extending this idea, PGExplainer trains a graph generator to utilize global information in explanation and enable faster inference in the inductive setting [13]. SubgraphX constraints explanations as connected subgraphs and conduct Monte Carlo tree search based on Shapley value [17]. These methods can be summarized in a label preserving framework, i.e., the candidate explanation is formed as a masked version of the original graph and is identiﬁed as the minimal discriminative substructure that preserves the predicted label.
+However, due to the complexity of topology and the combinatory number of candidate substructures, existing label preserving methods are insufﬁcient for a faithful and consistent explanation of GNNs. They are unstable and are prone to give spurious correlations as explanations. A failure case is shown in Figure 1, where a GNN is trained on Graph-SST5 [18] for sentiment classiﬁcation. Each node represents a word and each edge denotes syntactic dependency between nodes. Each graph is labeled based on the sentiment of the sentence. In the ﬁgure, the sentence “Sweet home alabama isn’t going to win any academy awards, but this date-night diversion will deﬁnitely win some hearts” is labeled positive. In the ﬁrst run, GNNExplainer [12] identiﬁes the explanation as “deﬁnitely win some hearts”, and in the second run, it identiﬁes “win academy awards” to be the explanation instead. Different explanations obtained
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+some hearts will win
+
+but Is n’t
+going sweet alabama home
+
+definitely win
+diversion
+
+to this date-night
+
+awards
+
+any academy
+
+some hearts will win
+
+but Is n’t
+going sweet alabama home
+
+definitely win
+diversion
+
+to this date-night
+
+awards
+
+any academy
+
+(a) Run 1
+
+(b) Run 2
+
+Fig. 1: Explanation results achieved by a leading baseline GNNExplainer on the same input graph from Graph-SST5. Red edges formulate explanation substructures.
+
+by GNNExplainer break the criteria of consistency, i.e., the explanation method should be deterministic and consistent with the same input for different runs [19]. Consequently, explanations provided by existing methods may fail to faithfully reﬂect the decision mechanism of the to-be-explained GNN.
+Inspecting the inference process of target GNNs, we ﬁnd that the inconsistency problem and spurious explanations can be understood from the causality perspective. Specifically, existing explanation methods may lead to spurious explanations either as a result of different causal factors or due to the confounding effect of distribution shifts (identiﬁed subgraphs may be out of distribution). These failure cases originate from a particular inductive bias that predicted labels are sufﬁciently indicative for extracting critical input components. This underlying assumption is rooted in optimization objectives adopted by existing works [12], [13], [17]. However, our analysis demonstrates that the label information is insufﬁcient to ﬁlter out spurious explanations, leading to inconsistent and unfaithful explanations.
+Considering the inference of GNNs, both confounding effects and distinct causal relationships can be reﬂected in the internal representation space. With this observation, we propose a novel objective that encourages alignment of embeddings of raw graph and identiﬁed subgraph in internal embedding space to obtain more faithful and consistent GNN explanations. Speciﬁcally, to evaluate the semantic similarity between two inputs and incorporate the alignment objective into explanation, we design and compare strategies with various design choices to measure similarity in the embedding space. These strategies enable the alignment between candidate explanations and original inputs and are ﬂexible to be incorporated into various existing GNN explanation methods. Particularly, aside from directly using Euclidean distance, we further propose three distribution-aware strategies. The ﬁrst one identiﬁes a set of anchoring embeddings and utilizes relative distances against them. The second one assumes a Gaussian mixture model and captures the distribution using the probability of falling into each Gaussian center. The third one learns a deep neural network to estimate mutual information between two inputs, which takes a data-driven approach with little reliance upon prior domain knowledge. Further analysis shows that the proposed method is in fact optimizing a new explanation framework, which is more faithful in design. Our main contributions are:
+• We point out the faithfulness and consistency issues in rationales identiﬁed by existing GNN explanation models.
+
+2
+These issues arise due to the inductive bias in their labelpreserving framework, which only uses predictions as the guiding information; • We propose an effective and easy-to-apply countermeasure by aligning intermediate embeddings. We implement a set of variants with different alignment strategies, which is ﬂexible to be incorporated to various GNN explanation models. We further conduct a theoretical analysis to understand and validate the proposed framework. • Extensive experiments on real-world and synthetic datasets show that our framework beneﬁts various GNN explanation models to achieve more faithful and consistent explanations.
+2 RELATED WORK
+In this section, we review related works, including graph neural networks and interpretability of GNNs.
+2.1 Graph Neural Networks
+Graph neural networks (GNNs) are developing rapidly in recent years, with the increasing need for learning on relational data structures [1], [20], [21]. Generally, existing GNNs can be categorized into two categories, i.e., spectralbased approaches [6], [22], [23] based on graph signal processing theory, and spatial-based approaches [24], [25], [26] relying upon neighborhood aggregation. Despite their differences, most GNN variants can be summarized with the message-passing framework, which is composed of pattern extraction and interaction modeling within each layer [27]. Speciﬁcally, GNNs model messages from node representations. These messages are then propagated with various message-passing mechanisms to reﬁne node representations, which are then utilized for downstream tasks [8], [10], [21]. Explorations are made by disentangling the propagation process [28], [29], [30] or utilizing external prototypes [31], [32]. Research has also been conducted on the expressive power [33], [34] and potential biases introduced by different kernels [35], [36] for the design of more effective GNNs. Despite their success in network representation learning, GNNs are uninterpretable black box models. It is challenging to understand their behaviors even if the adopted message passing mechanism and parameters are given. Besides, unlike traditional deep neural networks where instances are identically and independently distributed, GNNs consider node features and graph topology jointly, making the interpretability problem more challenging to handle.
+2.2 GNN Interpretation Methods
+Recently, some efforts have been taken to interpret GNN models and provide explanations for their predictions [37]. Based on the granularity, existing methods can be generally grouped into two categories: (1) instance-level explanation [12], which provides explanations on the prediction for each instance by identifying important substructures; and (2) model-level explanation [38], [39], which aims to understand global decision rules captured by the target GNN. From the methodology perspective, existing methods can be categorized as (1) self-explainable GNNs [39], [40], where
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+the GNN can simultaneously give prediction and explanations on the prediction; and (2) post-hoc explanations [12], [13], [17], which adopt another model or strategy to provide explanations of a target GNN. As post-hoc explanations are model-agnostic, i.e., can be applied for various GNNs, in this work, we focus on post-hoc instance-level explanations [12], i.e., given a trained GNN model, identifying instance-wise critical substructures for each input to explain the prediction. A comprehensive survey can be found in [41].
+A variety of strategies for post-hoc instance-level explanations have been explored in the literature, including utilizing signals from gradients based [38], [42], perturbed predictions based [12], [13], [17], [43], and decomposition based [38], [44]. Among these methods, perturbed predictionbased methods are the most popular. The basic idea is to learn a perturbation mask that ﬁlters out non-important connections and identiﬁes dominating substructures preserving the original predictions [18]. The identiﬁed important substructure is used as an explanation for the prediction. For example, GNNExplainer [12] employs two soft mask matrices on node attributes and graph structure, respectively, which are learned end-to-end under the maximizing mutual information (MMI) framework. PGExplainer [13] extends it by incorporating a graph generator to utilize global information. It can be applied in the inductive setting and prevent the onerous task of re-learning from scratch for each to-beexplained instance. SubgraphX [17] expects explanations to be in the form of sub-graphs instead of bag-of-edges and employs Monte Carlo Tree Search (MCTS) to ﬁnd connected subgraphs that preserve predictions measured by the Shapley value. To promote faithfulness in identiﬁed explanations, some works introduced terminologies from the causality analysis domain, via estimating the individual causal effect of each edge [45] or designing interventions to prevent the discovery of spurious correlations [46]. Ref. [47] connects the idea of identifying minimally-predictive parts in explanation with the principle of information bottleneck [48] and designs an end-to-end optimization framework for GNN explanation.
+Despite the aforementioned progress in interpreting GNNs, most of these methods discover critical substructures merely upon the change of outputs given perturbed inputs. Due to this underlying inductive bias, existing labelpreserving methods are heavily affected by spurious correlations caused by confounding factors in the environment. On the other hand, by aligning intermediate embeddings in GNNs, our method alleviates the effects of spurious correlations on interpreting GNNs, leading to faithful and consistent explanations.
+3 PRELIMINARY
+3.1 Problem Deﬁnition
+We use G = {V, E; F, A} to denote a graph, where V = {v1, . . . , vn} is a set of n nodes and E ∈ V × V is the set of edges. Nodes are accompanied by an attribute matrix F ∈ Rn×d, and F[i, :] ∈ R1×d is the d-dimensional node attributes of node vi. E is described by an adjacency matrix A ∈ Rn×n. Aij = 1 if there is an edge between node vi and vj; otherwise, Aij = 0. For graph classiﬁcation, each graph Gi
+
+3
+has a label Yi ∈ C, and a GNN model f is trained to map G to its class, i.e., f : {F, A} → {1, 2, . . . , C}. Similarly, for node classiﬁcation, each graph Gi denotes a K-hop subgraph centered at node vi and a GNN model f is trained to predict the label of vi based on node representation of vi learned from Gi. The purpose of explanation is to ﬁnd a subgraph G , marked with binary importance mask MA ∈ [0, 1]n×n on adjacency matrix and MF ∈ [0, 1]n×d on node attributes, respectively, e.g., G = {A MA; F MF }, where denotes elementwise multiplication. These two masks highlight components of G that are important for f to predict its label. With the notations, the post-hoc instance-level GNN explanation task is:
+Given a trained GNN model f , for an arbitrary input graph G = {V, E; F, A}, ﬁnd a subgraph G that can explain the prediction of f on G. The obtained explanation G is depicted by importance mask MF on node attributes and importance mask MA on adjacency matrix.
+
+3.2 MMI-based Explanation Framework
+
+Many approaches have been designed for post-hoc instancelevel GNN explanation. Due to the discreteness of edge existence and non-grid graph structures, most works apply a perturbation-based strategy to search for explanations. Generally, they can be summarized as Maximization of Mutual Information (MMI) between predicted label Yˆ and explanation G , i.e.,
+
+min − I(Yˆ , G ),
+
+G
+
+(1)
+
+s.t. G ∼P(G, MA, MF ), R(MF , MA) ≤ c
+
+where I() represents mutual information and P denotes
+the perturbations on original input with importance masks {MF , MA}. For example, let {Aˆ , Fˆ } represent the perturbed {A, F}. Then, Aˆ = A MA and Fˆ = Z + (F − Z) MF in GNNExplainer [12], where Z is sampled from marginal distribution of node attributes F. R denotes regu-
+larization terms on the explanation, imposing prior knowl-
+edge into the searching process, like constraints on bud-
+gets or connectivity distributions [13]. Mutual information I(Yˆ , G ) quantiﬁes consistency between original predictions Yˆ = f (G) and prediction of candidate explanation f (G ),
+which promotes the positiveness of found explanation G .
+Since mutual information measures the predictive power of
+G on Y , this framework essentially tries to ﬁnd a subgraph that can best predict the original output Yˆ . During training,
+a relaxed version [12] is often adopted as:
+
+min HC Yˆ , P (Yˆ | G ) ,
+
+G
+
+(2)
+
+s.t. G ∼P(G, MA, MF ), R(MF , MA) ≤ c
+
+where HC denotes cross-entropy. With this same objective, existing methods mainly differ from each other in optimization and searching strategies.
+Different aspects regarding the quality of explanations can be evaluated [19]. Among them, two most important criteria are faithfulness and consistency. Faithfulness measures the descriptive accuracy of explanations, indicating how truthful they are compared to behaviors of the target model. Consistency considers explanation invariance, which
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+𝑆
+
+𝒢
+
+𝐶
+
+𝑌෠
+
+(a) SCM
+
+(b) Alignment
+
+Fig. 2: (a) Prediction rules of f , in the form of SCM. (b) An example of anchor-based embedding alignment.
+
+checks that identical input should have identical explanations. However, as shown in Figure 1, the existing MMIbased framework is sub-optimal in terms of these criteria. The cause of this problem is rooted in its learning objective, which uses prediction alone as guidance in search of explanations. Due to the complex graph structure, the prediction alone as a guide could result in spurious explanations. A detailed analysis will be provided in the next section.
+
+4 ANALYZE SPURIOUS EXPLANATIONS
+With “spurious explanations”, we refer to those explanations lie outside the genuine rationale of prediction on G, making the usage of G as explanations anecdotal. As examples in Figure 1, despite rapid developments in explaining GNNs, the problem w.r.t faithfulness and consistency of detected explanations remains. To get a deeper understanding of reasons behind this problem, we will examine the behavior of target GNN model from the causality perspective. Figure 2(a) shows the Structural Equation Model (SEM), where variable C denotes discriminative causal factors and variable S represents confounding environment factors. Two paths between G and the predicted label Yˆ can be found. • G → C → Yˆ : This path presents the inference of target
+GNN model, i.e., critical patterns C that are informative and discriminative for the prediction Yˆ would be extracted from input graph, upon which the target model is dependent. Causal variables are determined by both the input graph and learned knowledge by the target GNN model. • G ← S → Yˆ : We denote S as the confounding factors, such as depicting the overall distribution of graphs. It is causally related to both the appearance of input graphs and the prediction of target GNN models. A masked version of G could create out-of-distribution (OOD) examples, resulting in spurious causality to prediction outputs. For example in the chemical domain, removing edges (bonds) or nodes (atoms) may obtain invalid molecular graphs that never appear during training. In the existence of distribution shifts, model predictions would be less reliable.
+Figure 2(a) provides us with a tool to analyze f ’s behaviors. From the causal structures, we can observe that spurious explanations may arise as a result of failure in recovering the original causal rationale. G learned from Equation 1 may preserve prediction Yˆ due to confounding effect of distribution shift or different causal variables C compared to original G. Weakly-trained GNN f (·) that
+
+4
+are unstable or non-robust towards noises would further amplify this problem as the prediction is unreliable.
+To further understand the issue, we build the correspondence from SEM in Figure 2(a) to the inference process of GNN f . Speciﬁcally, we ﬁrst decompose f () as a feature extractor fext() and a classiﬁer fcls(). Then, its inference can be summarized as two steps: (1) encoding step with fext(), which takes G as input and produce its embedding in the representation space EC ; (2) classiﬁcation step with fcls(), which predicts output labels on input’s embedding. Connecting these inference steps to SEM in Figure 2(a), we can ﬁnd that: • The causal path G → C → Yˆ lies behind the inference
+process with representation space EC to encode critical variables C; • The confounding effect of distribution shift S works on the inference process via inﬂuencing distribution of graph embedding in EC . When masked input G is OOD, its embedding would fail to reﬂect its discriminative features and deviate from real distributions, hence deviating the classiﬁcation step on it.
+To summarize, we can observe that spurious explanations are usually obtained due to the following two reasons:
+1) The obtained G is OOD graph. During inference of target GNN model, the encoded representation of G is distant from those seen in the training set, making the prediction unreliable;
+2) The encoded discriminative representation does not accord with that of the original graph. Different causal factors (C) are extracted between G and G, resulting in false explanations.
+5 METHODOLOGY
+Based on the discussion above, in this section, we focus on improving the faithfulness and consistency of GNN explanations and correcting the inductive bias caused by simply relying on prediction outputs. We ﬁrst provide an intuitive introduction to the proposed countermeasure, which takes the internal inference process into account. We then design four concrete algorithms to align G and G in the latent space, to promote that they are seen and processed in the same manner. Finally, theoretical analysis is provided to justify our strategies.
+5.1 Alleviate Spurious Explanations
+Instance-level post-hoc explanation dedicates to ﬁnding discriminative substructures that the target model f depends upon. The traditional objective in Equation 2 can identify minimal predictive parts of input, however, it is dangerous to directly take them as explanations. Due to diversity in graph topology and combinatory nature of sub-graphs, multiple distinct substructures could be identiﬁed leading to the same prediction, as discussed in Section 4.
+For an explanation substructure G to be faithful, it should follow the same rationale as the original graph G inside the internal inference of to-be-explained model f . To achieve this goal, the explanation G should be aligned to G w.r.t the decision mechanism, reﬂected in Figure 2(a). However, it is non-trivial to extract and compare the critical
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+causal variables C and confounding variables S due to the black box nature of the target GNN model to be explained.
+Following the causal analysis in Section 4, we propose to take an alternative approach by looking into internal embeddings learned by f . Causal variables C are encoded in representation space extracted by f , and out-of-distribution effects can also be reﬂected by analyzing embedding distributions. An assumption can be safely made: if two graphs are mapped to embeddings near each other by a GNN layer, then these graphs are seen as similar by it and would be processed similarly by following layers. With this assumption, a proxy task can be designed by aligning internal graph embeddings between G and G. This new task can be incorporated into Framework 1 as an auxiliary optimization objective.
+Let hlv be the representation of node v at the l-th GNN layer with h0v = F[v, :]. Generally, the inference process inside GNN layers can be summarized as a message-passing framework:
+
+mlv+1 =
+
+Messagel(hlv, hlu, Av,u),
+
+u∈N (v)
+
+(3)
+
+hlv+1 = Updatel(hlv, mlv+1),
+
+where Messagel and Updatel are the message function and update function at l-th layer, respectively. N (v) is the set
+of node v’s neighbors. Without loss of generality, the graph
+pooling layer can also be presented as:
+
+hlv+1 =
+
+Pv,v · hlv.
+
+(4)
+
+v∈V
+
+where Pv,v denotes mapping weight from node v in layer l
+to node v in layer l + 1 inside the myriad of GNN for graph classiﬁcation. We propose to align embedding hlv+1 at each layer, which contains both node and local neighborhood
+information.
+
+5.2 Distribution-Aware Alignment
+Achieving alignment in the embedding space is not straightforward. It has several distinct difﬁculties. (1) It is difﬁcult to evaluate the distance between G and G in this embedding space. Different dimensions could encode different features and carry different importance. Furthermore, G is a substructure of the original G, and a shift on unimportant dimensions would naturally exist. (2) Due to the complexity of graph/node distributions, it is non-trivial to design a measurement of alignments that is both computationfriendly and can correlate well to distance on the distribution manifold.
+To address these challenges, we design a strategy to identify explanatory substructures and preserve their alignment with original graphs in a distribution-aware manner. The basic idea is to utilize other graphs to obtain a global view of the distribution density of embeddings, providing a better measurement of alignment. Concretely, we obtain representative node/graph embeddings as anchors and use distances to these anchors as the distribution-wise representation of graphs. Alignment is conducted on obtained representation of graph pairs. Next, we go into details of this strategy.
+• First, using graphs {Gi}m i=1 from the same dataset, a set of node embeddings can be obtained as {{hlv,i}v∈Vi }m i=1
+
+5
+
+for each layer l, where hv,i denotes embedding of node v in graph Gi. For node-level tasks, we set Vi to contain only the center node of graph Gi. For graph-level tasks, Vi contains nodes set after graph pooling layer, and we process them following { v∈Vi hlv+,i1/|Vi|}m i=1 to get global graph representation.
+• Then, a clustering algorithm is applied to the obtained embedding set to get K groups. Clustering centers
+of these groups are set to be anchors, annotated as {hl+1,k}Kk=1. In experiments, we select DBSCAN [49] as the clustering algorithm, and tune its hyper-parameters to get around 20 groups. • At l-th layer, hlv+1 is represented in terms of relative distances to those K anchors, as slv ∈ R1×K with the k-th element calculated as slv+1,k = hlv+1 − hvl+1,k 2.
+Alignment between G and G can be achieved by comparing
+their representations at each layer. The alignment loss is
+computed as:
+
+Lalign(f (G), f (G )) =
+
+slv − svl 22. (5)
+
+l v∈V
+
+This metric provides a lightweight strategy for evaluating alignments in the embedding distribution manifold, by comparing relative positions w.r.t representative clustering centers. This strategy can naturally encode the varying importance of each dimension. Fig. 2(b) gives an example, where G is the graph to be explained and the red stars are anchors. G1 and G2 are both similar to G w.r.t absolute distances; while it is easy to see G1 is more similar to G w.r.t to the anchors. In other words, the anchors can better measure the alignment to ﬁlter out spurious explanations.
+This alignment loss is used as an auxiliary task incorporated into MMI-based framework in Equation 2 to get faithful explanation as:
+
+minHC Yˆ , P (Yˆ | G ) + λ · LAlign,
+
+G
+
+(6)
+
+s.t. G ∼P(G, MA, MF ), R(MF , MA) ≤ c
+
+where λ controls the balance between prediction preservation and embedding alignment. LAlign is ﬂexible to be incorporated into various existing explanation methods.
+
+5.3 Direct Alignment
+As a simpler and more direct implementation, we also design a variant based on absolute distance. For layers without graph pooling, the objective can be written as
+l v∈V hlv − hvl 22. For layers with graph pooling, as the structure could be different, we conduct alignment on global representation v∈V hlv+1/|V |, where V denotes node set after pooling.
+
+6 EXTENDED METHODOLOGY
+In this section, we further examine more design choices for the strategy of alignment to obtain faithful and consistent explanations. Instead of using heuristic approaches, we explore two new directions: (1) statistically sound distance measurements based on the Gaussian mixture model, (2) fully utilizing the power of deep neural networks to capture distributions in the latent embedding space. Details of these two alignment strategies will be introduced below.
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+6.1 Gaussian-Mixture-based Alignment
+
+In this strategy, we model the latent embeddings of nodes
+
+(or graphs) using a mixture of Gaussian distributions, with
+
+representative node/graph embeddings as anchors (Gaus-
+
+sian centers). The produced embedding of each input can be
+
+compared with those prototypical anchors, and the semantic
+
+information of inputs taken by the target model would be
+
+encoded by relative distances from them.
+
+Concretely, we ﬁrst obtain prototypical representations,
+
+annotated as {hl,k}Kk=1, by running the clustering algorithm
+
+on {Gi
+
+collected embeddings {{hlv,i }m i=1, in the same strategy as
+
+}v∈Vi }m i=1 from introduced in
+
+graphs Sec. 5.2.
+
+Clutering algorithm DBSCAN [49] is adopted and we tune
+
+its hyper-parameters to get around 20 groups. Next, the probability of encoded representation hl falling
+into each prototypical Gaussian centers {hl,k}Kk=1 can be
+computed as:
+
+plv,k =
+
+exp(−
+
+hlv − hl,k
+
+2 2
+
+/2σ2)
+
+K j=1
+
+exp(−
+
+hlv − hl,k
+
+22/2σ2)
+
+(7)
+
+This distribution probability can serve as a natural tool for
+depicting the semantics of the input graph learned by the GNN model. Consequently, the distance between hvl and hlv can be directly measured as the KL-divergence w.r.t this distribution probability:
+
+d(pvl, plv)
+
+=
+
+k∈[1,...,K ]
+
+pvl,k
+
+·
+
+log(
+
+pvl,k plv,k
+
+),
+
+(8)
+
+where pvl ∈ RK denotes the distribution probability of candidate explanation embedding, hvl. Using this strategy, the alignment loss between original graph and the candidate
+explanation is computed as:
+
+Lalign f (G), f (G ) =
+
+d(pvl, plv),
+
+(9)
+
+l v∈V
+
+which can be incorporated into the revised explanation framework proposed in Eq. 6.
+Comparison Compared with the alignment loss based on relative distances against anchors in Eq. 5, this new objective offers a better strategy in taking distribution into consideration. Speciﬁcally, we can show the following two advantages:
+• In obtaining the distribution-aware representation of each instance, this variant uses a Gaussian distance kernel (Eq. 7) while the other one uses Euclidean distance in Sec. 5.2, which may amplify the inﬂuence of distant anchors. We can prove this by examining the gradient of changes in representation w.r.t GNN embeddings hv. In the l-th layer at dimension k, the gradient of the previous variant can be computed as:
+
+∂ slv,k ∂hlv
+
+= 2 · (hlv
+
+− hlv,k)
+
+(10)
+
+On the other hand, the gradient of this variant is:
+
+∂ plv,k ∂hlv
+
+exp(− ≈−
+σ2 ·
+
+hlv − hl,k 22/2σ2) · (hlv − hlv,k)
+
+K j=1
+
+exp(−
+
+hlv − hl,k
+
+22/2σ2)
+
+(11)
+
+It is easy to see that for the previous variant, the magnitude of gradient would grow linearly w.r.t distances
+
+6
+
+towards corresponding anchors. For this variant, on the
+
+other hand, the term
+
+σ2·
+
+exp(−
+
+hlv −hl,k
+
+2 2
+
+/2σ2
+
+)
+
+K j=1
+
+exp(−
+
+hlv −hl,k
+
+2 2
+
+/2σ2
+
+)
+
+would
+
+down-weight the importance of those distant anchors
+
+while up-weight the importance of similar anchors, which
+
+is more desired in obtaining distribution-aware represen-
+
+tations.
+
+• In computing the distance between representations of two
+
+inputs, this variant adopts the KL divergence as in Eq. 8,
+
+which would be scale-agnostic compared to the other one
+
+directly using Euclidean distance as in Eq. 5. Again, we
+
+can show the gradient of alignment loss towards obtained
+
+embeddings that encode distribution information. It can
+
+be observed that for the previous variant:
+
+∂d(slv, svl) ∂ svl,k
+
+=
+
+2 · (slv,k
+
+− svl,k)
+
+(12)
+
+For this variant based on Gaussian mixture model, the gradient can be computed as:
+
+∂d(plv, pvl) ∂ pvl,k
+
+=
+
+1+
+
+log(
+
+pvl,k plv,k
+
+)
+
+(13)
+
+It can be observed that the previous strategy focuses on representation dimensions with a large absolute difference, while would be sensitive towards the scale of each dimension. On the other hand, this strategy uses the summation between the logarithm of relative difference with a constant, which is scale-agnostic towards each dimension.
+
+6.2 MI-based Alignment
+
+In this strategy, we further consider the utilization of deep models to capture the distribution and estimate the semantic similarity of two inputs, and incorporate it into the alignment loss for discovering faithful and consistent explanations. Speciﬁcally, we train a deep model to estimate the mutual information (MI) between two input graphs, and use its prediction as a measurement of alignment between original graph and its candidate explanation. This strategy circumvents the reliance on heuristic strategies and is purely data-driven, which can be learned in an end-to-end manner.
+To learn the mutual information estimator, we adopt a neural network and train it to be a Jensen-Shannon MI estimator [50]. Concretely, we train this JSD-based estimator on top of intermediate embeddings with the learning objective as follows, which offers better stability in optimization:
+
+min
+gmi
+
+Lmi
+
+=EG∈{Gi}m i=1 Ev∈G El[Ehlv,+ sp(−T l(hlv,
+
+hlv,+))
+
+(14)
+
++ Ehlv,− sp(T l(hlv, hlv,−))],
+
+where E denotes expectation. In this equation, T l(·) is a
+compatibility estimation function in the l-th layer, and we denote {T l(·)}l as the MI estimator gmi. Activation function sp(·) is the softplus function, and h+v represents the embedding of augmented node v that is a positive pair of v in the original graph. On the contrary, h−v denotes the embedding of augmented node v that is a negative pair of
+original input. A positive pair is obtained through randomly
+dropping intermediate neurons, corresponding to masking
+out a ratio of original input, and a negative pair is obtained
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+7
+
+as embeddings of different nodes. This objective can guide gmi to capture the correlation or similarity between two input graphs encoded by the target model. With this MI estimator learned, alignment loss between G and G can be readily computed:
+
+Lalign f (G), f (G ) =
+
+sp(−T l(hvl, hlv)), (15)
+
+l v∈V
+
+which can be incorporated into the revised explanation framework proposed in Eq. 6.
+In this strategy, we design a data-driven approach by capturing the mutual information between two inputs, which circumvents the potential biases of using humancrafted heuristics.
+
+7 THEORETICAL ANALYSIS
+With those alignment strategies and our new explanation framework introduced, next, we want to look deeper and provide theoretical justiﬁcations for the proposed new loss function in Eq. 6. In this section, we ﬁrst propose a new explanation objective to prevent spurious explanations based on our analysis in Sec. 4. Then, we theoretically show that it squares with our proposed loss function with mild relaxations.
+
+7.1 New Explanation Objective
+From previous discussions, it is shown that G obtained via Equation 1 cannot be safely used as explanations. One main drawback of existing GNN explanation methods lies in the inductive bias that the same outcomes do not guarantee the same causes, leaving existing approaches vulnerable towards spurious explanations. An illustration is given in Figure 3. Objective proposed in Equation 1 optimizes the mutual information between explanation candidate G and Yˆ , corresponding to maximize the overlapping between H(G ) and H(Yˆ ) in Figure 3(a), or region S1 ∪ S2 in Figure 3(b). Here, H denotes information entropy. However, this learning target cannot prevent the danger of generating spurious explanations. Provided G may fall into the region S2, which cannot faithfully represent graph G. Instead, a more sensible objective should be maximizing region S1 in Figure 3(b). The intuition behind this is that in the search input space that causes the same outcome, identiﬁed G should account for both representative and discriminative parts of original G, to prevent spurious explanations that produce the same outcomes due to different causes. Concretely, ﬁnding G that maximize S1 can be formalized as:
+
+min − I(G, G , Yˆ ),
+
+G
+
+(16)
+
+s.t. G ∼P(G, MA, MF ) R(MF , MA) ≤ c
+
+𝐻(𝑌෠ )
+
+𝐻(𝒢′)
+
+𝐻(𝒢)
+
+𝐻(𝒢′)
+𝑆1 𝑆2
+
+𝐼(𝒢′, 𝑌෠)
+
+𝐼(𝒢, 𝒢′, 𝑌෠) 𝐻(𝑌෠ )
+
+(a) Previous Objective (b) Our Proposed New Objective
+
+Fig. 3: Illustration of our proposed new objective.
+
+connect it to Equation 6, and construct its proxy optimizable form as:
+
+I(G, G , Yˆ ) =
+
+P (G, G , y)
+
+y∼Yˆ G G
+
+· log P (G , y)P (G, G )P (G, y) P (G, G , y)P (G)P (G )P (y)
+
+=
+
+P (G, G , y)
+
+y∼Yˆ G G
+
+· log [ P (G , y) · P (G, G ) · P (G, y) ]
+P (G )P (y) P (G)P (G ) P (G, y|G )
+
+P (G , y)
+
+=
+
+P (G , y) · log
+
+P (G )P (y)
+
+y∼Yˆ G
+
+P (G, G )
+
++
+
+P (G, G ) · log
+
+P (G)P (G )
+
+GG
+
+P (G, y, G )
+
+−
+
+P (G, y, G ) · log
+
+]
+
+P (G, y)P (G )
+
+G y∼Yˆ G
+
+=I(G , Yˆ ) + I(G, G )
+
+−
+
+P (G, y) P (G |G, y) · log P (G |G, y)
+
+y∼Yˆ G
+
+G
+
++
+
+P (G, y, G ) · log P (G )
+
+G y∼Yˆ G
+=I(G , Yˆ ) + I(G, G ) + H(G |G, Yˆ ) − H(G ).
+
+Since both H(G |G, Yˆ ) and H(G ) depicts entropy of explanation G and are closely related to perturbation budgets, we
+can neglect these two terms and get a surrogate optimization objective for maxG I(G, G , Yˆ ) as maxG I(Yˆ , G ) + I(G , G).
+In maxG I(Yˆ , G ) + I(G , G), the ﬁrst term maxG I(Yˆ , G ) is the same as Eq.(1). Following [12], We relax it as minG HC (Yˆ , Yˆ |G ), optimizing G to preserve original prediction outputs. The second term, maxG I(G , G), corresponds to maximizing consistency between G and G. Although the graph generation process is latent, with the safe assumption that embedding EG extracted by f is representative of G, we can construct a proxy objective maxG I(EG , EG), improving the consistency in the embedding space. In this work, we
+optimize this objective by aligning their representations,
+either optimizing a simpliﬁed distance metric or conducting
+distribution-aware alignment.
+
+8 EXPERIMENT
+
+7.2 Connecting to Our Method
+I(G, G , Yˆ ) is intractable as the latent generation mechanism of G is unknown. In this part, we expand this objective,
+
+In this section, we conduct a set of experiments to evaluate the beneﬁts of the proposed auxiliary task in providing instance-level post-hoc explanations. Experiments are conducted on 5 datasets, and obtained explanations are
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+TABLE 1. Statistics of datasets
+
+BA- Tree- Infection Mutag
+
+Shapes Grid
+
+Level
+
+Node Node Node Graph
+
+Graphs
+
+1
+
+1
+
+1
+
+4, 337
+
+Avg.Nodes 700 1, 231 1, 000 30.3
+
+Avg.Edges 4, 110 3, 410 4, 001 61.5
+
+Classes
+
+4
+
+2
+
+5
+
+2
+
+SST-5
+Graph 11, 855
+19.8 18.8
+5
+
+evaluated with respect to both faithfulness and consistency. Particularly, we aim to answer the following questions:
+• RQ1 Can the proposed framework perform strongly in identifying explanatory sub-structures for interpreting GNNs?
+• RQ2 Is the consistency problem severe in existing GNN explanation methods? Could the proposed embedding alignment improve GNN explainers over this criterion?
+• RQ3 Can our proposed strategies prevent spurious explanations and be more faithful to the target GNN model?
+
+8.1 Experiment Settings
+8.1.1 Datasets
+We conduct experiments on ﬁve publicly available benchmark datasets for explainability of GNNs. The key statistics of the datasets are summarized in Table 1.
+• BA-Shapes [12]: A node classiﬁcation dataset with a Barabasi-Albert (BA) graph of 300 nodes as the base structure. 80 “house” motifs are randomly attached to the base graph. Nodes in the base graph are labeled as 0 and those in the motifs are labeled based on positions. Explanations are conducted on those attached nodes, with edges inside the corresponding motif as ground-truth.
+• Tree-Grid [12]: A node classiﬁcation dataset created by attaching 80 grid motifs to a single 8-layer balanced binary tree. Nodes in the base graph are labeled as 0 and those in the motifs are labeled as 1. Edges inside the same motif are used as ground-truth explanations for nodes from class 1.
+• Infection [51]: A single network initialized with an ER random graph. 5% of nodes are labeled as infected, and other nodes are labeled based on their shortest distances to those infected ones. Labels larger than 4 are clipped. Following [51], infected nodes and nodes with multiple shortest paths are neglected. For each node, its shortest path is used as the ground-truth explanation.
+• Mutag [12]: A graph classiﬁcation dataset. Each graph corresponds to a molecule with nodes for atoms and edges for chemical bonds. Molecules are labeled with consideration of their chemical properties, and discriminative chemical groups are identiﬁed using prior domain knowledge. Following PGExplainer [13], chemical groups N H2 and N O2 are used as ground-truth explanations.
+• Graph-SST5 [18]: A graph classiﬁcation dataset constructed from text, with labels from sentiment analysis. Each node represents a word and edges denote word dependencies. In this dataset, there is no ground-truth explanation provided, and heuristic metrics are usually adopted for evaluation.
+
+8
+level post-hoc GNN explanation methods as baselines. The details are given as follows:
+• GRAD [13]: A gradient-based method, which assigns importance weights to edges by computing gradients of GNN’s prediction w.r.t the adjacency matrix.
+• ATT [13]: It utilizes average attention weights inside selfattention layers to distinguish important edges.
+• GNNExplainer [12]: A perturbation-based method which learns an importance matrix separately for every instance.
+• PGExplaienr [13]: A parameterized explainer that learns a GNN to predict important edges for each graph, and is trained via testing different perturbations;
+• Gem [45]: Similar to PGExplainer but from the causal view, based on the estimated individual causal effect.
+• RG-Explainer [43]: A reinforcement learning (RL) enhanced explainer for GNN, which constructs G by sequentially adding nodes with an RL agent.
+Our proposed algorithms in Section 5.2 are implemented and incorporated into two representative GNN explanation frameworks, i.e., GNNExplainer [12] and PGExplainer [13].
+8.1.3 Conﬁgurations
+Following existing work [13], a three-layer GCN [6] is trained on each dataset as the target model, with the train/validation/test data split as 8:1:1. For graph classiﬁcation, we concatenate the outputs of global max pooling and global mean pooling as the graph representation. All explainers are trained using ADAM optimizer with weight decay set to 5e-4. For GNNExplainer, learning rate is initialized to 0.01 with training epoch being 100. For PGExplainer, learning rate is initialized to 0.003 and training epoch is set as 30. Hyper-parameter λ, which controls the weight of Lalign, is tuned via grid search. Explanations are tested on all instances.
+8.1.4 Evaluation Metrics
+To evaluate faithfulness of different methods, following [18], we adopt two metrics: (1) AUROC score on edge importance and (2) Fidelity of explanations. On benchmarks with oracle explanations available, we can compute the AUROC score on identiﬁed edges as the well-trained target GNN should follow those predeﬁned explanations. On datasets without ground-truth explanations, we evaluate explanation quality with ﬁdelity measurement following [18]. Concretely, we observe prediction changes by sequentially removing edges following assigned importance weight, and a faster performance drop represents stronger ﬁdelity.
+To evaluate consistency of explanations, we randomly run each method 5 times, and report average structural hamming distance (SHD) [52] among obtained explanations. A smaller SHD score indicates stronger consistency.
+8.2 Explanation Faithfulness
+To answer RQ1, we compare explanation methods in terms of AUROC score and explanation ﬁdelity.
+
+8.1.2 Baselines
+To evaluate the effectiveness of the proposed framework, we select a group of representative and state-of-the-art instance-
+
+8.2.1 AUROC on Edges
+In this subsection, AUROC scores of different methods are reported by comparing assigned edge importance
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+weight with ground-truth explanations. For baseline methods GRAD, ATT, Gem, and RG-Explainer, their performances reported in their original papers are presented. GNNExplainer and PGExplainer are re-implemented, upon which four alignment strategies are instantiated and tested. Each experiment is conducted 5 times, and we summarize the average performance in Table 2. A higher AUROC score indicates more accurate explanations. From the results, we can make the following observations: • Across all four datasets, with both GNNExplainer or PG-
+Explainer as the base method, incorporating embedding alignment can improve the quality of obtained explanations; • Among proposed alignment strategies, those distributionaware approaches, particularly the variant based on Gaussian mixture models, achieve the best performance. In most cases, the variant utilizing latent Gaussian distribution demonstrates stronger improvements, showing the best results on 3 out of 4 datasets; • On more complex datasets like Mutag, the beneﬁt of introducing embedding alignment is more signiﬁcant, e.g., the performance of PGExplainer improves from 83.7% to 95.9% with Align Gaus. This result also indicates that spurious explanations are severer with increased dataset complexity.
+8.2.2 Explanation Fidelity
+In addition to comparing to ground-truth explanations, we also evaluate the obtained explanations in terms of ﬁdelity. Speciﬁcally, we sequentially remove edges from the graph by following importance weight learned by the explanation model and test the classiﬁcation performance. Generally, the removal of really important edges would signiﬁcantly degrade the classiﬁcation performance. Thus, a faster performance drop represents stronger ﬁdelity. We conduct experiments on Tree-Grid and Graph-SST5. Each experiment is conducted 3 times and we report results averaged across all instances on each dataset. PGExplainer and GNNExplainer are used as the backbone method. We plot the curves of prediction accuracy concerning the number of removed edges in Fig. 4. From the ﬁgure, we can observe that when the proposed embedding alignment is incorporated, the classiﬁcation accuracy from edge removal drops much faster, which shows that the proposed embedding alignment can help to identify more important edges used by GNN for classiﬁcation, hence providing better explanations. Furthermore, distribution-aware alignment strategies like the variant based on Gaussian mixture models demonstrate stronger ﬁdelity in most cases. Besides, it can be noted that on Tree-Grid the ﬁdelity of mutual-information-based alignment is dependent on the number of edges, and achieves better results with edge number within [8, 15].
+From these two experiments, we can observe that embedding alignment can obtain explanations of better faithfulness and is ﬂexible to be incorporated into various models such as GNNExplainer and PGExplainer, which answers RQ1.
+8.3 Explanation Consistency
+One problem of spurious explanation is that, due to the randomness in initialization of the explainer, the explanation
+
+9
+
+TABLE 2. Explanation Faithfulness in terms of AUC on
+
+Edges
+
+BA- Tree-Grid Infection Shapes
+
+Mutag
+
+GRAD
+
+88.2
+
+61.2
+
+74.0
+
+78.3
+
+ATT
+
+81.5
+
+66.7
+
+–
+
+76.5
+
+Gem
+
+97.1
+
+–
+
+–
+
+83.4
+
+RG-Explainer
+
+98.5
+
+92.7
+
+–
+
+87.3
+
+GNNExplainer + Align Emb + Align Anchor + Align MI + Align Gaus
+PGExplainer + Align Emb + Align Anchor + Align MI + Align Gaus
+
+93.1±1.8 95.3±1.4 97.1±1.3 97.4±1.6 96.7±1.3
+96.9±0.7 97.2±0.7 98.7±0.5 99.3±0.8 99.2±0.3
+
+86.2±2.2 91.2±2.3 92.4±1.9 92.2±2.5 92.5±1.9
+92.7±1.5 95.8±0.9 94.7±1.2 96.2±1.3 96.4±1.1
+
+92.2±1.1 93.0±1.0 93.1±0.8 93.2±1.0 93.1±0.9
+89.6±0.6 90.5±0.7 91.6±0.6 92.0±0.4 92.5±0.8
+
+74.9±1.9 76.3±1.7 78.9±1.6 78.2±1.8 79.3±1.5
+83.7±1.2 92.8±1.1 94.5±0.8 94.3±1.1 95.9±1.2
+
+ACC
+
+1.0
+
+Vanilla
+
+Align_anchor
+
+0.8
+
+Align_emb
+
+Align_MI
+
+0.6
+
+Align_Gaussian
+
+0.4
+
+N5umber of e1dg0es
+
+15
+
+(a) Tree-Grid, GNNExplainer
+
+ACC
+
+1.0
+
+Vanilla
+
+0.8
+
+Align_anchor
+
+0.6
+
+Align_emb Align_MI
+
+0.4
+
+Align_Gaussian
+
+0.2
+
+N5umber of e1dg0es
+
+15
+
+(b) Tree-Grid, PGExplainer
+
+1.0
+
+Vanilla
+
+1.0
+
+Vanilla
+
+Align_anchor
+
+Align_anchor
+
+0.8
+
+Align_emb Align_MI
+
+0.8
+
+Align_emb Align_MI
+
+ACC
+
+0.6
+
+Align_Gaussian 0.6
+
+Align_Gaussian
+
+ACC
+
+N5umber of e1dg0es
+
+15 0.4
+
+N5umber of e1dg0es
+
+15
+
+(c) Graph-SS5, GNNExplainer (d) Graph-SS5, PGExplainer
+
+Fig. 4: Explanation Fidelity (Best viewed in color).
+for the same instance given by a GNN explainer could be different for different runs, which violates the consistency of explanations. To test the severity of this problem and answer RQ2, we evaluate the proposed framework in terms of explanation consistency. We adopt GNNExplainer and PGExplainer as baselines. Speciﬁcally, SHD distance among explanatory edges with top-k importance weights identiﬁed each time is computed. Then, the results are averaged for all instances in the test set. Each experiment is conducted 5 times, and the average consistency on dataset Tree-Grid and Mutag are reported in Table 3 and Table 4, respectively. Larger distances indicate inconsistent explanations. From the table, we can observe that existing method following Equation 1 suffers from the consistency problem. For example, average SHD distance on top-6 edges is 4.39 for GNNExplainer. Introducing the auxiliary task of aligning embeddings can signiﬁcantly improve explainers in terms of this criterion. Of these different alignment strategies, the variant based on Gaussian mixture model shows the strongest performance in most cases. After incorporating Align Gaus on dataset TreeGrid, SHD distance of top-6 edges drops from 4.39 to 2.13 for GNNExplainer and from 1.38 to 0.13 for PGExplainer. After incorporating it on dataset Mutag, SHD distance of top-6 edges drops from 4.78 to 3.85 for GNNExplainer and from 3.42 to 1.15 for
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+TABLE 3. Consistency of explanation in terms of average
+
+SHD across 5 rounds of random running on Tree-Grid.
+
+Top-K Edges
+
+Methods
+
+123456
+
+GNNExplainer 0.86 1.85 2.48 3.14 3.77 4.39
+
++Align Emb 0.77 1.23 1.28 0.96 1.81 2.72
+
++Align Anchor 0.72 1.06 0.99 0.53 1.52 2.21
+
++Align MI
+
+0.74 1.11 1.08 1.32 1.69 2.27
+
++Align Gaus 0.68 1.16 1.13 0.72 1.39 2.13
+
+PGExplainer 0.74 1.23 0.76 0.46 0.78 1.38
+
++Align Emb 0.11 0.15 0.13 0.11 0.24 0.19
+
++Align Anchor 0.07 0.12 0.13 0.16 0.21 0.13
+
++Align MI
+
+0.28 0.19 0.27 0.15 0.20 0.16
+
++Align Gaus 0.05 0.08 0.10 0.12 0.19 0.13
+
+TABLE 4. Consistency of explanation in terms of average
+
+SHD distance across 5 rounds of random running on Mutag.
+
+Top-K Edges
+
+Methods
+
+123456
+
+GNNExplainer 1.12 1.74 2.65 3.40 4.05 4.78
+
++Align Emb 1.05 1.61 2.33 3.15 3.77 4.12
+
++Align Anchor 1.06 1.59 2.17 3.06 3.54 3.95
+
++Align MI
+
+1.11 1.68 2.42 3.23 3.96 4.37
+
++Align Gaus 1.03 1.51 2.19 3.02 3.38 3.85
+
+PGExplainer 0.91 1.53 2.10 2.57 3.05 3.42
+
++Align Emb 0.55 0.96 1.13 1.31 1.79 2.04
+
++Align Anchor 0.51 0.90 1.05 1.27 1.62 1.86
+
++Align MI
+
+0.95 1.21 1.73 2.25 2.67 2.23
+
++Align Gaus 0.59 1.34 1.13 0.84 1.25 1.15
+
+PGExplainer. These results validate the effectiveness of our proposal in obtaining consistent explanations.
+
+8.4 Ability in Avoiding Spurious Explanations
+
+Existing graph explanation benchmarks are usually de-
+
+signed to be less ambiguous, containing only one oracle
+
+cause of labels, and identiﬁed explanatory substructures are
+
+evaluated via comparing with the ground-truth explanation.
+
+However, this result could be misleading, as faithfulness
+
+of explanation in more complex scenarios is left untested.
+
+Real-world datasets are usually rich in spurious patterns
+
+and a trained GNN could contain diverse biases, setting
+
+a tighter requirement on explanation methods. Thus, to
+
+evaluate if our framework can alleviate the spurious ex-
+
+planation issue and answer RQ3, we create a new graph-
+
+classiﬁcation dataset: MixMotif, which enables us to train a
+
+biased GNN model, and test whether explanation methods
+
+can successfully expose this bias.
+
+Speciﬁcally, inspired by [46], we design three types of
+
+base graphs, i.e., Tree, Ladder, and Wheel, and three types
+
+of motifs, i.e., Cycle, House, and Grid. With a mix ratio γ,
+
+motifs are preferably attached to base graphs. For example,
+
+Cycle
+
+is
+
+attached
+
+to
+
+Tree
+
+with
+
+probability
+
+2 3
+
+γ
+
++
+
+1 3
+
+,
+
+and
+
+to
+
+others
+
+with
+
+probability
+
+1−γ 3
+
+.
+
+So
+
+are
+
+the
+
+cases
+
+for
+
+House
+
+to
+
+Ladder and Grid to Wheel. Labels of obtained graphs are
+
+set as type of the motif. When γ is set to 0, each motif
+
+has the same probability of being attached to the three base
+
+graphs. In other words, there’s no bias on which type of base
+
+graph to attach for each type of motif. Thus, we consider the
+
+dataset with γ = 0 as clean or bias-free. We would expect
+
+GNN trained on data with γ = 0 to focus on the motif
+
+structure for motif classiﬁcation. However, when γ becomes
+
+larger, the spurious correlation between base graph and the
+
+10
+
+TABLE 5. Performance on MixMotif. Two GNNs are trained
+
+with different γ. We check their performance in graph
+
+classiﬁcation, then compare obtained explanations with the
+
+motif.
+
+γ in Training
+
+Classiﬁcation
+
+0
+
+0.7
+
+γ in test
+
+0 0.7
+
+0.982 0.978
+
+0.765 0.994
+
+Explanation PGExplainer +Align PGExplainer +Align
+
+AUROC on Motif
+
+0.711
+
+0.795
+
+(Higher is better)
+
+0.748
+
+0.266
+
+(Lower is better)
+
+label would exist, i.e., a GNN might utilize the base graph structure for motif classiﬁcation instead of relying on the motif structure. For each setting, the created dataset contains 3, 000 graphs, and train:evaluation:test are split as 5 : 2 : 3.
+In this experiment, we set γ to 0 and 0.7 separately, and train GNN f0 and f0.7 for each setting. Two models are tested in graph classiﬁcation performance. Then, explanation methods are applied to and ﬁne-tuned on f0. Following that, these explanation methods are applied to explain f0.7 using found hyper-parameters. Results are summarized in Table 5.
+From Table 5, we can observe that (1) f0 achieves almost perfect graph classiﬁcation performance during testing. This high accuracy indicates that it captures the genuine pattern, relying on motifs to make predictions. Looking at explanation results, it is shown that our proposal offers more faithful explanations, achieving higher AUROC on motifs. (2) f0.7 fails to predict well with γ = 0, showing that there are biases in it and it no longer depends solely on the motif structure for prediction. Although ground-truth explanations are unknown in this case, a successful explanation should expose this bias. However, PGExplainer would produce similar explanations as the clean model, still highly in accord with motif structures. Instead, for explanations produced by embedding alignment, AUROC score would drop from 0.795 to 0.266, exposing the change in prediction rationales, hence able to expose biases. (3) In summary, our proposal can provide more faithful explanations for both clean and mixed settings, while PGExplainer would suffer from spurious explanations and fail to faithfully explain GNN’s predictions, especially in the existence of biases.
+
+8.5 Hyperparameter Sensitivity Analysis
+In this part, we vary the hyper-parameter λ to test the sensitivity of the proposed framework toward its values. λ controls the weight of our proposed embedding alignment task. To keep simplicity, all other conﬁgurations are kept unchanged, and λ is varied within the scale [1e − 3, 1e − 2, 1e−1, 1, 10, 1e2, 1e3}. PGExplainer is adopted as the base method. Experiments are randomly conducted 3 times on dataset Tree-Grid and Mutag. Averaged results are visualized in Figure 5. From the ﬁgure, we can make the following observations:
+• For all four variants, increasing λ has a positive effect at ﬁrst, and the further increase would result in a performance drop. For example on the Tree-Grid dataset, best results of variants based on anchors, latent Gaussian mixture models and mutual information scores are all obtained with λ around 1. When λ is small, the explanation alignment regularization in Eq. 6 will be underweighted.
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+AUROC on Explanation AUROC on Explanation
+
+0.96 0.95 0.94 0.93 0.92 0.91 10 2
+
+Vanilla Emb Anchor MI Gaussian 100 102
+
+0.950 0.925 0.900 0.875 0.850
+10 2
+
+Vanilla Emb Anchor MI Gaussian 100 102
+
+(a) Tree-Grid
+
+(b) Mutag
+
+Fig. 5: Sensitivity of PGExplainer towards weight of embedding alignment loss.
+
+On the other hand, a too-large λ may underweight the MMI-based explanation framework, which preserves the predictive power of obtained explanations. • Among these variants, the strategy based on latent Gaussian mixture models shows the strongest performance in most cases. For example, for both datasets Tree-Grid and Mutag, this variant achieves the highest AUROC scores on identiﬁed explanatory edges. On the other hand, the variant directly using Euclidean distances shows inferior performances in most cases. We attribute this to their different ability in modeling the distribution and conducting alignment.
+
+9 CONCLUSION
+In this work, we study a novel problem of obtaining faithful and consistent explanations for GNNs, which is largely neglected by existing MMI-based explanation framework. With close analysis on the inference of GNNs, we propose a simple yet effective approach by aligning internal embeddings. Theoretical analysis shows that it is more faithful in design, optimizing an objective that encourages high MI between the original graph, GNN output, and identiﬁed explanation. Four different strategies are designed, by directly adopting Euclidean distance, using anchors, KL divergence with Gaussian mixture models, and estimated MI scores. All these algorithms can be incorporated into existing methods with no effort. Experiments validate their effectiveness in promoting the faithfulness and consistency of explanations.
+In the future, we will seek more robust explanations. Increased robustness indicates stronger generality, and could provide better class-level interpretation at the same time. Besides, the evaluation of explanation methods also needs further studies. Existing benchmarks are usually clear and unambiguous, failing to simulate complex real-world scenarios.
+ACKNOWLEDGMENTS
+This material is based upon work supported by, or in part by, the National Science Foundation under grants number IIS-1707548 and IIS-1909702, the Army Research Ofﬁce under grant number W911NF21-1-0198, and DHS CINA under grant number E205949D. The ﬁndings and conclusions in this paper do not necessarily reﬂect the view of the funding agency.
+
+11
+REFERENCES
+[1] W. Fan, Y. Ma, Q. Li, Y. He, Y. Zhao, J. Tang, and D. Yin, “Graph neural networks for social recommendation,” The World Wide Web Conference, 2019.
+[2] T. Zhao, X. Tang, X. Zhang, and S. Wang, “Semi-supervised graphto-graph translation,” in Proceedings of the 29th ACM International Conference on Information & Knowledge Management, 2020, pp. 1863– 1872.
+[3] E. Mansimov, O. Mahmood, S. Kang, and K. Cho, “Molecular geometry prediction using a deep generative graph neural network,” Scientiﬁc Reports, vol. 9, 2019.
+[4] H. Chereda, A. Bleckmann, F. Kramer, A. Leha, and T. Beißbarth, “Utilizing molecular network information via graph convolutional neural networks to predict metastatic event in breast cancer,” Studies in health technology and informatics, vol. 267, pp. 181–186, 2019.
+[5] D. Sorokin and I. Gurevych, “Modeling semantics with gated graph neural networks for knowledge base question answering,” ArXiv, vol. abs/1808.04126, 2018.
+[6] T. N. Kipf and M. Welling, “Semi-supervised classiﬁcation with graph convolutional networks,” arXiv preprint arXiv:1609.02907, 2016.
+[7] P. Velicˇkovic´, G. Cucurull, A. Casanova, A. Romero, P. Lio, and Y. Bengio, “Graph attention networks,” arXiv preprint arXiv:1710.10903, 2017.
+[8] W. Hamilton, Z. Ying, and J. Leskovec, “Inductive representation learning on large graphs,” Advances in neural information processing systems, vol. 30, 2017.
+[9] K. Xu, W. Hu, J. Leskovec, and S. Jegelka, “How powerful are graph neural networks?” arXiv preprint arXiv:1810.00826, 2018.
+[10] M. Zhang and Y. Chen, “Link prediction based on graph neural networks,” Advances in neural information processing systems, vol. 31, 2018.
+[11] J. Rao, S. Zheng, and Y. Yang, “Quantitative evaluation of explainable graph neural networks for molecular property prediction,” arXiv preprint arXiv:2107.04119, 2021.
+[12] R. Ying, D. Bourgeois, J. You, M. Zitnik, and J. Leskovec, “Gnnexplainer: Generating explanations for graph neural networks,” Advances in neural information processing systems, vol. 32, p. 9240, 2019.
+[13] D. Luo, W. Cheng, D. Xu, W. Yu, B. Zong, H. Chen, and X. Zhang, “Parameterized explainer for graph neural network,” Advances in neural information processing systems, vol. 33, pp. 19 620–19 631, 2020.
+[14] T. Zhao, D. Luo, X. Zhang, and S. Wang, “On consistency in graph neural network interpretation,” arXiv preprint arXiv:2205.13733, 2022.
+[15] Q. Huang, M. Yamada, Y. Tian, D. Singh, D. Yin, and Y. Chang, “Graphlime: Local interpretable model explanations for graph neural networks,” arXiv preprint arXiv:2001.06216, 2020.
+[16] M. N. Vu and M. T. Thai, “Pgm-explainer: Probabilistic graphical model explanations for graph neural networks,” arXiv preprint arXiv:2010.05788, 2020.
+[17] H. Yuan, H. Yu, J. Wang, K. Li, and S. Ji, “On explainability of graph neural networks via subgraph explorations,” in International Conference on Machine Learning. PMLR, 2021, pp. 12 241–12 252.
+[18] H. Yuan, H. Yu, S. Gui, and S. Ji, “Explainability in graph neural networks: A taxonomic survey,” arXiv preprint arXiv:2012.15445, 2020.
+[19] M. Nauta, J. Trienes, S. Pathak, E. Nguyen, M. Peters, Y. Schmitt, J. Schlo¨ tterer, M. van Keulen, and C. Seifert, “From anecdotal evidence to quantitative evaluation methods: A systematic review on evaluating explainable ai,” arXiv preprint arXiv:2201.08164, 2022.
+[20] E. Dai, W. Jin, H. Liu, and S. Wang, “Towards robust graph neural networks for noisy graphs with sparse labels,” arXiv preprint arXiv:2201.00232, 2022.
+[21] T. Zhao, X. Zhang, and S. Wang, “Graphsmote: Imbalanced node classiﬁcation on graphs with graph neural networks,” in Proceedings of the Fourteenth ACM International Conference on Web Search and Data Mining, 2021.
+[22] J. Bruna, W. Zaremba, A. Szlam, and Y. LeCun, “Spectral networks and locally connected networks on graphs,” arXiv preprint arXiv:1312.6203, 2013.
+[23] S. Tang, B. Li, and H. Yu, “Chebnet: Efﬁcient and stable constructions of deep neural networks with rectiﬁed power units using chebyshev approximations,” ArXiv, vol. abs/1911.05467, 2019.
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+[24] D. K. Duvenaud, D. Maclaurin, J. Iparraguirre, R. Bombarell, T. Hirzel, A. Aspuru-Guzik, and R. P. Adams, “Convolutional networks on graphs for learning molecular ﬁngerprints,” in Advances in neural information processing systems, 2015, pp. 2224–2232.
+[25] J. Atwood and D. Towsley, “Diffusion-convolutional neural networks,” in Advances in neural information processing systems, 2016, pp. 1993–2001.
+[26] T. Xiao, Z. Chen, D. Wang, and S. Wang, “Learning how to propagate messages in graph neural networks,” in Proceedings of the 27th ACM SIGKDD Conference on Knowledge Discovery & Data Mining, 2021, pp. 1894–1903.
+[27] J. Gilmer, S. S. Schoenholz, P. F. Riley, O. Vinyals, and G. E. Dahl, “Neural message passing for quantum chemistry,” in ICML, 2017.
+[28] X. Wang, H. Jin, A. Zhang, X. He, T. Xu, and T.-S. Chua, “Disentangled graph collaborative ﬁltering,” in Proceedings of the 43rd international ACM SIGIR conference on research and development in information retrieval, 2020, pp. 1001–1010.
+[29] T. Zhao, X. Zhang, and S. Wang, “Exploring edge disentanglement for node classiﬁcation,” in Proceedings of the ACM Web Conference 2022, 2022, pp. 1028–1036.
+[30] T. Xiao, Z. Chen, Z. Guo, Z. Zhuang, and S. Wang, “Decoupled self-supervised learning for non-homophilous graphs,” arXiv eprints, pp. arXiv–2206, 2022.
+[31] S. Lin, C. Liu, P. Zhou, Z.-Y. Hu, S. Wang, R. Zhao, Y. Zheng, L. Lin, E. Xing, and X. Liang, “Prototypical graph contrastive learning,” IEEE Transactions on Neural Networks and Learning Systems, 2022.
+[32] J. Xu, E. Dai, X. Zhang, and S. Wang, “Hp-gmn: Graph memory networks for heterophilous graphs,” arXiv preprint arXiv:2210.08195, 2022.
+[33] M. Balcilar, P. He´roux, B. Gauzere, P. Vasseur, S. Adam, and P. Honeine, “Breaking the limits of message passing graph neural networks,” in International Conference on Machine Learning. PMLR, 2021, pp. 599–608.
+[34] R. Sato, “A survey on the expressive power of graph neural networks,” arXiv preprint arXiv:2003.04078, 2020.
+[35] H. Nt and T. Maehara, “Revisiting graph neural networks: All we have is low-pass ﬁlters,” arXiv preprint arXiv:1905.09550, 2019.
+[36] M. Balcilar, R. Guillaume, P. He´roux, B. Gau¨ ze`re, S. Adam, and P. Honeine, “Analyzing the expressive power of graph neural networks in a spectral perspective,” in Proceedings of the International Conference on Learning Representations (ICLR), 2021.
+[37] X. Wang, Y. Wu, A. Zhang, X. He, and T.-s. Chua, “Causal screening to interpret graph neural networks,” 2020.
+[38] F. Baldassarre and H. Azizpour, “Explainability techniques for graph convolutional networks,” arXiv preprint arXiv:1905.13686, 2019.
+[39] Z. Zhang, Q. Liu, H. Wang, C. Lu, and C. Lee, “Protgnn: Towards self-explaining graph neural networks,” arXiv preprint arXiv:2112.00911, 2021.
+[40] E. Dai and S. Wang, “Towards self-explainable graph neural network,” in Proceedings of the 30th ACM International Conference on Information & Knowledge Management, 2021, pp. 302–311.
+[41] E. Dai, T. Zhao, H. Zhu, J. Xu, Z. Guo, H. Liu, J. Tang, and S. Wang, “A comprehensive survey on trustworthy graph neural networks: Privacy, robustness, fairness, and explainability,” arXiv preprint arXiv:2204.08570, 2022.
+[42] P. E. Pope, S. Kolouri, M. Rostami, C. E. Martin, and H. Hoffmann, “Explainability methods for graph convolutional neural networks,” in Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, 2019, pp. 10 772–10 781.
+[43] C. Shan, Y. Shen, Y. Zhang, X. Li, and D. Li, “Reinforcement learning enhanced explainer for graph neural networks,” Advances in Neural Information Processing Systems, vol. 34, 2021.
+[44] T. Schnake, O. Eberle, J. Lederer, S. Nakajima, K. T. Schu¨ tt, K.-R. Mu¨ ller, and G. Montavon, “Higher-order explanations of graph neural networks via relevant walks,” arXiv preprint arXiv:2006.03589, 2020.
+[45] W. Lin, H. Lan, and B. Li, “Generative causal explanations for graph neural networks,” in International Conference on Machine Learning. PMLR, 2021, pp. 6666–6679.
+[46] Y.-X. Wu, X. Wang, A. Zhang, X. He, and T.-S. Chua, “Discovering invariant rationales for graph neural networks,” arXiv preprint arXiv:2201.12872, 2022.
+[47] J. Yu, T. Xu, Y. Rong, Y. Bian, J. Huang, and R. He, “Graph information bottleneck for subgraph recognition,” arXiv preprint arXiv:2010.05563, 2020.
+
+12
+[48] N. Tishby and N. Zaslavsky, “Deep learning and the information bottleneck principle,” in 2015 ieee information theory workshop (itw). IEEE, 2015, pp. 1–5.
+[49] M. Ester, H.-P. Kriegel, J. Sander, X. Xu et al., “A density-based algorithm for discovering clusters in large spatial databases with noise.” in kdd, vol. 96, no. 34, 1996, pp. 226–231.
+[50] R. D. Hjelm, A. Fedorov, S. Lavoie-Marchildon, K. Grewal, P. Bachman, A. Trischler, and Y. Bengio, “Learning deep representations by mutual information estimation and maximization,” in International Conference on Learning Representations, 2018.
+[51] L. Faber, A. K. Moghaddam, and R. Wattenhofer, “When comparing to ground truth is wrong: On evaluating gnn explanation methods,” in Proceedings of the 27th ACM SIGKDD Conference on Knowledge Discovery & Data Mining, 2021, pp. 332–341.
+[52] I. Tsamardinos, L. E. Brown, and C. F. Aliferis, “The max-min hillclimbing bayesian network structure learning algorithm,” Machine learning, vol. 65, no. 1, pp. 31–78, 2006.
+Tianxiang Zhao received his BS degree in computer science from University of Science and Technology of China (USTC), Hefei, China, in 2017. He is currently working toward the Ph.D. degree in IST at the Pennsylvania State University (PSU), State College, PA, under the supervision of d Dr. Suhang Wang and Dr. Xiang Zhang since 2019. His research interests are in graph neural networks, weak supervision tasks and knowledge transfer. He also worked as a research intern at NEC in 2021.
+Dongsheng Luo obtained his Ph.D.degree in the College of Information Sciences and Technology at The Pennsylvania State University. He is an Assistant Professor at the Knight Foundation School of Computing and Information Sciences, Florida International University. His research interests include data mining and machine learning.
+Xiang Zhang is an Associate Professor in the College of Information Sciences and Technology at the Pennsylvania State University. His research bridges the areas of big data, data mining, machine learning, database and biomedical informatics. He is particularly interested in developing algorithms and models for analyzing large data sets generated in social, biological and medical domains.
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+13
+
+Suhang Wang is an assistant professor of the College of Information Sciences and Technology at the Pennsylvania State University. He received his Ph.D. in Computer Science from Arizona State University in 2018, M.S. in Electrical Engineering from University of Michigan Ann Arbor in 2013, and B.S. in Electrical and Computer Engineering from Shanghai Jiao Tong University in 2012. His research interests are in graph mining, data mining and machine learning. He is an associate editor for several journals and serves as regular journal reviewers and numerous conference program committees. He has published innovative works in highly ranked journals and top conference proceedings such as IEEE TKDE, ACM TIST, KDD, WWW, AAAI, IJCAI, CIKM, SDM, WSDM, ICDM and CVPR, which have received extensive coverage in the media.
+

@@ -1,0 +1,89 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2205.15117
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 30 May 2022 ( v1 ), last revised 10 Oct 2022 (this version, v5)]
+Title: OOD Link Prediction Generalization Capabilities of Message-Passing GNNs in Larger Test Graphs
+Authors: Yangze Zhou , Gitta Kutyniok , Bruno Ribeiro
+Download a PDF of the paper titled OOD Link Prediction Generalization Capabilities of Message-Passing GNNs in Larger Test Graphs, by Yangze Zhou and 2 other authors
+Download PDF
+
+    Abstract: This work provides the first theoretical study on the ability of graph Message Passing Neural Networks (gMPNNs) -- such as Graph Neural Networks (GNNs) -- to perform inductive out-of-distribution (OOD) link prediction tasks, where deployment (test) graph sizes are larger than training graphs. We first prove non-asymptotic bounds showing that link predictors based on permutation-equivariant (structural) node embeddings obtained by gMPNNs can converge to a random guess as test graphs get larger. We then propose a theoretically-sound gMPNN that outputs structural pairwise (2-node) embeddings and prove non-asymptotic bounds showing that, as test graphs grow, these embeddings converge to embeddings of a continuous function that retains its ability to predict links OOD. Empirical results on random graphs show agreement with our theoretical results. 
+
+Comments: 	Accepted at NeurIPS 2022
+Subjects: 	Machine Learning (cs.LG) ; Artificial Intelligence (cs.AI); Numerical Analysis (math.NA); Machine Learning (stat.ML)
+Cite as: 	arXiv:2205.15117 [cs.LG]
+  	(or arXiv:2205.15117v5 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2205.15117
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Yangze Zhou [ view email ]
+[v1] Mon, 30 May 2022 14:04:32 UTC (194 KB)
+[v2] Wed, 1 Jun 2022 11:23:17 UTC (193 KB)
+[v3] Tue, 14 Jun 2022 06:11:36 UTC (193 KB)
+[v4] Thu, 15 Sep 2022 02:31:58 UTC (402 KB)
+[v5] Mon, 10 Oct 2022 03:49:51 UTC (387 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled OOD Link Prediction Generalization Capabilities of Message-Passing GNNs in Larger Test Graphs, by Yangze Zhou and 2 other authors
+    PDF
+    Other formats 
+
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2205
+Change to browse by:
+cs
+cs.AI
+cs.NA
+math
+math.NA
+stat
+stat.ML
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

@@ -1,0 +1,120 @@
+IEEE websites place cookies on your device to give you the best user experience. By using our websites, you agree to the placement of these cookies. To learn more, read our Privacy Policy.
+Accept & Close
+Skip to Main Content
+
+    IEEE.org
+    IEEE Xplore
+    IEEE SA
+    IEEE Spectrum
+    More Sites 
+
+Subscribe
+
+        Cart 
+        Create Account
+        Personal Sign In 
+
+IEEE Xplore logo - Link to home
+
+    Browse
+    My Settings
+    Help
+
+Institutional Sign In
+IEEE logo - Link to IEEE main site homepage
+ADVANCED SEARCH
+Conferences > 2022 IEEE 28th International ...
+FLForest: Byzantine-robust Federated Learning through Isolated Forest
+Publisher: IEEE
+Cite This
+PDF
+Tao Wang ; Bo Zhao ; Liming Fang
+All Authors
+86
+Full
+Text Views
+
+    Alerts
+
+Abstract
+Document Sections
+
+    I.
+    Introduction
+    II.
+    Background and Related Work
+    III.
+    Our FLForest
+    IV.
+    Evaluation
+    V.
+    Conclusion
+
+Authors
+Figures
+References
+Keywords
+Metrics
+Abstract:
+Federated learning (FL) is a privacy-preserving distributed machine learning technique that allows clients to jointly train a global model under the coordination of cloud server. However, malicious clients can corrupt the global model to predict incorrect labels for testing examples. Currently, existing mainstream Byzantine-robust FL methods are vulnerable to various adaptive attacks, and violates the privacy principle of FL. Moreover, these schemes will be less robust in the face of targeted poisoning attacks with few samples and data distributions that are highly non-independent and identically distributed(non-IID). In this work, to address these issues, we propose a novel Byzantine-robust FL framework based on Isolated Forest. Specifically, before the start of each round, FLForest will calculate the divergences between the model update and the model update of the previous round to decide whether to activate the defense. After that, FLForest trains an isolated forest based on model updates after after dimensionality reduction. Model updates isolated with fewer splits will be considered as malicious model updates and excluded from the global model’s aggregation. Extensive experiments demonstrate that FLForest achieves better performance compared to baseline methods under highly non-IID distribution.
+Published in: 2022 IEEE 28th International Conference on Parallel and Distributed Systems (ICPADS)
+Date of Conference: 10-12 January 2023
+Date Added to IEEE Xplore : 27 March 2023
+ISBN Information:
+ISSN Information:
+INSPEC Accession Number: 22884398
+DOI: 10.1109/ICPADS56603.2022.00046
+Publisher: IEEE
+Conference Location: Nanjing, China
+Funding Agency:
+I. Introduction
+
+Federated learning (FL) [1] is a framework that allows multiple clients to collaboratively train a shared model in a distributed environment without transferring their local training data. However, recent works [2] show that it is easy for edge devices (e.g. mobile devices, sensors, computers) to conduct Byzantine attacks (e.g., data/model poisoning attacks) through manipulating local training process to pollute the global model. Such attacks raise great security concerns and have become the roadblocks towards the real-world deployment of FL.
+Sign in to Continue Reading
+Authors
+Figures
+References
+Keywords
+Metrics
+More Like This
+Q-Learning: From Computer Network Security to Software Security
+
+2014 13th International Conference on Machine Learning and Applications
+
+Published: 2014
+Research on the Application of Data Encryption Technology in Computer Network Security Based on Machine Learning
+
+2021 IEEE 4th International Conference on Information Systems and Computer Aided Education (ICISCAE)
+
+Published: 2021
+Show More
+References
+References is not available for this document.
+IEEE Personal Account
+
+    Change username/password 
+
+Purchase Details
+
+    Payment Options
+    View Purchased Documents 
+
+Profile Information
+
+    Communications Preferences
+    Profession and Education
+    Technical interests 
+
+Need Help?
+
+    US & Canada: +1 800 678 4333
+    Worldwide: +1 732 981 0060
+    Contact & Support 
+
+Follow
+
+About IEEE Xplore | Contact Us | Help | Accessibility | Terms of Use | Nondiscrimination Policy | IEEE Ethics Reporting | Sitemap | IEEE Privacy Policy
+
+A not-for-profit organization, IEEE is the world's largest technical professional organization dedicated to advancing technology for the benefit of humanity.
+
+© Copyright 2023 IEEE - All rights reserved.

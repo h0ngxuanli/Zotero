@@ -1,0 +1,1286 @@
+Towards Self-Explainable Graph Neural Network
+
+arXiv:2108.12055v1 [cs.LG] 26 Aug 2021
+
+Enyan Dai
+The Pennsylvania State University emd5759@psu.edu
+ABSTRACT
+Graph Neural Networks (GNNs), which generalize the deep neural networks to graph-structured data, have achieved great success in modeling graphs. However, as an extension of deep learning for graphs, GNNs lack explainability, which largely limits their adoption in scenarios that demand the transparency of models. Though many efforts are taken to improve the explainability of deep learning, they mainly focus on i.i.d data, which cannot be directly applied to explain the predictions of GNNs because GNNs utilize both node features and graph topology to make predictions. There are only very few work on the explainability of GNNs and they focus on post-hoc explanations. Since post-hoc explanations are not directly obtained from the GNNs, they can be biased and misrepresent the true explanations. Therefore, in this paper, we study a novel problem of self-explainable GNNs which can simultaneously give predictions and explanations. We propose a new framework which can find 𝐾-nearest labeled nodes for each unlabeled node to give explainable node classification, where nearest labeled nodes are found by interpretable similarity module in terms of both node similarity and local structure similarity. Extensive experiments on real-world and synthetic datasets demonstrate the effectiveness of the proposed framework for explainable node classification.
+CCS CONCEPTS
+• Computing methodologies → Neural networks.
+KEYWORDS
+Explainability; Graph Neural Networks; Node Classification
+ACM Reference Format: Enyan Dai and Suhang Wang. 2021. Towards Self-Explainable Graph Neural Network. In Proceedings of the 30th ACM International Conference on Information and Knowledge Management (CIKM ’21), November 1–5, 2021, Virtual Event, QLD, Australia. ACM, New York, NY, USA, 10 pages. https: //doi.org/10.1145/3459637.3482306
+1 INTRODUCTION
+Graph neural networks (GNNs) [3, 12, 18] have made remarkable achievements in modeling graph structured data from various domains such as social networks [8, 12], financial system [41], and recommendation system [42]. The success of GNNs relies on the message-passing. More specifically, the node representations in
+Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for profit or commercial advantage and that copies bear this notice and the full citation on the first page. Copyrights for components of this work owned by others than ACM must be honored. Abstracting with credit is permitted. To copy otherwise, or republish, to post on servers or to redistribute to lists, requires prior specific permission and/or a fee. Request permissions from permissions@acm.org. CIKM ’21, November 1–5, 2021, Virtual Event, QLD, Australia © 2021 Association for Computing Machinery. ACM ISBN 978-1-4503-8446-9/21/11. . . $15.00 https://doi.org/10.1145/3459637.3482306
+
+Suhang Wang
+The Pennsylvania State University szw494@psu.edu
+Figure 1: Example of interpretable 𝐾-nearest labeled nodes
+GNNs will aggregate the information from the neighbors. As a result, the learned representations will capture the node attributes and local topology information to facilitate various tasks, especially the semi-supervised node classification.
+Despite the success in modeling graph data, predictions of GNNs are not interpretable for human, which limits the adoption of GNNs in various domains such as credit approval in finance. First, as an extension of deep learning on graphs, the high non-linearity of GNNs makes the predictions difficult to understand. Second, GNNs utilize both node attributes and graph topology to give predictions, which leads to additional challenges to interpret the predictions. Though various approaches [26, 35] have been studied to give interpretable predictions or explain trained neural networks, most of them are designed for i.i.d data such as images and cannot handle the relational information. Thus, they cannot be directly applied for GNNs which highly rely on relational information in graphs. Some initial efforts [14, 22, 45] have been taken to address this problem. For instance, GNNExplainer [45] takes a trained GNN and its predictions as inputs and output crucial node attributes and subgraphs to explain the GNN’s predictions. However, all the aforementioned GNN explainers only focus on the post-hoc explanations, i.e., learning an explainer to explain the outputs of a trained GNN. Since the post-hoc explanations are not directly obtained from the GNNs, they can be biased and misrepresent the true explanations of the GNNs. Therefore, it is crucial to develop a self-explainable GNN, which can simultaneously give predictions and explanations.
+One perspective to obtain the self-explanation for node classification is to identify interpretable 𝐾-nearest labeled nodes for each node and utilize the 𝐾-nearest labeled nodes to simultaneously give label prediction and explain why such prediction is given. An example of the interpretable 𝐾-nearest labeled is shown in Figure 1. As it shows in Figure 1, the topology and node attributes in local graph of node 𝑣𝑖 are well matched with that of the node 𝑣 𝑗 which is labeled as positive. Thus, 𝑣𝑖 should be predicted as positive. Then the explaintions can be: (i) “node 𝑣𝑖 is classified as class 𝑋 because most of the 𝐾-nearest labeled nodes of 𝑣𝑖 belong to class 𝑋 ”; and (ii) “node 𝑣𝑖 is similar to node 𝑣 𝑗 because the n-hop subgraphs centered at these two nodes are similar. For example, this part of the structure and attributes of 𝑣𝑖 ’s n-hop subgraph matches to that of 𝑣 𝑗 ’s”. Though being promising, the work on exploring 𝐾-nearest neighbors for self-explainable GNNs is rather limited.
+
+Therefore, in this paper, we investigate a novel problem of selfexplainable GNN by exploring 𝐾-nearest labeled nodes. However, developing self-explainable GNN which gives interpretable 𝐾-nearest labeled nodes is non-trivial. In essense, we are faced with the following challenges: (i) how to incorporate the node similarity and structure similarity to identify 𝐾-nearest labeled nodes? For graphstructured data, the similarity should take both node attributes and local topology into consideration. Existing works of interpretable deep KNN [26] mostly focus on i.i.d data and cannot handle the structure similarity. One straightforward solution is using the cosine similarity of node representations learned by GNNs [12, 18] to identify the 𝐾-nearest labeled nodes. But the selection of the 𝐾nearest labeled nodes is not interpretable, because the local graph topology and node attributes are implicitly embedded in latent vectors. In addition, ground-truth of node and structure similarity is generally not available. Due to the lack of explicit supervision, it is challenging to identify the true 𝐾-nearest labeled nodes; and (ii) how to simultaneously give accurate predictions and correct corresponding explanations. The supervision we have is only the labels for classification accuracy. How to leverage label information to help learn the explanations is required to be investigated.
+In an attempt to solve the challenges, we propose a model named as Self-Explainable GNN (SE-GNN)1. SE-GNN adopts a novel mechanism that can explicitly evaluate the node similarity and local structure similarity. For the structure similarity estimation, similarity scores of edges across the local graphs of two nodes will be evaluated to provide self-explanations. The prediction can be supervised by provided labels. And labels can also provide implicit supervision to guide the similarity modeling, because nodes with same labels are more likely to be a similar pair. Therefore, We propose a novel classification loss to simultaneously ensure the accuracy of the prediction and facilitate the interpretable similarity modeling. Furthermore, SE-GNN adopts contrastive learning on node and edge representations to supervise node similarity and edge matching explanations. The main contributions are: • We study a novel problem of self-explainable GNN by exploring
+𝐾-nearest labeled nodes for predictions and explanations; • We develop a novel framework SE-GNN, which adopts an inter-
+pretable similarity modeling to identify 𝐾-nearest labeled nodes and enhance the explanations with self-supervision; • We generate a synthetic dataset to quantitatively evaluate the quality of explanations, i.e., interpretable 𝐾-nearest labeled nodes, which can facilitate future research in this direction; and • We conduct extensive experiments on both real-world datasets and synthetic datasets and demonstrate that SE-GNN can give accurate predictions and explanations.
+2 RELATED WORK 2.1 Graph Neural Networks
+Graph Neural Networks (GNNs) have shown their great power in modeling graph-structure data for various applications such as traffic analysis [50] and drug generation [2]. GNNs can be generally split into two categories, i.e., spectral-based [3, 18, 20] and spatial-based [4, 6, 12, 39, 51]. Spectral-based methods learn the
+1 https://github.com/EnyanDai/SEGNN
+
+node representations based on spectral graph theory. For example, Bruna et al. [3] first generalize the convolution to graph-structure data with spectral graph theory. To remove the computationally expensive Laplacian eigendecomposition, ChebyNets [9] define graph convolutions with Chebyshev polynomials. GCN [18] further simplifies the convolutional operation. Spatial-based graph convolution is defined in spatial domain, which updates node representations by aggregating their neighbors’ representations [12, 24]. For example, GAT [39] updates the representations of the nodes from the neighbors with an attention mechanism. Moreover, various spatial methods are proposed for further improvements [4, 5, 7, 38]. For instance, FastGCN [4] is proposed to solve the scalability issue.
+Recently, some works employ self-supervised learning to graph structured data for better node representations. Various pretext tasks have been explored to benefit the training of GNNs [15, 37, 52]. For example, SuperGAT [17] deploys the edge prediction as selfsupervised task to guide the learning of attention. Furthermore, contrastive learning is also widely adopted as the self-supervised task [28, 36, 40, 46]. For instance, Qiu et al. [28] design a subgraph instance discrimination to better capture the topology information. The aforementioned methods are inherently different from our proposed SE-GNN as we focus on self-explainable GNNs and the self-supervision is applied to obtain high-quality explanations.
+2.2 Explainability of Graph Neural Networks
+To address the problem of lacking interpretability, extensive works have been proposed. Explanations in the existing works generally fall into two categories, i.e., self-explainable and post-hoc explanations. Self-explainable models are self-intrinsic, which can simultaneously make predictions and explain the predictions [1, 13]. For example, Alvarez et al. [1] propose a rich class of interpretable models where the explanations are intrinsic to the model. Post-hoc explanations use another model or strategy to explain the behavior of a trained model, such as by learning a local approximation with an interpretable model [31], computing saliency map [49], identifying feature importance [10, 32, 34], obtaining prototypes [19] and exploring meaning of hidden neurons [47].
+Despite the great success, the aforementioned approaches are overwhelmingly developed for i.id. data such as images and texts; while the work on interpretable GNNs for graph structured data are rather limited [14, 22, 45, 48]. GNNExplainer [45] learns soft masks for edges and node features to find the crucial subgraphs and features to explain the predictions. PGExplainer [22] applies a parameterized explainer to generate the edge masks from a global view to identify the important subgraphs. GraphLime [14] extends the LIME [31] to graph neural networks and investigates the importance of different node features for node classification. However, the graph structure information is ignored in GraphLime.
+Our work is inherently different from the aforementioned explainable GNN methods: (i) we focus on learning a self-explainable GNN which can simultaneously give predictions and explanations while all the aforementioned are post-hoc explanations. We don’t need additional explainer, which reduces the risk of misrepresenting the true decision reasons of the model; and (ii) we study a novel approach of finding the 𝐾-nearest labeled nodes in terms of node and structure similarity for classification and explanation.
+
+3 PROBLEM DEFINITION
+We use G = (V, E, X) to denote an attributed graph, where V = {𝑣1, ..., 𝑣𝑁 } is the set of 𝑁 nodes, E ⊆ V × V is the set of edges, and X = {x1, ..., x𝑁 } is the set of node attributes with x𝑖 being the node attributes of node 𝑣𝑖 . A ∈ R𝑁 ×𝑁 is the adjacency matrix of the graph G, where A𝑖 𝑗 = 1 if nodes 𝑣𝑖 and 𝑣 𝑗 are connected; otherwise A𝑖 𝑗 = 0. In the semi-supervised setting, part of the nodes V𝐿 = {𝑣1, ..., 𝑣𝑙 } ⊂ V are labeled. We use Y = {y1, ..., y𝑙 } to denote the corresponding labels, where y𝑖 ∈ R𝐶 is a one-hot vector of node 𝑣𝑖 ’s label. V𝑈 = V −V𝐿 is a set of unlabeled nodes. Most of existing GNNs focus on label prediction of unlabeled nodes in V𝑈 [43]. They usually lack interpretability on why GNN classifiers give such
+predictions. There are few attempts of post-hoc explainers [14, 22,
+45, 48] to provide explanations for trained GNNs; while the work
+on self-explainable GNNs is rather limited.
+We aim to develop self-explainable GNNs. In particular, for each
+unlabeled node 𝑣𝑖 , we want to find 𝐾 most similar labeled nodes with 𝑣𝑖 , and simultaneously utilize these similar nodes to predict 𝑣𝑖 ’s label and provide explanation of the prediction. Since both node features and local structure are important for classificaiton,
+the similarity should be measured in terms of both node features and the n-hop subgraph centered at each node. Sample explanations can be: (i) “node 𝑣𝑖 is classified as class 𝐵 because these 𝐾 nodes have the most similar node features and n-hop subgrph with that of 𝑣𝑖 , and most of these 𝐾 nodes belong to class 𝐵”; (ii) “node 𝑣𝑖 is similar to node 𝑣 𝑗 because the n-hop subgraphs centered at these two nodes are similar. For example, this part of the structure and
+attributes of 𝑣𝑖 ’s n-hop subgraph matches to that of 𝑣 𝑗 ’s”. Let G𝑠(𝑛) (𝑣𝑖 ) = (𝑣𝑖 ∪ N (𝑛) (𝑣𝑖 ), E𝑠(𝑛) (𝑣𝑖 )) be the n-hop subgraph
+centered at node 𝑣𝑖 , where N (𝑛) (𝑣𝑖 ) is the set of nodes within 𝑛hop of 𝑣𝑖 and E𝑠(𝑛) (𝑣𝑖 ) is the set of edges that linked the nodes in G𝑠(𝑛) (𝑣𝑖 ). Let P (𝑛) (𝑣𝑖, 𝑣 𝑗 ) ⊆ E𝑠(𝑛) (𝑣𝑖 ) × E𝑠(𝑛) (𝑣 𝑗 ) be the edge matching result between the local graphs of node 𝑣𝑖 and 𝑣 𝑗 . With these notations, the problem of learning self-explainable GNN by
+predicting with interpretable 𝐾-nearest neighbors is defined as:
+Problem 1. Given a graph G = (V, E) with labeled node set V𝐿 and correspoding label set Y, learn a self-explainable GNN 𝑓G : G → Y which could give an accurate prediction for each unlabeled node 𝑣𝑖 ∈ V𝑈 and simultaneously generate explanation from the 𝐾-nearest labeled node {(𝑣𝑖𝑘, G𝑠(𝑛) (𝑣𝑖𝑘 ), P (𝑘) (𝑣𝑖, 𝑣𝑖𝑘 ))}𝑘𝐾=1, where 𝑣𝑖𝑘 ∈ V𝐿 and G𝑠(𝑛) (𝑣𝑖𝑘 ) are the identified top 𝐾 nearest labeled nodes and the corresponding 𝑛-hop subgraph, respectively. P (𝑛) (𝑣𝑖, 𝑣𝑖𝑘 ) is the edge matching results between local graphs of 𝑣𝑖 and 𝑣𝑖𝑘 to explain the similarity in structure.
+4 METHODOLOGY
+In this section, we present the details of the proposed framework
+SE-GNN. The basic idea of SE-GNN is: for each node 𝑣𝑖 , it identifies 𝐾 most similar labeled nodes with 𝑣𝑖 , and utilize the labels of these 𝐾 nodes to predict 𝑣𝑖 ’s label. Meanwhile, the 𝐾 most similar labeled nodes provide explanations on why such prediction is made in
+terms of both the structure and feature similarity. There are mainly
+two challenges: (i) how to obtain interpretable 𝐾-nearest labeled
+nodes that consider both node and structure similarity; and (ii) how
+
+to simultaneously give accurate predictions and correct corresponding explanations. To address these challenges, SE-GNN explicitly models the node similarity and local structure similarity with explanations. An illustration of the proposed framework is shown in Figure 2. It is mainly composed of an interpretable similarity module and a self-supervisor to enhance the explanations. With the novel similarity modeling process, 𝐾-nearest labeled nodes of the target node and the similarity explanations can be obtained. Then, prediction of the target node can be given based on the identified 𝐾-nearest labeled nodes. And, a novel loss function is designed to ensure the accuracy of predictions and facilitate the similarity modeling. Furthermore, self-supervision for explanations is applied to further benefit the accurate explanation generation.
+
+4.1 Interpretable Similarity Modeling
+
+Since for each node, SE-GNN relies on interpretable 𝐾-nearest labeled nodes for predictions and explanations, we need to design an interpretable similarity measurements to measure the similarity of nodes. Unlike i.i.d data, which only needs to measure the similarity from the feature perspective, for graph-structure data, both node attributes and the local graph structures of nodes contain crucial information for node classification. Thus, we propose to explicitly model the node similarity and structure similarity to obtain an interpretable overall similarity.
+
+4.1.1 Node Similarity. The node similarity is to evaluate how similar the target node is with the labeled nodes in the node level. Since node features could be noisy and sparse, directly measuring the node similarity in the raw feature space will result in noisy similarity. Following existing work on similarity metric learning [28], we first learn node representations followed by a similarity function, which could better measure node similarity. One straightforward way is to adopt a deep GNN such as GCN [18] and GAT [39] to learn powerful node embeddings. However, current GNNs are found to experience the over-smoothing issue [21]. This may lead to indistinguishable similarity scores for node pairs that actually differ a lot. And a deep GNN may implicitly model the structure information, which could reduce the interpretability of the node similarity. Therefore, we propose to firstly encode the node features with a MLP. Then, the node embeddings are further updated by aggregating the representations from their neighbors with one residual GCN layer [18]. This process can be mathematically written as:
+
+H𝑚 = 𝑀𝐿𝑃 (X), H = 𝜎 (A˜ H𝑚W) + H𝑚,
+
+(1)
+
+where
+
+X
+
+denotes
+
+the
+
+node
+
+attributes,
+
+A˜
+
+=
+
+D−
+
+1 2
+
+(A
+
++
+
+I)D−
+
+1 2
+
+is
+
+the
+
+normalized adjacency matrix , and D is a diagonal matrix with 𝐷𝑖𝑖 =
+
+𝑖 𝐴𝑖 𝑗 . I is the identity matrix. 𝜎 is the activation function such
+
+as ReLU. With the learned node embeddings, the node similarity
+
+between a target node 𝑣𝑡 and a labeled node 𝑣𝑙 can be obtained as:
+
+𝑛
+𝑠
+
+(𝑣𝑡, 𝑣𝑙
+
+)
+
+=
+
+𝑠𝑖𝑚(h𝑡 ,
+
+h𝑙 ),
+
+(2)
+
+where h𝑡 and h𝑙 are the learned embeddings of node 𝑣𝑡 and 𝑣𝑙 , respectively. 𝑠𝑖𝑚 is flexible to be various similarity metrics such as cosine similarity [46] and distance-based similarity [27].
+
+4.1.2 Local Structure Similarity. Generally, the content information, i.e., the n-hop graph structure, is very important for node classification. If two nodes 𝑣𝑖 and 𝑣 𝑗 have similar 𝑛-hop subgraphs,
+
+Figure 2: An overview of the proposed SE-GNN.
+
+their labels are likely to be similar. Thus, in addition to the node level similarity, we also measure the local structure similarity, which can (i) explicitly consider the local structure information to facilitate the identification of 𝐾-nearest labeled nodes and (ii) provide explanations about the similarity in a structure level. Specifically, we propose to measure how well the edges between the local graphs of two nodes match to evaluate the similarity in structure level. The edge matching results can explain the similarity of two nodes in the aspect of local structure. To match edges for local structure similarity, we need to first learn representations of edges. Since an edge is determined by the two nodes linked by it, for an edge 𝑒 = (𝑣𝑖, 𝑣 𝑗 ) which links node 𝑣𝑖 and 𝑣 𝑗 , we get the edge representation e𝑖 𝑗 as:
+
+e𝑖 𝑗 = 𝑓𝑒 (h𝑖, h𝑗 ),
+
+(3)
+
+where h𝑖 and h𝑗 are embeddings of node 𝑣𝑖 and 𝑣 𝑗 , respectively. 𝑓𝑒 is the function of aggregating the node information to get the edge embedding, which is flexible to various functions such as av-
+
+erage pooling and LSTM. In our implementation, we apply average
+
+pooling function as 𝑓𝑒 . With Eq.(3), we can get two sets of edge rep-
+
+resentations R𝑡
+
+=
+
+{e𝑡1, ..., e𝑡𝑀 } and R𝑙
+
+=
+
+{e1,
+𝑙
+
+...,
+
+e𝑁
+𝑙
+
+}
+
+for
+
+E𝑠(𝑛)
+
+(𝑣𝑡
+
+)
+
+and E𝑠(𝑛) (𝑣𝑙 ), where E𝑠(𝑛) (𝑣𝑡 ) and E𝑠(𝑛) (𝑣𝑙 ) are the edges in the
+
+local graphs
+
+of 𝑣𝑡
+
+and 𝑣𝑙 , respectively.
+
+For an
+
+edge 𝑒𝑖
+𝑡
+
+∈
+
+E𝑠(𝑛) (𝑣𝑡 ),
+
+we
+
+will
+
+find
+
+the
+
+edge
+
+in
+
+E𝑠(𝑛) (𝑣𝑙 )
+
+that
+
+matches 𝑒𝑖
+𝑡
+
+best.
+
+The
+
+process
+
+of identifying the paired edge for 𝑒𝑖 can be formally written as:
+𝑡
+
+𝑖
+𝑒𝑝
+
+=
+
+arg max
+
+𝑠𝑖𝑚
+
+(e𝑖𝑡
+
+,
+
+e𝑗
+𝑙
+
+),
+
+(4)
+
+𝑗
+𝑒
+𝑙
+
+∈
+
+E𝑠(𝑛
+
+)
+
+(
+
+𝑣𝑙
+
+)
+
+where
+
+𝑖
+𝑒𝑝
+
+is
+
+the
+
+found
+
+edge
+
+in
+
+local
+
+graph
+
+of 𝑣𝑙
+
+that
+
+matches
+
+edge
+
+𝑖
+𝑒
+
+.
+
+The
+
+whole
+
+edge
+
+matching
+
+results,
+
+which
+
+can
+
+explain
+
+the
+
+local
+
+𝑡
+
+structure similarity, can be obtained by:
+
+P (𝑛)
+
+(𝑣𝑡 ,
+
+𝑣𝑙 )
+
+=
+
+{ (𝑒𝑡𝑖
+
+,
+
+𝑖
+𝑒𝑝
+
+)
+
+}𝑖𝑀=1
+
+.
+
+(5)
+
+Then, the local structure similarity between 𝑣𝑡 and 𝑣𝑙 can be obtained by averaging the similarity scores of all the paired edges:
+
+𝑒
+𝑠
+
+(𝑣𝑡
+
+,
+
+𝑣𝑙
+
+)
+
+=
+
+1 𝑀
+
+∑︁𝑀 𝑠𝑖𝑚
+𝑖 =1
+
+(e𝑖𝑡
+
+,
+
+e𝑖𝑝
+
+),
+
+(6)
+
+where e𝑖𝑝 is the representation of edge 𝑒𝑝𝑖 .
+
+4.1.3 Overall Similarity. With the node similarity and local struc-
+
+ture similarity between node 𝑣𝑡 and 𝑣𝑙 , the overall similarity is:
+
+𝑠 (𝑣𝑡, 𝑣𝑙
+
+)
+
+=
+
+𝑛
+𝜆𝑠
+
+(𝑣𝑡, 𝑣𝑙 )
+
++
+
+(1
+
+−
+
+𝜆)𝑠𝑒
+
+(𝑣𝑡 ,
+
+𝑣𝑙 ),
+
+(7)
+
+where 𝜆 is a positive scalar to balance the contributions of node similarity and structure similarity.
+
+4.2 Self-Explainable Classification
+
+With the similarity metric described in Section 4.1, we are able to identify the interpretable 𝐾-nearest labeled nodes to predict and explain the label of the target node. Next, we introduce the details of the prediction process, discussions about the explanations, and the loss function that ensures classification accuracy.
+
+4.2.1
+
+Prediction with K-nearest Labeled Nodes.
+
+Let K𝑡
+
+=
+
+{𝑣1, ..., 𝑣𝐾 }
+𝑡𝑡
+
+be the set of 𝐾-nearest labeled nodes of the target node 𝑣𝑡 based
+
+on
+
+Eq.(7).
+
+Intuitively,
+
+the
+
+more
+
+similar
+
+𝑣𝑡
+
+and
+
+𝑣𝑖
+𝑡
+
+are,
+
+i.e.,
+
+the
+
+larger
+
+𝑠
+
+(𝑣𝑡
+
+,
+
+𝑣𝑖
+𝑡
+
+)
+
+is,
+
+the
+
+more
+
+likely
+
+𝑣𝑡
+
+has
+
+the
+
+same
+
+label
+
+as
+
+𝑣𝑖 .
+𝑡
+
+Thus,
+
+follow-
+
+ing deep KNN [27, 29], we predict the label of node 𝑣𝑡 as weighted
+
+average of the labels of the 𝐾-nearest neighbors. Specifically, the
+
+weight
+
+𝑎𝑡𝑖
+
+of
+
+the
+
+𝑖-th
+
+nearest
+
+labeled
+
+node,
+
+i.e.,
+
+𝑣𝑖 ,
+𝑡
+
+is
+
+calculated
+
+as
+
+𝑎𝑡𝑖 =
+
+exp(𝑠
+
+(𝑣𝑡
+
+,
+
+𝑣𝑖
+𝑡
+
+)
+
+/𝜏
+
+)
+
+,
+
+(8)
+
+𝐾 𝑖 =1
+
+exp(𝑠
+
+(𝑣𝑡
+
+,
+
+𝑣𝑖
+𝑡
+
+)/𝜏
+
+)
+
+where 𝜏 is the temperature parameter. With the weight 𝑎𝑡𝑖 , the label of 𝑣𝑡 is predicted as
+
+∑︁𝐾
+
+yˆ𝑡 = 𝑖=1𝑎𝑡𝑖 · y𝑖𝑡 ,
+
+(9)
+
+where
+
+y𝑖𝑡
+
+is
+
+the
+
+one-hot
+
+label
+
+vector
+
+of 𝑣𝑖 .
+𝑡
+
+4.2.2 Explanation. For a target node 𝑣𝑡 , the found 𝐾-nearest la-
+
+beled nodes K𝑡
+
+=
+
+{𝑣1, ..., 𝑣𝐾 } and the corresponding similarity
+𝑡𝑡
+
+scores
+
+{𝑠
+
+(𝑣𝑡
+
+,
+
+𝑣𝑖
+𝑡
+
+) }𝑖𝐾=1
+
+can
+
+clearly
+
+explain
+
+the
+
+predictive
+
+label.
+
+For
+
+the
+
+overall
+
+similarity
+
+𝑠
+
+(𝑣𝑡
+
+,
+
+𝑣𝑖
+𝑡
+
+),
+
+the
+
+contributions
+
+of
+
+node
+
+and
+
+structure
+
+similarity
+
+can
+
+be
+
+given
+
+through
+
+𝑠𝑛
+
+(𝑣𝑡
+
+,
+
+𝑣𝑖
+𝑡
+
+)
+
+and
+
+𝑠𝑒
+
+(𝑣𝑡 ,
+
+𝑣𝑖
+𝑡
+
+).
+
+Moreover,
+
+we
+
+can
+
+track
+
+back
+
+the
+
+identified
+
+edge
+
+pairs
+
+P (𝑛)
+
+(𝑣𝑡 ,
+
+𝑖
+𝑣
+𝑡
+
+)
+
+between
+
+local
+
+graph
+
+of
+
+𝑣𝑡
+
+and
+
+its 𝑖-th
+
+nearest
+
+labeled
+
+node
+
+𝑣𝑖
+𝑡
+
+to
+
+explain
+
+the local structure similarity. Though our SE-GNN focuses on ex-
+
+plaining the predictions with 𝐾-nearest labeled nodes, it also can
+
+extract the crucial subgraph for explanation. For a crucial edge, the
+
+local graphs of 𝐾-nearest neighbors should also contain similar one.
+
+Thus,
+
+the
+
+importance
+
+of
+
+an
+
+edge
+
+𝑒𝑖
+𝑡
+
+∈
+
+E𝑠(𝑛) (𝑣𝑡 )
+
+can
+
+be
+
+evaluated
+
+by
+
+its average similarity with the identified pair edges {𝑒𝑝𝑖 𝑗 }𝐾𝑗=1 in the
+
+local graphs of the 𝐾-nearest labeled nodes as
+
+𝑝 (𝑒𝑡𝑖 )
+
+=
+
+1 𝐾
+
+∑︁𝐾 𝑠𝑖𝑚
+𝑗 =1
+
+(e𝑖𝑡
+
+,
+
+e𝑖𝑝𝑗
+
+),
+
+(10)
+
+where
+
+e𝑖𝑡
+
+and
+
+e𝑖𝑝𝑗
+
+are
+
+edge
+
+representations
+
+of
+
+𝑒𝑖
+𝑡
+
+𝑖𝑗
+and 𝑒 ,
+𝑝
+
+respectively.
+
+Then, a threshold can be set to filter out the unimportant edges in
+
+the local graph of node 𝑣𝑡 .
+
+4.2.3 Classification Loss. SE-GNN is expected to give accurate pre-
+
+dictions. Therefore, we utilize the supervision from the given labels
+
+to ensure the accuracy of the self-explainable GNN. One straight-
+
+forward way is to optimize the predictions of nodes with labels
+
+in a leave-one-out manner. More specifically, for a labeled node 𝑣𝑖 ∈ V𝐿, we identify 𝐾-nearest labeled nodes from other labeled nodes V𝐿 − {𝑣𝑖 }. Then loss such as cross entropy loss can be applied to optimize the model. However, in this way, the optimization only
+
+involves the searched 𝐾-nearest neighbors which are generally
+
+similar nodes. Lacking of various negative samples may negatively
+
+affect similarity modeling. In addition, the computational cost to
+
+identify 𝐾-nearest neighbors will be large when numerous labeled
+
+nodes are given. To address these issues, we propose a loss function
+
+that adopts negative sampling [23] and approximately select 𝐾-
+
+nearest labeled nodes as positive samples. Specifically, for a target node 𝑣𝑡 ∈ V𝐿, we randomly sample 𝑄 labeled nodes V𝑛𝑡 which do not share the same label with 𝑣𝑡 as negative samples. And we
+
+randomly sample 𝑁 (𝑁 > 𝐾) labeled nodes sharing the same la-
+
+bel with 𝑣𝑡 as support set to obtain approximate 𝐾-nearest labeled nodes K˜𝑡 . The objective function can be formally written as:
+
+1 ∑︁
+
+min L𝑐
+𝜃
+
+=
+
+|V𝐿 |
+
+− log
+𝑣𝑡 ∈V𝐿
+
+𝑣˜𝑖
+𝑡
+
+∈
+
+K˜𝑡
+
+exp
+
+(𝑠
+
+(𝑣𝑡
+
+,
+
+𝑣˜𝑖
+𝑡
+
+)/𝜏
+
+)
+
+, (11)
+
+𝑣𝑛𝑖 ∈K˜𝑡 ∪V𝑛𝑡 exp(𝑠 (𝑣𝑡 , 𝑣𝑛𝑖 )/𝜏 )
+
+where 𝜃 denotes the parameters of SE-GNN, and 𝜏 is the temperature hyperparameter. With loss function Eq.(11), the similarity
+
+scores of node pairs with different labels will be minimized, and
+
+the similarity scores between a node and its approximate k-nearest
+
+neighbor with the same labels will be maximized. As a result, ac-
+
+curate predictions can be given. Moreover, it provides supervision
+to guide the similarity modeling. Note that this sampling strategy to obtain approximate 𝐾-nearest labeled nodes is only applied during the training phase. For testing phase, 𝐾-nearest labeled nodes are identified from the whole labeled node set V𝐿 and the label is
+predicted with Eq.(9).
+
+4.3 Enhance Explanation with Self-Supervision
+Although the labels can provide the supervision to facilitate the similarity modeling with objective function in Eq.(11), they do not explicitly supervise the node similarity and local structure similarity. In addition, the edge matching results and identification of nearest labeled nodes may not generalize well to unlabeled nodes, because unlabeled nodes are not involved in Eq.(11). To further benefit the explanation generation and similarity metric learning, we adopt a contrastive pretext task to provide self-supervision for node similarity and local structural similarity learning.
+Recently, contrastive learning has shown to be effective for unsupervised representation learning on graphs [28, 40, 46]. Essentially,
+
+contrastive learning aims to maximize representation consistency under differently augmented views. In other words, with contrastive learning, similar nodes/graphs will be given similar representations. Therefore, we adopt contrastive learning on node representations to facilitate the node similarity modeling. Moreover, the explanation for local structure similarity relies on accurate edge machining. To guide the edge matching on unlabeled nodes, a contrastive task on edge representations is deployed as well. In detail, we maximize the the agreement between two augmented views of the graphs via a contrastive loss in node and edge representations. Following GraphCL [46], two augmentations, i.e., attribute masking and edge perturbation, are applied to obtain representations from different views. We apply infoNCE loss [25] as the contrastive loss. The infoNCE loss transfers the mutual information maximization to a classification task which requires positive pairs and negative pairs. Representations of the same node/edge from these two views will compose positive pairs for contrastive learning. And representations of different nodes in both views compose negative pairs. The contrastive learning is trained in a minibatch manner. For a query representation h𝑖 , a dictionary {h˜ 0, ..., h˜𝑄𝑁 } which contains one positive sample h˜ + will be built. The objective function of contrastive learning on node representations can be formulated as:
+
+1 ∑︁
+
+min L𝑛
+𝜃
+
+=
+
+|V𝐵 |
+
+− log
+𝑣𝑖 ∈V𝐵
+
+exp(𝑠𝑖𝑚(h𝑖, h˜ +)/𝜏)
+
+.
+
+𝑄𝑁 𝑗 =0
+
+exp
+
+(𝑠𝑖𝑚
+
+(h𝑖
+
+,
+
+h˜
+
+𝑗
+
+)/𝜏
+
+)
+
+(12)
+
+Similarly, contrastive learning is adopted on the edge representations to benefit the edge matching explanations. Let E𝐵 denotes a minibatch of edges. The objective function can be written as:
+
+1 ∑︁
+
+min L𝑒
+𝜃
+
+=
+
+|E𝐵 |
+
+− log
+𝑒𝑖 ∈ E𝐵
+
+exp(𝑠𝑖𝑚(e𝑖, e˜+)/𝜏)
+
+,
+
+𝑄𝐸 𝑗 =0
+
+exp(𝑠𝑖𝑚
+
+(
+
+e𝑖
+
+,
+
+e˜
+
+𝑗
+
+)/𝜏
+
+)
+
+(13)
+
+where e𝑖 denotes a query edge representation, and e˜+ is the positive sample from dictionary {e˜0, ..., e˜𝑄𝐸 }. With the self-supervision, the
+representations of similar edges and nodes will be similar, which
+
+can facilitate the similarity modeling for explanations. Moreover,
+
+since edge perturbation is used to augment the graph in contrastive
+
+learning, the representations from the perturbed graph will be
+
+enforced to be consistent with the representations from the clean
+
+graph. This will lead to robustness against structure noise.
+
+4.4 Overall Objective Function
+
+With the supervision from the labels for accurate prediction, and the contrastive learning on node and edge representations to facilitate the modeling of similarity, the final loss function of SE-GNN is:
+
+min L𝑐 + 𝛼 L𝑛 + 𝛽L𝑒,
+
+(14)
+
+𝜃
+
+where 𝜃 represents the parameters of SE-GNN. 𝛼 and 𝛽 are hyperparameters that control the contributions of self-supervision on node similarity modeling and edge matching in local similarity evaluation, respectively.
+
+4.5 Training Algorithm and Time Complexity
+4.5.1 Training Algorithm. The training algorithm of SE-GNN is given in Algorithm 1. In line 1, the parameters of SE-GNN are randomly initialized with Xavier initialization [11]. In line 3, the
+
+Algorithm 1: Training Algorithm of SE-GNN. Input: G = (V, E, X) , Y, 𝐾, 𝛼, 𝛽, 𝜆, 𝜏. Output: Self-explainable GNN 𝑓G. 1: Randomly initialize the parameters of 𝑓G. 2: repeat 3: Obtain the classification loss by Eq.(11) 4: Augment the G with attribute masking and edge perturbation to receive graphs in different views 5: Sample a node batch V𝐵 with positive and negative pairs 6: Calculate contrastive loss on nodes by Eq.(12) 7: Sample an edge batch E𝐵 with positive and negative pairs 8: Get contrastive loss on edges by Eq.(13) 9: Optimize the parameter of 𝑓G by Eq.(14) 10: until convergence 11: return 𝑓G
+supervised loss from the labeled nodes is calculated. Graph augmentation is conducted in line 4, which gives graphs in different views for contrastive learning. From line 5 to line 9, contrastive losses for nodes and edges are computed. For the size of negative samples in Eq.(11), it is fixed as 20. The sizes of negative samples in Eq.(12) and Eq.(13) are both set as 100 during the training phase.
+4.5.2 Time Complexity. During the test phase, the main time complexity comes from the similarity scores calculation between the test node 𝑣𝑡 and all the labeled nodes V𝐿. For each node 𝑣𝑙 ∈ V𝐿, the cost for calculating the edge matching with 𝑣𝑡 is O (𝑑 · |E𝑡 | · |E𝑙 |), where 𝑑 is the embedding dimension. Thus, the time complexity for one test node is approximately O (𝑑 · |E𝑡 | · 𝑣𝑙 ∈V𝐿 |E𝑙 |). As for the training phase, we adopt a sampling strategy in Eq.(11) to reduce the pairs of similarity to be computed. For each node 𝑣𝑡 ∈ V𝐿, let S𝑡 = K𝑡 ∪ V𝑛𝑡 denotes the sampled positive and negative nodes in Eq.(11), the cost of calculating classification loss for 𝑣𝑡 is O (𝑑 · |E𝑡 | · 𝑣𝑙 ∈S𝑡 ·|E𝑙 |). Thus, the cost for classification loss of all labeled nodes is O ( 𝑣𝑡 ∈V𝑡 𝑣𝑙 ∈S𝑡 𝑑 · |E𝑡 | · |E𝑙 |).With the computation cost on contrastive learning, the overall time complexity for an iteration in the training phase is O (𝑑 · (𝑄𝑛 |V𝐵 | + 𝑄𝑒 |E𝐵 | +
+𝑣𝑡 ∈V𝑡 𝑣𝑙 ∈S𝑡 |E𝑡 | · |E𝑙 |)).
+5 EXPERIMENTS
+In this section, we conduct extensive experiments on real-world and synthetic datasets to demonstrate the effectiveness of SE-GNN. In particular, we aim to answer the following research questions:
+• RQ1 Can our proposed method simultaneously provide accurate predictions and corresponding reasonable explanations?
+• RQ2 Is SE-GNN robust to the structure noises in the datasets? • RQ3 How does each component of our proposed SE-GNN con-
+tribute to the classification performance and explainability?
+5.1 Datasets
+To quantitatively and qualitatively evaluate SE-GNN in predictions and explanations, we conduct extensive experiments on three realworld datasets and two synthetic datasets. The statistics of the datasets are presented in Table 1.
+
+Table 1: Statistics of datasets.
+
+Nodes Edges Features Classes
+
+Cora
+
+2,708 5,429 1,433
+
+7
+
+Citeseer
+
+2,110 3,668 3,703
+
+6
+
+Pubmed
+
+19,171 44,338 500
+
+3
+
+Syn-Cora
+
+1,677 4,610 1,433
+
+7
+
+BA-Shapes
+
+700
+
+4,421
+
+-
+
+4
+
+5.1.1 Real-World Datasets. To demonstrate the effectiveness of our proposed methods, for real-world datasets, we choose three widely used benchmark networks, i.e., Cora, Citeseer, and Pubmed [33]. For Cora and Pubmed, the standard dataset splits as in the cited paper are applied. As for Citeseer, it contains isolated nodes which are not applicable to our method. Therefore, following the pre-processing strategy in [16], we select the largest connected component in the Citeseer graph and apply the same dataset splits.
+5.1.2 Synthetic Datasets. We construct two synthetic datasets, i.e., Syn-Cora and BA-Shapes, which provide ground truth of explanations for quantitative analysis. The details are described below. Syn-Cora: This dataset is synthesized from the Cora graph which provides ground-truth of explanations, i.e., 𝐾-nearest labeled nodes and edge machining results. To construct the graph, motifs are obtained by sampling local graphs of nodes from Cora. Various levels of noises are applied to the motifs in attributes and structures to generate similar local graphs. For a motif and it’s corresponding perturbed versions provide the groundtruth 𝐾-nearest neighbors and the corresponding edge-matching. Specifically, we sample three motifs for each class, resulting in 21 unique motifs in total. To link the synthetic local graphs together, a subgraph of Cora that have no overlap with the motifs is sampled as the basis graph. These synthetic local graphs are attached to the basis graph by randomly linking three nodes. To simulate a realistic training scenario, we randomly select 30% nodes from the motifs and basis graph as the training set. Testing is conducted on the remaining nodes in the motifs for explanation accuracy evaluation. BA-Shapes: To compare with the state-of-the-art GNN explainers [22, 45] which identify crucial subgraphs for predictions, we construct BA-Shapes following the setting in GNNExplainer [45]. BA-Shapes is a single graph consisting of a base Barabasi-Albert (BA) graph with 300 nodes and 80 “house”-structured motifs. These motifs are attached to the BA graph. And random edges are added to perturb the graph. Node features are not assigned in BA-Shapes. Nodes in the base graph are labeled with 0. Nodes locating at the top/middle/bottom of the “house” are labeled with 1,2,3, respectively. Dataset split is the same as that in [45].
+
+5.2 Experimental Settings
+5.2.1 Baselines. To evaluate the performance and robustness of SEGNN in node classification on real-world datasets, we first compare with the following representative and state-of-the-art GNNs, selfsupervised GNN, and robust GNN.
+• GCN [18]: GCN is a popular spectral-based GNN which defines graph convolution with spectral theory.
+• GIN [44]: Compared with GCN, multi-layer perception is used in GIN to process the aggregated information from the neighbors in each layer to learn more powerful representations.
+
+Dataset
+Cora Citeseer Pubmed
+
+Table 2: Node classification accuracy (%) on real-world datasets.
+
+GCN
+
+GIN
+
+SuperGAT Pro-GNN MLP-K
+
+GCN-K
+
+GIN-K
+
+80.8±1.1 71.9±1.0 78.4±0.4
+
+80.5±0.8 72.5±0.8 78.9±0.2
+
+82.4±0.7 73.6±0.2 79.2±0.4
+
+79.1±0.1 73.3±0.7 79.4 ±0.4
+
+53.9±1.8 61.6±1.6 73.2±0.2
+
+78.8±1.2 71.4±0.8 77.4±0.2
+
+78.8±0.3 69.2±1.2 78.8±0.3
+
+Ours
+80.4±0.3 73.8±0.6 80.0±0.2
+
+• SuperGAT [17]: This is a self-supervised graph neural network. Edge prediction is deployed as the pretext task to directly guide the learning of attention to facilitate the information aggregation.
+• Pro-GNN [16]: This is state-of-the-art GNN against noisy edges in graphs. It applies low-rank and sparsity constraint to directly learn a clean graph close to the noisy graph to defend against adversarial attacks.
+
+Existing work that identifies the 𝐾-nearest labeled nodes is rather limited. Therefore, we compare with the following baselines based on the deep KNN [26] on i.i.d data to evaluate our explanations.
+• MLP-K: Following [26], we first train a MLP with the node features and labels. After training, the node representations from the final layer of MLP is used to find the 𝐾-nearest labeled nodes. The final prediction of an unlabeled node is obtained using weighted average of the its 𝐾-nearest labeled nodes.
+• GCN-K: Similar to MLP-K, we use the representations from the final layer of GCN to get 𝐾-nearest neighbors and predictions. Post-hoc explanations in structure similarity can be obtained by edge matching through the edge representations. Edge representations are average representations of the linked nodes .
+• GIN-K: It replaces the backbone in GCN-K with GIN to obtain the predictions and explanations.
+Finally, we compare with the state-of-the-art GNN explainers in extracting important subgraphs to explain predictions:
+• GNNExplainer [45]: GNNExplainer takes a trained GNN and the predictions as input to obtain post-hoc explanations. It learns a soft edge mask for each instance to identify the crucial subgraph.
+• PGExplainer [22]: It adopts a MLP-based explainer to obtain the important subgraphs from a global view to reduce the computation cost and obtain better explanations.
+5.2.2 Implementation Details. The local structure similarity is based on 2-hop local graphs of nodes in all the experiments. For SE-GNN, the encoder consists of two MLP layers and one GCN layer with residual connection. The hidden dimension is set as 64 in these MLP and GCN layers. The rate of attribute masking in the contrastive learning is set as 0.2. We replace 10% edges in the graph to noisy edges for edge perturbation. For experiments on real-world datasets, all hyperparameters are tuned based on the prediction results on the validation set. We vary 𝛼 and 𝛽 among {0.0001, 0.001, 0.01, 0.1, 1}. The 𝜆 which balance the node similarity and structure similarity is set as 0.5 for all datasets. The number of nearest labeled nodes used for prediction, i.e., 𝐾, is set as searched as {25, 40, 50} for all the datasets. The temperature hyperparameter 𝜏 is fixed as 1 in all experiments. For the hyperparameters on the Syn-Cora and BAShapes, we reuse the setting on the Cora graph. The BA-shapes dataset does not provide features, we initialize the node features with node degree and number of involved triangles. The hyparameters for the baselines are also tuned on the validation set. All the
+
+(a) Cora
+
+(b) Citeseer
+
+(c) Pubmed
+
+(d) Syn-Cora
+
+Figure 3: The precision@k of the 𝐾-nearest labeled nodes.
+
+experiments are conducted 5 times and the average results with standard deviations are reported.
+
+5.3 Classification and Explanation Quality
+To answer RQ1, we compare SE-GNN with baselines on real-world datasets and synthetic datasets in terms of classification performance and explanation quality.
+5.3.1 Results on Real-World Datasets. To demonstrate that our SEGNN can give accurate predictions, we compare with the state-ofthe-art GNNs on real-world datasets. Each experiment is conducted 5 times. The average node classification accuracy and standard deviations are reported in Table 2. From the table, we observe: • Our method outperforms GCN and GIN on various real-world
+datasets especially on the large dataset. This is because information from numerous unlabeled nodes is leveraged in SE-GNN through the similarity modeling with contrastive learning. • SE-GNN achieves comparable performance with self-supervised method SuperGAT. Note that encoder in SE-GNN only involves 1-hop neighbors to learn representations. This indicates that the designed local structure similarity manages to capture the complex structure information for node classification. • Though GCN-K and GIN-K also utilize GNN to learn representation and 𝐾-nearest neighbors for prediction, SE-GNN performs much better than them, which shows the effectiveness of SEGNN in utilizing the label information and contrastive learning for learning better representations and similarity metrics. Intuitively, for each test node 𝑣𝑡 ∈ V𝑈 , SE-GNN should assign higher similarity score to labeled nodes of the same class as 𝑣𝑡 . To analyze this, for each 𝑣𝑡 , we first rank the labeled nodes based on similarity scores. Then We treat the label of 𝑣𝑡 as the groundtruth
+
+Table 3: Average ratings of human evaluation.
+
+Dataset MLP-K GCN-K GIN-K
+
+Ours
+
+Cora Citeseer Pubmed
+
+0.030 0.030 0.089
+
+0.405 0.311 0.348
+
+0.207 0.326 0.252
+
+0.763 0.733 0.674
+
+Table 4: Results on Syn-Cora.
+
+Metric (%)
+
+MLP-K GCN-K GIN-K Ours
+
+Accuracy Edge ACC
+
+93.8±2.3 94.8±0.7 94.6±0.7 97.7±1.6
+
+-
+
+25.1±0.4 18.2±1.8 81.1±1.1
+
+Table 5: Structure explanation AUC on BA-Shapes.
+
+GNNExplainer PGExplainer
+
+Ours
+
+95.6±3.7
+
+98.7±2.1
+
+98.1±0.5
+
+and calculate the precision@k for the ranked list. We average the results for all 𝑣𝑡 ∈ V𝑈 . Generally, if a method assigns higher similarity scores to labeled nodes of the same class as 𝑣𝑡 , it would have large precision@k. We vary 𝑘 as {1, 2, . . . , 8}. The hyperparameters are set as described in Section 5.2.2. The results on the three realworld datasets are presented in Figure 3a, 3b and 3c, respectively. We can observe that SE-GNN consistently outperforms other baselines by a large margin, which indicates that SE-GNN can retrieve reliable 𝐾-nearest labeled nodes for prediction and explanation.
+We also conduct qualitative evaluation on explanations on realworld datasets. The explanations of an instance from Citeseer are presented in Figure 4. Specifically, the local graphs of nearest labeled nodes identified by different methods are presented. And we apply t-SNE to node features to obtain the positions of nodes in the visualized graph for node similarity comparison. The shapes of the graphs can help to assess the similarity of local structures. From the Figure 4, we can observe that SE-GNN can correctly identify the labeled node whose features and local topology are both similar with the target node. And the given edge matching results well explain the local structure similarity. On the other hand, baselines fail to identify the similar labeled nodes and provide poor explanations in structure similarity.
+To further testify the quality of our explanations, 30 annotators are asked to rate the model’s explanations on three real-world datasets. The explanations are presented in the same way as Fig. 4. Each annotator rates explanations at least 15 instances from the three real-world datasets. The rating score is either 0 (similar) or 1 (disimialr). The average ratings are presented in Table3. From the table, we can find that the nearest neighbors identified by our method receive the highest ratings, which shows that our explanations are in line with the human’s decisions. It verifies the quality of our explanations on real-world datasets.
+5.3.2 Results on Syn-Cora. We compare with baselines on SynCora which provides the ground-truth explanations to quantitatively evaluate the two-level explanations, i.e., 𝐾-nearest labeled nodes and the edge matching results for similarity explanation. The prediction performance is evaluated by accuracy. Precision@k is used to show the quality of 𝐾-nearest labeled nodes. The accuracy of matching edges (Edge ACC) is used to demonstrate the quality of local structure similarity explanation. The results are presented in Table 4 and Figure 3d. Note that edge matching is not applicable
+
+1 2
+
+Test Node
+
+3
+
+4
+
+2
+
+14
+
+3
+
+Labeled Node
+
+Local Graph of test node
+
+Explanation from SE-GNN
+
+2, 3, 4 1
+
+2
+
+3, 4
+
+1
+
+Labeled Node
+
+Labeled Node
+
+Explanation from GCN-K
+
+Explanation from GIN-K
+
+Figure 4: Illustration of the explanation from SE-GNN and other baselines. Node colors denote the label of nodes. Edges
+
+with the same number denote that they are matched.
+
+for MLP-K, because it cannot capture structure information. From the table and figure, we observe: • Though GCN-K and GIN-K achieve good performance in classifi-
+cation, they fail to identify the true similar nodes and explain the struck similarity. This is due to the over-smoothing issue in deep GNNs, which leads representations poorly persevere similarity information. By contrast, SE-GNN achieves good performance in all explanation metrics, which shows node similarity and local structure similarity are well modeled in SE-GNN. • Compared with MLP-K which does not experience over-smoothing issue, SE-GNN can give more accurate explanations. This is because we apply the supervision from labels and self-supervision to guide the learning of two-level explanations.
+5.3.3 Results on BA-Shapes. As it is discussed in Section 4.2.2, our SE-GNN can be extended to extract a crucial subgraph of the test node’s local graph to explain the prediction. To demonstrate the effectiveness of extracting crucial structures as explanations, we compare SE-GNN with state-of-the-art GNN explainers on a commonly used synthetic dataset BA-Shapes. Following [45], crucial structure explanation AUC is used to assess the performance in explanation. The average results of 5 runs are reported in Table 5. From this table, we can observe that, though SE-GNN is not developed for extracting crucial subgraph for providing explanations, our SE-GNN achieves comparable explanation performance with stateof-the-art methods. This implies that accurate crucial structure can be derived from the SE-GNN’s explanations in local structure similarity, which further demonstrates that our SE-GNN could give high-quality explanations.
+
+5.4 Robustness
+Structure noises widely exist in the real world and can significantly degrade the performance of GNNs [53, 54]. SE-GNN adopts graph topology in representations learning and local similarity evaluation, which could be affected by noisy edges. Therefore, we conduct experiments on noisy graphs to evaluate the robustness of SE-GNN to answer RQ2. Experiments are conducted on two types of noisy graphs, i.e., graphs with random noise and non-targeted attack perturbed graphs. For non-targeted attack, we apply metattack [53], which poisons the structure of the graphs via meta-learning. The perturbation rate of non-targeted attack and random noise is varied
+
+(a) Metattack
+
+(b) Random Noise
+
+Figure 5: Robustness under different Ptb rates on Citeseer.
+
+(a) Pubmed
+
+(b) Syn-Cora
+
+Figure 6: Comparisons with SE-GNN and its variants.
+
+as {0%, 5%, . . . , 25%}. The results on Citeseer are shown in Figure 5. From this figure, we observe that SE-GNN outperforms GCN by a large margin when the perturbation rates are higher. For example, SE-GNN achieves over 10% improvements when the perturbation rate of metattack is 25%. And SE-GNN even performs better than Pro-GNN which is one of the state-of-the-art robust GNNs against structure noise. This is because:(i) The contrastive learning in SEGNN encourages the representations consistency between the clean graph and randomly perturbed graph. Thus, the learned encoder will not be largely affected by structure noises; (ii) Noisy edges link the nodes that are rarely linked together. Thus, the noise edges generally receive low similarity scores and would not be selected to compute local structure similarity.
+
+5.5 Ablation Study
+To answer RQ3, we conduct ablation study to explore the effects of local structure similarity modeling and self-supervision for explanations. SE-GNN utilizes 2-hop local graphs to obtain local structure similarity. To investigate how the similarity modeling will be influenced by the hop of local graphs, we train a variant SE-GNN1ℎ𝑜𝑝 which calculates local structure similarity based on 1-hop local graph. To demonstrate the effectiveness of self-supervision on node similarity, we set 𝛼 in objective function Eq.(14) as 0 to obtain SEGNN\N. Similarly, we remove the self-supervision on local structure similarity and obtain a variant named as SE-GNN\E. We also train a variant SE-GNN\S which does not incorporate any selfsupervision as the reference. Results on Pubmed and Syn-Cora are presented in Figure 6. Since the edge matching in SE-GNN1ℎ𝑜𝑝 only considers 1-hop local graph, Edge ACC on 2-hop local graph is not applicable to SE-GNN1ℎ𝑜𝑝 . From the Figure 6, we can observe that: (i) The performance of SE-GNN1ℎ𝑜𝑝 is significantly lower than SE-GNN in both prediction and explanation. This indicates the importance of incorporating more rich structure information for similarity modeling; and (ii) SE-GNN outperforms SE-GNN\E and SE-GNN\N by a large margin, which implies that the selfsupervision on node similarity and local structure similarity is helpful for identifying interpretable 𝐾-nearest labeled nodes.
+
+(a) Accuracy (%)
+
+(b) Precision@5 (%)
+
+Figure 7: Parameter sensitive analysis on Pubmed.
+
+5.6 Parameter Sensitivity Analysis
+In this subsection, we investigate how the hyperparameter 𝛼 and 𝛽 affect the performance of SE-GNN, where 𝛼 and 𝛽 control the contribution of self-supervision in node similarity modeling and local structure similarity modeling, respectively. We vary 𝛼 and 𝛽 as {0.0001, 0.001, 0.01, 0.11}. We report the classification accuracy and precision@5 of 𝐾-nearest labeled nodes on Pubmed to show the effects of 𝛼 and 𝛽 on predictions and explanations, respectively. The results are shown in Fig. 7. We find that: (i) with the increase of 𝛼, the performance in prediction and explanation will first increase and then decrease. When 𝛼 is too small, little self-supervision is received for node similarity modeling. Low-quality 𝐾-nearest labeled nodes are obtained, which results in poor performance in classification and explanation. When 𝛼 is too large, the overall loss function will be dominated by node similarity modeling, which can also lead to a poor overall similarity metric. When 𝛼 is between 0.001 to 0.01, the performance of SE-GNN in prediction and explanation is generally good. (ii) Similarly, with the increasing of 𝛽, the performance of SEGNN tends to first increase then decrease. For 𝛽, a value between 0.001 to 0.01 generally gives good performance.
+
+6 CONCLUSION AND FUTURE WORK
+In this paper, we study a novel problem of self-explainable GNNs by exploring 𝐾-nearest labeled nodes. We propose a new framework, which designs intepretable similarity module for finding 𝐾-nearest labeled nodes and simultaneously utilizes these nodes for label prediction and explanations. SE-GNN also adopts the contrastive learning to benefit the similarity module. Extensive experiments on real-world and synthetic datasets demonstrate the effectiveness of the proposed SE-GNN for explainable node classification. Ablation study and parameter sensitive analysis are also conducted to understand the contribution of the modules and sensitivity to the hyperparameters. There are several interesting directions which need further investigation. For example, one direction is to extend SE-GNN for explainable link prediction. Another direction is to investigate other pre-text tasks such as using structural identity [30] as a self-supervision to help the similarity module.
+
+7 ACKNOWLEDGEMENTS
+This material is based upon work supported by, or in part by, the National Science Foundation (NSF) under grant #IIS1955851, and Army Research Office (ARO) under grant #W911NF-21-1-0198. The findings and conclusions in this paper do not necessarily reflect the view of the funding agency.
+
+REFERENCES
+[1] David Alvarez-Melis and Tommi S Jaakkola. 2018. Towards robust interpretability with self-explaining neural networks. arXiv preprint arXiv:1806.07538 (2018).
+[2] Pietro Bongini, Monica Bianchini, and Franco Scarselli. 2021. Molecular generative Graph Neural Networks for Drug Discovery. Neurocomputing 450 (2021), 242–252.
+[3] Joan Bruna, Wojciech Zaremba, Arthur Szlam, and Yann LeCun. 2014. Spectral networks and locally connected networks on graphs. ICLR (2014).
+[4] Jie Chen, Tengfei Ma, and Cao Xiao. 2018. Fastgcn: fast learning with graph convolutional networks via importance sampling. ICLR (2018).
+[5] Ming Chen, Zhewei Wei, Zengfeng Huang, Bolin Ding, and Yaliang Li. 2020. Simple and deep graph convolutional networks. In ICML. PMLR, 1725–1735.
+[6] Wei-Lin Chiang, Xuanqing Liu, Si Si, Yang Li, Samy Bengio, and Cho-Jui Hsieh.
+2019. Cluster-GCN: An efficient algorithm for training deep and large graph convolutional networks. In SIGKDD. 257–266. [7] Enyan Dai, Charu Aggarwal, and Suhang Wang. 2021. NRGNN: Learning a Label
+Noise-Resistant Graph Neural Network on Sparsely and Noisily Labeled Graphs. arXiv preprint arXiv:2106.04714 (2021). [8] Enyan Dai and Suhang Wang. 2021. Say No to the Discrimination: Learning Fair Graph Neural Networks with Limited Sensitive Attribute Information. In WSDM. 680–688.
+[9] Michaël Defferrard, Xavier Bresson, and Pierre Vandergheynst. 2016. Convolutional neural networks on graphs with fast localized spectral filtering. In NeurIPS. 3844–3852.
+[10] Mengnan Du, Ninghao Liu, Qingquan Song, and Xia Hu. 2018. Towards explanation of dnn-based prediction with guided feature inversion. In Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining. 1358–1367.
+[11] Xavier Glorot and Yoshua Bengio. 2010. Understanding the difficulty of training deep feedforward neural networks. In AISTATS. 249–256.
+[12] Will Hamilton, Zhitao Ying, and Jure Leskovec. 2017. Inductive representation learning on large graphs. In NeurIPS. 1024–1034.
+[13] Michael Hind, Dennis Wei, Murray Campbell, Noel CF Codella, Amit Dhurandhar,
+Aleksandra Mojsilović, Karthikeyan Natesan Ramamurthy, and Kush R Varshney. 2019. TED: Teaching AI to explain its decisions. In Proceedings of the 2019 AAAI/ACM Conference on AI, Ethics, and Society. 123–129. [14] Qiang Huang, Makoto Yamada, Yuan Tian, Dinesh Singh, Dawei Yin, and Yi
+Chang. 2020. Graphlime: Local interpretable model explanations for graph neural networks. arXiv preprint arXiv:2001.06216 (2020). [15] Wei Jin, Tyler Derr, Haochen Liu, Yiqi Wang, Suhang Wang, Zitao Liu, and Jiliang
+Tang. 2020. Self-supervised learning on graphs: Deep insights and new direction. arXiv preprint arXiv:2006.10141 (2020). [16] Wei Jin, Yao Ma, Xiaorui Liu, Xianfeng Tang, Suhang Wang, and Jiliang Tang. 2020. Graph structure learning for robust graph neural networks. In SIGKDD. 66–74.
+[17] Dongkwan Kim and Alice Oh. 2021. How to find your friendly neighborhood: Graph attention design with self-supervision. In International Conference on Learning Representations.
+[18] Thomas N Kipf and Max Welling. 2016. Semi-supervised classification with graph convolutional networks. arXiv preprint arXiv:1609.02907 (2016).
+[19] Pang Wei Koh and Percy Liang. 2017. Understanding black-box predictions via influence functions. In International Conference on Machine Learning. PMLR, 1885–1894.
+[20] Ron Levie, Federico Monti, Xavier Bresson, and Michael M Bronstein. 2018.
+Cayleynets: Graph convolutional neural networks with complex rational spectral filters. IEEE Transactions on Signal Processing 67, 1 (2018), 97–109. [21] Qimai Li, Zhichao Han, and Xiao-Ming Wu. 2018. Deeper insights into graph convolutional networks for semi-supervised learning. AAAI (2018). [22] Dongsheng Luo, Wei Cheng, Dongkuan Xu, Wenchao Yu, Bo Zong, Haifeng Chen,
+and Xiang Zhang. 2020. Parameterized Explainer for Graph Neural Network. Advances in Neural Information Processing Systems 33 (2020). [23] Tomas Mikolov, Ilya Sutskever, Kai Chen, Greg S Corrado, and Jeff Dean. 2013.
+Distributed representations of words and phrases and their compositionality. In NeurIPS. 3111–3119. [24] Mathias Niepert, Mohamed Ahmed, and Konstantin Kutzkov. 2016. Learning convolutional neural networks for graphs. In ICML. 2014–2023. [25] Aaron van den Oord, Yazhe Li, and Oriol Vinyals. 2018. Representation learning with contrastive predictive coding. arXiv preprint arXiv:1807.03748 (2018). [26] Nicolas Papernot and Patrick McDaniel. 2018. Deep k-nearest neighbors: Towards confident, interpretable and robust deep learning. arXiv preprint arXiv:1803.04765 (2018). [27] Tobias Plötz and Stefan Roth. 2018. Neural nearest neighbors networks. Advances in Neural Information Processing Systems 31 (2018), 1087–1098. [28] Jiezhong Qiu, Qibin Chen, Yuxiao Dong, Jing Zhang, Hongxia Yang, Ming Ding,
+Kuansan Wang, and Jie Tang. 2020. Gcc: Graph contrastive coding for graph neural network pre-training. In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining. 1150–1160.
+
+[29] Weiqiang Ren, Yinan Yu, Junge Zhang, and Kaiqi Huang. 2014. Learning convolutional nonlinear features for k nearest neighbor image classification. In 2014 22nd international conference on pattern recognition. IEEE, 4358–4363.
+[30] Leonardo FR Ribeiro, Pedro HP Saverese, and Daniel R Figueiredo. 2017. struc2vec: Learning node representations from structural identity. In Proceedings of the 23rd ACM SIGKDD international conference on knowledge discovery and data mining. 385–394.
+[31] Marco Tulio Ribeiro, Sameer Singh, and Carlos Guestrin. 2016. " Why should i trust you?" Explaining the predictions of any classifier. In Proceedings of the 22nd ACM SIGKDD international conference on knowledge discovery and data mining. 1135–1144.
+[32] Ramprasaath R Selvaraju, Michael Cogswell, Abhishek Das, Ramakrishna Vedan-
+tam, Devi Parikh, and Dhruv Batra. 2017. Grad-cam: Visual explanations from deep networks via gradient-based localization. In Proceedings of the IEEE international conference on computer vision. 618–626. [33] Prithviraj Sen, Galileo Namata, Mustafa Bilgic, Lise Getoor, Brian Galligher, and Tina Eliassi-Rad. 2008. Collective classification in network data. AI magazine 29, 3 (2008), 93–93.
+[34] Avanti Shrikumar, Peyton Greenside, and Anshul Kundaje. 2017. Learning important features through propagating activation differences. In International Conference on Machine Learning. PMLR, 3145–3153.
+[35] Kai Shu, Limeng Cui, Suhang Wang, Dongwon Lee, and Huan Liu. 2019. defend: Explainable fake news detection. In Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining. 395–405.
+[36] Fan-Yun Sun, Jordan Hoffmann, Vikas Verma, and Jian Tang. 2019. Infograph: Un-
+supervised and semi-supervised graph-level representation learning via mutual information maximization. arXiv preprint arXiv:1908.01000 (2019). [37] Ke Sun, Zhanxing Zhu, and Zhouchen Lin. 2020. Multi-stage self-supervised learning for graph convolutional networks. AAAI (2020). [38] Xianfeng Tang, Yandong Li, Yiwei Sun, Huaxiu Yao, Prasenjit Mitra, and Suhang
+Wang. 2020. Transferring Robustness for Graph Neural Network Against Poisoning Attacks. In WSDM. 600–608. [39] Petar Veličković, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Lio, and Yoshua Bengio. 2018. Graph attention networks. ICLR (2018). [40] Petar Veličković, William Fedus, William L Hamilton, Pietro Liò, Yoshua Bengio, and R Devon Hjelm. 2018. Deep graph infomax. arXiv preprint arXiv:1809.10341 (2018).
+[41] Daixin Wang, Jianbin Lin, Peng Cui, Quanhui Jia, Zhen Wang, Yanming Fang,
+Quan Yu, Jun Zhou, Shuang Yang, and Yuan Qi. 2019. A Semi-supervised Graph Attentive Network for Financial Fraud Detection. In ICDM. IEEE, 598–607. [42] Hongwei Wang, Fuzheng Zhang, Mengdi Zhang, Jure Leskovec, Miao Zhao,
+Wenjie Li, and Zhongyuan Wang. 2019. Knowledge-aware graph neural networks with label smoothness regularization for recommender systems. In SIGKDD. 968– 977.
+[43] Zonghan Wu, Shirui Pan, Fengwen Chen, Guodong Long, Chengqi Zhang, and S Yu Philip. 2020. A comprehensive survey on graph neural networks. IEEE transactions on neural networks and learning systems (2020).
+[44] Keyulu Xu, Weihua Hu, Jure Leskovec, and Stefanie Jegelka. 2018. How powerful are graph neural networks? arXiv preprint arXiv:1810.00826 (2018).
+[45] Zhitao Ying, Dylan Bourgeois, Jiaxuan You, Marinka Zitnik, and Jure Leskovec.
+2019. Gnnexplainer: Generating explanations for graph neural networks. In Advances in neural information processing systems. 9244–9255. [46] Yuning You, Tianlong Chen, Yongduo Sui, Ting Chen, Zhangyang Wang, and Yang Shen. 2020. Graph contrastive learning with augmentations. Advances in Neural Information Processing Systems 33 (2020). [47] Hao Yuan, Yongjun Chen, Xia Hu, and Shuiwang Ji. 2019. Interpreting deep models for text analysis via optimization and regularization methods. In Proceedings of the AAAI Conference on Artificial Intelligence, Vol. 33. 5717–5724. [48] Hao Yuan, Jiliang Tang, Xia Hu, and Shuiwang Ji. 2020. Xgnn: Towards modellevel explanations of graph neural networks. In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining. 430– 438.
+[49] Matthew D Zeiler and Rob Fergus. 2014. Visualizing and understanding convolutional networks. In European conference on computer vision. Springer, 818–833.
+[50] Tianxiang Zhao, Xianfeng Tang, Xiang Zhang, and Suhang Wang. 2020. SemiSupervised Graph-to-Graph Translation. In CIKM. 1863–1872.
+[51] Tianxiang Zhao, Xiang Zhang, and Suhang Wang. 2021. GraphSMOTE: Imbalanced Node Classification on Graphs with Graph Neural Networks. In WSDM. 833–841.
+[52] Qikui Zhu, Bo Du, and Pingkun Yan. 2020. Self-supervised Training of Graph Convolutional Networks. arXiv preprint arXiv:2006.02380 (2020).
+[53] Daniel Zügner, Amir Akbarnejad, and Stephan Günnemann. 2018. Adversarial attacks on neural networks for graph data. In SIGKDD. 2847–2856.
+[54] Daniel Zügner and Stephan Günnemann. 2019. Adversarial attacks on graph neural networks via meta learning. arXiv preprint arXiv:1902.08412 (2019).
+

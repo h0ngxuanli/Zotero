@@ -1,0 +1,3210 @@
+TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY
+
+1
+
+FLCert: Provably Secure Federated Learning against Poisoning Attacks
+Xiaoyu Cao, Zaixi Zhang, Jinyuan Jia, and Neil Zhenqiang Gong, Member, IEEE
+
+arXiv:2210.00584v2 [cs.CR] 4 Oct 2022
+
+Abstract— Due to its distributed nature, federated learning is vulnerable to poisoning attacks, in which malicious clients poison the training process via manipulating their local training data and/or local model updates sent to the cloud server, such that the poisoned global model misclassiﬁes many indiscriminate test inputs or attacker-chosen ones. Existing defenses mainly leverage Byzantine-robust federated learning methods or detect malicious clients. However, these defenses do not have provable security guarantees against poisoning attacks and may be vulnerable to more advanced attacks. In this work, we aim to bridge the gap by proposing FLCert, an ensemble federated learning framework, that is provably secure against poisoning attacks with a bounded number of malicious clients. Our key idea is to divide the clients into groups, learn a global model for each group of clients using any existing federated learning method, and take a majority vote among the global models to classify a test input. Speciﬁcally, we consider two methods to group the clients and propose two variants of FLCert correspondingly, i.e., FLCert-P that randomly samples clients in each group, and FLCert-D that divides clients to disjoint groups deterministically. Our extensive experiments on multiple datasets show that the label predicted by our FLCert for a test input is provably unaffected by a bounded number of malicious clients, no matter what poisoning attacks they use.
+Index Terms—Federated learning, provable security, poisoning attack, ensemble method.
+I. INTRODUCTION
+Federated learning (FL) [18], [23] is an emerging machine learning paradigm, which enables clients (e.g., smartphones, IoT devices, and organizations) to collaboratively learn a model without sharing their local training data with a cloud server. Due to its promise for protecting privacy of the clients’ local training data and the emerging privacy regulations such as General Data Protection Regulation (GDPR), FL has been deployed by industry. For instance, Google has deployed FL for next-word prediction on Android Gboard. Existing FL methods mainly follow a single-global-model paradigm. Speciﬁcally, a cloud server maintains a global model and each client maintains a local model. The global model is trained via multiple iterations of communications between the clients and server. In each iteration, three steps are performed: 1) the
+Xiaoyu Cao is with Meta Platforms, 1 Hacker Way, Menlo Park, CA, US. (e-mail: xiaoyucao@fb.com).
+Zaixi Zhang is with School of Computer Science and Technology, University of Science and Technology of China, No.96, JinZhai Road Baohe District, Hefei, Anhui, China. (e-mail: zaixi@mail.ustc.edu).
+Jinyuan Jia is with the Department of Computer Science, University of Illinois Urbana-Champaign, 201 N Goodwin Ave, Urbana, IL, US. (e-mail: jinyuan@illinois.edu)
+Neil Zhenqiang Gong is with the Department of Electrical and Computer Engineering, Duke University, 413 Wilkinson Building, Durham, NC, US. (e-mail: neil.gong@duke.edu)
+*This work is an extension of [7].
+
+server sends the current global model to the clients; 2) the clients update their local models based on the global model and their local training data, and send the model updates to the server; and 3) the server aggregates the model updates and uses them to update the global model. The learnt global model is then used to predict labels of test inputs.
+However, such single-global-model paradigm is vulnerable to poisoning attacks. In particular, an attacker can inject fake clients to FL or compromise genuine clients, where we call the fake/compromised clients malicious clients. For instance, an attacker can use a powerful computer to simulate many fake smartphones. Such malicious clients can corrupt the global model via carefully tampering their local training data or model updates sent to the server. As a result, the corrupted global model has a low accuracy for the normal test inputs [6], [10] (known as untargeted poisoning attacks) or certain attacker-chosen test inputs [2], [3] (known as targeted poisoning attacks). For instance, in an untargeted poisoning attack, the malicious clients can deviate the global model towards the opposite of the direction along which it would be updated without attacks by manipulating their local model updates [10]. In a targeted poisoning attack, when learning an image classiﬁer, the malicious clients can re-label the cars with certain strips as birds in their local training data and scale up their model updates sent to the server, such that the global model incorrectly predicts a car with the strips as bird [2].
+Various Byzantine-robust FL methods have been proposed to defend against poisoning attacks from malicious clients. [4], [5], [32]. The main idea of these methods is to mitigate the impact of statistical outliers among the clients’ model updates. They can bound the difference between the global model parameters learnt without malicious clients and the global model parameters learnt when some clients become malicious. However, these methods cannot provably guarantee that the label predicted by the global model for a test input is not affected by malicious clients. Indeed, studies showed that malicious clients can still substantially degrade the test accuracy of a global model learnt by a Byzantine-robust method via carefully tampering their model updates sent to the server [3], [6], [10].
+Our work: In this work, we propose FLCert, the ﬁrst FL framework that is provably secure against poisoning attacks. Speciﬁcally, given n clients, we deﬁne N groups, each containing a subset of the clients. In particular, we design two methods to group the clients, which corresponds to two variants of FLCert, i.e., FLCert-P and FLCert-D, where P and D stand for probabilistic and deterministic, respectively. In
+
+TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY
+
+2
+
+FLCert-P, each of the N groups consists of k clients sampled
+
+from the n clients uniformly at random. Note that there are a
+
+tonktalinofFLnkCerpto-Ps.siIbnleFgLrCoeurpts-Da,nwd ethduisviNde
+
+could the n
+
+be as large clients into
+
+as N
+
+disjoint groups deterministically.
+
+For each group, we learn a global model using an arbitrary
+
+FL algorithm (called base FL algorithm) with the clients in the
+
+group. In total, we train N global models. Given a test input
+
+x, we use each of the N global models to predict its label.
+
+We denote ni as the number of global models that predict
+
+label
+
+i
+
+for
+
+x
+
+and
+
+deﬁne
+
+pi
+
+=
+
+ni n
+
+,
+
+where
+
+i
+
+=
+
+1, 2, · · · , L.
+
+We call ni label frequency and pi label probability. Our
+
+ensemble global model predicts the label with the largest label
+
+frequency/probability for x. In other words, our ensemble
+
+global model takes a majority vote among the N global models
+
+to predict label for x. Since each global model is learnt using a
+
+subset of the clients, a majority of the global models are learnt
+
+using benign clients when most clients are benign. Therefore,
+
+the majority-vote label among the N global models for a test
+
+input is unaffected by a bounded number of malicious clients
+
+no matter what poisoning attacks they use.
+
+Theory: Our ﬁrst major theoretical result is that FLCert provably predicts the same label for a test input x when the number of malicious clients is no larger than a threshold, which we call certiﬁed security level. Our second major theoretical result is that we prove our derived certiﬁed security level is tight, i.e., when no assumptions are made on the base FL algorithm, it is impossible to derive a certiﬁed security level that is larger than ours. Note that the certiﬁed security level may be different for different test inputs.
+
+Algorithm: Computing our certiﬁed security level for
+
+x requires its largest and second largest label frequen-
+
+cies/probabilities. For FLCert-P, when
+
+n k
+
+is small (e.g., the
+
+n clients are dozens of organizations [17] and k is small), we
+
+can compute the largest and second largest label probabilities
+
+exactly via challenging
+
+training N =
+
+n k
+
+to compute them
+
+global models. However, it is
+
+exactly when
+
+n k
+
+is large. To
+
+address the computational challenge, we develop a randomized
+
+algorithm to estimate them with probabilistic guarantees via
+
+training N
+
+n k
+
+global models. Due to such random-
+
+ness, FLCert-P achieves probabilistic security guarantee, i.e.,
+
+FLCert-P outputs an incorrect certiﬁed security level for a test
+
+input with some probability that can be set to be arbitrarily
+
+small. For FLCert-D, we train N global models and obtain
+
+the label frequencies deterministically, making the security
+
+guarantee of FLCert-D deterministic.
+
+Evaluation: We empirically evaluate our method on ﬁve datasets from different domains, including three image classiﬁcation datasets (MNIST-0.1 [20], MNIST-0.5 [20], and CIFAR-10 [19]), a human activity recognition dataset (HAR) [1], and a next-word prediction dataset (Reddit) [2]. We distribute the training examples in MNIST and CIFAR to clients to simulate FL scenarios, while the HAR and Reddit dataset represent real-world FL scenarios, where each user is a client. We also evaluate ﬁve different base FL algorithm, i.e., FedAvg [23], Krum [4], Trimmed-mean [32], Median [32], and FLTrust [5]. Moreover, we use certiﬁed accuracy as our
+
+evaluation metric, which is a lower bound of the test accuracy that a method can provably achieve no matter what poisoning attacks the malicious clients use. For instance, our FLCert-D with FedAvg and N = 500 can achieve a certiﬁed accuracy of 81% on MNIST when evenly distributing the training examples among 1,000 clients and 100 of them are malicious.
+In summary, our key contributions are as follows:
+• We propose FLCert, an FL framework with provable security guarantees against poisoning attacks. Speciﬁcally, FLCert-P provides probabilistic security guarantee while FLCert-D provides deterministic guarantee. Moreover, we prove that our derived certiﬁed security level is tight.
+• We propose a randomized algorithm to compute our certiﬁed security level for FLCert-P.
+• We evaluate FLCert on multiple datasets from different domains and multiple base FL algorithms. Our results show that FLCert is secure against poisoning attacks both theoretically and empirically.
+All proofs appear in the Appendix.
+
+II. RELATED WORK
+
+A. Federated Learning (FL)
+
+Suppose we have n clients C = {C1, C2, · · · , Cn} and a server, where each client Ci (i = 1, 2, · · · , n) holds a local training dataset Di. Each client also has a unique user ID as-
+
+signed when the client registers in the FL system. These clients
+
+aim to use their local training datasets to collaboratively learn
+
+a model that is shared among all clients, with the help of the
+
+server. We call such shared model global model. For simplicity,
+
+we use w to denote the model parameters of the global model.
+
+The parameters w are often learnt by solving the following
+
+optimization problem w = argminw
+
+n i=1
+
+(Di; w ), where
+
+is a loss function, and (Di; w ) is the empirical loss on the
+
+local training dataset Di of the ith client.
+
+The clients and the server collaborate to solve the optimiza-
+
+tion problem iteratively. Speciﬁcally, in each iteration of the
+
+training process, the following three steps are performed: 1)
+
+the server broadcasts the current global model to (a subset
+
+of) clients; 2) the clients initialize their local models as the
+
+received global model, train the local models using stochastic
+
+gradient descent, and send the local model updates back to the
+
+server; 3) the server aggregates the local model updates and
+
+updates the global model.
+
+B. Poisoning Attacks to FL
+Recent works [2], [3], [6], [10], [24], [27] showed that FL is vulnerable to poisoning attacks. Based on the attacker’s goal, poisoning attacks to FL can be grouped into two categories: untargeted poisoning attacks [6], [10], [24], [27] and targeted poisoning attacks [2], [3].
+Untargeted poisoning attacks: The goal of untargeted poisoning attacks is to decrease the test accuracy of the learnt global model. The attacks aim to increase the indiscriminate test error rate of the global model as much as possible, which can be considered as Denial-of-Service (DoS) attacks. Depending on how the attack is performed, untargeted poisoning
+
+TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY
+
+3
+
+attacks have two variants, i.e., data poisoning attacks [27] and local model poisoning attacks [6], [10]. Data poisoning attacks tamper with the local training data on the malicious clients while assuming the computation process maintains integrity. They inject fake training data points, delete existing training data points, and/or modify existing training data points. Local model poisoning attacks tamper with the computation process on the malicious clients, i.e., they directly tamper with the malicious clients’ local models or model updates sent to the server. Note that in FL, any data poisoning attack can be implemented by a local model poisoning attack. This is because on each malicious client, we can always treat the local model trained using the tampered local training dataset as the tampered local model.
+Targeted poisoning attacks: Targeted poisoning attacks aim to force the global model to predict target labels for target test inputs, while its performance on non-target test inputs is unaffected. The target test inputs in a targeted poisoning attack can be a speciﬁc test input [3], some test inputs with certain properties [2], or test inputs with a particular trigger embeded [2]. A targeted poisoning attack is also known as a backdoor attack if its target test inputs are trigger-embedded test inputs. A backdoor attack aims to corrupt the global model such that it predicts the attacker-chosen target label for any test input embedded with the predeﬁned trigger.
+C. Defenses against Poisoning Attacks to FL
+Many defenses [8], [14]–[16], [21], [22], [26], [28]–[30] have been proposed against data poisoning attacks in centralized learning scenarios. However, they are insufﬁcient to defend against poisoning attacks to FL. In particular, the empirical defenses [8], [22], [30] require knowledge about the training dataset, which is usually not available to the FL server for privacy concerns. Moreover, the provably secure defenses [14]–[16], [21], [26], [28], [29] can guarantee that the label predicted for a test input is unaffected by a bounded number of poisoned training examples. However, in FL, a single malicious client can poison an arbitrary number of its local training examples, breaking their assumption.
+Byzantine-robust FL methods [4], [5], [32] leverage Byzantine-robust aggregation rules to resist poisoning attacks. They share the idea of alleviating the impact of statistical outliers caused by poisoning attacks when aggregating the local model updates. For instance, Krum [4] selects a single model update that has the smallest square-Euclidean-distance score as the new global model update; Trimmed-mean [32] computes the coordinate-wise mean of the model update parameters after trim and updates the global model using corresponding mean values; Median [32] updates the global model by computing the coordinate-wise median of the local model updates; FLTrust [5] leverages a small clean dataset to compute a server update and uses it as a baseline to bootstrap trust to local model updates. These methods all suffer from a key limitation: they cannot provide provable security guarantees, i.e., they cannot ensure that the predicted labels of the global model for testing inputs remain unchanged when there exists a poisoning attack.
+
+Another type of defenses focused on detecting malicious clients and removing their local models before the aggregation [10], [25], [33]. Shen et al. [25] proposed to perform clustering on local models to detect malicious clients. Fang et al. [10] proposed two defenses that use a validation dataset to reject potentially malicious local models based on their impact on the error rate or the loss value evaluated on the validation dataset. Zhang et al. [33] proposed to detect malicious clients via checking their model-updates consistency. These defenses showed some empirical effectiveness in detecting malicious clients. However, they cannot provide provable security guarantees, either.
+Wang et al. [28] proposed a certiﬁed defense against backdoor attacks. A recent work [31] extended this method to FL and called it CRFL. CRFL aims to certify robustness against a particular backdoor attack [2], where all malicious clients train their local models using backdoored local training datasets, and scale their model updates before sending them to the server simultaneously in one iteration of FL. They showed that the accuracy of the learned global model under such speciﬁc attack could be certiﬁed if the magnitude of the change in malicious clients’ local training data is bounded. However, a malicious client can arbitrarily change its local training data. Therefore, a single malicious client can break their defense by using poisoning attacks other than the considered particular backdoor attack. On the contrary, our FLCert is provably secure no matter what attacks the malicious clients perform.
+III. PROPOSED FLCERT
+A. Overview
+Figure 1 illustrates FLCert, where there are n = 5 clients and N = 3 groups. In FLCert-P, each group contains k = 3 clients randomly sampled from the n clients, while in FLCertD, the clients are divided into N disjoint groups. We denote the N groups as G1, G2, · · · , GN . We learn a global model for each group of clients using a determinized base FL algorithm. We determinize the base FL algorithm such that we can derive the provable security of FLCert. Since we have N groups, we learn N global models in total. We ensemble the N global models to predict labels for test inputs. Speciﬁcally, we take a majority vote among the N global models to predict the label of a test input.
+B. Grouping the Clients
+In FLCert, the clients are assigned to N groups. Considering the provable security and communication/computation overhead, the grouping should satisfy two constraints: 1) a malicious client should inﬂuence a small number of groups, which enables FLCert to be secure against more malicious clients, and 2) a client should belong to a small number of groups, which reduces the communication and computation overhead for clients. To satisfy the two constraints, we propose two ways to divide the clients, which corresponds to two variants of FLCert, i.e., FLCert-P and FLCert-D. Speciﬁcally, in FLCert-P, we randomly sample k clients as a group. In FLCert-D, we divide the n clients into N disjoint groups using hash values of their user IDs.
+
+TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY
+
+4
+
+𝑓1
+
+𝑓2
+
+𝑓3
+
+𝑓1
+
+𝑓2
+
+𝑓3
+
+𝒙
+
+C1 C2 C3 C4 C5 FLCert-P
+
+C1 C2 C3 C4 C5 FLCert-D
+
+Training Phase
+
+Fig. 1: Illustration of FLCert.
+
+𝑓1
+
+𝑦
+
+𝑓2
+
+𝑦 Majority
+
+𝑦
+
+𝑓3
+
+Vote 𝑦′
+
+Testing Phase
+
+1) FLCert-P: In FLCert-P, the server samples k clients
+
+uniformly groups in
+
+at random as a
+
+total. When
+
+n k
+
+group, which is small, we
+
+results in can obtain
+
+n
+k
+all
+
+possible possible
+
+groups and train one global model for each group. In this case,
+
+each client belongs to
+
+n−1 k−1
+
+groups. However, when
+
+n k
+
+is
+
+large, we may not be able to train all global models for every
+
+possible group. Therefore, in practice, we sample N
+
+n k
+
+groups instead, and each client is expected to belong to a small
+
+number
+
+(i.e.,
+
+kN n
+
+)
+
+of
+
+groups.
+
+A
+
+malicious
+
+client
+
+can
+
+only
+
+affect
+
+the groups it belongs to.
+
+2) FLCert-D: In FLCert-D, the server assigns each client
+
+to a group by hashing the client’s user ID. Therefore, each
+
+client belongs to only one group and a malicious client can
+
+only inﬂuence the group it belongs to. We use clients’ user
+
+IDs because they cannot be changed after registration, which
+
+means that malicious clients cannot change which groups they
+
+belong to. Formally, we use a hash function with output range
+
+[1, N ] to compute the hash values of the clients’ user IDs;
+
+and the clients with hash value i form the ith group, where
+
+i = 1, 2, · · · , N .
+
+C. Ensemble Global Model
+
+After the server assigns the clients into N groups, each group learns a global model using a determinized base FL algorithm f . In particular, we determinize a base FL algorithm via ﬁxing the seed of the pseudo-random number generator used by the algorithm f . We denote by fg(Gg) the global model for the gth group. Note that FLCert allows different groups to use different determinized base FL algorithms, e.g., different groups may use the same base FL algorithm with different ﬁxed seeds for the pseudo-random number generator, and different groups may use different base FL algorithms.
+Since there are N groups, we have N global models f1(G1), f2(G2), · · · , fN (GN ) in total. Our FLCert ensembles the N global models to predict labels for test inputs. Speciﬁcally, given a test input x, we ﬁrst use each global model to predict its label, i.e., fg(Gg, x) is the label predicted by the gth global model. Then, we compute label frequency nj(x) for each label j, which is the number of global models that predict j for x. Formally, nj(x) is deﬁned as follows:
+
+nj(x) =
+
+1fg(Gg,x)=j ,
+
+(1)
+
+g∈[1,N ]
+
+where 1 is the indicator function and 1fg(Gg,x)=j = 1 if fg(Gg, x) = j, otherwise 1fg(Gg,x)=j = 0. The sum of
+
+the label frequencies is N . Moreover, we deﬁne the label
+
+probability
+
+of
+
+label
+
+j
+
+as
+
+pj (x)
+
+=
+
+nj (x) N
+
+.
+
+Our
+
+FLCert
+
+takes
+
+a majority vote among the N global models to predict the
+
+label for x, i.e., FLCert predicts the label with the largest
+
+label frequency/probability for x. For convenience, we use
+
+label probability for FLCert-P and label frequency for FLCert-
+
+D in the rest of this paper. We denote our ensemble learning
+
+based FLCert algorithm as F . The ensemble of the N global
+
+models is called ensemble global model. Moreover, we denote
+
+by F (C, x) the label predicted for x by our ensemble global
+
+model learnt by F on the clients C. Formally, we have:
+
+F (C, x) = argmax nj(x) = argmax pj(x). (2)
+
+j
+
+j
+
+When there exist ties, i.e., multiple labels have the same largest label frequency/probability, we use different tie-breaking strategies for FLCert-P and FLCert-D. For FLCert-P, we randomly select a label with the same largest label probability. Such random tie-breaking strategy works for FLCert-P because FLCert-P has probabilistic security guarantees anyway. However, such random tie-breaking strategy invalidates the deterministic security guarantees of FLCert-D due to the randomness. While any deterministic tie-breaking strategy can address this challenge, we adopt one that selects the label with the smallest class index as the predicted label in FLCert-D. For instance, when n1(x) = n2(x) > nj(x), ∀j = 1 ∧ j = 2, we have F (C, x) = 1, where ∧ means logical AND.
+
+IV. SECURITY ANALYSIS
+We prove that the label predicted by FLCert for a test input is unaffected by a bounded number of malicious clients no matter what poisoning attacks they use.
+
+A. Certiﬁed Security Level
+Recall that C is the set of n clean clients. For convenience, we denote by C the set of clients including the malicious ones. We deﬁne the certiﬁed security level m∗ of a test input x as the maximum number of malicious clients that FLCert can tolerate without predicting a different label for x. Formally, m∗ is the largest integer m that satisﬁes the following:
+
+F (C , x) = F (C, x), ∀C , |C − C| ≤ m,
+
+(3)
+
+TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY
+
+5
+
+where |C − C| is the number of malicious clients in C , compared to C. Note that the certiﬁed security level m∗ may
+be different for different test inputs.
+
+B. Deriving Certiﬁed Security Level
+
+Next, we derive the certiﬁed security level m∗ for a
+
+test input x. Suppose that when there are no malicious
+
+clients, FLCert predicts label y for the test input x, i.e.,
+
+y = F (C, x) = argmaxj nj(x) and y has the largest label frequency. Moreover, we assume z = argmaxj=y nj(x) is the label with the second largest label frequency. We denote by
+
+py and pz respectively their label probabilities. Moreover, we
+
+denote by ny and nz respectively the label frequency, and py
+
+and pz respectively the label probabilities for y and z in the
+
+ensemble global model when there are malicious clients.
+
+1) FLCert-P: When
+
+n k
+
+we can create all possible
+
+is small (e.g., several groups and train N =
+
+hundred),
+
+n k
+
+global
+
+models.
+
+Suppose
+
+m
+
+clients
+
+become
+
+malicious.
+
+Then,
+
+1−
+
+( ) n−m k (nk)
+
+fraction of groups include at least one malicious client. In the
+
+worst-case scenario, for each global model learnt using a group
+
+including at least one malicious client, its predicted label for x
+
+changes from y to z. Therefore, in the worst-case scenario, the
+
+m malicious clients decrease the largest label probability py
+
+by
+
+1−
+
+( ) n−m k (nk)
+
+and
+
+increase
+
+the
+
+second
+
+largest
+
+label
+
+probability
+
+pz
+
+by
+
+1
+
+−
+
+( ) n−m k (nk)
+
+,
+
+i.e.,
+
+we
+
+have
+
+py
+
+=
+
+py
+
+−
+
+(1
+
+−
+
+( ) n−m k (nk)
+
+)
+
+and
+
+pz
+
+=
+
+pz
+
++
+
+(1
+
+−
+
+( ) n−m k (nk)
+
+).
+
+Our
+
+ensemble
+
+global
+
+model
+
+still
+
+predicts
+
+label y for x, i.e., F (C , x) = F (C, x) = y, once m satisﬁes
+
+the following inequality:
+
+n−m
+
+py > pz ⇐⇒ py − pz > 2 − 2
+
+k n
+
+.
+
+(4)
+
+k
+
+In other words, the largest integer m that satisﬁes the inequal-
+
+ity (4) is our certiﬁed security level m∗ for the test input
+
+x. The inequality (4) shows that our certiﬁed security level
+
+is related to the gap py − pz between the largest and second
+
+largest label probabilities in the ensemble global model trained
+
+on the clients C. For instance, when a test input has a larger
+
+gap py − pz, the inequality (4) may be satisﬁed by a larger
+
+m, which means that our ensemble global model may have a
+
+larger certiﬁed security level for the test input.
+
+However, when ing to compute the
+
+nkexaisctlalragbee,litpirsobcaobmilpituietastivoinaaltlryaicnhinalglennkg-
+
+global models. For instance, when n = 100 and k = 10, there
+
+are already 1.73 × 1013 global models, training all of which
+
+is computationally intractable in practice. Therefore, we also
+
+derive certiﬁed security level using a lower bound py of py
+
+(i.e., py ≤ py) and an upper bound pz of pz (i.e., pz ≥ pz). We use a lower bound py of py and an upper bound pz of pz because our certiﬁed security level is related to the gap py −pz
+
+and we aim to estimate a lower bound of the gap.
+
+The lower bound py and upper bound pz may be estimated by different methods. We propose a Monte Carlo algorithm
+
+to estimate a lower bound py and an upper bound pz via
+
+only training N of the
+
+n k
+
+global models. Speciﬁcally, we
+
+1
+𝑛 𝑘
+
+}
+
+𝑝𝑧
+
+𝑝𝑧 ∙
+
+𝑛 𝑘
+
+𝑛
+
+𝑝𝑧
+
+𝑘
+
+𝑝𝑦
+
+𝑝𝑦 ∙
+
+𝑛 𝑘
+
+𝑝y
+
+𝑛
+
+𝑘
+
+Fig. 2: An example to illustrate the relationships between
+
+py, py, and
+
+py ·(nk ) (nk)
+
+as well as pz, pz, and
+
+pz ·(nk ) (nk)
+
+.
+
+sample N groups, each of which includes k clients sampled from the n clients uniformly at random, and we use them to train N global models f1(G1), f2(G2), · · · , fN (GN ). We use the N global models to predict labels for x and count the frequency of each label. We treat the label with the largest frequency as the predicted label y. Recall that, based on the deﬁnition of label probability, a global model trained on a random group with k clients predicts label y for x with the label probability py. Therefore, the frequency Ny of the label y among the N global models follows a binomial distribution B(N, py) with parameters N and py. Thus, given Ny and N , we can use the standard one-sided Clopper-Pearson method [9] to estimate a lower bound py of py with a conﬁdence level 1 − α. Speciﬁcally, we have py = B (α; Ny, N − Ny + 1), where B(q; v, w) is the qth quantile from a beta distribution with shape parameters v and w. Moreover, we can estimate py = 1 − py ≥ 1 − py ≥ pz as an upper bound of py.
+Next, we derive our certiﬁed security level based on the probability bounds py and pz. One way is to replace py and pz in inequality (4) as py and pz, respectively. Formally, we have the following inequality:
+
+n−m
+
+py − pz > 2 − 2
+
+k n
+
+.
+
+(5)
+
+k
+
+If an m satisﬁes inequality (5), then the m also satisﬁes
+
+inequality (4), because py − pz ≤ py − pz. Therefore, we can ﬁnd the largest integer m that satisﬁes the inequality (5) as the certiﬁed security level m∗. However, we found that the certiﬁed security level m∗ derived based on inequality (5) is
+
+not tight, i.e., our ensemble global model may still predict
+
+label y for x even if the number of malicious clients is larger
+
+than m∗ derived based on inequality (5). The key reason is
+
+that
+
+the
+
+label
+
+probabilities
+
+are
+
+integer
+
+multiplications
+
+of
+
+1
+(nk)
+
+.
+
+Therefore, we normalize py and pz as integer multiplications
+
+of
+
+1
+(nk)
+
+to
+
+derive
+
+a
+
+tight
+
+certiﬁed
+
+security
+
+level.
+
+Speciﬁcally,
+
+we derive the certiﬁed security level as the largest integer m
+
+that satisﬁes the following inequality (formally described in
+
+Theorem 1):
+
+py ·
+
+n k
+
+n
+
+−
+
+pz ·
+
+n k
+
+n
+
+n−m
+
+>2−2·
+
+k n
+
+.
+
+(6)
+
+k
+
+k
+
+k
+
+Figure 2 illustrates the relationships between py, py, and
+
+py ·(nk ) (nk)
+
+as well as pz, pz, and
+
+pz ·(nk ) (nk)
+
+. When an m satisﬁes
+
+inequality (5), the m also satisﬁes inequality (6), because
+
+py −pz ≤
+
+py ·(nk ) (nk)
+
+−
+
+pz ·(nk ) (nk)
+
+. Therefore, the certiﬁed security
+
+level derived based on inequality (5) is smaller than or equals
+
+the certiﬁed security level derived based on inequality (6).
+
+TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY
+
+6
+
+Algorithm 1 Computing Predicted Label and Certiﬁed Security Level in FLCert-P
+
+1: Input: C, f , k, N , D, α.
+
+2: Output: Predicted label and certiﬁed security level for
+
+each test input in D.
+
+3: f1(G1), · · · , fN (GN ) ← SAMPLE&TRAIN(C, f, k, N )
+
+4: for xt in D do
+
+5:
+
+counts[i] ←
+
+N l=1
+
+I(fl(Gl,
+
+xt)
+
+=
+
+i),
+
+i
+
+∈
+
+{1,
+
+2,
+
+·
+
+·
+
+·
+
+,
+
+L}
+
+6: /* I is the indicator function */
+
+7: yˆt ← index of the largest entry in counts
+
+8:
+
+pyˆt ← B
+
+α |D|
+
+;
+
+Nyˆt ,
+
+N
+
+−
+
+Nyˆt
+
++
+
+1
+
+9: pzˆt ← 1 − pyˆt
+
+10: if pyˆt > pzˆt then
+
+11:
+
+mˆ ∗t ← SEARCHLEVEL(pyˆt , pzˆt , k, |C|)
+
+12: else
+
+13:
+
+yˆt ← ABSTAIN, mˆ ∗t ← ABSTAIN
+
+14: end if
+
+15: end for
+
+16: return yˆ1, yˆ2, · · · , yˆd and mˆ ∗1, mˆ ∗2, · · · , mˆ ∗d
+
+Note that when py = py and pz = pz, both (5) and (6) reduce
+
+to (4) as the label probabilities are integer multiplications of
+
+1
+(nk)
+
+.
+
+The
+
+following
+
+theorem
+
+formally
+
+summarizes
+
+our
+
+certiﬁed
+
+security level.
+
+Theorem 1. Given n clients C, an arbitrary base federated learning algorithm f , a group size k, and a test input x, we deﬁne an ensemble global model F as Equation (2). y and z are the labels that have the largest and second largest label probabilities for x in the ensemble global model. py is a lower bound of py and pz is an upper bound of pz. Formally, py and pz satisfy the following conditions:
+
+max pi
+i=y
+
+=
+
+pz
+
+≤
+
+pz
+
+≤
+
+py
+
+≤
+
+py .
+
+(7)
+
+Then, F provably predicts y for x when at most m∗ clients in C become malicious, i.e., we have:
+
+F (C , x) = F (C, x) = y, ∀C , |C − C| ≤ m∗, (8)
+
+where m∗ is the largest integer m (0 ≤ m ≤ n − k) that satisﬁes inequality (6).
+
+Our Theorem 1 is applicable to any base federated learning algorithm, any lower bound py of py and any upper bound pz of pz that satisfy (7). When the lower bound py and upper bound pz are estimated more accurately, i.e., py and pz are respectively closer to py and pz, our certiﬁed security level may be larger. The following theorem shows that our derived certiﬁed security level is tight, i.e., when no assumptions on the base federated learning algorithm are made, it is impossible to derive a certiﬁed security level that is larger than ours for the given probability bounds py and pz.
+Theorem 2. Suppose py + pz ≤ 1. For any C satisfying |C − C| > m∗, i.e., at least m∗ + 1 clients are malicious, there exists a base federated learning algorithm f ∗ that satisﬁes (7) but F (C , x) = y or there exist ties.
+
+Given a test set D, Algorithm 1 shows our algorithm to
+compute the predicted labels and certiﬁed security levels for
+all test inputs in D. The function SAMPLE&TRAIN randomly
+samples N groups with k clients and trains N global models
+using the base federated learning algorithm f . We use 1 − pyˆt as an upper bound for pzˆt because we want to limit the probability of incorrect bound pairs (pzˆt , pyˆt ) within α/|D|. Given the probability bounds pyˆt and pzˆt for a test input xt, the function SEARCHLEVEL ﬁnds the certiﬁed security level mˆ ∗t via ﬁnding the largest integer m that satisﬁes (6). For example, SEARCHLEVEL can simply start m from 0 and iteratively increase it by one until ﬁnding mˆ ∗t .
+In Algorithm 1, since we estimate the lower bound pyˆt using the Clopper-Pearson method, there is a probability that
+the estimated lower bound is incorrect, i.e., pyˆt > pyˆt . When the lower bound is estimated incorrectly for a test input xt, the certiﬁed security level mˆ ∗t output by Algorithm 1 for xt may also be incorrect, i.e., there may exist an C such that |C − C| ≤ mˆ ∗t but F (C , xt) = yˆt. In other words, our Algorithm 1 has probabilistic guarantees for its output certiﬁed
+security levels. However, in the following theorem, we prove
+the probability that Algorithm 1 returns an incorrect certiﬁed
+security level for at least one test input is at most α.
+
+Theorem 3. The probability that Algorithm 1 returns an incorrect certiﬁed security level for at least one testing example in D is bounded by α, which is equivalent to:
+
+Pr(∩xt∈D(h(C , xt) = yˆt, ∀C , M (C ) ≤ mˆ ∗t |yˆt = ABSTAIN))
+
+≥ 1 − α.
+
+(9)
+
+Note that when the probability bounds are estimated de-
+
+terministically, e.g., probabilities can be
+
+when
+
+n k
+
+computed
+
+is small and the via training N =
+
+exact label
+
+n k
+
+global
+
+models, the certiﬁed security level obtained from our Theo-
+
+rem 1 is also deterministic. When there are many clients or
+
+N is too small, it is possible that not all clients participate
+
+in training the N global models. However, our probabilistic
+
+guarantee still holds in this case.
+
+2) FLCert-D: FLCert-D still predicts label y for x after
+
+attacks if the following condition is satisﬁed:
+
+ny(x) > nz(x) or (ny(x) = nz(x) ∧ y < z), (10)
+where FLCert-D still predicts label y when (ny(x) = nz(x) ∧ y < z) holds because of our tie-breaking strategy. Next, we derive a lower bound of ny(x) and an upper bound of nz(x), which depend on m, the number of malicious clients in C . The largest m, for which the lower bound of ny(x) and the upper bound of nz(x) satisfy Equation (10), is our certiﬁed security level m∗ for x.
+If a group Gg (g = 1, 2, · · · , N ) after attack does not include malicious clients, then we know that Gg and Gg include the same clients, i.e., Gg = Gg. Moreover, since our base FL algorithm for each group is determinized, the global models learnt for Gg and Gg predict the same label for x, i.e., we have fg(Gg, x) = fg(Gg, x). If a group Gg includes at least one malicious client, the global model learnt for this group changes its predicted label for x from y to z after attack
+in the worst case. In other words, when a group includes malicious clients, the label frequency ny(x) decreases by 1
+
+TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY
+
+7
+
+and the label frequency nz(x) increases by 1. According to our grouping strategy, m malicious clients inﬂuence at most m groups. Therefore, we have the following bounds in the
+worst case:
+
+ny(x) ≥ ny(x) − m, nz(x) ≤ nz(x) + m. (11)
+
+The condition in Equation (10) is satisﬁed, i.e., F (C , x) = F (C, x) = y, when m is bounded as follows:
+
+m ≤ ny(x) − [nz(x) + 1z<y] .
+
+(12)
+
+2
+
+Therefore, we have our certiﬁed security level m∗ =
+
+ny (x)−[nz (x)+1z<y ]
+2
+
+for a test input x. We summarize our
+
+provable security of FLCert in the following theorem.
+
+Theorem 4. Given n clients C that are divided into N groups by hashing their user IDs, a determinized training algorithm for each group, and a test input x. y and z are the labels that have the largest and second largest label frequencies for x, where ties are broken by selecting the label with the smallest class index. Then, F provably predicts label y for x when at most m∗ clients become malicious, i.e., we have:
+
+F (C , x) = F (C, x) = y, ∀C , |C − C| ≤ m∗, (13)
+
+where m∗ =
+
+ny (x)−[nz (x)+1z<y ]
+2
+
+.
+
+V. COMMUNICATION/COMPUTATION COST ANALYSIS
+
+We compare the communication and computation cost of
+
+our FLCert with the conventional single-global-model setting
+
+in which the base FL algorithm is used to learn a single
+
+global model for all the clients. Note that, for each client, its
+
+communication and computation cost is linear to the number
+
+of global iterations the client involves in. Therefore, in the
+
+following analysis, we focus on the average number of global
+
+iterations a client involves in for our FLCert and the single-
+
+global-model setting.
+
+Suppose we are given a base FL algorithm f . In the single-
+
+global-model setting, f is used to learn a single global model
+
+with all the clients. Assume f performs T global iterations
+
+between the clients and server to learn the global model. In
+
+each global iteration, the server randomly selects β fraction
+
+of the clients and sends the current global model to them; the
+
+selected clients update their local models and send the updated
+
+local models to the server; and the server aggregates the local
+
+models as a new global model. β is often set to be smaller than
+
+1 to save communication cost per global iteration. Therefore,
+
+the communication and computation cost for a client is O(βT )
+
+on average in the single-global-model setting.
+
+In FLCert, we use a base FL algorithm to train a global
+
+model for each group of clients. When learning a global
+
+model for a group of clients, the server randomly selects βe
+
+fraction of the clients in the group in each global iteration.
+
+Assume each global model is learnt via Te global iterations
+
+between the corresponding clients and the server. Each client
+
+is involved in
+
+kN n
+
+global
+
+models
+
+on
+
+average
+
+in FLCert-P, while
+
+each client is involved in only one global model in FLCert-
+
+D. Therefore, the communication and computation cost for a
+
+client
+
+is
+
+O(
+
+kN βeTe n
+
+)
+
+for
+
+FLCert-P
+
+and
+
+O(βeTe)
+
+for
+
+FLCert-D.
+
+We note that each global model in our FLCert is learnt to ﬁt local training data on a group of clients, while the global model in the single-global-model setting is learnt to ﬁt local training data on all the clients. Therefore, learning each global model in our FLCert may require fewer global iterations, i.e., Te < T . Moreover, when setting kN = n and Te = βT /βe, our FLCert and the single-global-model setting have the same communication and computation cost for the clients. In other words, compared to the single-global-model setting, our FLCert can provide provable security against malicious clients without incurring additional communication and computation cost for the clients.
+VI. EVALUATION
+A. Experimental Setup
+1) Datasets: We use multiple datasets from different domains for evaluation, including three image classiﬁcation datasets (MNIST-0.1, MNIST-0.5, and CIFAR-10), a human activity recognition dataset (HAR), and a next-word prediction dataset (Reddit). By default, we use MNIST-0.5 unless otherwise mentioned.
+MNIST-0.1: We follow [10] to distribute the training examples to the clients. In their work, a parameter called degree of Non-iid is proposed to control the distribution of data among clients, where a larger value indicates the data are further from independently and identically distributed (IID). We set the degree of Non-iid to 0.1 in MNIST-0.1, which indicates IID data among clients.
+MNIST-0.5: Clients in FL often have non-IID local training data. Therefore, in MNIST-0.5, we set the degree of Non-iid to 0.5 when distributing the training examples to clients to simulate non-IID local training data.
+CIFAR-10: Like MNIST-0.5, we set the degree of Non-iid to 0.5 when distributing training examples to clients to simulate non-IID local training data.
+Human Activity Recognition (HAR): HAR [1] is a realworld dataset consisting of human activity data collected from 30 users. The task is to predict a user’s activity among six possible activities (e.g., WALKING, STANDING, and LAYING), given the sensor signal data collected from the user’s smartphone. There are in total 10,299 examples in HAR dataset. We randomly select 75% of each user’s examples as the training dataset and use the rest of examples as the test dataset. In HAR, each user is considered as a client naturally.
+Reddit: Reddit [2] is a next-word prediction dataset consisting of posts collected from Reddit in a randomly chosen month (November 2017). Given a sequence of words, the task is to predict which word will appear next. For Reddit dataset, each Reddit user is a client. There are 80,000 users in total and each user has 247 posts on average.
+2) Evaluated Base FL Algorithms: FLCert can use any base FL algorithm. To show such generality, we evaluate multiple popular base FL algorithms, including FedAvg [23], Krum [4], Trimmed-mean [32], Median [32], and FLTrust [5]. These base FL algorithms essentially use different aggregation rules to aggregate the clients’ local model updates and update the
+
+TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY
+
+8
+
+certified accuracy @ m certified accuracy @ m certified accuracy @ m certified accuracy @ m certified accuracy @ m
+
+1.0
+
+0.8
+
+0.6
+
+single-global-model
+
+0.4
+
+CRFL
+
+0.2
+
+FLCert-P
+
+FLCert-D
+
+0.0
+
+0
+
+50 100 150 200 250 300
+
+number of malicious clients m
+
+1.0
+
+single-global-model
+
+0.8
+
+CRFL
+
+FLCert-P 0.6
+FLCert-D
+
+0.4
+
+0.2
+
+0.0
+
+0
+
+50 100 150 200 250 300
+
+number of malicious clients m
+
+1.0
+
+single-global-model
+
+0.8
+
+CRFL
+
+FLCert-P 0.6
+FLCert-D
+
+0.4
+
+0.2
+
+0.0
+
+0
+
+2
+
+4
+
+6
+
+8
+
+10 12
+
+number of malicious clients m
+
+1.0
+
+single-global-model
+
+0.8
+
+CRFL
+
+FLCert-P 0.6
+FLCert-D
+
+0.4
+
+0.2
+
+0.0
+
+0
+
+2
+
+4
+
+6
+
+8
+
+10
+
+number of malicious clients m
+
+0.150 0.125 0.100 0.075
+
+single-global-model CRFL FLCert-P FLCert-D
+
+0.050
+
+0.025
+
+0.000
+
+0
+
+100
+
+200
+
+300
+
+400
+
+number of malicious clients m
+
+(a) MNIST-0.1
+
+(b) MNIST-0.5
+
+(c) CIFAR-10
+
+(d) HAR
+
+(e) Reddit
+
+Fig. 3: Comparing FLCert with single-global-model and CRFL on different datasets when FedAvg is the base FL algorithm.
+
+global model in each global iteration. For FLTrust, we assume
+
+the server has a small clean dataset with 100 training examples
+
+randomly sampled from the training dataset, as suggested by
+
+the authors [5]. By default, we use FedAvg in our experiments
+
+unless otherwise mentioned.
+
+3) Global Model Architectures: To show the generality of
+
+our FLCert, we use different neural network architectures
+
+as the global models on different datasets. Speciﬁcally, we
+
+borrow the CNN from [7] for MNIST-0.1 and MNIST-0.5.
+
+For CIFAR-10, we use the popular ResNet20 [12] architecture.
+
+For HAR, we use a fully connected neural network with two
+
+hidden layers, each of which includes 256 neurons and uses
+
+ReLU activation. For Reddit, we follow [13] to use a 2-layer
+
+LSTM as global model.
+
+4) Evaluation Metrics: We use certiﬁed accuracy (CA) to
+
+evaluate the provable security of FLCert against poisoning
+
+attacks. Given a test dataset and a number of malicious clients
+
+m, we deﬁne the certiﬁed accuracy CA@m as the fraction of
+
+test inputs that 1) are correctly classiﬁed by the FL algorithm
+
+and 2) have certiﬁed security levels no smaller than m. For
+
+untargeted attacks, the test dataset includes the normal test
+
+examples. For backdoor attacks, the test dataset includes the
+
+test examples embedded with a pattern trigger. CA@m is a
+
+lower bound of test accuracy that a method can achieve no
+
+matter what poisoning attacks the malicious clients use once
+
+there are at most m of them.
+
+Moreover, for both FLCert and the single-global-model
+
+setting, we also use the standard test accuracy and attack
+
+success rate to evaluate the empirical performance against an
+
+existing untargeted poisoning attack [10] and backdoor attack
+
+[2], respectively. Attack success rate is the fraction of trigger-
+
+embedded test inputs that are classiﬁed as the attacker-chosen
+
+target label. We note that CA@0 reduces to the standard test
+
+accuracy when there are no attacks in deterministic scenarios,
+
+i.e., for FLCert-D and if we can
+
+for FLCert-P. However, when
+
+n k
+
+train all
+
+n k
+
+is too large
+
+global and we
+
+models sample
+
+N groups of clients in FLCert-P, the empirical test accuracy
+
+may be different from CA@0.
+
+5) Existing Poisoning Attacks: To calculate the standard
+
+test accuracy and attack success rate, we need existing poison-
+
+ing attacks. For untargeted attacks, we use the full-knowledge
+
+attacks proposed by Fang et al. [10], i.e., Krum attack for
+
+Krum, and Trim attack for Trimmed-mean, Median, and
+
+FLTrust. For FedAvg, since a single malicious client can
+
+arbitrarily manipulate the global model [32], we use an attack
+
+that forces the aggregated model update to be 0. In other
+
+words, a global model will learn nothing from the training
+
+process if there is any malicious client in its training process. For backdoor attacks, we consider the same trigger as proposed by Gu et al. [11] and set 0 as the target label for MNIST-0.1 and MNIST-0.5. For CIFAR-10, we use the same pixel-pattern trigger and the target label “bird” in [2]. For HAR, we design our trigger by setting a feature value to 0 for every 20 features and we choose “WALKING UPSTAIRS” as the target label. For Reddit, we consider the text trigger “pasta from Astoria is” and the target label “delicious” as proposed in [2].
+
+6) Parameter Settings: We consider different numbers of
+
+clients for different datasets to show generality of FLCert.
+
+Speciﬁcally, we assume 1,000 clients for MNIST-0.1 and
+
+MNIST-0.5 datasets. For CIFAR-10 dataset, we assume 100
+
+clients. For HAR and Reddit, each user is considered as
+
+a client naturally, which results in 30 and 80,000 clients,
+
+respectively. In FLCert-D, we randomly generate a 64-bit
+
+user ID for each client and use the Python built-in hash()
+
+function to divide clients into N groups based on user IDs for
+
+each dataset. In FLCert-P,
+
+we
+
+choose k
+
+=
+
+n N
+
+such
+
+that the
+
+expected communication/computation cost for each client is
+
+the same as FLCert-D; and we set α = 0.001, i.e., given a test
+
+dataset, FLCert-P outputs an incorrect certiﬁed security level
+
+for at least one test input in 1 out of 1,000 runs on average.
+
+Moreover, we use the same ﬁxed seed for a base FL algorithm
+
+when learning the global models for different groups.
+
+In FLCert, unless otherwise mentioned, we set βe = 1 (i.e., the server selects all the clients in a group in each global iteration when learning a global model for the group) in all the datasets except Reddit as the groups are small in these datasets. For Reddit, we set βe = 0.025, i.e., 2.5% of clients in a group are chosen in each global iteration when learning a global model for the group. A base FL algorithm uses 200, 200, 200, 200, and 1,000 global iterations when learning a global model in either FLCert or the single-global-model setting for MNIST0.1, MNIST-0.5, CIFAR-10, HAR, and Reddit, respectively. In each global iteration, each client trains its local model for 5, 5, 40, 5, and 12 local iterations using stochastic gradient descent with learning rates 0.001, 0.001, 0.01, 0.001, and 20 as well as batch sizes 32, 32, 64, 32, and 64 for the ﬁve datasets, respectively. We set N = 500, 500, 20, 15 and 500 for the ﬁve datasets, respectively. We consider different parameters for different datasets because of their different data characteristics.
+
+7) Equipment and Environment: We run our experiments on a server with Intel Xeon Gold 6230R Processor and 10 NVIDIA Quadro RTX 6000 GPUs. We train our models using the MXNet GPU framework.
+
+TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY
+
+9
+
+FHUWLILHGDFFXUDF\#m FHUWLILHGDFFXUDF\#m
+
+ 
+
+N N
+
+= =
+
+ 
+
+N = 
+
+
+
+
+
+
+
+
+ QXPEHURIPDOLFLRXVFOLHQWVm 
+
+ 
+
+N N
+
+= =
+
+ 
+
+N = 
+
+
+
+
+
+
+
+
+ QXPEHURIPDOLFLRXVFOLHQWVm 
+
+(a) FLCert-P
+
+(b) FLCert-D
+
+Fig. 4: Impact of N on certiﬁed accuracy of FLCert.
+
+certified accuracy @ m
+
+1.0
+
+untargeted attacks
+
+0.8
+
+backdoor attacks
+
+0.6
+
+0.4
+
+0.2
+
+0.0
+
+0
+
+50 100 150 200 250 300
+
+number of malicious clients m
+
+certified accuracy @ m
+
+1.0
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+untargeted attacks
+
+backdoor attacks
+
+0.0
+
+0
+
+50 100 150 200 250 300
+
+number of malicious clients m
+
+(a) FLcert-P
+
+(b) FLCert-D
+
+Fig. 5: Certiﬁed accuracy of FLCert against untargeted attacks and backdoor attacks.
+
+B. Experimental Results
+1) Certiﬁed Accuracy: We ﬁrst show results on certiﬁed accuracy.
+Comparing FLCert with single-global-model and CRFL: We compare the two variants of FLCert with two baselines, i.e., single-global-model FL and CRFL [31]. For CRFL, we use their default parameter settings, i.e., the clipping threshold ρ = 15, standard deviation σ = 0.01, and sample size M = 1, 000. Figure 3 shows the results on all ﬁve datasets, where FedAvg is the base FL algorithm. We observe that when there are no malicious clients (i.e., m = 0), single-global-model FedAvg and CRFL have larger certiﬁed accuracy than FLCert. However, single-global-model FedAvg and CRFL have 0 certiﬁed accuracy when just one client is malicious. This is because a single malicious client can arbitrarily manipulate the global model learnt by FedAvg [32], reducing the certiﬁed accuracy of single-globalmodel FedAvg to 0, and its local training data, reducing the certiﬁed accuracy of CRFL to 0.
+Moreover, we notice that there is a trade-off between the two variants of FLCert for MNIST-0.1, MNIST-0.5, and Reddit, where N is large. Speciﬁcally, when m is small, FLCert-D has higher certiﬁed accuracy. This is because in FLCert-P, we estimate the label probabilities, which reduces the gap between the largest and the second largest label probabilities. On the contrary, when m is large, FLCert-P achieves higher certiﬁed accuracy, which is because FLCert-P can naturally certify more malicious clients than FLCert-D in the extreme cases if we compare Equation 6 with Equation 12. However, FLCert-P cannot certify any malicious client on CIFAR-10 and HAR. This is because the number of groups N is small for these two datasets, e.g., N = 15 for HAR, which results in inaccurate estimation of label probabilities. A possible solution is to design probability estimation methods that are more accurate with a small number of samples. We also found that if we increase N to 500 while keeping k = 2, the certiﬁed accuracy of FLCert-P is still larger than 0 when up to 8 out of 30 clients are malicious for HAR. However, FLCert-P incurs a much larger communication/computation overhead than FLCert-D in such scenario.
+N achieves a trade-off between accuracy and provable security: We explore the impact of the number of groups N on FLCert. Figure 4 shows the results. We observe that N controls a trade-off between accuracy under no attacks
+
+FHUWLILHGDFFXUDF\#m
+
+     
+ QXPEHURIPDOLFLRXVFOLHQWVm 
+
+FHUWLILHGDFFXUDF\#m
+
+     
+ QXPEHURIPDOLFLRXVFOLHQWVm 
+
+(a) FLCert-P
+
+(b) FLCert-D
+
+Fig. 6: Impact of seeds in the hash function used to group clients and the base FL algorithm on the certiﬁed accuracy of FLCert, where dataset is MNIST-0.5, N = 500, and FedAvg is the base FL algorithm. We repeat the experiments for 50 times, each of which uses a distinct seed for the hash function and a distinct seed for FedAvg. The solid line shows the mean certiﬁed accuracy of the 50 trials and the shade represents the standard deviation.
+
+(i.e., m = 0) and provable security. Speciﬁcally, FLCert with a larger N has a lower accuracy under no attacks but can tolerate more malicious clients. This is because when N is larger, the average number of clients in each group becomes smaller. Therefore, the accuracy of each individual global model becomes lower, leading to a lower accuracy for the ensemble global model under no attacks. Meanwhile, since the number of groups is larger, our FLCert can tolerate more malicious clients.
+Untargeted attacks vs. backdoor attacks: We evaluate the certiﬁed accuracy for both untargeted attacks and targeted attacks. Figure 5 shows the results. We observe that the certiﬁed accuracy of both FLCert-P and FLCert-D against untargeted attacks is similar to that against backdoor attacks. The reason is that the trigger in a backdoor attack is often small to be stealthy, and thus a clean global model’s predicted label for a test input is unaffected by the trigger.
+Impact of seeds in hashing and base FL algorithms: Recall that we use the built-in Python hash() function with seeds to divide clients into groups for FLCert-D and we determinize a base FL algorithm via ﬁxing the seed for both FLCert-P and FLCert-D. We study the impact of the seeds on the certiﬁed accuracy of FLCert. Speciﬁcally, we generate 50 pairs of seeds for the hash() function and base FL algorithm. Then, we run our FLCert for 50 times on a dataset, each of which uses
+
+TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY
+
+10
+
+Acc
+
+1.0
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+0.0
+
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+number of malicious clients m
+
+1.0
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+0.0
+
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+number of malicious clients m
+
+ASR
+
+Acc
+
+1.0
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+0.0
+
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+number of malicious clients m
+
+1.0
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+0.0
+
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+number of malicious clients m
+
+ASR
+
+Acc
+
+1.0
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+0.0
+
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+number of malicious clients m
+
+1.0
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+0.0
+
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+number of malicious clients m
+
+ASR
+
+Acc
+
+1.0
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+0.0
+
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+number of malicious clients m
+
+1.0
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+0.0
+
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+number of malicious clients m
+
+ASR
+
+Acc
+
+1.0
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+0.0
+
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+number of malicious clients m
+
+1.0
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+0.0
+
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+number of malicious clients m
+
+ASR
+
+(a) FedAvg
+
+(b) Krum
+
+(c) Trimmed-mean
+
+(d) Median
+
+(e) FLTrust
+
+Fig. 7: Test accuracy (Acc) against untargeted attacks and attack success rate (ASR) against backdoor attacks for the singleglobal-model settings and FLCert when different base FL algorithms are used for MNIST-0.5 and N = 200. A higher test accuracy and a lower ASR mean better empirical performance.
+
+certified accuracy @ m certified accuracy @ m certified accuracy @ 100
+WHVWDFFXUDF\
+
+1.0
+
+0.8
+
+0.6 FedAvg
+
+0.4
+
+Krum
+
+Trimmed-mean
+
+0.2
+
+Median
+
+FLTrust
+
+0.0
+
+0
+
+25 50 75 100 125 150
+
+number of malicious clients m
+
+1.0
+
+0.8
+
+0.6 FedAvg
+
+0.4
+
+Krum
+
+Trimmed-mean
+
+0.2
+
+Median
+
+FLTrust
+
+0.0
+
+0
+
+25 50 75 100 125 150
+
+number of malicious clients m
+
+1.0
+
+
+
+0.8
+
+
+
+0.6
+
+
+
+0.4
+
+
+
+0.2
+
+FLCert-P
+
+
+
+FLCert-D
+
+0.0 0
+
+50
+
+100
+
+150
+
+200
+
+ 
+
+global iteration
+
+VLQJOHJOREDOPRGHO )/&HUW3RQHJURXS )/&HUW'RQHJURXS
+
+
+
+
+
+
+
+JOREDOLWHUDWLRQ
+
+(a) FLCert-P
+
+(b) FLCert-D
+
+(a)
+
+(b)
+
+Fig. 8: FLCert with different base FL algorithms.
+a distinct pair of seeds. In each run, we use the same seed for different groups. Figure 6 shows the certiﬁed accuracy of FLCert with N = 500 on MNIST-0.5 when the base FL algorithm is FedAvg. We observe that the standard deviation is relatively small compared to the average certiﬁed accuracy, which means that our FLCert is insensitive to the seed in the hash() function used to group clients and the seed in the base FL algorithm.
+FLCert with different base FL algorithms: We explore FLCert with different base FL algorithms, where the dataset is MNIST-0.5 and N = 200. We do not use the default N = 500 because when N = 500, the (expected) number of clients in each group is 2, for which Krum, Trimmed-mean, and Median are not deﬁned. Figure 8 shows the results. We notice that the certiﬁed accuracy of FLCert is similar when FedAvg, Trimmed-mean, or Median is used as the base FL algorithm, and is better than the certiﬁed accuracy when the base FL algorithm is Krum. This is because Krum selects a single local model as the new global model while the other base FL algorithms consider all the received local models to update the global model. As a result, the global models learnt by Krum are less accurate than the global models learnt by the other base FL algorithms. Therefore, the ensemble global model of our FLCert has a lower certiﬁed accuracy
+
+Fig. 9: (a) The communication/computation-security tradeoff of FLCert. The vertical line shows the setting of the number of global iterations, where our FLCert has the same communication/computation cost for the clients as the singleglobal-model setting. (b) Convergence of learning the global model in the single-global-model setting and learning a global model for a certain group in FLCert. The dataset is MNIST-0.5 and base FL algorithm is FedAvg.
+when the base FL algorithm is Krum. Moreover, we observe that FLTrust achieves the highest certiﬁed accuracy when the number of malicious clients m is small. This is because the server is assumed to hold a small clean dataset in FLTrust, which helps learn more accurate global models with small groups of clients.
+2) Test Accuracy and Attack Success Rate: Figure 7 shows the test accuracy against existing untargeted attacks and attack success rate against existing backdoor attacks for the conventional single-global-model settings and FLCert when different base FL algorithms are used, for MNIST-0.5 dataset. We use N = 200 as Krum, Trimmed-mean, and Median are not deﬁned when N = 500. The numbers for the untargeted poisoning attacks represent test accuracy and a larger test accuracy indicates a better FL method. The numbers for the backdoor attacks represent attack success rate and a smaller number indicates a better FL method.
+
+TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY
+
+11
+
+We notice that in general, the single-global-model setting achieves comparable or higher test accuracy and lower attack success rate than FLCert when there are no malicious clients or the number of malicious clients is small. However, our FLCert becomes better when the number of malicious clients is larger. An exception is when FLTrust is the aggregation rule, where both single-global-model and FLCert are robust against different attacks. Our results indicate that FLCert can tolerate more malicious clients against empirical attacks than single-global-model.
+3) Communication/Computation-Security Trade-off: Suppose the base FL algorithm uses Te global iterations when learning each global model. Figure 9a shows the certiﬁed accuracy of FLCert for MNIST-0.5 as Te increases, where FedAvg is the base FL algorithm, βe = 1, N = 500, and m = 100. Our certiﬁed accuracy increases as Te increases and converges after Te is large enough. Suppose the single-globalmodel setting uses the default parameter setting T = 1, 000 and β = 0.1. The vertical line in Figure 9a corresponds to the setting of Te with which our FLCert has the same communication/computation cost for a client as the single-globalmodel setting, i.e., Te = βT /βe = 0.1 × 1000/1 = 100. We notice that with such setting of Te, our FLCert-P and FLCertD can already achieve a high certiﬁed accuracy. For instance, FLCert-D achieves a certiﬁed accuracy of 0.73, which is 99% of 0.74, the largest certiﬁed accuracy FLCert-D can achieve by using a large Te. Our results show that, compared to the single-global-model setting, our FLCert can achieve provable security against a bounded number of malicious clients without additional communication and computation cost for the clients.
+One reason is that learning a global model for a group in FLCert converges faster than learning a global model for all clients in the single-global-model setting. Figure 9b shows the test accuracy under no attacks in the single-global-model setting and a global model for a certain group in FLCert-P and FLCert-D as the number of global iterations increases. We observe that the global model in the single-global-model setting converges with roughly 1,000 global iterations, while a global model for a group in our FLCert converges with less than 100 global iterations. The reason is that the global model in the single-global-model setting aims to ﬁt the local training data on all clients, while a global model in our FLCert aims to ﬁt the local training data on only a group of clients.
+We note that FLCert incurs some cost at inference time. Speciﬁcally, we need to store the parameters of N global models. Moreover, we need to query the N global models to make a prediction for a given input. However, we note that such cost is affordable. First, we have shown that a moderate N (e.g., N =500) is enough to achieve a high certiﬁed accuracy. Second, we can leverage model compression techniques to further reduce the model size. Third, the N global models can make predictions in parallel.
+VII. CONCLUSION, LIMITATIONS, AND FUTURE WORK
+In this work, we propose FLCert, an ensemble FL framework that provides provable security guarantees against poisoning attacks from malicious clients. We propose two variants
+
+FLCert-P and FLCert-D based on how the clients are grouped and derive their theoretical security guarantees. Moreover, we design a randomized algorithm to compute the certiﬁed security level for FLCert-P in practice. Our empirical results on multiple datasets show that our FLCert can effectively defend against poisoning attacks with provable security guarantees.
+One limitation of our work is that we do not leverage any prior knowledge on the learning task or the base FL algorithm when deriving our certiﬁed security levels. It is an interesting future work to involve such prior knowledge when deriving certiﬁed security guarantees.
+ACKNOWLEDGEMENTS
+We thank the anonymous reviewers and AE for constructive comments. This work was supported by National Science Foundation grant No. 2131859, 2125977, 2112562, and 1937786 as well as Army Research Ofﬁce grant No. W911NF2110182.
+REFERENCES
+[1] Davide Anguita, Alessandro Ghio, Luca Oneto, Xavier Parra, and Jorge Luis Reyes-Ortiz. A public domain dataset for human activity recognition using smartphones. In ESANN, 2013.
+[2] Eugene Bagdasaryan, Andreas Veit, Yiqing Hua, Deborah Estrin, and Vitaly Shmatikov. How to backdoor federated learning. In AISTATS, 2020.
+[3] Arjun Nitin Bhagoji, Supriyo Chakraborty, Prateek Mittal, and Seraphin Calo. Analyzing federated learning through an adversarial lens. In ICML, 2019.
+[4] Peva Blanchard, El Mahdi El Mhamdi, Rachid Guerraoui, and Julien Stainer. Machine learning with adversaries: Byzantine tolerant gradient descent. In NeurIPS, 2017.
+[5] Xiaoyu Cao, Minghong Fang, Jia Liu, and Neil Zhenqiang Gong. FLTrust: Byzantine-robust federated learning via trust bootstrapping. In NDSS, 2021.
+[6] Xiaoyu Cao and Neil Zhenqiang Gong. Mpaf: Model poisoning attacks to federated learning based on fake clients. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 3396–3404, 2022.
+[7] Xiaoyu Cao, Jinyuan Jia, and Neil Zhenqiang Gong. Provably secure federated learning against malicious clients. In AAAI, 2021.
+[8] Jian Chen, Xuxin Zhang, Rui Zhang, Chen Wang, and Ling Liu. Depois: An attack-agnostic defense against data poisoning attacks. IEEE Transactions on Information Forensics and Security, 2021.
+[9] Charles J Clopper and Egon S Pearson. The use of conﬁdence or ﬁducial limits illustrated in the case of the binomial. Biometrika, 1934.
+[10] Minghong Fang, Xiaoyu Cao, Jinyuan Jia, and Neil Zhenqiang Gong. Local model poisoning attacks to byzantine-robust federated learning. In USENIX Security Symposium, 2020.
+[11] Tianyu Gu, Brendan Dolan-Gavitt, and Siddharth Garg. Badnets: Identifying vulnerabilities in the machine learning model supply chain. In Machine Learning and Computer Security Workshop, 2017.
+[12] Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. Deep residual learning for image recognition. In CVPR, 2016.
+[13] Hakan Inan, Khashayar Khosravi, and Richard Socher. Tying word vectors and word classiﬁers: A loss framework for language modeling. ICLR, 2017.
+[14] Jinyuan Jia, Xiaoyu Cao, and Neil Zhenqiang Gong. Intrinsic certiﬁed robustness of bagging against data poisoning attacks. In AAAI, 2021.
+[15] Jinyuan Jia, Yupei Liu, Xiaoyu Cao, and Neil Zhenqiang Gong. Certiﬁed robustness of nearest neighbors against data poisoning and backdoor attacks. In AAAI, 2022.
+[16] Jinyuan Jia, Binghui Wang, Xiaoyu Cao, and Neil Zhenqiang Gong. Certiﬁed robustness of community detection against adversarial structural perturbation via randomized smoothing. In The Web Conference, 2020.
+[17] Peter Kairouz, H Brendan McMahan, Brendan Avent, Aure´lien Bellet, Mehdi Bennis, Arjun Nitin Bhagoji, Keith Bonawitz, Zachary Charles, Graham Cormode, Rachel Cummings, et al. Advances and open problems in federated learning. arXiv preprint arXiv:1912.04977, 2019.
+
+TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY
+
+12
+
+𝑜 Fig. 10: Illustration of OC , OC , and Oo.
+
+and O = {S(C ∪ C , k)} = OC ∪ OC denote the space of all possible subsamples from either C or C . Figure 10 illustrates
+OC , OC , and Oo. We use a random variable X to denote a subsample S(C, k) and Y to denote a subsample S(C , k) in
+O. We know that X and Y have the following probability
+distributions:
+
+Pr(X = a) =
+
+1
+(nk)
+
+,
+
+if a ∈ OC
+
+(14)
+
+0, otherwise,
+
+Pr(Y = a) =
+
+1
+(nk)
+
+,
+
+if a ∈ OC
+
+(15)
+
+0, otherwise.
+
+[18] Jakub Konecˇny´, H. Brendan McMahan, Felix X. Yu, Peter Richta´rik, Ananda Theertha Suresh, and Dave Bacon. Federated learning: Strategies for improving communication efﬁciency. In NeurIPS Workshop on Private Multi-Party Machine Learning, 2016.
+[19] Alex Krizhevsky, Geoffrey Hinton, et al. Learning multiple layers of features from tiny images. 2009.
+[20] Yann LeCun, Corinna Cortes, and CJ Burges. Mnist handwritten digit database. Available: http://yann. lecun. com/exdb/mnist, 1998.
+[21] Alexander Levine and Soheil Feizi. Deep partition aggregation: Provable defense against general poisoning attacks. arXiv:2006.14768, 2020.
+[22] Kang Liu, Brendan Dolan-Gavitt, and Siddharth Garg. Fine-pruning: Defending against backdooring attacks on deep neural networks. In International Symposium on Research in Attacks, Intrusions, and Defenses, 2018.
+[23] H. Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, and Blaise Agu¨era y Arcas. Communication-efﬁcient learning of deep networks from decentralized data. In AISTATS, 2017.
+[24] Virat Shejwalkar and Amir Houmansadr. Manipulating the byzantine: Optimizing model poisoning attacks and defenses for federated learning. In NDSS, 2021.
+[25] Shiqi Shen, Shruti Tople, and Prateek Saxena. Auror: Defending against poisoning attacks in collaborative deep learning systems. In ACSAC, 2016.
+[26] Jacob Steinhardt, Pang Wei W Koh, and Percy S Liang. Certiﬁed defenses for data poisoning attacks. In NeurIPS, 2017.
+[27] Vale Tolpegin, Stacey Truex, Mehmet Emre Gursoy, and Ling Liu. Data poisoning attacks against federated learning systems. arXiv preprint arXiv:2007.08432, 2020.
+[28] Binghui Wang, Xiaoyu Cao, Jinyuan Jia, and Neil Zhenqiang Gong. On certifying robustness against backdoor attacks via randomized smoothing. In CVPR workshop on adversarial machine learning in computer vision, 2020.
+[29] Binghui Wang, Jinyuan Jia, Xiaoyu Cao, and Neil Zhenqiang Gong. Certiﬁed robustness of graph neural networks against adversarial structural perturbation. In KDD, 2021.
+[30] Jialin Wen, Benjamin Zi Hao Zhao, Minhui Xue, Alina Oprea, and Haifeng Qian. With great dispersion comes greater resilience: Efﬁcient poisoning attacks and defenses for linear regression models. IEEE Transactions on Information Forensics and Security, 2021.
+[31] Chulin Xie, Minghao Chen, Pin-Yu Chen, and Bo Li. Crﬂ: Certiﬁably robust federated learning against backdoor attacks. In ICML, 2021.
+[32] Dong Yin, Yudong Chen, Kannan Ramchandran, and Peter Bartlett. Byzantine-robust distributed learning: Towards optimal statistical rates. In ICML, 2018.
+[33] Zaixi Zhang, Xiaoyu Cao, Jinayuan Jia, and Neil Zhenqiang Gong. Fldetector: Defending federated learning against model poisoning attacks via detecting malicious clients. In ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD), 2022.
+
+Assume that a federated learning algorithm f takes a subsample a and a test input x as its input and outputs a label f (a, x). We have the following equations:
+
+py = Pr(f (X, x) = y)
+
+(16)
+
+= Pr(f (X, x) = y|X ∈ Oo) · Pr(X ∈ Oo)
+
++ Pr(f (X, x) = y|X ∈ (OC − Oo))
+
+· Pr(X ∈ (OC − Oo)),
+
+(17)
+
+py = Pr(f (Y, x) = y)
+
+(18)
+
+= Pr(f (Y, x) = y|Y ∈ Oo) · Pr(Y ∈ Oo)
+
++ Pr(f (Y, x) = y|Y ∈ (OC − Oo))
+
+· Pr(Y ∈ (OC − Oo)).
+
+(19)
+
+Note that we have:
+
+Pr(f (X, x) = y|X ∈ Oo) = Pr(f (Y, x) = y|Y ∈ Oo), (20)
+
+n−m
+
+Pr(X ∈ Oo) = Pr(Y ∈ Oo) =
+
+k n
+
+,
+
+(21)
+
+k
+
+where m is the number of malicious clients. Therefore, we know:
+
+Pr(f (X, x) = y|X ∈ Oo) · Pr(X ∈ Oo) =Pr(f (Y, x) = y|Y ∈ Oo) · Pr(Y ∈ Oo). (22)
+By subtracting (17) from (19), we obtain:
+
+py − py =Pr(f (Y, x) = y|Y ∈ (OC − Oo)) · Pr(Y ∈ (OC − Oo)) −Pr(f (X, x) = y|X ∈ (OC − Oo)) · Pr(X ∈ (OC − Oo)). (23)
+Similarly, we have the following equation for any i = y:
+
+pi − pi =Pr(f (Y, x) = i|Y ∈ (OC − Oo)) · Pr(Y ∈ (OC − Oo)) −Pr(f (X, x) = i|X ∈ (OC − Oo)) · Pr(X ∈ (OC − Oo)). (24)
+Therefore, we can show:
+
+PROOF OF THEOREM 1
+We ﬁrst deﬁne a subsample as a set of k clients sampled from the n clients uniformly at random without replacement. We further deﬁne the space of all subsamples of k clients from C as OC = {S(C, k)} and the space of all possible subsamples from C as OC = {S(C , k)}. Let Oo = {S(C ∩ C , k)} = OC ∩ OC denote the space of all possible subsamples from the set of normal clients C ∩ C ,
+
+py − pi
+
+=py − pi + (py − py) − (pi − pi)
+
+(25)
+
+=py − pi
+
++ Pr(f (Y, x) = y|Y ∈ (OC − Oo))
+
+− Pr(f (Y, x) = i|Y ∈ (OC − Oo)) · Pr(Y ∈ (OC − Oo))
+
+− [Pr(f (X, x) = y|X ∈ (OC − Oo))
+
+− Pr(f (X, x) = i|X ∈ (OC − Oo))] · Pr(X ∈ (OC − Oo)). (26)
+
+TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY
+
+13
+
+𝐴𝐴
+𝐵𝐵 𝐴𝐴
+𝐵𝐵
+(a) Case 1
+𝑜𝑜 𝐴𝐴 𝐵𝐵 𝐵𝐵
+𝑜𝑜 𝐴𝐴 𝐵𝐵 𝐵𝐵
+
+𝑜𝑜
+
+𝐴𝐴 𝐵𝐵 𝑜𝑜
+
+𝐴𝐴
+
+𝐵𝐵
+
+(b) Case 2
+𝐴𝐴 𝑜𝑜
+𝐴𝐵𝐴𝐵 𝑜𝑜
+𝐵𝐵
+
+In this case, we know Oo = ∅. Let OA ⊆ OC and OB ⊆
+
+OC such that |OA| =
+
+py ·
+
+n k
+
+, |OB| =
+
+pz ·
+
+n k
+
+, and
+
+OA ∩ OB = ∅. Since py + pz ≤ 1, we have:
+
+n
+
+n
+
+|OA| + |OB| = py · k + pz · k
+
+(35)
+
+n
+
+n
+
+≤ py · k + (1 − py) · k
+
+(36)
+
+n
+
+n
+
+n
+
+= py · k + k − py · k
+
+(37)
+
+n
+
+= k = |OC |.
+
+(38)
+
+(c) Case 3
+
+(d) Case 4
+
+Fig. 11: Illustration of OC , OC , Oo, OA, and OB in the four cases.
+
+Note that we have:
+Pr(f (Y, x) = y|Y ∈ (OC − Oo)) − Pr(f (Y, x) = i|Y ∈ (OC − Oo)) ≥ −1, (27)
+
+Pr(f (X, x) = y|X ∈ (OC − Oo)) − Pr(f (X, x) = i|X ∈ (OC − Oo)) ≤ 1, (28)
+
+Pr(Y ∈ (OC − Oo))
+
+=Pr(X ∈ (OC − Oo))
+
+n−m
+
+=1 −
+
+k n
+
+.
+
+k
+
+Therefore, (26) gives:
+
+n−m
+
+py − pi ≥ py − pi + (−1) · 1 −
+
+k n
+
+k
+
+n−m
+
+− 1−
+
+k n
+
+k
+
+n−m
+
+= py − pi − 2 − 2 ·
+
+k n
+
+k
+
+=
+
+py ·
+
+n k
+
+n
+
+k
+
+−
+
+pz ·
+
+n k
+
+n
+
+k
+
+n−m
+
+−2 1−
+
+k n
+
+k
+
+py ·
+
+n k
+
+≥
+
+n
+
+k
+
+−
+
+pz ·
+
+n k
+
+n
+
+k
+
+−2
+
+1−
+
+n−m∗ k n k
+
+> 0,
+
+which indicates F (C , x) = y.
+
+(29)
+(30) (31) (32) (33) (34)
+
+Therefore, we can always ﬁnd such a pair of disjoint sets (OA, OB). Figure 11a illustrates OA, OB, OC , and OC . We can construct f ∗ as follows:
+
+
+y,  f ∗(a, x) = z,
+
+if a ∈ OA if a ∈ OB ∪ OC (39)
+
+i, i = y and i = z, otherwise.
+
+We can show that such f ∗ satisﬁes the following probability properties:
+
+py
+
+=
+
+Pr(f ∗(X, x)
+
+=
+
+y)
+
+=
+
+|OA| |OC |
+
+=
+
+pz
+
+=
+
+Pr(f ∗(X, x)
+
+=
+
+z)
+
+=
+
+|OB | |OC |
+
+=
+
+py ·
+
+n k
+
+n
+
+k
+
+pz ·
+
+n k
+
+n
+
+k
+
+≥ py, (40) ≤ pz. (41)
+
+Therefore, f ∗ satisﬁes the probability condition (7). However, we have:
+
+pz = Pr(f ∗(Y, x) = z) = 1,
+
+(42)
+
+which indicates F (C , x) = z = y.
+
+Case
+
+2:
+
+m∗
+
+<
+
+m
+
+<
+
+n − k,
+
+0
+
+≤
+
+py
+
+≤
+
+1−
+
+( ) n−m k (nk)
+
+,
+
+and
+
+0
+
+≤
+
+pz
+
+≤
+
+( ) n−m k (nk)
+
+.
+
+Let OA ⊆ OC − Oo such that |OA| =
+
+py ·
+
+n k
+
+. Let
+
+OB ⊆ Oo such that |OB| =
+
+pz ·
+
+n k
+
+. Figure 11b illustrates
+
+OA, OB, OC , OC , and Oo. We can construct a federated learning algorithm f ∗ as follows:
+
+ y,  f ∗(a, x) = z,
+i, i = y and i = z,
+
+if a ∈ OA if a ∈ OB ∪ (OC − Oo) otherwise.
+(43)
+
+PROOF OF THEOREM 2
+We prove Theorem 2 by constructing a federated learning algorithm f ∗ such that F (C , x) = y or there exist ties.
+We follow the deﬁnitions of O, OC , OC , Oo, X, and Y in the previous proof. Next, we consider four cases (Figure 11 illustrates them).
+Case 1: m ≥ n − k.
+
+We can show that such f ∗ satisﬁes the following probability conditions:
+
+py
+
+=
+
+Pr(f ∗(X, x)
+
+=
+
+y)
+
+=
+
+|OA| |OC |
+
+=
+
+pz
+
+=
+
+Pr(f ∗(X, x)
+
+=
+
+z)
+
+=
+
+|OB | |OC |
+
+=
+
+py ·
+
+n k
+
+n
+
+k
+
+pz ·
+
+n k
+
+n
+
+k
+
+≥ py, (44) ≤ pz, (45)
+
+TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY
+
+14
+
+which indicates f ∗ satisﬁes (7). However, we have:
+
+py − pz = Pr(f ∗(Y, x) = y) − Pr(f ∗(Y, x) = z) (46)
+
+= 0 − |OB| + |OC − Oo|
+
+(47)
+
+|OC |
+
+=−
+
+pz ·
+
+n k
+
+n
+
+n−m
+
+−1+
+
+k n
+
+(48)
+
+k
+
+k
+
+< 0,
+
+(49)
+
+which implies F (C , x) = y.
+
+Case
+
+3:
+
+m∗ < m < n−k, 0 ≤ py
+
+≤
+
+1−
+
+( ) n−m k (nk)
+
+,
+
+and
+
+( ) n−m k (nk)
+
+≤
+
+pz ≤ 1 − py.
+
+Let OA ⊆ OC − Oo and OB ⊆ OC − Oo such that |OA| =
+
+py ·
+
+n k
+
+, |OB| =
+
+pz ·
+
+n k
+
+−
+
+n−m k
+
+,
+
+and
+
+OA
+
+∩
+
+OB
+
+=
+
+∅.
+
+Note that |OC − Oo| =
+
+n k
+
+−
+
+n−m k
+
+,
+
+and
+
+we
+
+have:
+
+|OA| + |OB|
+
+n
+
+n
+
+n−m
+
+= py · k + pz · k −
+
+k
+
+(50)
+
+n
+
+n
+
+n−m
+
+≤ py · k + (1 − py) · k −
+
+k
+
+(51)
+
+n
+
+n
+
+n
+
+n−m
+
+= py · k + k − py · k
+
+− k
+
+(52)
+
+= n − n−m .
+
+(53)
+
+k
+
+k
+
+Therefore, we can always ﬁnd a pair of such disjoint sets (OA, OB). Figure 11c illustrates OA, OB, OC , OC , and Oo. We can construct an algorithm f ∗ as follows:
+
+
+y,  f ∗(a, x) = z,
+
+if a ∈ OA if a ∈ OB ∪ OC (54)
+
+i, i = y and i = z, otherwise.
+
+We can show that such f ∗ satisﬁes the following probability conditions:
+
+py
+
+=
+
+Pr(f ∗(X, x)
+
+=
+
+y)
+
+=
+
+|OA| |OC |
+
+=
+
+py ·
+
+n k
+
+n k
+
+≥ py, (55)
+
+pz
+
+=
+
+Pr(f ∗(X, x)
+
+=
+
+z)
+
+=
+
+|OB| + |Oo| |OC |
+
+=
+
+pz ·
+
+n k
+
+n
+
+k
+
+≤ pz,
+
+(56)
+
+which are consistent with the probability conditions (7). However, we can show the following:
+
+pz = Pr(f ∗(Y, x) = z) = 1,
+
+(57)
+
+which gives F (C , x) = z = y.
+
+Case
+
+4:
+
+m∗
+
+<
+
+m
+
+<
+
+n − k,
+
+1−
+
+( ) n−m k (nk)
+
+<
+
+py
+
+≤
+
+1,
+
+and
+
+0
+
+≤
+
+pz
+
+≤
+
+1 − py
+
+<
+
+( ) n−m k (nk)
+
+.
+
+Let OA ⊆ Oo and OB ⊆ Co such that |OA| =
+
+py ·
+
+n k
+
++
+
+n−m k
+
+−
+
+n k
+
+that |Oo| =
+
+, |OB| =
+
+n−m k
+
+,
+
+and
+
+pz ·
+
+n k
+
+,
+
+we have:
+
+and
+
+OA
+
+∩ OB
+
+=
+
+∅.
+
+Note
+
+|OA| + |OB|
+
+n
+
+n−m
+
+n
+
+n
+
+= py · k +
+
+k
+
+− k + pz · k
+
+(58)
+
+n
+
+n−m
+
+n
+
+n
+
+≤ py · k +
+
+k
+
+− k + (1 − py) · k
+
+(59)
+
+n
+
+n−m
+
+n
+
+= py · k +
+
+k
+
+−
+
++
+
+k
+
+= n−m . k
+
+n
+
+n
+
+k − py · k
+
+(60)
+
+(61)
+
+Therefore, we can always ﬁnd such a pair of disjoint sets (OA, OB). Figure 11d illustrates OA, OB, OC , OC , and Oo. Next, we can construct an algorithm f ∗ as follows:
+
+ y,  f ∗(a, x) = z,
+i, i = y and i = z,
+
+if a ∈ OA ∪ (OC − Oo) if a ∈ OB ∪ (OC − Oo) otherwise.
+(62)
+
+We can show that f ∗ has the following properties:
+
+py
+
+=
+
+Pr(f ∗(X, x)
+
+=
+
+y)
+
+=
+
+|OA|
+
++ |OC |OC |
+
+− Oo|
+
+=
+
+py ·
+
+n k
+
+n k
+
+≥ py,
+
+(63)
+
+pz
+
+=
+
+Pr(f ∗(X, x)
+
+=
+
+z)
+
+=
+
+|OB | |OC |
+
+=
+
+pz ·
+
+n k
+
+n
+
+k
+
+≤ pz,
+
+(64)
+
+which implies f ∗ satisﬁes the probability condition (7). However, we also have:
+
+py − pz
+
+=Pr(f ∗(Y, x) = y) − Pr(f ∗(Y, x) = z)
+
+(65)
+
+= |OA| − |OB| + |OC − Oo|
+
+(66)
+
+|OC |
+
+|OC |
+
+py ·
+
+n k
+
+=
+
++
+
+n−m k
+
+−
+
+n k
+
+n
+
+−
+
+pz ·
+
+n k
+
+k
+
+−
+
+n−m k
+
++
+
+n k
+
+n
+
+k
+
+(67)
+
+py ·
+
+n k
+
+=
+
+n
+
+−
+
+pz ·
+
+n k
+
+n
+
+n−m
+
+− 2−2·
+
+k n
+
+.
+
+k
+
+k
+
+k
+
+(68)
+
+Since m > m∗, we have:
+
+py ·
+
+n k
+
+n
+
+−
+
+pz ·
+
+n k
+
+n
+
+n−m
+
+≤ 2−2·
+
+k n
+
+.
+
+(69)
+
+k
+
+k
+
+k
+
+Therefore, py −pz ≤ 0, which indicates F (C , x) = y or there exist ties.
+To summarize, we have proven that in any possible cases, Theorem 2 holds, indicating that our derived certiﬁed Byzantine size is tight.
+
+TRANSACTIONS ON INFORMATION FORENSICS AND SECURITY
+
+PROOF OF THEOREM 3 Based on the Clopper-Pearson method, we have:
+
+Pr(pyt ≤ Pr(f (S(C, k), xt) = yt) ∧ pzt
+
+≥Pr(f (S(C, k), xt) = i), ∀i = yt)
+
+α
+
+≥1 − .
+
+(70)
+
+d
+
+Therefore, for a test input xt, if our algorithm does not abstain
+
+for xt, the probability that it returns an incorrect certiﬁed
+
+Byzantine
+
+size
+
+is
+
+at
+
+most
+
+α d
+
+:
+
+Pr((∃C ∈ Ω(C, mˆ ∗t ), h(C , k, xt) = yˆt)|yˆt = ABSTAIN)
+
+α
+
+≤.
+
+(71)
+
+d
+
+Then, we have the following:
+
+Pr(∩xt∈D((∀C ∈ Ω(C, mˆ ∗t ), h(C , k, xt) = yˆt)|
+
+yˆt = ABSTAIN)) = 1 − Pr(∪xt∈D((∃C ∈ Ω(C, mˆ ∗t ), h(C , k, xt) = yˆt)|
+
+yˆt = ABSTAIN))
+
+(72)
+
+≥1−
+
+Pr((∃C ∈ Ω(C, mˆ ∗t ), h(C , k, xt) = yˆt)|
+
+xt ∈D
+
+yˆt = ABSTAIN)
+
+(73)
+
+α
+
+≥1−d·
+
+(74)
+
+d
+
+= 1 − α.
+
+(75)
+
+We have (73) from (72) based on the Boole’s inequality.
+
+Xiaoyu Cao received an B.Eng. degree from the department of gifted young, University of Science and Technology of China (USTC), M.Eng. degree from Iowa State University, and Ph.D degree from Duke University in 2016, 2019, and 2022, respectively. He is currently a research scientist at Meta Platforms. His research interests are in the area of machine learning security and privacy, with special interest in federated learning security.
+
+Zaixi Zhang received an BS degree from the department of gifted young, University of Science and Technology of China (USTC), in 2019. He is currently working toward the Ph.D. degree in the School of Computer Science and Technology at USTC. His main research interests include data mining, machine learning security & privacy, and graph representation learning. He has published papers in referred conference proceedings, such as IJCAI, NeurIPS, KDD, and AAAI.
+
+15
+Jinyuan Jia received an B.Eng. degree from University of Science and Technology of China (USTC), M.Eng. degree from Iowa State University, and Ph.D degree from Duke University in 2016, 2019, and 2022, respectively. He is a postdoc at the University of Illinois Urbana-Champaign and will be an Assistant Professor at The Pennsylvania State University starting in July 2023. His research involves security, privacy, and machine learning, with a recent focus on the intersection among them.
+Neil Zhenqiang Gong received an B.Eng. degree from University of Science and Technology of China (USTC) in 2010 and Ph.D. in Computer Science from University of California Berkeley in 2015. He is currently an Assistant Professor at Duke University. His research interests are cybersecurity, privacy, machine learning security, and social networks security. He has received multiple prestigious awards such as Army Research Ofﬁce Young Investigator Program Award and NSF CAREER Award.
+

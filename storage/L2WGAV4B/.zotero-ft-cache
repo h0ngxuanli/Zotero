@@ -1,0 +1,1049 @@
+LazyGNN: Large-Scale Graph Neural Networks via Lazy Propagation
+
+arXiv:2302.01503v1 [cs.LG] 3 Feb 2023
+
+Rui Xue 1 Haoyu Han 2 MohamadAli Torkamani 3 Jian Pei 4 Xiaorui Liu 5
+
+Abstract
+Recent works have demonstrated the beneﬁts of capturing long-distance dependency in graphs by deeper graph neural networks (GNNs). But deeper GNNs suffer from the long-lasting scalability challenge due to the neighborhood explosion problem in large-scale graphs. In this work, we propose to capture long-distance dependency in graphs by shallower models instead of deeper models, which leads to a much more efﬁcient model, LazyGNN, for graph representation learning. Moreover, we demonstrate that LazyGNN is compatible with existing scalable approaches (such as sampling methods) for further accelerations through the development of mini-batch LazyGNN. Comprehensive experiments demonstrate its superior prediction performance and scalability on large-scale benchmarks. LazyGNN also achieves state-of-art performance on the OGB leaderboard.
+1. Introduction
+Graph neural networks (GNNs) have been widely used for representation learning on graph-structured data (Hamilton, 2020; Ma & Tang, 2021), and they achieve promising state-of-the-art performance on various general graph learning tasks, such as node classiﬁcation, link prediction, and graph classiﬁcation (Kipf & Welling, 2016; Gasteiger et al., 2019; Velicˇkovic´ et al., 2017; Wu et al., 2019) as well as a variety of important applications, such as recommendation systems, social network analysis, and transportation prediction. In particular, recent research in deeper GNNs has generally revealed the performance gains from capturing long-distance relations in graphs by stacking more graph convolution layers or unrolling various ﬁxed point
+1Department of Electrical and Computer Engineering, North Carolina State University, Raleigh, US 2Department of Computer Science, Michigan State University, East Lansing, US 3Amazon, US 4Department of Computer Science, Duke University, Durham, US 5Department of Computer Science, North Carolina State University, Raleigh, US. Correspondence to: Xiaorui Liu <xliu96@ncsu.edu>.
+
+iterations (Gasteiger et al., 2018; Gu et al., 2020; Liu et al., 2020; Chen et al., 2020a; Li et al., 2021; Ma et al., 2020; Pan et al., 2020; Zhu et al., 2021; Chen et al., 2020b). However, the recursive feature propagations in deeper GNNs lead to the well-known neighborhood explosion problem since the number of neighbors grows exponentially with the number of feature propagation layers (Hamilton et al., 2017; Chen et al., 2018a). This causes tremendous scalability challenges for data sampling, computation, memory, parallelism, and end-to-end training when employing GNNs on large-scale graphs. It greatly limits GNNs’ broad applications in largescale industry-level applications due to limited computation and memory resources (Ying et al., 2018; Shao et al., 2022).
+A large body of existing research focuses on improving the scalability and efﬁciency of large-scale GNNs using various innovative designs, such as sampling methods, precomputing or post-computing methods, and distributed methods. Although these approaches mitigate the neighborhood explosion problem, they still face various limitations when they are applied to deeper GNNs. For instance, sampling approaches (Hamilton et al., 2017; Chen et al., 2018a; Zeng et al., 2020; Zou et al., 2019; Fey et al., 2021; Yu et al., 2022) usually incur large approximation errors and suffer from performance degradation as demonstrated in large-scale OGB benchmarks or require large additional memory or storage space to store activation values in hidden layers. Pre-computing or post-computing methods (Wu et al., 2019; Rossi et al., 2020; Sun et al., 2021; Zhang et al., 2022; Bojchevski et al., 2020; Zhu, 2005; Huang et al., 2020) lose the beneﬁts of end-to-end training and usually suffer from performance loss. Distributed methods (Chiang et al., 2019; Chai et al., 2022; Shao et al., 2022) distribute large graphs to multiple servers for parallel training, but they either lose the inter-server edges or suffer from expensive feature communication between servers.
+In this work, we take a substantially different and novel perspective and propose to capture long-distance dependency in graphs by shallower GNNs instead of deeper GNNs. The key intuition comes from the fact that node information has been propagated over the graph many times during the training process so we may only need to propagate information lazily by reusing the propagated information over the training iterations. This intuition leads to the proposed LazyGNN that solves the inherent neighborhood explosion
+
+LazyGNN: Large-Scale Graph Neural Networks via Lazy Propagation
+
+problem by signiﬁcantly reducing the number of aggregation layers while still capturing long-distance dependency in graphs through lazy propagation. Multiple technical challenges such as the risk of over-smoothing, additional variation due to feature dropout, and back-propagation through historical computation graphs are carefully dealt with by innovative designs in LazyGNN. Moreover, since LazyGNN is a shallow model, it naturally tackles the limitations that existing scalable approaches suffer from when handling large-scale and deeper GNNs. Therefore, various scalable approaches can be used in LazyGNN for further acceleration. We demonstrate this by developing a highly scalable and efﬁcient mini-batch LazyGNN based on sampling methods. To the best of our knowledge, LazyGNN is the ﬁrst GNN model being versatilely friendly to data sampling, computation, memory space, parallelism, and end-to-end training but still captures long-distance dependency in graphs. Our contributions can be summarized as follows:
+• We reveal a novel perspective to solve the neighborhood explosion problem by exploiting the computation redundancy in training GNNs;
+• A novel shallow model, LazyGNN, is proposed to capture long-distance dependency in graphs for end-to-end graph representation learning through lazy forward and backward propagations;
+• We demonstrate that existing scalable approaches can be compatible with LazyGNN by introducing a highly efﬁcient and scalable mini-batch LazyGNN to handle large-scale graphs based on sampling methods.
+• Comprehensive experiments demonstrate superior prediction performance and efﬁciency on large-scale graph datasets. Notably, the proposed LazyGNN also achieves the best performance on OGB leaderboard.
+2. Preliminaries
+Notations. A graph is represented by G = (V, E) where V = {v1, . . . , vN } is the set of nodes and E = {e1, . . . , eM } is the set of edges. Suppose that each node is associated with a d-dimensional feature vector, and the original features for all nodes are denoted as Xfea ∈ RN×d. The graph structure of G can be represented by an adjacency matrix A ∈ RN×N , where Aij > 0 when there exists an edge between node vi and vj, otherwise Ai,j = 0. The symmetrically normalized graph Laplacian matrix is deﬁned as L˜ = I − A˜ with A˜ = D−1/2AD−1/2 where D is the degree matrix. Next, we brieﬂy introduce the graph signal denoising and ﬁxed point iteration perspective of GNNs that provide a better understanding of the computation trajectory and long-distance dependency in graphs. Finally, we provide a preliminary study to reveal the computation redundancy in GNNs.
+
+2.1. GNNs as Graph Signal Denoising
+
+It is recently established that many popular GNNs can be
+
+uniformly understood as solving graph signal denoising
+
+problems with various diffusion properties and that the long-
+
+distance dependency can be well captured by unrolling vari-
+
+ous ﬁxed point iterations (Ma et al., 2020; Pan et al., 2020;
+
+Zhu et al., 2021; Chen et al., 2020b; Gu et al., 2020). For
+
+instance, the message passing in GCN (Kipf & Welling, 2016), Xout = A˜ Xin, can be considered as one gradient descent iteration for minimizing tr(X (I − A˜ )X) with
+
+the initialization X0 = Xin. The message passing scheme
+
+in APPNP (Klicpera et al., 2018) follows the aggregation
+
+Xl+1 = (1 − α)A˜ Xl + αXin that iteratively minimizes
+
+X − Xin
+
+2 F
+
++
+
+(1/α
+
+−
+
+1)
+
+tr(X
+
+(I − A˜ )X) with the ini-
+
+tialization X0 = Xin where l is the index of layers. Implicit
+
+GNN (Gu et al., 2020) adopts projected gradient descent to
+
+solve the ﬁxed point problem X = φ(WXA˜ + B). Please
+
+refer to the reference (Ma et al., 2020; Pan et al., 2020; Zhu
+
+et al., 2021; Chen et al., 2020b) for such understanding of
+
+many other popular GNN models. Moreover, a large num-
+
+ber of advanced GNN models have been inspired from this
+
+perspective (Chen et al., 2022; Liu et al., 2021a;b; Yang
+
+et al., 2021a;b; Jia & Benson, 2022; Jiang et al., 2022).
+
+2.2. Computation Redundancy in Training GNNs
+In the training process of GNNs, the model parameters are updated following gradient descent style algorithms such as Adam (Kingma & Ba, 2014). Therefore, the model as well as hidden features in GNNs changes smoothly, especially in the late stages when both the learning rate and gradient norm diminish. This intuition motivates us to investigate the computation redundancy in GNNs. Speciﬁcally, we measure the relative hidden features changes, i.e.,
+Xk+1 − Xk F / Xk F , over the training iterations on Cora dataset using APPNP. We show two cases in Figure 1: (1) when there is no dropout, the hidden features barely change as the training goes; (2) if we use dropout, it will incur additional variation in the hidden features due to the randomness in dropout layers. Both cases demonstrate that the activation values in hidden layers of GNNs indeed change slowly, indicating the existence of computation redundancy: the computation in successive training iterations is highly similar. This observation not only validates the rationality of historical embedding used in existing works such as VRGNN (Chen et al., 2017) and GNNAutoScale (Fey et al., 2021) but also motivates the lazy propagation in this work.
+
+3. Lazy Graph Neural Networks
+In this section, we propose a novel shallow LazyGNN that uses a few aggregation layers to capture long-distance dependency in graphs through lazy forward and backward propagations. Then a mini-batch LazyGNN is introduced to
+
+LazyGNN: Large-Scale Graph Neural Networks via Lazy Propagation
+
+(a) Without dropout
+
+(b) With dropout
+
+Figure 1. Feature changes Xk+1 − Xk F / Xk F in APPNP.
+
+handle large-scale graphs with efﬁcient data sampling, computation, and memory usage. Complexity analyses are also provided to illustrate the superior scalability of LazyGNN.
+
+3.1. GNNs with Lazy Propagation
+
+Existing research has demonstrated the beneﬁts of capturing long-distance relations in graphs by stacking more feature aggregation layers or unrolling various ﬁxed point iterations as introduced in Section 1. However, these deeper GNNs are not efﬁcient due to the neighborhood explosion problem. Our preliminary study in Section 2 reveals the computation redundancy in GNNs over the training iterations: the hidden features in GNNs evolve slowly such that the computation of feature aggregations is highly correlated and redundant over training iterations. This observation motivates us to develop a novel shallow LazyGNN that captures long-distance relations in graphs by propagating information lazily with very few message-passing layers.
+
+Without loss of generality, we build LazyGNN on the most common graph signal denoising problem:
+
+min
+X
+
+X − Xin
+
+2 F
+
++
+
+(1/α
+
+−
+
+1)
+
+tr(X
+
+(I − A˜ )X),
+
+(1)
+
+where the ﬁrst term maintains the proximity with node hid-
+
+den features Xin after feature transformation, and the second Laplacian smoothing regularization encodes smoothness
+
+assumption on graph representations. We take this as an
+
+example to illustrate the main idea of lazy propagation but
+
+the idea can be applied to other GNNs inspired by general
+
+denoising problems or ﬁxed point iterations with different
+
+properties. Next, we illustrate the lazy forward and back-
+
+ward propagations in LazyGNN as well as the technical
+
+challenges being solved by innovative designs.
+
+Forward Computation. From Eq. (1), we derive the highorder graph diffusion as in APPNP (Klicpera et al., 2018) with f being the feature transformation:
+
+Xkin = f (Xfea, Θk),
+
+(2)
+
+Xk0 = Xkin,
+
+(3)
+
+Xkl+1 = (1 − α)A˜ Xkl + αXkin, ∀l = 0, . . . , L − 1 (4)
+
+where l and k denote the index of layers and training iterations, respectively. The key insight of LazyGNN is that the
+
+approximate solution of Eq. (1) (i.e., XkL) evolves smoothly since Xkin = f (Xfea, Θk) changes smoothly with model parameters Θk. Intuitively, the features have been propagated over the graph many times in previous training iterations so that it sufﬁces to propagate features lazily by reusing existing computation. Formally, we propose LazyGNN to leverage the computation redundancy between training iterations by mixing the diffusion output in iteration k − 1 (i.e., XkL−1) into the initial embedding of the diffusion process in training iteration k, namely Xk0 = (1 − β)XkL−1 + βXkin. This is because, in practice, dropout is commonly used in deep learning to prevent overﬁtting, which introduces additional variations in the feature embedding as demonstrated in Figure 1. Therefore, we introduce this momentum correction to compensate for such disturbance by mixing current and history features with hyperparameter β. To summarize, the forward computation of LazyGNN works as follows:
+
+Xkin = f (Xfea, Θk),
+
+(5)
+
+Xk0 = (1 − β)XkL−1 + βXkin,
+
+(6)
+
+Xkl+1 = (1 − α)A˜ Xkl + αXkin, ∀l = 0, . . . , L − 1 (7)
+
+Figure 2. LazyGNN with Lazy forward & backward propagation.
+By lingering the computation over training iterations as shown in Figure 2, the feature aggregation layers in Eq. (7) solve the denoising problem in Eq. (1) with an implicitly large number of steps although there are only L layers in each training iteration. Therefore, it only requires a few feature aggregation layers (a small L) to approximate the ﬁxed point solution Xk∗. Note that we ﬁnd L = 1 and L = 2 work very well in our experiments in Section 4. In the extreme case when the learning rate and dropout rate are 0, the forward computation of LazyGNN is equivalent to running forward propagations L × K times continuously with K being the total number of training iterations.
+Remark 1 (Long-distance dependency). Through lazy propagation, LazyGNN is able to capture long-distance dependency in graphs with a small number of feature aggregation layers because LazyGNN accumulatively propagates information to distant nodes in the graphs over many training iterations. In contrast, existing works try to capture longdistance dependency in graphs by increasing the number of feature propagation layers, which is less efﬁcient.
+
+LazyGNN: Large-Scale Graph Neural Networks via Lazy Propagation
+
+Remark 2 (Over-smoothing). In contrast to many GNN models such as GCN or GAT that suffer from the overmoothing issue when more layers are stacked, the accumulation of feature aggregations over training iterations in LazyGNN will not cause the over-smoothing issue because the residual connection Xkin in Eq. (7) determines the ﬁxed point and prevents the over-smoothed solution.
+
+Backward Computation. While it is feasible to leverage the computation from previous training iterations in the forward computation, it is highly non-trivial to compute the gradient for model update in the backward computation since the computation graphs from previous training iterations have been destroyed and released in the memory. In other words, there is no way to directly compute the backpropagation through the history variables {XkL−1, XkL−2, . . . } in current iterations k. Therefore, we choose to compute the gradient indirectly via the implicit function theorem.
+
+Theorem 1 (Implicit Gradient). Let X∗ be the ﬁxed point so-
+
+lution of function g(X∗, Xin), i.e., g(X∗, Xin) = 0. Given
+
+the gradient of loss function L(X∗, Y) with respect to the
+
+ﬁxed
+
+point
+
+X∗,
+
+i.e.,
+
+∂L ∂X∗
+
+,
+
+the
+
+gradient
+
+of
+
+loss
+
+L
+
+with
+
+respect
+
+to feature Xin can be computed as:
+
+∂L ∂Xin
+
+=
+
+∂L ∂X∗
+
+(J|X∗
+
+)−1
+
+∂
+
+g
+
+(X∗, Xin ∂Xin
+
+)
+
+(8)
+
+where J|X∗
+
+=
+
+∂ g(X∗ ,Xin ) ∂X∗
+
+is
+
+the
+
+Jacobian
+
+matrix
+
+of
+
+g(X∗, Xin) evaluated at X∗.
+
+Proof. Take the ﬁrst-order derivative on both sides of the ﬁxed point equation g(X∗, Xin) = 0:
+
+∂g(X∗, Xin) + ∂g(X∗, Xin) dX∗ = 0
+
+∂Xin
+
+∂X∗ dXin
+
+dX∗ = − ∂g(X∗, Xin) −1 ∂g(X∗, Xin)
+
+dXin
+
+∂X∗
+
+∂Xin
+
+Using
+
+∂L ∂ Xin
+
+=
+
+∂L ∂X∗
+
+dX∗ dXin
+
+,
+
+we
+
+obtain:
+
+∂L
+
+∂L
+
+=−
+
+∂g(X∗, Xin) −1 ∂g(X∗, Xin) .
+
+∂Xin
+
+∂X∗
+
+∂X∗
+
+∂Xin
+
+Speciﬁcally, for the problem in Eq. (1), we have the ﬁxed
+
+point equation:
+
+g(X∗,
+
+Xin)
+
+=
+
+X∗
+
+−
+
+Xin
+
++
+
+1 (
+α
+
+−
+
+1)(I
+
+−
+
+A˜ )X∗
+
+=
+
+0
+
+(9)
+
+which gives
+
+∂ g (X∗ ,Xin ) ∂ Xin
+
+=
+
+−I and J|X∗
+
+=
+
+1 α
+
+(I
+
+−
+
+(1
+
+−
+
+α)A˜ ).
+
+Therefore, according to Theorem 1, the gradient of loss L
+
+with respect to Xin can be computed as follows:
+
+∂L
+
+∂L
+
+=α
+
+I − (1 − α)A˜
+
+−1
+.
+
+(10)
+
+∂Xin
+
+∂X∗
+
+However, it is still infeasible to compute the expensive ma-
+
+trix inversion so we propose to approximate it by the itera-
+
+tive backward gradient propagation:
+
+∂L
+
+∂L
+
+GL = ∂XL
+
+≈ ∂X∗
+
+(11)
+
+Gl
+
+=
+
+(1
+
+−
+
+α)A˜ Gl+1
+
++
+
+α
+
+∂L ∂XL
+
+∀l = L − 1, . . . , 0
+
+(12)
+
+where
+
+∂L ∂X∗
+
+is
+
+approximated
+
+by
+
+∂L ∂XL
+
+,
+
+and
+
+G0
+
+provides
+
+an
+
+approximation
+
+for
+
+gradient
+
+∂L ∂ Xin
+
+.
+
+It
+
+is
+
+clear
+
+that
+
+the
+
+back-
+
+ward computation requires gradient propagation over the
+
+graph, which is symmetric to and as expensive as the vanilla
+
+forward computation. Similarly, to reduce the number of
+
+gradient propagation layers, we propose to propagate the
+
+gradient
+
+lazily
+
+by
+
+leveraging
+
+the
+
+gradient
+
+∂L ∂ Xkin−1
+
+computed
+
+in the previous training iteration k − 1 as shown in Figure 2:
+
+GkL
+
+=
+
+∂L (1 − γ) ∂Xkin−1
+
+∂L + γ ∂XkL
+
+(13)
+
+Gkl
+
+=
+
+(1
+
+−
+
+α)A˜ Gl+1
+
++
+
+α
+
+∂L ∂XkL
+
+∀l = L − 1, . . . , 0
+
+(14)
+
+where
+
+∂L ∂ Xk∗
+
+is
+
+approximated by
+
+∂L ∂ XkL
+
+,
+
+and
+
+G0
+
+provides
+
+an
+
+ap-
+
+proximation
+
+for
+
+gradient
+
+∂L ∂ Xkin
+
+so
+
+that
+
+the
+
+gradient
+
+of
+
+model
+
+parameters,
+
+i.e.,
+
+∂L ∂Θk
+
+,
+
+can
+
+be
+
+further
+
+computed
+
+by
+
+chain
+
+rules. Similar to the forward computation, the momentum
+
+correction in Eq. (13) compensates the gradient changes
+
+over
+
+training
+
+iterations
+
+by
+
+mixing
+
+the
+
+current
+
+gradient
+
+∂L ∂ XkL
+
+and
+
+history
+
+gradient
+
+∂L ∂ Xkin−1
+
+with
+
+hyperparameter
+
+γ.
+
+Remark 3 (Computation and memory efﬁciency). Since
+
+LazyGNN uses very few aggregation layers, it signiﬁcantly
+
+reduces the computation and memory cost. Moreover,
+
+LazyGNN does not need to store intermediate hidden acti-
+
+vation values in the aggregation layers because the compu-
+
+tation of implicit gradient is agnostic to the forward propa-
+
+gation trajectory, which further reduces memory cost.
+
+3.2. Mini-batch LazyGNN with Subgraph Sampling
+As illustrated in Section 3.1, LazyGNN solves the inherent neighborhood explosion problem so that when handling large-scale graphs, the mini-batch sampling only needs to sample neighboring nodes within a few hop distances. To further demonstrate the superior scalability, we introduce a mini-batch LazyGNN to further improve the computation and memory efﬁciency with efﬁcient data sampling as shown in Figure 3. In each training iteration k, we sample a target node set V1k and their L-hop neighbor set V2k, and we denote the union of these two nodes as V k = V1k ∪ V2k. An induced subgraph A˜ V k is constructed based on the node set V k. Note that LazyGNN works well with small L ∈ {1, 2} so that the data sampling is extremely efﬁcient.
+Forward Computation. The forward computation of minibatch LazyGNN works as follows:
+
+LazyGNN: Large-Scale Graph Neural Networks via Lazy Propagation
+
+Figure 3. Mini-batch LazyGNN with Feature & Gradient Storage.
+
+(Xkin)Vk = f (Xfea)V k , Θk ,
+
+(15)
+
+(X0)Vk = (1 − β)(Mfea)V k + β(Xkin)Vk
+
+(16)
+
+(Xkl+1)V k = (1 − α)A˜ V k (Xkl )V k + α(Xkin)V k , ∀l (17)
+
+(Mfea)V1k = (XkL)V1k
+
+(18)
+
+The node features (Xfea)V k for the node set V k are sampled
+to form a mini-batch. The corresponding diffused node fea-
+tures (Mfea)V k of the same node set are retrieved from the feature storage Mfea and then combined with current node features (Xkin)Vk in Eq. (16). The lazy forward propagation runs on the subgraph A˜ V k in Eq. (17). Finally, (XkL)V1k provides the prediction for target nodes V1k, which is further maintained in the features storage Mfea.
+
+Backward Computation. The backward computation of
+
+mini-batch LazyGNN works as follows:
+
+(GkL)V k
+
+=
+
+(1 − γ)(Mgrad)V k
+
+∂L + γ ∂(XkL)V k
+
+(19)
+
+(Gkl )V k
+
+= (1 − α)A˜ V k (Gl+1)V k
+
++
+
+α ∂L ∂(XkL)V k
+
+∀l
+
+(20)
+
+(Mgrad)V1k = (Gk0 )V1k
+
+(21)
+
+In Eq. (19), (Mgrad)V k , the history gradient with respect
+
+to node features (Xkin−1)V k , is retrieved from the gradient
+
+storage
+
+Mgrad
+
+and
+
+then
+
+combined
+
+with
+
+∂L ∂(XkL)V k
+
+,
+
+the
+
+gradi-
+
+ent with respect to current node features (XkL)V k . The lazy backward propagation runs on the subgraph A˜ V k in Eq. (20).
+
+Finally,
+
+(Gk0 )V1k
+
+provides
+
+an
+
+estimation
+
+for
+
+∂L ∂ (Xkin )V1k
+
+,
+
+which
+
+is used to compute gradient of parameters Θk by chain rules
+
+and then maintained in the gradient storage Mgrad.
+
+3.3. Complexity Analysis
+As discussed in Section 3.1 and Section 3.2, LazyGNN is scalable due to its efﬁciency in computation, memory, and data sampling. In this section, we provide complexity analyses to further demonstrate its superior scalability. Since the major efﬁciency difference lies in feature aggregation layers, we focus on the complexity of feature aggregation. Suppose L is the number of propagation layers, H is the
+
+size of hidden units, N is the number of nodes, M is the number of edges. For simplicity, we assume that H is the same for all hidden layers. Performing one feature aggregation requires a sparse-dense matrix multiplication that needs O(M H) operations. Therefore, the computation complexity for forward feature aggregations and backward gradient aggregations is O(2LM H) per epoch. However, the number of layers L in LazyGNN is much smaller than existing approaches, so it signiﬁcantly reduces the computation cost.
+
+For memory complexity, O(N H) space is required for
+
+the
+
+storage
+
+of
+
+history
+
+feature
+
+XkL
+
+and
+
+gradient
+
+∂L ∂ Xkin
+
+in
+
+LazyGNN. LazyGNN does not store the intermediate state
+
+at each feature aggregation layer because the backward
+
+gradient computation is agnostic to the forward compu-
+
+tation trajectory. Therefore, the total memory complex-
+
+ity for LazyGNN is O(N H), which is independent of the
+
+number of aggregation layers. In contrast, existing state-
+
+of-art history-embedding based models, such as GNNAu-
+
+toScale (Fey et al., 2021) and GraphFM (Yu et al., 2022),
+
+require the storage of feature embeddings in every layer,
+
+which leads to the memory complexity O(LN H). More-
+
+over, they also require the storage of all intermediate layers
+
+for gradient computation. Their memory cost increases
+
+linearly with the number of layers, which is essential in cap-
+
+turing long-distance dependency in those models. In fact,
+
+because of the large storage requirements, GAS chooses to
+
+save the history embedding in CPU memory, but the data
+
+movement between CPU and GPU can be dominant com-
+
+pared with the movement in GPU as veriﬁed in Section 4.2.
+
+Mini-batch LazyGNN further reduces the computation and memory cost by data sampling, which enjoys the same beneﬁts as existing sampling-based methods. Compared to classic sampling-based models, such as GraphSAGE and GraphSAINT, mini-batch LazyGNN only needs to sample neighbors in one hop or two hops distance so that the data sampling is efﬁcient. Above analyses indicate that LazyGNN is highly efﬁcient in computation, memory, and data sampling. The practical running time and memory cost will be discussed in Section 4.2. Note that although we do not investigate the distributed setting in this paper, LazyGNN is promising for its parallelism since it requires fewer communication rounds due to lazy propagation.
+
+4. Experiments
+In this section, we provide comprehensive experiments to validate the superior prediction performance and scalability of LazyGNN. Speciﬁcally, we try to answer the following questions: (Q1) Can LazyGNN achieve strong prediction accuracy on large-scale graph benchmarks? (Section 4.1) (Q2) Can LazyGNN handle large graphs more efﬁciently than existing approaches? (Section 4.2) (Q3) What are the impacts of the hyperparameters in LazyGNN? (Section 4.3)
+
+LazyGNN: Large-Scale Graph Neural Networks via Lazy Propagation
+
+4.1. Prediction Performance
+Experimental settings. We conduct experiments on multiple large-scale graph datasets including REDDIT, YELP, FLICKR, ogbn-arxiv, and ogbn-products (Hu et al., 2020). We evaluate the graph representation learning by node classiﬁcation accuracy in the semi-supervised setting. We provide a performance comparison with multiple baselines including GCN (Kipf & Welling, 2016), GraphSage (Hamilton et al., 2017), FastGCN (Chen et al., 2018a), LADIES (Zou et al., 2019), VR-GCN (Chen et al., 2017), MVS-GNN (Cong et al., 2020), Cluster- GCN (Chiang et al., 2019), GraphSAINT (Zeng et al., 2020), SGC (Wu et al., 2019), SIGN (Rossi et al., 2020), GAS (Fey et al., 2021). The hyperparameter tuning of baselines closely follows the setting in GNNAutoScale (Fey et al., 2021). For LazyGNN, we set β = 0.5, and γ = 0.5. Other hyperparameters are tuned from the following search space: (1) learning rate: {0.01, 0.001, 0.0001}; (2) weight decay: {0, 5e−4, 5e−5}; (3) dropout: {0.1, 0.3, 0.5, 0.7}; (4) propagation layers : L ∈ {1, 2}; (5) MLP layers: {3, 4}; (6) MLP hidden units: {256, 512}; (7) α ∈ {0.01, 0.1, 0.2, 0.5, 0.8}. For data sampling, while LazyGNN is compatible with any sampling method, we adopt the subgraph sampling strategy in GNNAutoScale to ensure a fair comparison.
+Performance analysis. From the prediction accuracy as summarized in Table 1, we can make the following observations: (1) LazyGNN achieves state-of-art performance on almost all datasets. In particular, LazyGNN achieves 73.2% and 81.0% accuracy on ogbn-arxiv and ogbn-products. The only exceptions are that GraphSAINT slightly outperforms LazyGNN by 0.2% on REDDIT and that GCNII outperforms LazyGNN by 1.1% on FLICKR. However, LazyGNN is much more efﬁcient than GraphSAINT and GCNII in computation and memory cost. Note that GCNII achieves the reported performance with 10 transformation layers and 8 propagation layers while LazyGNN only uses 4-layer MLP and 2-layer propagation. We believe a stronger performance can be achieved with a more thorough architecture tuning on LazyGNN; (2) Importantly, we observe that full-batch LazyGNN closely matches mini-batch LazyGNN, which indidates that the subgraph sampling in LazyGNN can signiﬁcantly improve the scalibility (as will be discussed in Section 4.2) but do not heavily hurt the prediction performance. Sometimes, LazyGNN even improves the generalization performance due to sampling (such as for REDDIT); (3) LazyGNN also consistently outperforms APPNP with 10 propagation layers, which indicates the advantage of capturing long-distance dependency in graphs by lazy propagation. The reproduction of GAS+GCN on YELP is much worse than reported, therefore we omit the result.
+OGB leaderboard. To further demonstrate the superior prediction performance of LazyGNN, we also compare
+
+Table 1. Prediction accuracy (%) on large-scale graph datasets. “full” and “mini” stand for full-batch and mini-batch respectively. OOM stands for out-of-memory.
+
+# nodes # edges Method
+
+230K 89K 717K 169K 2.4M 11.6M 450K 7.9M 1.2M 61.9M REDDIT FLICKR YELP ogbn- ogbn-
+arxiv products
+
+GraphSAGE
+
+95.4
+
+FastGCN
+
+93.7
+
+LADIES
+
+92.8
+
+VR-GCN
+
+94.5
+
+MVS-GNN
+
+94.9
+
+Cluster-GCN
+
+96.6
+
+GraphSAINT
+
+97.0
+
+SGC
+
+96.4
+
+SIGN
+
+96.8
+
+GCN (full)
+
+95.4
+
+APPNP (full)
+
+96.1
+
+GCNII (full)
+
+96.1
+
+GCN (GAS)
+
+95.4
+
+APPNP (GAS) 96.0
+
+GCNII (GAS) 96.7
+
+LazyGNN (full) 96.2
+
+LazyGNN (mini) 96.8
+
+50.1 63.4 71.5 50.4 — — — —— — 61.5 — — 62.0 — 48.1 60.9 — 51.1 65.3 — 48.2 64.0 — 51.4 63.1 — 53.7 OOM 71.6 53.4 OOM 71.8 55.3 OOM 72.8 54.0 — 71.7 52.4 63.8 71.9 55.3 65.1 72.5 54.2 OOM 73.2 54.0 65.4 73.0
+
+78.7 — — — — 79.0 79.1 — 77.6 OOM OOM OOM 76.7 76.2 77.2 OOM 82.0
+
+LazyGNN with the best-ranked GNN models on the OGB Leaderboard as of Jan. 26, 20231. To make a fair comparison, we only consider the models in the leaderboard that do not use any external data such as the raw text feature. For ogbn-arxiv dataset, we choose AGDN (Sun & Wu, 2020), LGGNN (Ma, 2022), C&S (Huang et al., 2020), EnGCN (Duan et al., 2022) as baselines. For ogbn-products dataset, we compare with SCR (Zhang et al., 2021b), SAGN (Sun et al., 2021), GAMLP (Zhang et al., 2022), C&S (Huang et al., 2020), and EnGCN (Duan et al., 2022). Note that these top-ranked models use additional techniques to boost the performance. For instance, AGDN uses Bags of Tricks (BoT) (Wang et al., 2021), self-Knowledge Distillation (self-KD) (Sun & Wu, 2020), and Correct and Smooth (C&S) (Huang et al., 2020); LGGNN uses C&S and Label Reuse (Ma, 2022); GAMLP uses Reliable Label Utilization (RLU) (Zhang et al., 2022) and SCR (Zhang et al., 2021a); EnGCN uses self-label enhancement (SLE) (Sun et al., 2021), Label Propagation (LP), and Ensemble with weighted majority voting (MV). LazyGNN is also compatible with these techniques, and we only integrate self label enhancement (SLE) (Sun et al., 2021) to improve LazyGNN.
+The performance on ogbn-arxiv and ogbn-products is summarized in Table 2 and Table 3, respectively. They clearly demonstrate that LazyGNN (mini-batch) achieves the stateof-art performance compared with these top-ranked GNN models on the highly competitive leaderboard. LazyGNN signiﬁcantly outperforms many strong baselines such as
+1https://ogb.stanford.edu/docs/leader_ nodeprop/
+
+LazyGNN: Large-Scale Graph Neural Networks via Lazy Propagation
+
+Table 2. Comparison with top-ranked models on ogbn-arxiv.
+
+Method
+AGDN + BoT + self-KD AGDN + BoT + self-KD + C&S LGGNN + LabelReuse + C&S EnGCN + SLE + LP + MV LazyGNN + SLE
+
+ACCURACY (%)
+74.28 74.31 75.70 77.98 78.65
+
+Table 3. Comparison with top-ranked models on ogbn-products.
+
+Method
+GAMLP + RLU + SCR GAMLP + RLU + SCR + C&S SAGN + SLE SAGN + SLE + C&S EnGCN + SLE + LP + MV LazyGNN + SLE
+
+ACCURACY (%)
+85.05 85.20 84.68 84.85 87.98 88.05
+
+AGDN, LGGNN, GAMLP, and SAGN, and it slightly outperforms the best-performing EnGCN (Ensemble GCN) with signiﬁcantly better efﬁciency (1.5 hours vs 2.4 hours).
+
+4.2. Efﬁciency Analysis
+To verify the scalability of LazyGNN, we provide empirical efﬁcient analysis compared with state-of-art end-to-end trainable and scalable GNNs such as GNNAutoScale (GAS) since it has been shown to be the most efﬁcient algorithm for training large-scale GNNs (Fey et al., 2021). Speciﬁcally, we measure the memory usage and running time for the training on ogbn-products dataset using the same batch size. We run GAS using the authors’ code which stores the feature embedding for each layer in CPU memory. For LazyGNN, the memory for storing two small tensors (i.e., feature and gradient) is required. Although the storage memory for LazyGNN can easily ﬁt into the GPU, we measure the running time for two cases depending on whether the storage is on CPU or GPU memory. Note that all methods use similar number of training epochs as will be veriﬁed in Section 4.3, so we compare them using the running time per epoch. For GAS baselines, we use the architecture that can reach the best performance.
+
+Table 4. Memory usage (MB) and running time for each epoch (seconds per epoch) on ogbn-products.
+
+Method
+
+GPU
+
+CPU RUNNING
+
+MEMORY MEMORY TIME
+
+GCN (GAS)
+
+2512 4783 28.8
+
+GCNII (GAS)
+
+3035 4783 44.3
+
+APPNP (GAS)
+
+2142 3952 84.5
+
+LazyGNN (GPU+CPU) 2101
+
+878
+
+44.5
+
+LazyGNN (GPU)
+
+2981
+
+—
+
+7.7
+
+From the measurements summarized in Table 4, we can make the following observations: (1) LazyGNN (GPU) has
+
+a much shorter running time (7.7s) per epoch compared with all baselines; GAS becomes much slower due to the memory movement between GPU and CPU. (2) LazyGNN (GPU+CPU) is faster than APPNP (GAS) because APPNP requires more data movement for feature propagation. This further veriﬁes the computation and memory efﬁciency of LazyGNN. (3) LazyGNN is memory efﬁcient since only 878 MB additional storage is required to store two small tensors for feature and gradient regardless of the number of layers. In contrast, GAS requires large memory storage due to the feature storage for each layer. These observations verify that LazyGNN is efﬁcient in memory and computation.
+
+4.3. Ablation Study
+We provide detailed ablation studies on the impacts of hyperparameter settings in LazyGNN using ogbn-arixv dataset.
+Lazy Propagation. We conduct the ablation study to analyze the impact of feature propagation layers. Speciﬁcally, we use the same MLP for LazyGNN and APPNP, and we change the number of propagation layers K. The comparison in Table 5 demonstrates that: (1) LazyGNN have much better performance than APPNP when using the same number of propagation layers; (2) LazyGNN archives great performance with even 1 propagation layer (72.5%), and it already arrives at the best performance (73.0%) with 2 propagation layers. These results conﬁrm LazyGNN’s advantages and capability in capturing long-distance dependency in graphs with very few feature propagation layers.
+
+Table 5. Prediction accuracy with different numbers of feature propagation layers on ogbn-arxiv.
+
+Method
+APPNP (K=1) APPNP (K=2) APPNP (K=3) LazyGNN (K=1) LazyGNN (K=2) LazyGNN (K=3)
+
+ACCURACY (%)
+70.6 71.4 71.5 72.5 73.0 73.0
+
+Sensitivity Analysis. We provide a detailed sensitivity analysis for the two additional hyperparameters β and γ in LazyGNN. The results in Table 6 show that: (1) {β = 0, γ = 0} produces the worst performance (71.0%) because it fully trusts the history embedding that might be outdated due to the additional variations caused by dropout as demonstrated in Section 2.2; (2) {β = 1, γ = 1} performs slightly better (71.7%) even without lazy propagation because 2 propagation layers can provide an approximate solution; (3) {β = 0.5, γ = 0.5} performs the best (73.0%) because it achieves a good trade-off between historical information and current iteration. It compensates for the staleness in the history storage as designed; (4) The performance of LazyGNN is quite stable for a large range setting of β and γ.
+
+LazyGNN: Large-Scale Graph Neural Networks via Lazy Propagation
+
+In fact, we ﬁx β = γ = 0.5 for LazyGNN in all experiments for simplicity. Therefore, it requires almost negligible effort for additional hyperparameter tuning.
+
+Table 6. Prediction accuracy of mini-batch LazyGNN for different hyperparameter settings on ogbn-arxiv.
+
+Hyperparameter settings
+β = 0.0, γ = 0.0 β = 1.0, γ = 1.0
+β = 0.5, γ = 0.1 β = 0.5, γ = 0.5 β = 0.5, γ = 0.9
+β = 0.1, γ = 0.5 β = 0.5, γ = 0.5 β = 0.9, γ = 0.5
+
+ACCURACY (%)
+71.0 71.7
+72.5 73.0 72.8
+72.4 73.0 72.7
+
+Convergence. We show the convergence of LazyGNN during the training process using ogbn-arxiv dataset. The convergence of validation accuracy in Figure 4 demonstrates that LazyGNN has a comparable convergence speed with GCN (GAS) and GCNII (GAS), and is slightly faster than APPNP (GAS) in terms of the number of training epochs.
+
+Figure 4. Validation performance versus training epochs.
+5. Related Work
+It has been generally demonstrated that it is beneﬁcial to capture long-distance relations in graphs by stacking more feature aggregation layers or unrolling various ﬁxed point iterations in GNNs (Gasteiger et al., 2018; Gu et al., 2020; Liu et al., 2020; Chen et al., 2020a; Li et al., 2021; Ma et al., 2020; Pan et al., 2020; Zhu et al., 2021; Chen et al., 2020b). But these works suffer from scalability concerns due to the neighborhood explosion problem (Hamilton et al., 2017).
+A large body of existing research focuses on improving the efﬁciency and scalability of large-scale GNNs using various novel designs, such as sampling methods, pre-computing or post-computing methods, and distributed methods. Sam-
+
+pling methods adopt mini-batch training strategies to reduce computation and memory requirements by sampling nodes and edges. They mitigate the neighbor explosion issue by either removing neighbors (Hamilton et al., 2017; Chen et al., 2018a; Zeng et al., 2020; Zou et al., 2019) or updating with feature memory (Fey et al., 2021; Yu et al., 2022). Precomputing or post-computing methods separate the feature aggregation and prediction models into two stages, such as pre-computing the feature aggregation before training (Wu et al., 2019; Rossi et al., 2020; Sun et al., 2021; Zhang et al., 2022; Bojchevski et al., 2020) or post-processing with label propagation after training (Zhu, 2005; Huang et al., 2020). Distributed methods distribute large graphs to multiple servers and parallelize GNNs training (Chiang et al., 2019; Chai et al., 2022; Shao et al., 2022). In retrospect, these existing approaches still suffer from various limitations, such as high costs in computation, memory, and communication as well as performance degradation due to large approximation errors or multi-stage training.
+Different from existing works, in this work, we propose LazyGNN from a substantially different and novel perspective and propose to capture the long-distance dependency in graphs by shallower models instead of deeper models. This leads to a much more efﬁcient LazyGNN for graph representation learning. Moreover, existing approaches for scalable GNNs can be used to further accelerate LazyGNN. The proposed mini-batch LazyGNN is a promising example.
+LazyGNN also draws insight from existing research on graph signal processing and implicit modeling. The forward construction of LazyGNN follows the optimization perspective of GNNs (Ma et al., 2020), and it is can be easily generalized to other ﬁxed point iterations with various diffusion properties. LazyGNN is related to recent works in implicit modeling, such as Neural Ordinary Differential Equations (Chen et al., 2018b), Implict Deep Learning (El Ghaoui et al., 2021), Deep Equilibrium Models (Bai et al., 2019), and Implicit GNNs (Gu et al., 2020). LazyGNN focuses on developing shallow models with highly scalable and efﬁcient computation while these implicit models demand signiﬁcantly more computation resources.
+6. Conclusions
+In this paper, we propose LazyGNN, a novel shallow model to solve the neighborhood explosion problem in large-scale GNNs while capturing long-distance dependency in graphs through lazy propagation. We also develop a highly scalable and efﬁcient variant, mini-batch LazyGNN, to handle large graphs. Comprehensive experiments demonstrate its superior prediction performance and efﬁciency on largescale graph datasets. We plan to explore lazy propagation for other types of GNN models and its further acceleration based on other scalable techniques in the future.
+
+LazyGNN: Large-Scale Graph Neural Networks via Lazy Propagation
+
+References
+Bai, S., Kolter, J. Z., and Koltun, V. Deep equilibrium models. Advances in Neural Information Processing Systems, 32, 2019.
+Bojchevski, A., Klicpera, J., Perozzi, B., Kapoor, A., Blais, M., Ro´zemberczki, B., Lukasik, M., and Gu¨nnemann, S. Scaling graph neural networks with approximate pagerank. In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, pp. 2464–2473, 2020.
+Chai, Z., Bai, G., Zhao, L., and Cheng, Y. Distributed graph neural network training with periodic historical embedding synchronization. arXiv preprint arXiv:2206.00057, 2022.
+Chen, J., Zhu, J., and Song, L. Stochastic training of graph convolutional networks with variance reduction. arXiv preprint arXiv:1710.10568, 2017.
+Chen, J., Ma, T., and Xiao, C. Fastgcn: fast learning with graph convolutional networks via importance sampling. arXiv preprint arXiv:1801.10247, 2018a.
+Chen, M., Wei, Z., Huang, Z., Ding, B., and Li, Y. Simple and deep graph convolutional networks. In International Conference on Machine Learning, pp. 1725–1735. PMLR, 2020a.
+Chen, Q., Wang, Y., Wang, Y., Yang, J., and Lin, Z. Optimization-induced graph implicit nonlinear diffusion. In International Conference on Machine Learning, pp. 3648–3661. PMLR, 2022.
+Chen, R. T., Rubanova, Y., Bettencourt, J., and Duvenaud, D. K. Neural ordinary differential equations. Advances in neural information processing systems, 31, 2018b.
+Chen, S., Eldar, Y. C., and Zhao, L. Graph unrolling networks: Interpretable neural networks for graph signal denoising, 2020b.
+Chiang, W.-L., Liu, X., Si, S., Li, Y., Bengio, S., and Hsieh, C.-J. Cluster-gcn: An efﬁcient algorithm for training deep and large graph convolutional networks. In Proceedings of the 25th ACM SIGKDD international conference on knowledge discovery & data mining, pp. 257–266, 2019.
+Cong, W., Forsati, R., Kandemir, M., and Mahdavi, M. Minimal variance sampling with provable guarantees for fast training of graph neural networks. In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, pp. 1393–1403, 2020.
+
+Duan, K., Liu, Z., Wang, P., Zheng, W., Zhou, K., Chen, T., Hu, X., and Wang, Z. A comprehensive study on large-scale graph training: Benchmarking and rethinking. arXiv preprint arXiv:2210.07494, 2022.
+El Ghaoui, L., Gu, F., Travacca, B., Askari, A., and Tsai, A. Implicit deep learning. SIAM Journal on Mathematics of Data Science, 3(3):930–958, 2021.
+Fey, M., Lenssen, J. E., Weichert, F., and Leskovec, J. Gnnautoscale: Scalable and expressive graph neural networks via historical embeddings. In International Conference on Machine Learning, pp. 3294–3304. PMLR, 2021.
+Gasteiger, J., Bojchevski, A., and Gu¨nnemann, S. Predict then propagate: Graph neural networks meet personalized pagerank. arXiv preprint arXiv:1810.05997, 2018.
+Gasteiger, J., Bojchevski, A., and Gu¨nnemann, S. Combining neural networks with personalized pagerank for classiﬁcation on graphs. In International Conference on Learning Representations, 2019. URL https:// openreview.net/forum?id=H1gL-2A9Ym.
+Gu, F., Chang, H., Zhu, W., Sojoudi, S., and El Ghaoui, L. Implicit graph neural networks. Advances in Neural Information Processing Systems, 33:11984–11995, 2020.
+Hamilton, W., Ying, Z., and Leskovec, J. Inductive representation learning on large graphs. Advances in neural information processing systems, 30, 2017.
+Hamilton, W. L. Graph representation learning. Synthesis Lectures on Artiﬁcal Intelligence and Machine Learning, 14(3):1–159, 2020.
+Hu, W., Fey, M., Zitnik, M., Dong, Y., Ren, H., Liu, B., Catasta, M., and Leskovec, J. Open graph benchmark: Datasets for machine learning on graphs. Advances in neural information processing systems, 33:22118–22133, 2020.
+Huang, Q., He, H., Singh, A., Lim, S.-N., and Benson, A. R. Combining label propagation and simple models out-performs graph neural networks. arXiv preprint arXiv:2010.13993, 2020.
+Jia, J. and Benson, A. R. A unifying generative model for graph learning algorithms: Label propagation, graph convolutions, and combinations. SIAM Journal on Mathematics of Data Science, 4(1):100–125, 2022.
+Jiang, Z., Han, X., Fan, C., Liu, Z., Zou, N., Mostafavi, A., and Hu, X. Fmp: Toward fair graph message passing against topology bias. arXiv preprint arXiv:2202.04187, 2022.
+
+LazyGNN: Large-Scale Graph Neural Networks via Lazy Propagation
+
+Kingma, D. P. and Ba, J. Adam: A method for stochastic optimization. arXiv preprint arXiv:1412.6980, 2014.
+Kipf, T. N. and Welling, M. Semi-supervised classiﬁcation with graph convolutional networks. arXiv preprint arXiv:1609.02907, 2016.
+Klicpera, J., Bojchevski, A., and Gu¨nnemann, S. Predict then propagate: Graph neural networks meet personalized pagerank. arXiv preprint arXiv:1810.05997, 2018.
+Li, G., Mu¨ller, M., Ghanem, B., and Koltun, V. Training graph neural networks with 1000 layers. In International conference on machine learning, pp. 6437–6449. PMLR, 2021.
+Liu, M., Gao, H., and Ji, S. Towards deeper graph neural networks. In Proceedings of the 26th ACM SIGKDD international conference on knowledge discovery & data mining, pp. 338–348, 2020.
+Liu, X., Ding, J., Jin, W., Xu, H., Ma, Y., Liu, Z., and Tang, J. Graph neural networks with adaptive residual. Advances in Neural Information Processing Systems, 34: 9720–9733, 2021a.
+Liu, X., Jin, W., Ma, Y., Li, Y., Liu, H., Wang, Y., Yan, M., and Tang, J. Elastic graph neural networks. In International Conference on Machine Learning, pp. 6837–6849. PMLR, 2021b.
+Ma, S. Technical report for ogbn-arxiv experiments. https://github.com/oppo-topolab/ ogb-project/blob/main/report/ technical_report.pdf, 2022.
+Ma, Y. and Tang, J. Deep learning on graphs. Cambridge University Press, 2021.
+Ma, Y., Liu, X., Zhao, T., Liu, Y., Tang, J., and Shah, N. A uniﬁed view on graph neural networks as graph signal denoising. arXiv preprint arXiv:2010.01777, 2020.
+Pan, X., Shiji, S., and Gao, H. A uniﬁed framework for convolution-based graph neural networks. https://openreview.net/forum?id=zUMD–Fb9Bt, 2020.
+Rossi, E., Frasca, F., Chamberlain, B., Eynard, D., Bronstein, M., and Monti, F. Sign: Scalable inception graph neural networks. arXiv preprint arXiv:2004.11198, 7:15, 2020.
+Shao, Y., Li, H., Gu, X., Yin, H., Li, Y., Miao, X., Zhang, W., Cui, B., and Chen, L. Distributed graph neural network training: A survey. arXiv preprint arXiv:2211.00216, 2022.
+
+Sun, C. and Wu, G. Adaptive graph diffusion networks with hop-wise attention. arXiv preprint arXiv:2012.15024, 2020.
+Sun, C., Gu, H., and Hu, J. Scalable and adaptive graph neural networks with self-label-enhanced training. arXiv preprint arXiv:2104.09376, 2021.
+Velicˇkovic´, P., Cucurull, G., Casanova, A., Romero, A., Lio, P., and Bengio, Y. Graph attention networks. arXiv preprint arXiv:1710.10903, 2017.
+Wang, Y., Jin, J., Zhang, W., Yu, Y., Zhang, Z., and Wipf, D. Bag of tricks for node classiﬁcation with graph neural networks. arXiv preprint arXiv:2103.13355, 2021.
+Wu, F., Souza, A., Zhang, T., Fifty, C., Yu, T., and Weinberger, K. Simplifying graph convolutional networks. In International conference on machine learning, pp. 6861– 6871. PMLR, 2019.
+Yang, Y., Liu, T., Wang, Y., Zhou, J., Gan, Q., Wei, Z., Zhang, Z., Huang, Z., and Wipf, D. Graph neural networks inspired by classical iterative algorithms. In International Conference on Machine Learning, pp. 11773– 11783. PMLR, 2021a.
+Yang, Y., Wang, Y., Huang, Z., and Wipf, D. Implicit vs unfolded graph neural networks. arXiv preprint arXiv:2111.06592, 2021b.
+Ying, R., He, R., Chen, K., Eksombatchai, P., Hamilton, W. L., and Leskovec, J. Graph convolutional neural networks for web-scale recommender systems. In Proceedings of the 24th ACM SIGKDD international conference on knowledge discovery & data mining, pp. 974–983, 2018.
+Yu, H., Wang, L., Wang, B., Liu, M., Yang, T., and Ji, S. Graphfm: Improving large-scale gnn training via feature momentum. In International Conference on Machine Learning, pp. 25684–25701. PMLR, 2022.
+Zeng, H., Zhou, H., Srivastava, A., Kannan, R., and Prasanna, V. Graphsaint: Graph sampling based inductive learning method. In International Conference on Learning Representations, 2020. URL https:// openreview.net/forum?id=BJe8pkHFwS.
+Zhang, C., He, Y., Cen, Y., Hou, Z., Feng, W., Dong, Y., Cheng, X., Cai, H., He, F., and Tang, J. Scr: Training graph neural networks with consistency regularization. arXiv e-prints, pp. arXiv–2112, 2021a.
+Zhang, C., He, Y., Cen, Y., Hou, Z., and Tang, J. Improving the training of graph neural networks with consistency regularization. arXiv preprint arXiv:2112.04319, 2021b.
+
+LazyGNN: Large-Scale Graph Neural Networks via Lazy Propagation
+Zhang, W., Yin, Z., Sheng, Z., Li, Y., Ouyang, W., Li, X., Tao, Y., Yang, Z., and Cui, B. Graph attention multi-layer perceptron. arXiv preprint arXiv:2206.04355, 2022.
+Zhu, M., Wang, X., Shi, C., Ji, H., and Cui, P. Interpreting and unifying graph neural networks with an optimization framework, 2021.
+Zhu, X. Semi-supervised learning with graphs. Carnegie Mellon University, 2005.
+Zou, D., Hu, Z., Wang, Y., Jiang, S., Sun, Y., and Gu, Q. Layer-dependent importance sampling for training deep and large graph convolutional networks. Advances in neural information processing systems, 32, 2019.
+

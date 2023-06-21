@@ -1,0 +1,1020 @@
+PREPRINT
+
+1
+
+Out-Of-Distribution Generalization on Graphs: A Survey
+
+Haoyang Li, Xin Wang, Member, IEEE, Ziwei Zhang, Member, IEEE, Wenwu Zhu, Fellow, IEEE
+
+arXiv:2202.07987v2 [cs.LG] 29 Dec 2022
+
+Abstract—Graph machine learning has been extensively studied in both academia and industry. Although booming with a vast number of emerging methods and techniques, most of the literature is built on the in-distribution hypothesis, i.e., testing and training graph data are identically distributed. However, this in-distribution hypothesis can hardly be satisﬁed in many real-world graph scenarios where the model performance substantially degrades when there exist distribution shifts between testing and training graph data. To solve this critical problem, out-of-distribution (OOD) generalization on graphs, which goes beyond the in-distribution hypothesis, has made great progress and attracted ever-increasing attention from the research community. In this paper, we comprehensively survey OOD generalization on graphs and present a detailed review of recent advances in this area. First, we provide a formal problem deﬁnition of OOD generalization on graphs. Second, we categorize existing methods into three classes from conceptually different perspectives, i.e., data, model, and learning strategy, based on their positions in the graph machine learning pipeline, followed by detailed discussions for each category. We also review the theories related to OOD generalization on graphs and introduce the commonly used graph datasets for thorough evaluations. Finally, we share our insights on future research directions. This paper is the ﬁrst systematic and comprehensive review of OOD generalization on graphs, to the best of our knowledge.
+Index Terms—Graph Machine Learning, Graph Neural Network, Out-Of-Distribution Generalization.
+!
+
+1 INTRODUCTION
+
+G RAPH data is ubiquitous in our daily life. It has been widely used to model the complex relationships and dependencies between entities, ranging from microscopic particle interactions in physical systems and molecular structures in proteins to macroscopic trafﬁc networks and global communication networks. Machine learning approaches on graphs, especially for graph neural networks (GNNs), have attracted wide attention and been extensively studied in the last decade. They have shown great successes in both academia and industry, illustrating their excellent capabilities in a wide range of realistic applications, e.g., social networks [1], recommendation systems [2], knowledge representation [3], trafﬁc forecasting [4], etc.
+Despite the notable success of graph machine learning approaches, the existing literature generally relies on the assumption that the testing and training graph data are drawn from the identical distribution, i.e., the in-distribution (I.D.) hypothesis. However, in the real world, such a hypothesis is difﬁcult to be satisﬁed due to the uncontrollable underlying data generation mechanism [5]. In practice, there will inevitably be scenarios with distribution shifts between testing and training graphs [6]. These classic graph machine learning approaches lack the ability of out-ofdistribution (OOD) generalization, which fail dramatically with signiﬁcant performance drop under distribution shifts. Therefore, it is of paramount importance to develop approaches capable of out-of-distribution generalization on graphs, especially for highstake graph applications, e.g., molecule prediction [7], ﬁnancial analysis [8], criminal justice [9], autonomous driving [10], particle physics [11], as well as pandemic prediction [12], medical
+• Haoyang Li, Xin Wang, Ziwei Zhang, and Wenwu Zhu are with the Department of Computer Science and Technology in Tsinghua University, Beijing, China. Haoyang Li and Xin Wang contribute equally. E-mail: lihy18@mails.tsinghua.edu.cn, xin wang@tsinghua.edu.cn, zwzhang@tsinghua.edu.cn, wwzhu@tsinghua.edu.cn
+
+detection [13] and drug repurposing [14] for COVID-19. Out-of-distribution (OOD) generalization algorithm [15, 16,
+17] aims to achieve satisfactory generalization performance under unknown distribution shifts. It has been occupying an important position in the research community due to the increasing demand for handling in-the-wild unseen data. Combining the strength of graph machine learning and OOD generalization, i.e., OOD generalization on graphs, naturally serves as a promising research direction to facilitate graph machine learning model deployments in real-world scenarios. However, this problem is highly nontrivial due to the following challenges.
+• Uniqueness of graph data: The non-Euclidean nature of graph-structured data space leads the unique graph model designs and makes obstacles for the direct adoption of OOD generalization algorithms that are mainly developed on Euclidean data (e.g., images and texts).
+• Diversity of graph task: The problems on graphs are highly diverse, ranging from node-level, link-level to graph-level tasks, along with distinct settings, objectives, and constraints. It is necessary to integrate different levels of graph characterizations into the graph OOD generalization methods.
+• Complexity of graph distribution shift type: The distribution shifts on graphs can exist on feature-level (e.g., node features) and topology-level (e.g., graph size or other structural properties). Such complex types of graph distribution shifts (as shown in Fig. 1) render more difﬁculties for OOD generalization.
+With both opportunities and challenges, it is the right time to review and carry out the studies of graph OOD generalization methods. In this paper, we provide a systematic and comprehensive review1 for OOD generalization on graphs for the ﬁrst time,
+1. The summary of graph OOD generalization methods reviewed in this survey can be found at https://graph.ood-generalization.com.
+
+PREPRINT
+
+Test(large)
+
+2
+
+Distribution shift on graph sizes
+
+Train
+
+Test(large)
+
+Distribution shift on node features Train Test(noise) Test(color)
+
+Xi ∈ X and Yi ∈ Y, the goal is to learn an optimal graph predictor fθ∗ that can achieve the best generalization on the data drawn from test distribution Ptest(X, Y ), where Ptest(X, Y ) =
+Ptrain(X, Y ):
+
+Distribution shift on graph structures and node features
+
+Train
+
+Test(molecules from unseen scaffolds)
+
+Scaffold 1
+
+Scaffold 44,930
+
+Scaffold 44,931
+
+Scaffold 90,124
+
+y = active
+
+y = inactive
+
+y = active
+
+y = inactive
+
+Fig. 1: Complex types of distribution shifts on graphs. The distribution shifts can exist on graph sizes, node features, and graph structural properties [6]. The OOD generalized graph approaches are expected to perform well on the unseen testing data even under distribution shifts rather than overﬁtting the training data.
+
+fθ∗
+
+=
+
+arg
+
+min fθ
+
+EX,Y
+
+∼Ptest
+
+[
+
+(fθ(X), Y
+
+)].
+
+(1)
+
+The distribution shifts between Ptest(X, Y ) and Ptrain(X, Y ) can lead to the failure of graph predictor built on the in-distribution (I.D.) hypothesis, since directly minimizing the average loss on training instances [ EX,Y ∼Ptrain (fθ(X), Y )] can not obtain an optimal predictor that generalizes to testing
+instances under distribution shifts. Note that the testing
+distribution is unknown during the training stage.
+
+2.2 Categorization
+
+to the best of our knowledge. Speciﬁcally, to cover the whole life cycle of OOD generalization on graphs, we start by providing a formal problem deﬁnition. We divide the existing methodologies into three conceptually different categories based on their positions in the graph machine learning pipeline, and elaborate typical approaches for each category. We also review the theories and datasets for evaluations to further promote the research on OOD generalization on graphs. Last but not least, we share our insights on potential research topics deserving future investigations.
+Some related surveys review from the perspectives of graph data augmentation [18, 19], graph self-supervised learning [20, 21], graph adversarial learning [22, 23], etc. However, they are signiﬁcantly different from ours. First, they do not focus on the graph OOD generalization that is the center topic of this survey. Then, a portion of their reviewed methods serves as an important piece of the puzzle for the whole problem of graph OOD generalization. To the best of our knowledge, there is no comprehensive review for current advancements of graph OOD generalization methods.
+The rest of the paper is organized as follows. In Section 2, we formulate the problem of OOD generalization on graphs and present our categorization of existing literature. We comprehensively review three categories of methods in Sections 3– 5, followed by our review of related theory (in Section 6) and evaluation datasets (in Section 7). Lastly, we point out future research opportunities in Section 8.
+
+To tackle the challenges brought by unknown distribution shifts and solve the graph OOD generalization problem, considerable efforts have been made in literature, which can be categorized into three classes:
+• Data: This category of methods aims to manipulate the input graph data, i.e., graph augmentation. By systematically generating more training samples to increase the quantity and diversity of the training set, graph augmentation techniques are effective in improving the OOD generalization performance.
+• Model: This category of methods aims to propose new graph models for learning OOD generalized graph representations, including two types of representative methods: disentanglement-based graph models and causality-based graph models.
+• Learning Strategy: This category of methods focuses on exploiting the training schemes with tailored optimization objectives and constraints to enhance the OOD generalization capability, including graph invariant learning, graph adversarial training, and graph self-supervised learning.
+These three categories of methods solve the graph OOD generalization problem from three conceptually different perspectives. We provide the taxonomy in Figure 2 and elaborate these methods for each category in the following sections. We also summarize the characteristics of these methods in Table 1.
+
+2 PROBLEM DEFINITION AND CATEGORIZATION
+In this section, we ﬁrst describe the formulation of OOD generalization on graphs. Then we provide the categorization of existing graph OOD generalization methods.
+2.1 Problem Deﬁnition
+Let X be the input space and Y be the label space. A graph predictor fθ : X → Y with parameter θ maps the input instance X ∈ X, i.e., node/link/graph for node-level/link-level/graph-level task, into the label Y ∈ Y. A loss function measures the distance between prediction and ground-truth label. The graph OOD generalization problem is deﬁned as:
+Deﬁnition 1 (Graph OOD generalization). Given the training set of N instances (i.e., nodes, links, or graphs) D = {(Xi, Yi)}Ni=1 that are drawn from training distribution Ptrain(X, Y ), where
+
+3 DATA
+
+The OOD generalization ability of machine learning models, including graph models, heavily relies on the diversity and quality of training data [16]. In general, the more diverse and high-quality the training data, the better the generalization performance of graph models. With proper graph augmentation technique, this type of methods can obtain more graph instances with a simple way for training, whose goal can be formulated as:
+
+min EX ,Y [ (fθ(X ), Y )],
+
+(2)
+
+fθ
+
+where (X , Y ) belongs to training set D augmented from D. In general, the graph augmentation literature can be summarized into three types of strategies, including structure-wise augmentations, feature-wise augmentations, and mixed-type augmentations.
+
+PREPRINT
+
+3
+
+Data (Sec. 3)
+
+Structure-wise Graph Data Augmentation
+Feature-wise Graph Data Augmentation
+
+GAug [24]; MH-Aug [25]; KDGA [26].
+GRAND [27]; FLAG [28]; LA-GNN [29].
+
+Graph OOD generalization methods
+
+Model (Sec. 4)
+Learning Strategy (Sec. 5)
+
+Mixed-type Graph Data Augmentation
+Disentanglement-based Graph Models
+Causality-based Graph Models
+Graph Invariant Learning
+Graph Adversarial Training
+Graph Self-supervised Learning
+
+GraphCL [30]; GREA [31]; DPS [32]; AdvCA [33]; Mixup [34].
+DisenGCN [35]; IPGDN [36]; FactorGCN [37]; DisC [38]; NED-VAE [39]; DGCL [40]; IDGCL [41].
+OOD-GNN [6]; StableGNN [42]; DGNN [43]; CAL [44]; DSE [45]; CIGA [46]; E-invariant GR [47]; gMPNN•• [48] ; CFLP [49]; Gem [50].
+GIL [51]; DIR [52]; GSAT [53]; EERM [54]; DIDA [55]; SR-GNN [56]; SizeShiftReg [57]; StableGL [58].
+DAGNN [59]; GNN-DRO [60]; GraphAT [61]; CAP [62]; WT-AWP [63]; OAD [64].
+Pretraining-GNN [65]; PATTERN [66]; DR-GST [67]; GraphCL [30]; RGCL [68]; GAPGC [69]; GT3 [70].
+
+Fig. 2: Taxonomy of graph OOD generalization methods. We categorize existing methodologies into three conceptually different branches based on their positions in the graph machine learning pipeline, i.e., data, model and learning strategy.
+
+3.1 Structure-wise Graph Data Augmentation
+Since the graph structure (i.e., topology) plays an important role in predicting the properties of graphs, some works focus on structurewise augmentations for the input graphs to generate more diverse training topologies that potentially cover some unobserved testing topologies, leading to better OOD generalization ability. Here we mainly review the representative graph data augmentation approaches that claim to or have practically been veriﬁed to improve the OOD generalization in the paper, the same below. Please refer to the graph augmentation surveys [18, 19] for more details of other methods.
+GAug (Graph Augmentation) [24] proposes to generate augmented graphs via a differentiable edge predictor for improving the generalization. It ﬁnds that the edge predictors can effectively encode class-homophilic structure to promote intra-class edges and demote inter-class edges in the given graph structure. Such edge manipulation can not only beneﬁt the prediction accuracy but the generalization ability of the graph models. GAUG uses an edge prediction module to modify the given input graph for the downstream training and inference processes. It can also learn to generate possible new edges for the input graph. The performance of node-level classiﬁcation tasks can be improved without any modiﬁcation at inference time. Based on both denoised structure and mimic variability, this graph augmentation achieves a boost in generalization capability.
+MH-Aug (Metropolis-Hastings Data Augmentation) [25] further proposes graph augmentation from a perspective of a Markov chain Monte Carlo sampling [71] to ﬂexibly control the strength and diversity of augmentation. A sequence of augmented samples are drawn from the explicitly designed target distribution that controls the augmentation. For tackling the infeasibility of direct sampling from the complex distribution, it adopts the MetropolisHastings algorithm to obtain the augmented samples. Instead of random graph augmentations, this method is more controllable, including an efﬁcient strategy to measure and control the augmentation strength reﬂecting the structural changes of ego-graphs (or samples in node classiﬁcation). Finally, the OOD generalization power of this method is increased by the diverse augmented training samples.
+KDGA (Knowledge Distillation for Graph Augmenta-
+
+tion) [26] identiﬁes the negative augmentation problem of the graph augmentation methods above, namely these methods could cause overly severe distribution shifts between the augmented graphs for training and the graph for testing, leading to suboptimal generalization. KDGA is a graph structure augmentation method proposed based on the knowledge distillation technique to reduce the potential negative effects of distribution shifts. Speciﬁcally, it extracts the knowledge from the GNN teacher model trained on the augmented graph data and leverages such knowledge in a partially parameter-shared student model that is tested on the given input graph. The experiments on both homophily and heterophily graph datasets show the effectiveness in node-level tasks.
+3.2 Feature-wise Graph Data Augmentation
+Besides structure-wise augmentations introduced above that remove or add edges for the input graph, some techniques on manipulating node features are also developed recently, showing effectiveness in enhancing the OOD generalization.
+GRAND (Graph Random Neural Network) [27] is one simple yet effective feature-wise augmentation method for improving the generalization. It ﬁrst randomly drops on node features either partially or entirely and then propagates the perturbed node features over the input graph. Therefore, each node of the input graph can get rid of the excessive sensitivity to speciﬁc neighborhoods that could induce poor OOD generalization. Under the homophily assumption on graph [72], it stochastically creates different augmented representations for each node. The consistency loss further minimizes the distances of the representations learned from the augmented graphs.
+FLAG (Free Large-scale Adversarial Augmentation on Graphs) [28] is another simple, scalable, and general graph data augmentation method for better GNN generalization. It proposes to iteratively augment node features in the input node feature space with gradient-based adversarial perturbations during training, while keeping the graph structures unchanged. It leverages the free adversarial training method [73] to craft adversarial data augmentations. Due to its simple and scalable design, this method can conduct efﬁcient training on some large-scale datasets and also can be easily incorporated into the training pipeline of common GNN backbones. Different from GRAND that is only designed for
+
+PREPRINT
+
+4
+
+tasks on nodes, FLAG can be utilized into node/link/graph level tasks.
+LA-GNN (Local Augmentation for GNN) [29] proposes a local augmentation for GNNs to learn the distribution of the node features of the neighbors conditioned on the center node’s feature. Speciﬁcally, it ﬁrst exploits a generative model to conduct the pretraining for learning the conditional distribution of the neighbors’ node features of the center node’s feature. Then, the learned distribution can be used to generate feature vectors associated with the center node as additional input for each training iteration. Since the pre-training of the generative model and downstream GNN training are decoupled, this data augmentation method is also model-agnostic, which can be applied to most GNN backbones in a plug-and-play manner. The feature vectors of new nodes can be directly generated via the generative model, so that it can enhance the generalization of the unseen testing nodes. The main difference between LA-GNN with some feature-wise graph augmentations above is that it pays more attention to the local information of the node neighbors rather than only focusing on global augmentation concerning the properties of the whole distribution of the graph.
+3.3 Mixed-type Graph Data Augmentation
+Moreover, for combining the advantages of structure-wise and feature-wise graph augmentation methods, some works do not conduct single type of augmentation on graph topology or node feature, but in the mixed-type paradigm, which are increasingly popular in the community for improving OOD generalization.
+GraphCL (Graph Contrastive Learning) [30] ﬁrst proposes four general data augmentations for graph-structured data, including node dropping, edge perturbation, attribute masking, and subgraph sampling. Speciﬁcally, node dropping is to randomly remove nodes as well as the links to neighbors. And the edge perturbation is to randomly add or remove a fraction of edges. Attribute masking is to mask off certain node attributes by setting the attributes to Gaussian noises. Subgraph sampling is to sample a subgraph using random walk, which includes a fraction of nodes from the input graph. After obtaining the augmented samples of the input, it makes the graph encoder maximize representation consistency under augmentations and has shown good OOD generalization ability in graph classiﬁcation [74].
+GREA (Graph Rationalization Enhanced by Environmentbased Augmentations) [31] proposes a data augmentation strategy based on environment replacement to improve the rationale identiﬁcation accuracy of the input graphs for OOD generalization. The graph rationale is deﬁned as a part of each input graph, i.e., the representative subgraph, that best supports the prediction and can be OOD generalizable. The authors argue that existing augmentation methods (e.g., GraphCL, etc.) are mainly heuristic modiﬁcation to the input graphs, which could not directly support the identiﬁcation of graph rationales. They generate an augmented example by replacing the environment subgraph of the input graph with the environment subgraph of another graph and encourage the augmented examples to have the same label of the input graph. Considering the high complexity of explicit subgraph decoding and encoding, it turns to implicitly conduct rationaleenvironment separation and representation learning for the original and augmented graphs in latent space. Based on the accurately identiﬁed rationale of the input graph, they verify that the OOD generalization ability is improved.
+DPS (Diverse and Predictable Subgraphs) [32] generates several augmented domains (or environments) based on the source
+
+domain and further learns consistent semantics among augmented domains and source domain for OOD generalization. Similar to GREA, it is also a graph data augmentation method which is speciﬁc for graph environments to achieve graph OOD generalization. Since distribution shifts are induced from the disparity between different domains, the graph predictor can generalize to OOD graphs when it performs equally well on multiple domains. However, collecting sufﬁcient domains for graph data is usually impractically difﬁcult. So DPS aims to generate augmented domains to tackle the domain scarcity problem which is common on graphs. Speciﬁcally, it adopts several subgraph generators to output diverse subgraphs as augmented domains while maintaining critical information in each subgraph for predicting the graph label. For encouraging the diversity of augmented domains, an energy-based regularization is proposed to enlarge the distances between the probability masses of different augmented domains. And for encouraging to learn predictive subgraph, the subgraph generator is equipped with a variational distribution to minimize the risk of the graph predictor. Based on these diverse domains that preserve consistent predictive semantic information to the source domain, the graph predictor can obtain equal predictive ability across different domains, which can generalize on OOD testing graphs in unseen domains.
+AdvCA (Adversarial Causal Augmentation) [33] proposes a graph augmentation technique to alleviate the covariate shift problem that is one speciﬁc scenario in graph OOD generalization. The authors claim that existing graph augmentation strategies suffer from limited environments or unstable causal features, restricting their OOD generalization ability under covariate shift data. To tackle this problem, AdvCA ﬁrst proposes two principles for graph augmentation, which are environmental diversity and causal invariance. The environmental diversity principle encourages the graph augmentation to extrapolate unseen environments (or domains). And the causal invariance principle reduces the distribution gap between the augmented graph data and unseen testing graph data. The method consists of two main modules, including adversarial augmenter to adversarially learn the masks on both graph topology and node features for enhancing environmental diversity, causal generator to output the masks that capture causal information. Based on the two principles and corresponding designs, AdvCA can get rid of vulnerability under covariate shift.
+Besides, in parallel with the development of graph neural networks, Mixup and its variants [34, 75], as general data augmentation methods that generate new instances based on the interpolation of the given instances, have been theoretically and empirically shown to improve generalization ability in the ﬁelds of computer vision [76] and natural language processing [77]. The similar strategies are also applied in graphs [78, 79, 80, 81, 82, 83]. For example, GraphMix [78] adopts manifold mixup [75] on node classiﬁcation tasks by jointly training a fully-connected network (FCN) and a GNN. The loss of FCN is computed using manifold mixup while the loss of GNN is computed normally. A parameter sharing strategy is utilized between the FCN and GNN to help the transfer of critical node representations from the FCN to the GNN. G-Mixup [79] interpolates the node features and graph structure in the embedding space as data augmentation, i.e., interpolating the hidden representations of graphs. NodeAug [82] analogizes Mixup with a two-branch graph convolution module. It mixes the raw features of a pair of nodes, and feeds them into the two-branch GNN layer, followed by mixing their hidden representations of each layer. ifMixup (intrusion-free Mixup) [81] applies Mixup
+
+PREPRINT
+
+5
+
+not for the latent representations but directly on the graph data. Due to the issue that graph data are irregular and the nodes of two graphs are not aligned, ifMixup assigns indices to the nodes arbitrarily and matches the nodes with the indices. G-Mixup [83] tackles the key challenges when mixing up directly on the graph data, as graph data is irregular and not well-aligned, and graph topology between classes is divergent. Speciﬁcally, it ﬁrst adopts graphs within the same class to estimate a graphon. After that, it does not manipulate graphs directly, but interpolates graphons of different classes in the Euclidean space to obtain the mixed graphons, where the synthetic graphs are produced via sampling based upon the mixed graphons. This method performs well in graph classiﬁcation datasets with distribution shifts, reﬂecting its promising OOD generalization. Since these methods share similar ideas, we use the notation “Mixup” to denote these Mixup-based methods that are introduced above in Figure 2 and Table 1.
+4 MODEL
+Besides augmenting the input graph data to assist achieving good OOD generalization, there are branches of works that specially design new graph models, i.e., fθ in Eq. (1). By introducing some prior knowledge to model design, the graph model is endowed with the ability to produce graph representation with the properties that could help to improve OOD generalization. Along this branch, there are two kinds of popular techniques: disentanglement-based graph models and causality-based graph models.
+4.1 Disentanglement-based Graph Models
+In this section, we introduce the graph models based on disentanglement for OOD generalization.
+The formation of a real-world graph typically follows a complex and heterogeneous process driven by the interaction of many latent factors. Disentangled graph representation learning aims to learn representations that separate these distinct and informative factors behind the graph data and characterize these factors in different parts of the factorized vector representations [35]. Such representations have been demonstrated to be good representations, and able to beneﬁt OOD generalization [84, 85, 86]. The existing methods fall into three groups, including supervised disentanglement methods [35, 36, 37, 38], unsupervised generative disentanglement methods [39], and self-supervised contrastive disentanglement methods [40, 41].
+DisenGCN [35] is the ﬁrst method to learn disentangled node representations, whose key ingredient is a disentangled multichannel convolutional layer DisenConv. Executing inside DisenConv, the proposed neighborhood routing mechanism is to identify the factor that may cause the link from a center node to one of its neighbors, and accordingly send the neighbor to the channel responsible for that factor. It infers the latent factors by iteratively analyzing the potential subspace clusters formed by the node and its neighbors, after projecting them into several subspaces. The authors prove that after a sufﬁcient number of iterations, the proposed neighborhood routing mechanism can converge. Therefore, each channel of DisenConv can extract features speciﬁc to only one disentangled latent factor from the neighbor nodes, and perform a convolution operation independently. By stacking multiple DisenConv layers, DisenGCN is able to extract information beyond the local neighborhood and produce disentangled representations. Since the latent factors of nodes are disentangled, it could lead to better OOD generalization performance.
+
+IPGDN (Independence Promoted Graph Disentangled Network) [36] extends DisenGCN [35] by explicitly encouraging the latent factors to be as independent as possible in addition to the neighborhood routing mechanism for disentangling latent factors behind graphs. It minimizes the dependence among different representations with a kernel-based measure Hilbert-Schmidt Independence Criterion (HSIC) [87]. Speciﬁcally, to disentangle the target node, the convolution layer of IPGDN ﬁrst constructs features from different aspects of its neighbors via disentangled representation learning, and then encourages the independence among latent representations through minimizing HSIC to obtain the ﬁnal results. Note that the disentangled representation learning and independence regularization are jointly optimized in a uniﬁed framework, leading to more disentangled representations when compared with DisenGCN. And both DisenGCN [35] and IPGDN [36] are proposed for handling node-level tasks on graphs.
+FactorGCN (Factorizable GCN) [37] is a disentangled GNN model for graph-level representation learning. It adopts a factorizing mechanism by decomposing input graphs into several interpretable factor graphs for graph-level disentangled representations. Each of the factor graphs is separately sent to a GCN, tailored to aggregate features in terms of only one disentangled latent factor, followed by an aggregating operation that concatenates together all derived features of disentangled latent factors. The ﬁnal produced graph-level representations present block-wise interpretable features, and each of the factorized representations corresponds to a disentangled and interpretable relation space. These steps constitute one layer of FactorGCN, so that FactorGCN can produce a hierarchical disentanglement with various numbers of factor graphs at different levels by stacking a number of layers to disentangle the input data at different levels.
+Compared with the methods disentangling latent factors, DisC (Disentangled Causal Substructure) [38] is a disentangled GNN model directly disentangling causal and noncausal information of the input graph. By explicitly disentangling the input graph into causal and bias subgraphs, this method can only utilize the causal substructures to make stable predictions when severe bias appears under distribution shifts. Speciﬁcally, it ﬁrst ﬁlters edges into causal and bias (i.e., noncausal) subgraphs by a parameterized edge mask generator, whose parameters are shared across entire datasets. The edge masker is expected to indicate the importance for each edge and extract causal and bias subgraphs. Then, the causal and bias subgraphs are fed to two GNNs trained with causal-aware weighted cross-entropy loss and bias-aware generalized cross-entropy loss respectively, leading to disentangled representations. Next, it further permutes the latent representations extracted from different graphs to generate more training samples. Although containing both causal and bias information, the causal and bias subgraph of newly generated samples are decorrelated. Finally, the proposed model could focus on the true correlation between the disentangled causal subgraphs and labels for achieving OOD generalized prediction.
+Besides the supervised methods above, there exist some unsupervised disentangled methods.
+NED-VAE (Node-Edge Disentangled Variational Autoencoder) [39] is a deep unsupervised generative approach for disentanglement learning on graphs, which can automatically capture the independent latent factors in both edges and nodes from attributed graphs. The objective is designed for node-edge joint disentanglement by optimizing three sub-encoders (i.e., a node encoder, an edge encoder, and a node-edge co-encoder) that
+
+PREPRINT
+
+6
+
+TABLE 1: A summary of graph OOD generalization methods. “Task” denotes the task type that each method focuses on, including node/link/graph level tasks. “Shift Type” denotes the type of distribution shifts that each method can handle, including topology-level (i.e., graph size and graph structure) and feature-level (i.e., node features) distribution shifts. “Backbone agnostic” indicates whether the method can be used for other GNN backbones. “|E| > 1” indicates whether the method relies on multiple environments during the training process.
+
+Category Subcategory Method
+
+Node
+
+Task Link Graph
+
+Size
+
+Shift Type Structure Feature
+
+Backbone Agnostic
+
+|E| > 1
+
+Structure-wise GAug [24]
+
+
+
+Graph Data MH-Aug [25]
+
+
+
+Augmentation KDGA [26]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Feature-wise GRAND [27]
+
+Data
+
+Graph Data FLAG [28] Augmentation LA-GNN [29]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GraphCL [30]
+
+
+
+
+
+Mixed-type GREA [31]
+
+
+
+Graph Data DPS [32]
+
+
+
+
+
+Augmentation AdvCA [33]
+
+
+
+Mixup [34]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+DisenGCN [35]
+
+
+
+IPGDN [36]
+
+
+
+Disentanglement- FactorGCN [37]
+
+
+
+based
+
+DisC [38]
+
+
+
+Graph Models NED-VAE [39]
+
+
+
+DGCL [40]
+
+
+
+IDGCL [41]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Model
+
+OOD-GNN [6] StableGNN [42]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+DGNN [43]
+
+
+
+
+
+
+
+
+
+Causalitybased
+Graph Models
+
+CAL [44] DSE [45] CIGA [46] E-invariant GR [47]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+gMPNN•• [48]
+
+
+
+
+
+
+
+CFLP [49]
+
+
+
+
+
+
+
+Gem [50]
+
+
+
+
+
+
+
+
+
+GIL [51]
+
+
+
+
+
+
+
+
+
+
+
+DIR [52]
+
+
+
+
+
+
+
+
+
+
+
+Graph Invariant Learning
+
+GSAT [53] EERM [54] DIDA [55] SR-GNN [56]
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SizeShiftReg [57]
+
+
+
+
+
+
+
+StableGL [58]
+
+
+
+
+
+
+
+
+
+DAGNN [59]
+
+
+
+Learning Strategy
+
+Graph Adversarial
+Training
+
+GNN-DRO [60] GraphAT [61] CAP [62] WT-AWP [63]
+
+   
+
+
+
+OAD [64]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Pretraining-GNN [65]
+
+PATTERN [66]
+
+Graph
+
+DR-GST [67]
+
+
+
+Self-supervised GraphCL [30]
+
+
+
+Learning
+
+RGCL [68]
+
+GAPGC [69]
+
+GT3 [70]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+learn the three types of representations, and two sub-decoders (i.e., a node-decoder and an edge decoder) that co-generate both nodes and edges to model the complicated relationships between nodes and edges. The base NED-VAE can also be extended to realize the group-wise and variable-wise disentanglement to support more ﬁne-grained disentanglement.
+
+Since reconstruction in unsupervised generative methods could be computationally expensive and even introduce bias that has a negative effect on the learned representations, DGCL (Disentangled Graph Contrastive Learning) [40] ﬁrst proposes to learn disentangled graph representations with self-supervision. Speciﬁcally, it ﬁrst identiﬁes the latent factors behind the input graph and
+
+PREPRINT
+
+7
+
+derives its factorized representations by the tailored disentangled graph encoder whose key ingredient is a multi-channel messagepassing layer. Each of the factorized representations describes a latent and disentangled aspect pertinent to a speciﬁc latent factor of the graph. Then it conducts factor-wise contrastive learning in each representation subspace characterized by each factor independently instead of in the whole representation space. This tailored design can encourage that each disentangled factor of the factorized representations is sufﬁciently discriminative only under one speciﬁc aspect of the whole graph, so as to help the graph encoder produce disentangled graph representations that independently reﬂect the expressive information of latent factors. Unlike generative models, contrastive learning is an instance-wise discriminative approach that aims at making similar instances closer and dissimilar instances far from each other in representation space [88, 89], so that it can get rid of computationally expensive graph reconstruction and learn informative graph representations.
+To further promote the disentanglement of the learned graph representations, IDGCL (Independence Promoted Disentangled Graph Contrastive Learning) [41] further extends DGCL by explicitly employing HSIC [87] to eliminate the dependence among disentangled representations that reﬂect different aspects of graphs pertinent to different latent factors. Since the disentangled graph representations are expected to capture mutually exclusive information in terms of the latent factors, IDGCL formulates the statistical independence among different latent representations effectively. The factor-wise contrastive representation learning and independence regularization are jointly optimized in a uniﬁed framework, so that the disentangled graph encoder can produce better disentangled graph representations. Compared with the existing methods, IDGCL encodes a graph with multiple disentangled representations in self-supervised manner, making it possible to explore the meaning of each channel, which beneﬁts in more explainability and OOD generalization for producing graph representations.
+4.2 Causality-based Graph Models
+In this section, we introduce the graph models based on causality for OOD generalization.
+Causal inference is one important technique to achieve OOD generalization. Graph machine learning models tend to exploit subtle statistical correlation existing in the training set even though it is a spurious correlation (unexpected “shortcut”) for predictions to boost training accuracy. The performance of graph models that heavily rely on the spurious correlations can be substantially degraded since the spurious correlations could change in the wild OOD testing environments. In contrast, the causalitybased graph models supported by causal inference theory can inherently capture causal relations between input graph data and labels that are stable under distribution shifts [90], leading to good OOD generalization. The existing methods can be divided according to their theoretical ground including confounder balancing [6, 42, 43], predeﬁned structural causal model [44, 45, 47, 48], and counterfactual inference [49] and Granger causality [50].
+4.2.1 Confounder Balancing based Methods
+Some methods [6, 42, 43] introduce confounder balancing into graph models.
+OOD-GNN [6], backed by confounder balancing theory [91] in causality, ﬁrst tackles the OOD generalization problem by a
+
+non-linear decorrelation operation on graphs. Speciﬁcally, OODGNN proposes to eliminate the statistical dependence between causal and noncausal graph representations of the graph encoder by a nonlinear graph representation decorrelation method utilizing random Fourier features [92], which scales linearly with the sample size and can get rid of spurious correlations. The parameters of the graph encoder and sample weights for graph representation decorrelation are optimized iteratively to learn discriminant graph representations for predictions. Note that, the decorrelation operation actually has the same effect with confounder balancing that encourages the independence between treatment and confounder. The graph encoder trained on the weighted dataset can estimate the causal effect of the variables in graph representations to the labels more accurately, while getting rid of the spurious correlations. In this way, OOD-GNN achieves the satisfactory performance on several graph benchmarks with various types of distribution shifts (i.e., shifts on graph sizes, node features, and graph structures), indicating its strong OOD generalization ability in the wild environments.
+StableGNN [42] proposes to exploit a differentiable graph pooling layer to extract subgraph-based decorrelated representations based on sample reweighting, which is similar in principle to OOD-GNN. First, the graph high-level variable learning component employs a graph pooling layer [93, 94] to map nearby lowlevel nodes to a set of clusters, where each cluster is expected to be one densely-connected subgraph unit of original graph. Then, it generates the cluster-level embeddings through aggregating the node embeddings in the same cluster, and aligns the cluster semantic space across graphs through an ordered concatenation operation. The cluster-level embeddings act as the high-level variables for graphs. Next, the sample weights are optimized to eliminate the statistical dependences between these high-level variables. Thus, the graph encoder can concentrate more on the true connection between discriminative substructures and labels, leading to good OOD generalization ability.
+In addition to the graph-level decorrelation models above, DGNN (Debiased GNN) [43] is a node-level decorrelation model with a similar methodology with StableGNN [42] that removes the spurious correlations on nodes to achieve stable predictions under distribution shifts. Speciﬁcally, it proposes a framework for OOD generalized node representation learning by jointly optimizing a decorrelation regularizer and a weighted GNN model. The decorrelation regularizer is expected to learn a set of sample weights for eliminating the spurious correlation between causal and noncausal node information for OOD generalization. And the learned sample weights via the decorrelation regularizer are used to reweight the prediction loss of GNN model so that the prediction could be OOD generalized.
+4.2.2 Structural Causal Model based Methods
+Some methods [44, 45, 46, 47, 48] take the structural causal model (SCM) into account in their model designs. In general, the SCM describes the underlying causal mechanisms. It can improve OOD generalization when introducing appropriate causal mechanisms into model designs.
+CAL (Causal Attention Learning) [44] takes a causal look at the GNN model and constructs a structural causal model via presenting the causality among ﬁve variables: graph data, causal feature, shortcut feature, graph representation, and prediction. Based on this SCM, they focus on the backdoor path between causal feature C and prediction, wherein the shortcut feature S
+
+PREPRINT
+
+8
+
+plays a confounder role. This backdoor path could form spurious correlation, namely using the shortcut feature instead of using causal feature to make predictions, leading to poor OOD generalization under distribution shifts. Therefore, this method exploits the do-calculus on the causal feature to cutting off the backdoor path (i.e., backdoor adjustment [95]), and gets rid of the confounding effect. Finally, it can learn the true relationships between the causal feature and prediction, without being inﬂuenced by the unstable shortcut features, which enhances OOD generalization on graph classiﬁcation tasks.
+DSE (Deconfounded Subgraph Evaluation) [45] proposes to faithfully measure the causal effect of explanatory subgraphs on the prediction. The authors claim that distribution shift is hardly measurable, so that it is hard to block the backdoor path from causal subgraph to label by the backdoor adjustment given the predeﬁned SCM. So, they utilize front-door adjustment and introduce a surrogate variable of the causal subgraphs. Instead of adopting the feature removal principle that is used in assessing the explanatory subgraph, it designs a generative model, termed conditional variational graph auto-encoder, to generate the possible surrogates that conform to the data distribution. Therefore, it can conduct unbiased estimation of the relation between causal subgraph and label. Since evaluating the explanatory causal subgraphs unbiasedly, it mitigates the out-of-distribution effect and achieves good OOD generalization.
+CIGA (Causality Inspired Invariant Graph Learning) [46] further categorizes the latent interaction between causal part C and noncausal part S into fully informative invariant features (FIIF) and partially informative invariant features (PIIF), depending on whether the latent causal part C is fully informative about label Y , i.e.,(S, E) ⊥⊥ Y |C. For FIIF assumption, the noncausal part S is directly controlled by the causal part C. And for PIIF, the noncausal part S is indirectly controlled by the causal part C through the label Y . The two SCMs exhibit different behaviors in the observed distribution shifts. If one of FIIF or PIIF is excluded, the performances of graph OOD generalization can degrade dramatically. Similarly, CIGA instantiates the causal part C as the critical subgraph that includes the information about the underlying causes of the label. So the OOD generalization can be achieved by identifying this critical subgraph that maximally preserves the intra-class information among different training environments, hence the predictions will be stable to distribution shifts.
+E-invariant GR [47] proposes a twin network directed acyclic graph [96] as their SCM to learn size-invariant graph representations (GR) that better extrapolate between test and train graph data. Different from the SCMs mentioned above, the proposed SCM depicts the more complex and ﬁne-grained relations among several variables, including graphon, train/test environment, node feature, edge, and graph size. In this SCM, the training graph is characterized by a graphon, which deﬁnes both the label and structural and attribute characteristics of graphs. The training environment is indicated by one unobserved environment variable that represents speciﬁc graph properties in terms of environments, so that it could change between the training and test set. Based on this SCM, the authors propose approximately size-invariant graph representation that is able to extrapolate to OOD test data and prove that the learned graph representation can perform no worse on the OOD test data than on a test dataset having the same environment distribution as the training data. Furthermore, this method can achieve extrapolations based on only one training
+
+environment (e.g., all training graphs have the same size). Since E-invariant GR [47] only studies the OOD generalization
+of GNNs for graph classiﬁcation, gMPNN•• [48] further extends it to study the OOD generalization of GNNs for link prediction in a similar setting, where test graph sizes are larger than training graphs. Speciﬁcally, the authors ﬁrst proposed a SCM assuming the data generation process for the goal to learn link predictors that generalize under distribution shifts on graph sizes. And they prove nonasymptotic bounds to indicate that as the sizes of test graphs increase, the link predictors based on permutation-equivariant structural node embeddings will converge to a random guess. They show that the output structural pairwise embeddings can converge to embeddings of a continuous function that achieves OOD generalization in link prediction tasks.
+4.2.3 Counterfactual Inference and Granger Causality based Methods
+Besides, some graph OOD methods are inspired by counterfactual learning [95], which is at the highest level in the causation ladder [97] and answers what would happen in another possible world if something had or had not happened. And some methods are motivated by Granger causality [98], which describes a causal relationship between variables of some feature and label if we are better able to predict label using all available information than if the information apart from such feature had been used.
+CFLP (Counter-Factual Link Prediction) [49] focuses on OOD link prediction tasks to learn the causal relationship between the global graph structure and link existence by training GNNbased link predictors to predict both factual and counterfactual links. It aims to deal with the counterfactual question: “would the link still exist if the graph structure became different from observation?” By answering this question, the counterfactual links will be used to train the graph encoder for producing OOD generalized representation. To generate counterfactual link samples, this method employs causal models that treat the information (i.e., learned representations) of node pairs as context, global graph structural properties as treatment, and link existence as outcome. After that, the proposed model can generate counterfactual training link samples and thus learn representations from both the factual (i.e., observed) and counterfactual (i.e., generated) links for improving OOD generalization.
+Gem [50], built upon the Granger causality, inputs the original computation graph into the explainer and outputs a causal explanation graph, exhibiting better generalization abilities. This method considers there exists a causal relationship between this edge/node and its corresponding prediction if the prediction performance decreases as some node or edge is missing. Since graph data is inherently interdependent, where nodes and their edges are correlated variables, it further incorporates various graph rules, e.g., connectivity check, to encourage the obtained explanations to be valid and human-intelligible causal subgraphs. Finally, this method can provide interpretable causal explanations and OOD generalized predictions for GNNs.
+5 LEARNING STRATEGY
+Besides graph data augmentation and graph models, some works focus on exploiting training schemes with tailored optimization objectives and constraints to promote OOD generalization, including graph invariant learning, graph adversarial training, and graph self-supervised learning.
+
+PREPRINT
+
+9
+
+5.1 Graph Invariant Learning
+First, we introduce the graph invariant learning methods for OOD generalization.
+Invariant learning, which aims to exploit the invariant relationships between features and labels across different distributions while disregarding the variant spurious correlations, can provably achieve satisfactory OOD generalization under distribution shifts [99, 100, 101]. When assessing causality is challenging or the strong assumptions are potentially violated in practice, it can approximate the task by searching features that are invariant under distribution shifts [100] for OOD generalization. Invariant learning assumes that the information of each instance for prediction includes two parts, i.e., invariant part whose relationship with the label is stable across different environments, and variant part whose relationship with the label can change across different environments. A good OOD generalization can be obtained when making predictions only on the invariant information. Along this line, there are mainly two types of graph invariant learning methods: invariance optimization [51, 52, 53, 54, 55] and explicit representation alignment [56, 57, 58].
+
+5.1.1 Invariance Optimization
+These methods are built upon the invariance principle to address the graph OOD generalization problem. The invariance principle assumes the invariance property inside the data, so that it can ﬁnd such invariance in multiple environments to achieve OOD generalization. The assumption can be formulated as:
+
+Assumption 1. (Invariance Assumption). There exists a portion of information Φ(X) inside input instance X such that ∀e, e ∈ supp(E), P e(Y |Φ(X)) = P e (Y |Φ(X)), where E denotes all possible environments and Φ(X) is often called as invariant rationales of input instance X.
+
+Following the recent invariant learning based OOD generalization studies [99, 100, 101], these invariance optimization methods treat the cause of distribution shifts between testing and training graph data as a potential unknown environmental variable e. The optimization objective can be formulated as:
+
+min max R(fθ|e),
+
+(3)
+
+fθ e∈supp(E)
+
+where R(fθ|e) = EX,Y ∼P e [ (fθ(Φ(X)), Y )] is the risk of the fθ on the environment e that makes predictions based on the invariant information Φ(X). Therefore, as shown in the last column of Table 1, this type of methods relies on explicit multipleenvironment split (indicated by |E| > 1) that can be provided in advance or generated during the training process.
+GIL (Graph Invariant Learning) [51] is proposed to capture the invariant relationships between predictive graph structural information (i.e., subgraphs or rationales) and labels under distribution shifts for graph-level OOD generalization. One of the main challenges for graph invariant learning is that the environment labels for graphs is generally unobserved or prohibitively expensive to collect, leading that it is difﬁcult to learn invariance in multiple environments. Therefore, this method ﬁrst studies invariant learning without explicit environment split. Speciﬁcally, GIL jointly optimizes three mutually promoting modules, including the invariant subgraph identiﬁcation module, the environment inference module, and the invariant learning module. First, the invariant subgraph identiﬁcation module is a GNN-based subgraph
+
+generator Φ(·). Given the input graph G, it identiﬁes the invariant subgraph Φ(G) and deﬁnes the rest of the graph, i.e., the complement of invariant subgraph, as the variant subgraph and denote it as G\Φ(G). Then, the environment inference module cluster all identiﬁed variant subgraphs of the datasets to infer the latent environments. The intuition is that since the invariant subgraph captures invariant relationships between predictive graph structural information and labels, the variant subgraphs in turn capture variant correlations under different distributions, which are environment-discriminative features. Finally, the invariant learning module optimizes the proposed maximal invariant subgraph generator criterion given the identiﬁed invariant subgraphs and inferred environments to generate graph representations capable of OOD generalization under distribution shifts. Theories are provided to show that the OOD generalization problem on graphs is equivalent to ﬁnding a maximal invariant subgraph generator of GIL, and further prove that GIL satisﬁes permutation invariance.
+DIR (Discovering Invariant Rationale) [52] is proposed to handle graph-level OOD generalization tasks by discovering invariant subgraphs Φ(G) for GNN under interventional distributions. The basic setting of DIR is also different from the traditional setting where environments are observable and attainable, but follows a similar setting with GIL that does not assume explicit environment split in advance. In detail, it uses a GNN-based subgraph generator to split the input graph into invariant and variant subgraphs under distribution shifts, which are encoded by the encoder into representations respectively. Then, the proposed distribution intervener conducts interventions on the variant representations to create multiple interventional distributions as the multiple environments. Finally, the two classiﬁers that are respectively built upon the invariant and variant subgraphs make predictions for the input graph instance jointly, so that the invariant risk is minimized across different environments. With this strategy, DIR can capture the invariant rationales that are stable across different distributions while ﬁltering out the spurious patterns that are unstable for OOD generalization.
+GSAT (Graph Stochastic Attention) [53] addresses graph-level OOD generalization problem utilizing the attention mechanism to build inherently interpretable GNNs for learning invariant subgraphs Φ(G) under distribution shifts. The learned invariant subgraphs of GSAT root in the notion of information bottleneck [102]. The attention is formulated as the information bottleneck by injecting stochasticity into the attention mechanism so as to constrain the information ﬂow from the input graph to the prediction. The injected stochasticity over the invariant label-relevant subgraphs can be automatically reduced during the training stage, while that over the variant label-irrelevant subgraphs can be kept. Besides, GSAT also penalizes the amount of information from the input graph data. Finally, GSAT can output the interpretable and OOD generalizable subgraphs that provably do not contain patterns that are spuriously correlated with the task under some assumptions. Note that GSAT is also compatible with pre-trained models and further improves the performances.
+Besides the graph-level OOD generalized methods, EERM (Explore-to-Extrapolate Risk Minimization) [54] is designed to handle node-level tasks under distribution shifts, which can achieve a valid solution for the node-level OOD problem under mild conditions. First, to account for the non-IID nature of nodes on graphs, this method proposes to transform a graph into a set of ego-graphs for center nodes, so that it can formulate the node-level OOD generalization problem inspired by the graph-
+
+PREPRINT
+
+10
+
+level problem. Then, it extends the invariance principle with the recursive computation on the induced BFS trees of ego-graphs to consider the structural information. Finally, the GNN backbone in EERM is optimized by minimizing the mean and variance of risks from multiple training environments that are generated by the environment generators, while the environment generators are trained by maximizing the variance loss via a policy gradient method. The authors also derive an upper bound of EERM on the OOD error which can be effectively controlled when optimizing the training objective.
+DIDA (Disentangled Intervention-based Dynamic Graph Attention Network) [55] is the ﬁrst method to handle graph OOD generalization under more complex spatial-temporal distribution shifts. The existing methods usually focus on only spatial distribution shifts existing on node features or graph structures while can not be directly utilized in more complex scenarios where the distribution shifts can simultaneously exist in spatial and temporal information. Speciﬁcally, it ﬁrst designs a disentangled spatialtemporal attention network to discover the invariant and variant patterns behind the dynamic graphs, which enables each node to attend to all its historic neighbors through a disentangled attention message-passing mechanism. Then, it introduces a spatialtemporal intervention mechanism to create multiple intervened distributions via sampling and reassembling the variant patterns across neighborhoods and time, leading that the spurious correlations between the variant patterns and labels can be eliminated. Note that the variant patterns are highly entangled across nodes and it is computationally expensive if directly generating and mixing up subsets of structures and features to do intervention. So, this method approximates the intervention process with summarized patterns obtained by the disentangled spatio-temporal attention network instead of the original structures and features. Lastly, the invariance regularization is used to minimize prediction variance in multiple intervened distributions. Therefore, this method can capture and utilize invariant patterns with stable predictive abilities to labels for making predictions under spatial-temporal distribution shifts.
+
+5.1.2 Explicit Representation Alignment
+The key idea of this line of works is to explicitly align the graph representations among multiple environments (or domains) to learn environment-invariant graph representations for OOD generalization. The graph representation alignment strives to minimize the difference (or encourage the similarity) across multiple environments via the introduced regularization strategy, which can be formulated as:
+
+min EX,Y [ (fθ(X), Y )] + reg(E),
+
+(4)
+
+fθ
+
+where reg(E) denotes the loss of the adopted regularizer. And the multiple environments E for calculating the regularizer are also usually unavailable in advance for most graph scenarios and are generated during the training process.
+SR-GNN (Shift-Robust GNN) [56] proposes to address nodelevel OOD generalization in GNNs by explicitly minimizing the distributional differences between biased training data and a graph’s true inference distribution of graphs. It encourages a biased sample of labeled nodes to more closely conform to the distributional characteristics present in an independent and identically distributed sample of the graph. The two kinds of bias occurring in both deeper GNNs and more recent linearized
+
+(shallow) versions of these models can be handled. Speciﬁcally, SR-GNN ﬁrst addresses the distribution shift via a regularization over the hidden layers of the network for standard GNN models (e.g., GCN [103]) that iteratively update information upon the graph structure. The regularizations for measuring discrepancy among different distributions can be maximum mean discrepancy (MMD) [104] or central moment discrepancy (CMD) [105]. Then, for the linearized models (e.g., SimpleGCN [106]) that decouple GNNs into non-linear feature encoding and linear message passing, SR-GNN adopts an instance reweighting strategy for encouraging the training examples to be representative over the graph data, since the graph can introduce bias over the features after all learnable layers. It learns a group of optimal instance weights via kernel mean matching (KMM) [107].
+SizeShiftReg [57] aims to train GNNs with good size generalization performance from smaller to larger graphs, which adopts a similar idea with SR-GNN [56]. It does not rely on handcrafting GNNs based on speciﬁc knowledge or assumptions, but studies a general regularization for any GNNs to be OOD generalizable to the graph size distribution shifts. The introduced graph coarsening strategy is to simulate the distribution shifts in the size of the training graphs. And the proposed regularization is expected to encourage the GNNs to be OOD generalized. For a given training graph, they minimize the discrepancy measured by CMD [105] between the distributions of the node representations learned by the GNNs from the original training graphs and the coarsened graphs. Under such a training paradigm, the learned GNNs can achieve good OOD generalization among different coarsened versions of the graph as well as graphs with unknown size.
+StableGL [58] focuses on stable graph learning (GL) to capture environment-invariant node properties and explicitly balance the multiple environments for generalizing well under distribution shifts. Given one input graph as the training environment, they aim to train a GNN that has a high average prediction performance but a low variance of performance on multiple agnostic testing environments. In more detail, the proposed method ﬁrst performs biased selection on the input training graph to construct multiple training environments. From a local perspective, since one node in graph is partially represented by the other neighbor nodes, this method proposes to capture stable node properties via reweighting the neighborhood aggregation process. From a global perspective, the authors ﬁnd that the prediction errors in different environments progressively diverge in biased training, eventually leading to unstable performance across environments. Therefore, the proposed method explicitly aligns the training process by reducing the training gap among different training environments, enforcing the learned GNN to generalize well across unseen testing environments. Different from SR-GNN [56] and SizeShiftReg [57] that adopt some discrepancy measurement like MMD or CMD, the regularization in this method is directly to minimize the variance of training losses in several environments.
+5.2 Graph Adversarial Training
+In this section, we discuss the graph adversarial learning methods for OOD generalization.
+Adversarial training has been demonstrated to improve model robustness against adversarial attacks and OOD generalization ability. Here we mainly focus on the graph adversarial training methods that improve the generalization ability, while the works
+
+PREPRINT
+
+11
+
+protecting GNNs from attacks can be found in the previous survey [22].
+DAGNN (Domain Adversarial GNN) [59] is a method motivated by DANN [108] that is one OOD generalization algorithm to learn domain (or environment) invariant graph representations by advocating domain-adversarial learning between the domain classiﬁer and the encoder. In particular, the ﬁrst objective is to minimize the classiﬁcation loss in terms of the encoder on the source domain data, and the second objective aims to facilitate the differentiation between the source and target domains. Such graph adversarial training strategy can maximally utilize the domain information to train classiﬁers for OOD generalized predictions classiﬁcation. Note that this method is proposed for text classiﬁcation where the graphs are converted from the documents, thus the domain (or environment) splits are available in the dataset.
+GNN-DRO [60] adopts distributionally robust optimization [109] that is one type of classical algorithm to solve the OOD generalization problem for node-level tasks. The GNN model is trained by minimizing the worst expected loss over the considered Wasserstein ball, following the assumption that the data distribution resides in a Wasserstein ball centered at empirical data distribution.
+In addition to directly extending existing OOD approaches for general machine learning to graph data as discussed above, there are some other works taking more account of the properties of graph itself.
+GraphAT (Graph Adversarial Training) [61] aims to improve the model’s generalization via exploring the adversarial training on graphs. When generating adversarial perturbations on a target sample, GraphAT maximizes the divergence between the prediction of the target sample and its connected samples, meaning that the adversarial perturbations should affect the graph smoothness as much as possible. After that, GraphAT minimizes the graph adversarial regularizer to update model parameters, reducing the divergence between the prediction of the perturbed target sample and its connected samples. And a linear approximation method for calculating the adversarial perturbations efﬁciently is derived based on back-propagation. By resisting the worst-case perturbations, it can enhance model robustness and generalization.
+CAP (Co-Adversarial Perturbation) [62] is proposed from the perspective of loss landscapes during training process. The authors observe GNNs are prone to falling into sharp local minima in loss landscapes in terms of model weight and feature. Therefore, they propose co-adversarial perturbation (CAP) optimization to ﬂatten the weight and feature loss landscapes alternately, which can avoid falling into locally sharp minima and improve generalization ability. Typically, they formulate the co-adversarial training objective to minimize the maximum training loss within a couple regions of model weights and node features. For further tackling the efﬁciency problem of co-adversarial training, they decouple the training objective and devise the alternating adversarial perturbations: one step to conduct the adversarial weight perturbation and training GNNs, as well as another step to calculate the adversarial feature perturbation for each node to update GNNs.
+WT-AWP (Weighted Truncated Adversarial Weight Perturbation) [63] follows the line that ﬂatting local minima to improve generalization for OOD graph data. Since directly applying existing adversarial weight perturbation techniques to train GNNs is not effective in practice induced by the vanishing-gradient issue, WT-AWP uses the loss of adversarial weight perturbation as an additional regularizer with the loss function (e.g., standard cross-
+
+entropy) for training GNN. It also proposes to remove perturbation in the last layer of the GNN for a more ﬁne-grained control of the training dynamics. Besides the practical designs for training strategy, a generalization bound for OOD graph classiﬁcation tasks is also derived.
+OAD (Online Adversarial Distillation) [64] is an online adversarial knowledge distillation technique for GNNs. Different from the above methods that introduce adversarial training into the training process of GNNs, this method brings adversarial training to solve the problem caused by the knowledge distillation. Motivated by the knowledge distillation technique can improve the OOD generalization, OAD proposes to train a group of student GNNs in an online fashion with both global and local knowledge. By transferring informative knowledge of teacher network, the OOD generalization performance of student network can be enhanced. To learn the complex structure of the local knowledge, adversarial cyclic learning is proposed to achieve more accurate embedding alignment among student models. OAD method is not only more efﬁcient than vanilla knowledge distillation technique with fewer parameters, but also more effective to handle the graph distribution shift problem.
+5.3 Graph Self-supervised Learning
+Finally, we introduce the graph self-supervised learning methods for OOD generalization.
+Self-supervision as an emerging technique has been employed to train neural networks for more generalizable predictions on the image ﬁeld [110, 111, 112]. It is also shown that selfsupervised learning can beneﬁt GNNs in gaining more generalization ability [113], whose motivations are as follows. First, the selfsupervised learning tasks encourage the GNN models to capture salient critical information of the input graph while avoiding the learned representations trivially overﬁtting “shortcuts” information as supervised learning, leading to better OOD generalization. Then, Xu et al. [114] also attribute such success to that selfsupervised learning could map semantically similar data to similar representations and therefore some OOD testing data might fall inside the training distribution after the mapping.
+Here we mainly review the typical graph self-supervised methods that claim to improve the graph OOD generalization. For more details of other graph self-supervised methods, the readers could refer to the surveys [20, 21].
+Pretraining-GNN [65] explores several graph pre-training techniques on both node-level and graph-level to improve OOD generalization of GNNs. They encourage GNNs to capture domain-speciﬁc knowledge about nodes and edges, in addition to graph-level knowledge such that the learned representations can be more OOD generalized. For node-level pre-training of GNNs, they propose two self-supervised methods, i.e., context prediction and attribute masking. For graph-level pre-training of GNNs, they also provide two options including making predictions about domainspeciﬁc attributes of entire graphs (e.g., supervised labels), or making predictions about graph structure namely modeling the structural similarity of two graphs. Overall, such pre-training strategy for GNNs is to ﬁrst perform node-level self-supervised pretraining and then graph-level multi-task supervised pre-training.
+PATTERN [66] is proposed to study the ability of GNNs to generalize from small to large graphs, by proposing a selfsupervised pretext task that aims at learning useful d-pattern representations. Although GNNs can naturally be applied to graphs with
+
+PREPRINT
+
+12
+
+different sizes, it is largely unknown about the mechanism of such size OOD generalization of GNNs. Therefore, the authors ﬁrst formalize a representation of local structures called d-patterns for characterizing generalization to new graph sizes. The d-patterns generalize the notion of node degrees to a d-step neighborhood of the center node, which models the values of the node and its d-step neighbors, as seen by GNNs. It is proved that even only a small discrepancy in the d-patterns distribution between the testing and training distributions may result in weight assignments that do not generalize well, indicating the existence of bad global minima with poor generalization. Then, the self-supervised pretext task is proposed aiming at learning useful d-patterns representations from both small and large graphs improving the OOD generalization on graph size with noticeable gains.
+DR-GST (Distribution Recovered Graph Self-Training) [67] is a graph self-training framework that can recover the original labeled dataset without distribution shifts. Speciﬁcally, it ﬁrst shows that the equality of loss function in self-training framework under the distribution shifts and the population distribution if each pseudo-labeled node is weighted by a proper coefﬁcient. Due to the intractability of the coefﬁcient, it replaces the coefﬁcient with the information gain after discovering the same changing trend between them. The information gain is respectively estimated via both dropout variational inference and dropedge variational inference. Then, it can recover the shifted distribution with the proposed information gain weighted loss function, which forces the GNN to focus on nodes with high information gain. Overall, DR-GST tackles the distribution shift problem from the perspective of information gain, and proposes a loss correction strategy to improve qualities of pseudo labels. Therefore, more unlabeled nodes can be assigned with pseudo labels whose distribution is the same as that of labeled nodes so as to beneﬁt the OOD generalization ability.
+Besides, graph contrastive learning can also be adopted to promote OOD generalization.
+GraphCL (Graph Contrastive Learning) [30] is one of the representative self-supervised learning methods for GNNs and has shown its generalization ability in practice. The authors argue that self-supervision with handcrafted pretext tasks relies on heuristics to design, and thus could limit the generality of the learned graph representations. Therefore, they develop the contrastive learning method GraphCL, whose key idea is to make graph representations agree with each other under the proposed four types of transformations for the input graph. The generalizability ability of GraphCL is veriﬁed on molecular property prediction in chemistry and protein function prediction in biology.
+RGCL (Rationale-aware Graph Contrastive Learning) [68] is proposed to automatically discover rationales as graph augmentations in contrastive learning for further improving the generalization performance in unseen domains with distribution shifts. The authors claim that despite promising performance of some representative methods like GraphCL, etc., the intrinsic random nature makes them suffer from potential semantic information loss, thus hardly capturing the salient information and undermining the generality ability. RGCL is proposed to tackle this problem, which consists of two modules, i.e., rationale generator and contrastive learner. The rationale generator decides fractions to reveal and conceal in the graph, and yields the rationale encapsulating its instance-discriminative information. The contrastive learner makes use of rationale-aware views to perform instancediscrimination of graphs. Thus, RGCL can prevent losing the
+
+discriminative semantics in augmented views as random augmentation and in turn preserve more rationale information with great generalization ability.
+GAPGC (Graph Adversarial Pseudo Group Contrast) [69] is a test-time training method designed for GNNs with a contrastive loss variant as the self-supervised objective during testing. Recently the effectiveness of test-time training has been validated to improve the performance on OOD test data, where some self-supervised auxiliary tasks are proposed. The authors argue that the simple augmentations in self-supervised training (e.g., randomly dropping nodes or edges) could harm the label-related critical information in graph representations. Therefore, GAPGC generates relatively reliable pseudo-labels, avoiding the severe shifts caused by the incorrect positive samples. The proposed adversarial learnable augmenter and group pseudo-positive samples can promote the relevance between the self-supervised task and the main task, so as to enhance the performance of the main task. The theoretical evidence is also derived to show that GAPGC can capture minimal sufﬁcient information for the main task from information theory perspective, which beneﬁts the predictions on the OOD testing data.
+GT3 (Graph Test-Time Training with Constraint) [70] is another test-time training method on graphs, which proposes a hierarchical self-supervised learning framework. Speciﬁcally, it ﬁrst introduces the global contrastive learning strategy to encourage node representations to capture the global information of the whole graph. The global contrastive learning is based on maximizing the mutual information between the local node representation and the global graph representation. Then, it presents the local contrastive learning for distinguishing different nodes from different augmented views of a graph, so that the node representation can capture more local information. Besides, an additional constraint is proposed to encourage that the representations of testing samples are close to the representations of the training samples. The model’s OOD generalization capacity for the graph classiﬁcation task can be enhanced based on this test time training strategy with self-supervised learning.
+6 THEORY
+In this section, we review some literature focusing on theoretical analyses of the generalization of GNNs, which are mainly developed to derive the generalization bound of GNNs based on different statistical learning theories.
+Scarselli et al. [121] provide a generalization bound for GNNs based on VC-dimension [122]. The authors ﬁnd that the upper bounds on the VC-dimension for GNNs are comparable to the upper bounds for the recurrent neural networks, meaning that the generalization capability of GNNs increases with the number of connected nodes. Verma & Zhang [123] take a further step towards deriving a theoretical analysis of graph convolutional networks (GCNs) [103] based on algorithmic stability [124] and provide generalization bounds for one-layer GCNs. They conclude that one-layer GCNs with stable graph convolution ﬁlters can satisfy the strong notion of uniform stability and therefore are generalizable.
+Garg et al. [125] study the generalization properties of GNNs on graph classiﬁcation based on Rademacher complexity. The generalization analysis explicitly considers the local permutation invariance of the GNN aggregation function. The derived Rademacher bounds are tighter than the VC bounds from [121]
+
+PREPRINT
+
+13
+
+TABLE 2: Commonly used synthetic and real-world graph datasets for OOD generalization. “Task” denotes each dataset can be used in graph-level or node-level task. “Type” indicates what kind of graph data that each dataset includes. “Cause of Shifts” indicates the reason for inducing distribution shifts between training and testing data. “Metric” is the evaluation metric adopted by each dataset. And “References” denotes the work developing each dataset.
+
+Dataset
+Spurious-Motif MNIST-75sp CMNIST-75sp D&D200 Graph-SST2 OGBG-Molhiv OGBG-Molpcba OGBG-PPA DrugOOD
+CBA-Shapes Facebook-100 WebKB Twitch-Explicit Elliptic OGBN-Arxiv OGBN-Proteins OGBN-Products
+
+Task
+Graph Graph Graph Graph Graph Graph Graph Graph Graph
+Node Node Node Node Node Node Node Node
+
+Type
+Synthetic Graph Superpixel Graph Superpixel Graph Molecular Graph
+Text Sentiment Molecular Graph Molecular Graph Protein Network Molecular Graph
+Synthetic Graph Social Network Webpage Network Social Network Bitcoin Transactions Citation Network Protein Network Co-purchasing
+
+Cause of Shifts
+Correlations Feature Noises Feature Colors
+Graph Size Node Degree
+Scaffold Scaffold Species Assay/Scaffold/Size
+Feature Colors Structure Structure Structure Time Time Species Popularity
+
+Metric
+Accuracy Accuracy Accuracy Accuracy Accuracy ROC-AUC Average Precision Accuracy Accuracy/AUC
+Accuracy Accuracy Accuracy ROC-AUC F1 Score Accuracy ROC-AUC Accuracy
+
+References
+[52] [115] [74, 116] [115] [117]
+[7] [7] [7] [118]
+[116] [54] [116] [119] [120] [7] [7] [7]
+
+for GNNs. Lv [126] adopts similar theoretical basis with the work [125], providing the Rademacher complexity bound for GCNs with one single hidden layer. The primary difference is that this work accounts for the speciﬁc node-level task of GCNs, which only involves a ﬁxed adjacency matrix.
+Liao et al. [127] establish a PAC-Bayesian generalization bound of GNNs on graph classiﬁcation. It further improves upon the Rademacher complexity based bound proposed in the work [125], deriving a tighter dependency on the maximum node degree and the maximum hidden dimension. Also, Ma et al. [128] present a PAC-Bayesian analysis for generalization performances of GNNs on subgroups of nodes under non-IID node-level tasks, which is the key difference compared with the work [127].
+Du et al. [129] establish Graph Neural Tangent Kernel (GNTK) to characterize the generalization bound of GNNs on graph classiﬁcation. Note that GNTK is induced by inﬁnitely wide GNNs, whose prediction depends only on pairwise kernel values between graphs, and can be calculated efﬁciently with an analytic formula. It enjoys the expressive power of GNNs, while inheriting the beneﬁts of graph kernels, e.g., easy to train, provable theoretical guarantees, etc. Relying on the GNTK method, Xu et al. [114] derive theoretical evidence of generalization capabilities in one-layer GNNs and study the effect of the alignment of network architecture and target algorithmic tasks on OOD generalization. Along with this line, Zhang et al. [130] prove that using proper tensor initialization and accelerated gradient descent, their algorithm can learn a GNN with one hidden layer having the zero generalization error for regression problems or sufﬁciently close to the ground-truth model, assuming such a ground-truth model exists.
+Considering most methods mentioned above are developed based on that graph data can be generated and labeled in any arbitrary way which is hard to be satisﬁed in practice, some works establish generalization bounds that depend on the graph data as follows.
+Baranwal et al. [131] study OOD generalization of GNNs under a speciﬁc data generating mechanism namely contextual
+
+stochastic block model and analyze the relation between linear separability and OOD generalization on graphs. The generalization guarantee for one-layer GCNs on binary node classiﬁcation is derived. Furthermore, Maskey et al. [132] consider a generative model graphons for the graphs which is not only theoretically powerful and general, but allows much tighter generalization bounds.
+7 DATASETS FOR EVALUATION
+To promote further research of graph OOD generalization, we summarize the existing popular graph datasets for evaluation in Table 2. There are two groups of datasets, where one group is for graph-level tasks and the other group is for node-level tasks. These datasets cover multiple sources of graphs (e.g., social network, citation network, molecular graph, etc) and their causes of distribution shifts are also complex and diverse (e.g., time, species, scaffold, etc.).
+7.1 Datasets for Graph-level Tasks
+First, we review some representative datasets for evaluating the model performances on graph classiﬁcation tasks.
+Spurious-Motif [52]: It is a synthetic dataset created by following the work [133], which is designed for distribution shifts on graph structure. Each graph consists of one motif and one base subgraph. The base subgraph includes Tree, Ladder, and Wheel (denoted by V = 0, 1, 2, respectively) and the motif includes Cycle, House, and Crane (denoted by I = 0, 1, 2). The groundtruth label Y only depends on the motif I, which is sampled uniformly. The spurious correlation between V and Y is injected by controlling the base subgraphs distribution as: P (V ) = b if V = I and P (V ) = (1 − b)/2 if V = I. Intuitively, b controls the strength of the spurious correlation. It can set b to different values in the testing and training set to simulate the distribution shifts.
+MNIST-75sp [115]: It is a semi-artiﬁcial dataset, where each graph is converted from an image in MNIST [134] using superpixels [135]. The nodes are superpixels, and the edges are calculated
+
+PREPRINT
+
+14
+
+by the spatial distance between nodes. The node features are set as the super-pixel coordinates and intensity. The task is to classify each graph into the corresponding handwritten digit labeled from 0 to 9. To simulate distribution shifts with respect to graph features, it generates testing graphs by colorizing images, i.e., adding two more channels and adding independent Gaussian noise to each channel.
+CMNIST-75sp [74, 116]: It is also a semi-artiﬁcial dataset, consisting of graphs converted from the images in MNIST using superpixels. Different from MNIST-75sp that adds noise to simulate distribution shifts, CMNIST-75sp colorizes the digits with different colors according to the digit labels or dataset split, inspired by the work [99]. Note that there are two choices of CMNIST-75sp to simulate the covariate shifts or concept shifts respectively. For the former choice, the testing data are colorized with unseen colors compared with the colors for the training data. For the latter choice, the colors are correlated with the digit labels for the training data, while colors have different correlations with labels for testing data, respectively.
+D&D200 [115]: It is a real-world graph classiﬁcation dataset that consists of 1,178 protein network structures with 82 discrete node labels. The task is to classify each graph into enzyme or non-enzyme class. To create distribution shifts on graph sizes, the training and testing sets are split by graph sizes, i.e., the models are trained on small graphs but tested on larger graphs. Speciﬁcally, the training set includes graphs with 30 to 200 nodes while the testing set includes graphs with 201 to 5,748 nodes.
+Graph-SST2 [117]: It is a real-world graph dataset originating from a natural language sentimental analysis dataset. Each graph is converted from a text sequence, where nodes represent words, edges indicate relations between words, and label is the sentence sentiment. Graphs are split into different sets according to their average node degree to create distribution shifts. The node features are initialized by the pre-trained BERT word embedding [136]. Thanks to the semantics of these graphs, this dataset is more human-understandable for visualizing or analyzing some intermediate results.
+OGBG [7]: Open Graph Benchmark (OGB) is a benchmark consisting of realistic, large-scale, and diverse datasets for machine learning on graphs, where OGBG is a subset including several representative datasets for evaluation OOD generalization in graph-level tasks, e.g., OGBG-Molhiv, OGBG-Molpcba, OGBGPPA, etc. Speciﬁcally, OGBG-Molhiv and OGBG-Molpcba are two graph property prediction datasets with distribution shifts. The task is to predict the target molecular properties. The dataset provides the default scaffold splitting procedure, i.e., splitting the graphs based on their two-dimensional structural frameworks. Note that this scaffold splitting strategy aims to separate structurally different molecules into different subsets, which provides a more realistic and challenging scenario for testing graph OOD generalization. And OGBG-PPA consists of undirected protein association neighborhoods extracted from the protein-protein association networks of 1,581 different species. The task is to predict what taxonomic group the given protein association neighborhood graph originates from. The dataset adopts species split, i.e., separating graphs from different species into different subsets.
+DrugOOD [118]: It is a benchmark for AI-aided drug discovery, including some realistic molecular graph datasets. It provides an automated pipeline for curating OOD datasets based on a large-scale bioassay dataset ChEMBL [137]. Also, it presents more diverse dataset splitting indicators than OGB to generate
+
+speciﬁc domains that are aligned with the domain knowledge of biochemistry. Rather than only adopting scaffold as the indicator of dataset splitting, it can provide more choices for separating graphs into different subsets in terms of assay and size to create distribution shifts.
+7.2 Datasets for Node-level Tasks
+Then, we review some representative datasets for evaluating the model performances on node classiﬁcation tasks.
+CBA-Shapes [116]: It is a synthetic dataset created by following the BA-Shapes dataset from the work [133]. The input graph contains a base graph and a set of motifs, where the base graph is a Baraba´si-Albert (BA) graph on 300 nodes and the set of motifs includes 80 house-structured motifs. The task is to predict the structural role of each node, including the top, middle, or bottom node of a house-structured motif, or the node from the base graph, i.e., a 4-class classiﬁcation task. Node features are assigned with colors to create distribution shifts, which also have two choices to simulate the covariate shifts or concept shifts. For the former choice, the testing nodes are colorized with unseen colors compared with the colors of the training nodes. For the latter choice, the colors are correlated with the labels of the training nodes, while colors have different correlations with labels of the testing nodes, respectively.
+Facebook-100 [54]: It is a real-world node classiﬁcation dataset which consists of 100 Facebook social network snapshots from the year 2005. Each network contains nodes as Facebook users from a speciﬁc American university. The distribution shifts can be introduced by splitting training and testing sets via selecting different universities that the users in a network are from, since these networks have signiﬁcantly diverse sizes, densities and degree distributions. For example, the default dataset split in the work [54] is to adopt the corresponding networks from three of fourteen universities (e.g., John Hopkins, Cornell, etc.) as training set, and the network from another three universities (i.e., Penn, Brown and Texas) as the testing set. Of course, the other combinations can also be used to evaluate the node-level OOD generalization ability.
+WebKB [116]: It is a real-world university webpage network dataset for node classiﬁcation. The nodes denote webpages and edges are hyperlinks between two webpages. The node features are from the words appearing in the webpage. The task is to predict the classes of webpages including student, project, course, staff, or faculty. The distribution shifts are from splitting the dataset conforming to the domain university. Therefore, the OOD generalized predictions can be achieved when only using the word contents and hyperlinks of webpages rather than using the university features.
+Twitch-Explicit [119]: It is a real-world social network dataset, where nodes are Twitch users and edges are friendships between two users. Node features are games liked, location and streaming habits. Each network is collected from a speciﬁc region, including DE, ENGB, ES, FR, PTBR, RU and TW. The seven networks have signiﬁcantly different structural properties, e.g., densities and maximum node degrees [54]. The distribution shifts between training and testing sets are from splitting the dataset according to the network region.
+Elliptic [120]: It is a realistic Bitcoin transaction network dataset consisting of several snapshots, where nodes are transactions and edges are payment ﬂows. The task is to distinguish
+
+PREPRINT
+
+15
+
+between licit and illicit transactions in future data. By adopting older snapshots in terms of time as the training set while newer snapshots as the testing set, the distribution shifts can be observed due to some emerging events in the market.
+OGBN [7]: It includes some node properties prediction datasets, e.g., OGBN-Arxiv, OGBN-Proteins, and OGBNProducts, which is another subset of the whole OGB [7]. Speciﬁcally, OGBN-Arxiv is a real-world citation dataset, where nodes are arXiv papers, and edges are citations between papers. Its 40class prediction task is to predict the subject area of arXiv papers. The node distribution shifts are introduced by splitting papers from different time ranges into training and testing sets. And OGBN-Proteins a protein graph, where nodes represent proteins and edges indicate different types of biologically meaningful associations between proteins. The task is to predict the presence of protein functions. The distribution shifts are introduced by splitting the protein nodes into different subsets according to the species that the proteins come from. In addition, OGBN-Products is an Amazon product co-purchasing network. Nodes represent products in Amazon, and edges indicate that the two products are purchased together. The task is to predict the product category. The distribution shifts are created by a more challenging and realistic dataset splitting according to the popularity of products, i.e., using the popular products for training but relatively unpopular products for testing.
+7.3 Other Benchmarks
+In addition, there are also some works that collect these commonly used or more than one datasets above into a standard evaluation open-source benchmark and report the experimental results for some well-known general OOD algorithms and graph OOD methods under the proposed evaluation protocols. Since the details of most datasets have been discussed above, here we review these packages brieﬂy. Speciﬁcally, GDS [74] collects eight datasets for graph-level tasks reﬂecting a diverse range of distribution shifts across graphs to compare the performance of popular OOD generalization algorithms and GNN backbones. GOOD [116] summarizes more than ten datasets for both graph-level and nodelevel tasks with diverse types of distribution shifts introduced by combining different domain selection strategies and distribution shift types. It also contains the experiments to show the signiﬁcant performance gaps between in-distribution and OOD settings and the comparisons among different OOD methods for both general machine learning and the graph ﬁeld.
+8 DISCUSSIONS
+In this section, we brieﬂy summarize this survey and further discuss several challenges as well as opportunities worthy of future explorations.
+8.1 Summary
+The diversity and quality of training graph data play an important role in OOD generalization of graph machine learning approaches. Several graph data augmentation methods, including structurewise, feature-wise, and mixed-type methods are developed to achieve good performances with simple yet effective paradigms.
+Another line of works focuses on exploiting new graph models to promote the OOD generalization capability. Compared to graph data augmentation, these models overall enjoy more
+
+solid theoretical ground and more graph-speciﬁc designs. The disentanglement-based graph models present good motivations while the causality-based graph models are backed by diverse causal inference theories. These tailored graph models also show promising OOD generalization performances in practice.
+Recently, there is a rapid development for graph learning strategies, including graph invariant learning, graph adversarial training, and graph self-supervised learning. Compared with the graph models, these methods pay more attention to the learning process, so that they are more ﬂexible to be compatible with different GNN backbones for enhancing OOD generalization.
+To build the theoretical framework of graph generalization, a number of theoretical derivations on generalization bounds are proposed, which beneﬁt the deeper understanding of graph OOD generalization methods. And to promote deeper research, diverse datasets under complex realistic distribution shifts covering nodelevel and graph-level tasks are adopted to verify the effectiveness of graph OOD generalization methods comprehensively and fairly.
+8.2 Future Directions
+There exist plenty of challenges and opportunities worthy of future explorations.
+8.2.1 More Theoretical Guarantees
+While some graph OOD generalization methods have made great progress empirically, there is still a large gap between these methods and the theories introduced in Section 6. It is a critical step to derive theoretical characterization on a learnable graph OOD generalization problem and further develop methods with theoretical guarantees for OOD optimality. Besides, it is also worth ﬁguring out what kind of distribution shifts (e.g., covariate shifts, concept shifts, or even label shifts) and investigating OOD generalization theories built upon the speciﬁc assumptions on distribution shifts.
+8.2.2 GNN Architecture
+Recently, some studies [114, 115, 138, 139, 140] highlight the importance of careful design for GNN architecture (e.g., readout operation) to gracefully generalize to OOD graph data. Besides hand-crafted model designs, automatically tailoring a customized GNN architecture suitable for each graph instance also beneﬁts the predictions under distribution shifts [141]. It remains to be further explored how to design theoretically guaranteed GNN architectures for OOD generalization. And more research efforts need to be paid on automatically learning OOD generalized GNN architectures suitable for diverse environments.
+8.2.3 Environment Split
+The majority of general OOD generalization algorithms require multiple training environments [15]. However, it is prohibitively expensive to collect accurate environment labels for real-world graphs, limiting the adoption of those algorithms. It is worth investigating to develop the single environment graph OOD generalization method or infer environment split accurately during training. Moreover, for many real-world situations, graph data often changes/evolves over time, which resides in dynamic or even continuous environments [142]. So it remains a promising future direction to perform graph OOD generalization dynamically or continuously that efﬁciently updates graph models or learning strategies in terms of time to generalize to new data under unknown distribution.
+
+PREPRINT
+
+16
+
+8.2.4 Test-Time Training for Generalization
+Graph test-time training can allow more ﬂexibility in inference time to make use of the inference unlabeled data during the testing stage. It can improve the graph OOD generalization under unknown distribution shifts via solving a test-time task. In addition to the two works [69, 70] introduced in Section 5.3 that adopt contrastive test-time tasks, one more recent attempt GTrans [143] proposes to adapt and reﬁne graph data at test-time. It is a valuable direction to design more test-time training tasks or explore more test-time training strategies to improve OOD generalization on graphs.
+8.2.5 Broader Scope of Applications
+OOD graph data widely exist in our daily life. Although some classical machine learning approaches on graphs have been utilized on various realistic applications, it is a promising direction to deploy the OOD generalized graph methods in the wild where distribution shifts widely exist [144, 145, 146, 147, 148], including recommender systems, social networks, trafﬁc prediction, materials science, and risk-sensitive ﬁnance or healthcare ﬁelds, for more effective, trustworthy and satisfying predictions. How to incorporate proper domain knowledge is one main challenge to apply graph OOD generalization into these applications. One possible principle is to treat the integrated domain knowledge as additional prior knowledge to guide the designs of graph models and learning strategies.
+REFERENCES
+[1] J. Qiu, J. Tang, H. Ma, Y. Dong, K. Wang, and J. Tang, “Deepinf: Social inﬂuence prediction with deep learning,” in Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, 2018, pp. 2110– 2119.
+[2] S. Wu, F. Sun, W. Zhang, X. Xie, and B. Cui, “Graph neural networks in recommender systems: a survey,” ACM Computing Surveys, vol. 55, no. 5, pp. 1–37, 2022.
+[3] Q. Wang, Z. Mao, B. Wang, and L. Guo, “Knowledge graph embedding: A survey of approaches and applications,” IEEE Transactions on Knowledge and Data Engineering, 2017.
+[4] B. Yu, H. Yin, and Z. Zhu, “Spatio-temporal graph convolutional networks: a deep learning framework for trafﬁc forecasting,” in International Joint Conference on Artiﬁcial Intelligence, 2018.
+[5] Y. Bengio, T. Deleu, N. Rahaman, R. Ke, S. Lachapelle, O. Bilaniuk, A. Goyal, and C. Pal, “A meta-transfer objective for learning to disentangle causal mechanisms,” International Conference on Learning Representations, 2019.
+[6] H. Li, X. Wang, Z. Zhang, and W. Zhu, “Ood-gnn: Out-ofdistribution generalized graph neural network,” IEEE Transactions on Knowledge and Data Engineering, 2022.
+[7] W. Hu, M. Fey, M. Zitnik, Y. Dong, H. Ren, B. Liu, M. Catasta, and J. Leskovec, “Open graph benchmark: Datasets for machine learning on graphs,” Neural Information Processing Systems (NeurIPS), 2020.
+[8] S. Yang, Z. Zhang, J. Zhou, Y. Wang, W. Sun, X. Zhong, Y. Fang, Q. Yu, and Y. Qi, “Financial risk analysis for smes with graph-based supply chain mining.” in International Joint Conference on Artiﬁcial Intelligence, 2020.
+[9] C. Agarwal, H. Lakkaraju, and M. Zitnik, “Towards a uniﬁed framework for fair and stable graph representation learning,” in UAI, 2021.
+[10] M. Liang, B. Yang, R. Hu, Y. Chen, R. Liao, S. Feng, and R. Urtasun, “Learning lane graph representations for motion forecasting,” in European Conference on Computer Vision. Springer, 2020, pp. 541–556.
+
+[11] J. Shlomi, P. Battaglia, and J.-R. Vlimant, “Graph neural networks in particle physics,” Machine Learning: Science and Technology, vol. 2, no. 2, p. 021001, 2020.
+[12] G. Panagopoulos, G. Nikolentzos, M. Vazirgiannis et al., “Transfer graph neural networks for pandemic forecasting,” Association for the Advancement of Artiﬁcial Intelligence, 2021.
+[13] M. J. Horry, S. Chakraborty, M. Paul, A. Ulhaq, B. Pradhan, M. Saha, and N. Shukla, “Covid-19 detection through transfer learning using multimodal imaging data,” Ieee Access, 2020.
+[14] K. Hsieh, Y. Wang, L. Chen, Z. Zhao, S. Savitz, X. Jiang, J. Tang, and Y. Kim, “Drug repurposing for covid-19 using graph neural network and harmonizing multiple evidence,” Scientiﬁc reports, vol. 11, no. 1, pp. 1–13, 2021.
+[15] Z. Shen, J. Liu, Y. He, X. Zhang, R. Xu, H. Yu, and P. Cui, “Towards out-of-distribution generalization: A survey,” arXiv preprint arXiv:2108.13624, 2021.
+[16] J. Wang, C. Lan, C. Liu, Y. Ouyang, W. Zeng, and T. Qin, “Generalizing to unseen domains: A survey on domain generalization,” International Joint Conference on Artiﬁcial Intelligence, 2021.
+[17] K. Zhou, Z. Liu, Y. Qiao, T. Xiang, and C. C. Loy, “Domain generalization: A survey,” IEEE Transactions on Pattern Analysis and Machine Intelligence, 2022.
+[18] K. Ding, Z. Xu, H. Tong, and H. Liu, “Data augmentation for deep graph learning: A survey,” arXiv preprint arXiv:2202.08235, 2022.
+[19] T. Zhao, G. Liu, S. Gu¨nnemann, and M. Jiang, “Graph data augmentation for graph machine learning: A survey,” arXiv preprint arXiv:2202.08871, 2022.
+[20] Y. Liu, M. Jin, S. Pan, C. Zhou, Y. Zheng, F. Xia, and P. Yu, “Graph self-supervised learning: A survey,” IEEE Transactions on Knowledge and Data Engineering, 2022.
+[21] Y. Xie, Z. Xu, J. Zhang, Z. Wang, and S. Ji, “Self-supervised learning of graph neural networks: A uniﬁed review,” IEEE Transactions on Pattern Analysis and Machine Intelligence, 2022.
+[22] L. Sun, Y. Dou, C. Yang, K. Zhang, J. Wang, S. Y. Philip, L. He, and B. Li, “Adversarial attack and defense on graph data: A survey,” IEEE Transactions on Knowledge and Data Engineering, 2022.
+[23] L. Chen, J. Li, J. Peng, T. Xie, Z. Cao, K. Xu, X. He, and Z. Zheng, “A survey of adversarial learning on graphs,” arXiv preprint arXiv:2003.05730, 2020.
+[24] T. Zhao, Y. Liu, L. Neves, O. Woodford, M. Jiang, and N. Shah, “Data augmentation for graph neural networks,” Association for the Advancement of Artiﬁcial Intelligence, 2021.
+[25] H. Park, S. Lee, S. Kim, J. Park, J. Jeong, K.-M. Kim, J.-W. Ha, and H. J. Kim, “Metropolis-hastings data augmentation for graph neural networks,” Advances in Neural Information Processing Systems, vol. 34, 2021.
+[26] L. Wu, H. Lin, Y. Huang, and S. Z. Li, “Knowledge distillation improves graph structure augmentation for graph neural networks,” in Neural Information Processing Systems, 2022.
+[27] W. Feng, J. Zhang, Y. Dong, Y. Han, H. Luan, Q. Xu, Q. Yang, E. Kharlamov, and J. Tang, “Graph random neural networks for semi-supervised learning on graphs,” Advances in neural information processing systems, vol. 33, pp. 22 092–22 103, 2020.
+[28] K. Kong, G. Li, M. Ding, Z. Wu, C. Zhu, B. Ghanem, G. Taylor, and T. Goldstein, “Robust optimization as data augmentation for large-scale graphs,” in Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, 2022, pp. 60–69.
+[29] S. Liu, R. Ying, H. Dong, L. Li, T. Xu, Y. Rong, P. Zhao, J. Huang, and D. Wu, “Local augmentation for graph neural networks,” in International Conference on Machine Learning. PMLR, 2022, pp. 14 054–14 072.
+[30] Y. You, T. Chen, Y. Sui, T. Chen, Z. Wang, and Y. Shen, “Graph contrastive learning with augmentations,” Advances in Neural
+
+PREPRINT
+
+17
+
+Information Processing Systems, vol. 33, pp. 5812–5823, 2020. [31] G. Liu, T. Zhao, J. Xu, T. Luo, and M. Jiang, “Graph rational-
+ization with environment-based augmentations,” in Proceedings of the 28th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, 2022. [32] J. Yu, J. Liang, and R. He, “Finding diverse and predictable subgraphs for graph domain generalization,” arXiv preprint arXiv:2206.09345, 2022. [33] Y. Sui, X. Wang, J. Wu, A. Zhang, and X. He, “Adversarial causal augmentation for graph covariate shift,” arXiv preprint arXiv:2211.02843, 2022. [34] H. Zhang, M. Cisse, Y. N. Dauphin, and D. Lopez-Paz, “mixup: Beyond empirical risk minimization,” International Conference on Learning Representations, 2018. [35] J. Ma, P. Cui, K. Kuang, X. Wang, and W. Zhu, “Disentangled graph convolutional networks,” in International conference on machine learning. PMLR, 2019, pp. 4212–4221. [36] Y. Liu, X. Wang, S. Wu, and Z. Xiao, “Independence promoted graph disentangled networks,” in Association for the Advancement of Artiﬁcial Intelligence, vol. 34, no. 04, 2020, pp. 4916– 4923. [37] Y. Yang, Z. Feng, M. Song, and X. Wang, “Factorizable graph convolutional networks,” Advances in Neural Information Processing Systems, vol. 33, pp. 20 286–20 296, 2020. [38] S. Fan, X. Wang, Y. Mo, C. Shi, and J. Tang, “Debiasing graph neural networks via learning disentangled causal substructure,” in Advances in Neural Information Processing Systems, 2022. [39] X. Guo, L. Zhao, Z. Qin, L. Wu, A. Shehu, and Y. Ye, “Interpretable deep graph generation with node-edge codisentanglement,” in Proceedings of the 26th ACM SIGKDD international conference on knowledge discovery & data mining, 2020, pp. 1697–1707. [40] H. Li, X. Wang, Z. Zhang, Z. Yuan, H. Li, and W. Zhu, “Disentangled contrastive learning on graphs,” Advances in Neural Information Processing Systems, vol. 34, 2021. [41] H. Li, Z. Zhang, X. Wang, and W. Zhu, “Disentangled graph contrastive learning with independence promotion,” IEEE Transactions on Knowledge and Data Engineering, 2022. [42] S. Fan, X. Wang, C. Shi, P. Cui, and B. Wang, “Generalizing graph neural networks on out-of-distribution graphs,” arXiv preprint arXiv:2111.10657, 2021. [43] S. Fan, X. Wang, C. Shi, K. Kuang, N. Liu, and B. Wang, “Debiased graph neural networks with agnostic label selection bias,” IEEE Transactions on Neural Networks and Learning Systems, 2022. [44] Y. Sui, X. Wang, J. Wu, M. Lin, X. He, and T.-S. Chua, “Causal attention for interpretable and generalizable graph classiﬁcation,” Proceedings of the 28th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, 2022. [45] Y. Wu, X. Wang, A. Zhang, X. Hu, F. Feng, X. He, and T.S. Chua, “Deconfounding to explanation evaluation in graph neural networks,” arXiv preprint arXiv:2201.08802, 2022. [46] Y. Chen, Y. Zhang, Y. Bian, H. Yang, K. Ma, B. Xie, T. Liu, B. Han, and J. Cheng, “Learning causally invariant representations for out-of-distribution generalization on graphs,” in Thirty-Sixth Conference on Neural Information Processing Systems, 2022. [47] B. Bevilacqua, Y. Zhou, and B. Ribeiro, “Size-invariant graph representations for graph classiﬁcation extrapolations,” in International Conference on Machine Learning. PMLR, 2021, pp. 837–851. [48] Y. Zhou, G. Kutyniok, and B. Ribeiro, “Ood link prediction generalization capabilities of message-passing gnns in larger test graphs,” Advances in Neural Information Processing Systems, 2022. [49] T. Zhao, G. Liu, D. Wang, W. Yu, and M. Jiang, “Learning from counterfactual links for link prediction,” in International Conference on Machine Learning. PMLR, 2022, pp. 26 911– 26 926. [50] W. Lin, H. Lan, and B. Li, “Generative causal explanations
+
+for graph neural networks,” in International Conference on Machine Learning. PMLR, 2021, pp. 6666–6679. [51] H. Li, Z. Zhang, X. Wang, and W. Zhu, “Learning invariant graph representations under distribution shifts,” in Advances in Neural Information Processing Systems, 2022. [52] Y.-X. Wu, X. Wang, A. Zhang, X. He, and T. seng Chua, “Discovering invariant rationales for graph neural networks,” in International Conference on Learning Representations, 2022. [53] S. Miao, M. Liu, and P. Li, “Interpretable and generalizable graph learning via stochastic attention mechanism,” in International Conference on Machine Learning, 2022, pp. 15 524– 15 543. [54] Q. Wu, H. Zhang, J. Yan, and D. Wipf, “Handling distribution shifts on graphs: An invariance perspective,” in International Conference on Learning Representations, 2022. [55] Z. Zhang, X. Wang, Z. Zhang, H. Li, Z. Qin, and W. Zhu, “Dynamic graph neural networks under spatio-temporal distribution shift,” in Thirty-Sixth Conference on Neural Information Processing Systems, 2022. [56] Q. Zhu, N. Ponomareva, J. Han, and B. Perozzi, “Shift-robust gnns: Overcoming the limitations of localized graph training data,” Advances in Neural Information Processing Systems, vol. 34, 2021. [57] D. Buffelli, P. Lio`, and F. Vandin, “Sizeshiftreg: a regularization method for improving size-generalization in graph neural networks,” Neural Information Processing Systems, 2022. [58] S. Zhang, K. Kuang, J. Qiu, J. Yu, Z. Zhao, H. Yang, Z. Zhang, and F. Wu, “Stable prediction on graphs with agnostic distribution shift,” arXiv preprint arXiv:2110.03865, 2021. [59] M. Wu, S. Pan, X. Zhu, C. Zhou, and L. Pan, “Domainadversarial graph neural networks for text classiﬁcation,” in 2019 IEEE International Conference on Data Mining (ICDM). IEEE, 2019, pp. 648–657. [60] A. Sadeghi, M. Ma, B. Li, and G. B. Giannakis, “Distributionally robust semi-supervised learning over graphs,” arXiv preprint arXiv:2110.10582, 2021. [61] F. Feng, X. He, J. Tang, and T.-S. Chua, “Graph adversarial training: Dynamically regularizing based on graph structure,” IEEE Transactions on Knowledge and Data Engineering, vol. 33, no. 6, pp. 2493–2504, 2019. [62] H. Xue, K. Zhou, T. Chen, K. Guo, X. Hu, Y. Chang, and X. Wang, “Cap: Co-adversarial perturbation on weights and features for improving generalization of graph neural networks,” arXiv preprint arXiv:2110.14855, 2021. [63] Y. Wu, A. Bojchevski, and H. Huang, “Adversarial weight perturbation improves generalization in graph neural networks,” Association for the Advancement of Artiﬁcial Intelligence, 2023. [64] C. Wang, Z. Wang, D. Chen, S. Zhou, Y. Feng, and C. Chen, “Online adversarial distillation for graph neural networks,” arXiv preprint arXiv:2112.13966, 2021. [65] W. Hu, B. Liu, J. Gomes, M. Zitnik, P. Liang, V. Pande, and J. Leskovec, “Strategies for pre-training graph neural networks,” International Conference on Learning Representations, 2020. [66] G. Yehudai, E. Fetaya, E. Meirom, G. Chechik, and H. Maron, “From local structures to size generalization in graph neural networks,” in International Conference on Machine Learning. PMLR, 2021, pp. 11 975–11 986. [67] H. Liu, B. Hu, X. Wang, C. Shi, Z. Zhang, and J. Zhou, “Conﬁdence may cheat: Self-training on graph neural networks under distribution shift,” The Web Conference, 2022. [68] S. Li, X. Wang, A. Zhang, Y. Wu, X. He, and T.-S. Chua, “Let invariant rationale discovery inspire graph contrastive learning,” in International Conference on Machine Learning. PMLR, 2022, pp. 13 052–13 065. [69] G. Chen, J. Zhang, X. Xiao, and Y. Li, “Graphtta: Test time adaptation on graph neural networks,” arXiv preprint arXiv:2208.09126, 2022. [70] Y. Wang, C. Li, W. Jin, R. Li, J. Zhao, J. Tang, and X. Xie,
+
+PREPRINT
+
+18
+
+“Test-time training for graph neural networks,” arXiv preprint arXiv:2210.08813, 2022. [71] W. K. Hastings, “Monte carlo sampling methods using markov chains and their applications,” 1970. [72] M. McPherson, L. Smith-Lovin, and J. M. Cook, “Birds of a feather: Homophily in social networks,” Annual review of sociology, pp. 415–444, 2001. [73] A. Shafahi, M. Najibi, M. A. Ghiasi, Z. Xu, J. Dickerson, C. Studer, L. S. Davis, G. Taylor, and T. Goldstein, “Adversarial training for free!” Neural Information Processing Systems, vol. 32, 2019. [74] M. Ding, K. Kong, J. Chen, J. Kirchenbauer, M. Goldblum, D. Wipf, F. Huang, and T. Goldstein, “A closer look at distribution shifts and out-of-distribution generalization on graphs,” NeurIPS Workshop, 2021. [75] V. Verma, A. Lamb, C. Beckham, A. Najaﬁ, I. Mitliagkas, D. Lopez-Paz, and Y. Bengio, “Manifold mixup: Better representations by interpolating hidden states,” in International Conference on Machine Learning. PMLR, 2019, pp. 6438– 6447. [76] L. Zhang, Z. Deng, K. Kawaguchi, A. Ghorbani, and J. Zou, “How does mixup help with robustness and generalization?” in International Conference on Learning Representations, 2021. [77] H. Guo, “Nonlinear mixup: Out-of-manifold data augmentation for text classiﬁcation,” in Association for the Advancement of Artiﬁcial Intelligence, vol. 34, no. 04, 2020, pp. 4044–4051. [78] V. Verma, M. Qu, K. Kawaguchi, A. Lamb, Y. Bengio, J. Kannala, and J. Tang, “Graphmix: Improved training of gnns for semi-supervised learning,” in Association for the Advancement of Artiﬁcial Intelligence, vol. 35, no. 11, 2021, pp. 10 024– 10 032. [79] Y. Wang, W. Wang, Y. Liang, Y. Cai, and B. Hooi, “Mixup for node and graph classiﬁcation,” in Proceedings of the Web Conference 2021, 2021, pp. 3663–3674. [80] L. Wu, H. Lin, Z. Gao, C. Tan, S. Li et al., “Graphmixup: Improving class-imbalanced node classiﬁcation on graphs by self-supervised context prediction,” arXiv preprint arXiv:2106.11133, 2021. [81] H. Guo and Y. Mao, “Intrusion-free graph mixup,” arXiv preprint arXiv:2110.09344, 2021. [82] Y. Wang, W. Wang, Y. Liang, Y. Cai, J. Liu, and B. Hooi, “Nodeaug: Semi-supervised node classiﬁcation with data augmentation,” in Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, 2020, pp. 207–217. [83] X. Han, Z. Jiang, N. Liu, and X. Hu, “G-mixup: Graph data augmentation for graph classiﬁcation,” International Conference on Machine Learning, 2022. [84] X. Wang, H. Chen, S. Tang, Z. Wu, and W. Zhu, “Disentangled representation learning,” arXiv preprint arXiv:2211.11695, 2022. [85] M. L. Montero, C. J. Ludwig, R. P. Costa, G. Malhotra, and J. Bowers, “The role of disentanglement in generalisation,” in International Conference on Learning Representations, 2020. [86] A. Dittadi, F. Tra¨uble, F. Locatello, M. Wu¨thrich, V. Agrawal, O. Winther, S. Bauer, and B. Scho¨lkopf, “On the transfer of disentangled representations in realistic settings,” arXiv preprint arXiv:2010.14407, 2020. [87] A. Gretton, K. Fukumizu, C. Teo, L. Song, B. Scho¨lkopf, and A. Smola, “A kernel statistical test of independence,” Advances in neural information processing systems, vol. 20, 2007. [88] A. Jaiswal, A. R. Babu, M. Z. Zadeh, D. Banerjee, and F. Makedon, “A survey on contrastive self-supervised learning,” Technologies, vol. 9, no. 1, p. 2, 2020. [89] P. H. Le-Khac, G. Healy, and A. F. Smeaton, “Contrastive representation learning: A framework and review,” IEEE Access, vol. 8, pp. 193 907–193 934, 2020. [90] B. Scho¨lkopf, F. Locatello, S. Bauer, N. R. Ke, N. Kalchbrenner, A. Goyal, and Y. Bengio, “Toward causal representation learning,” Proceedings of the IEEE, vol. 109, no. 5, pp. 612–
+
+634, 2021. [91] K. Kuang, P. Cui, S. Athey, R. Xiong, and B. Li, “Stable
+prediction across unknown environments,” in Proceedings of the 24th ACM SIGKDD international conference on knowledge discovery & data mining, 2018, pp. 1617–1626. [92] A. Rahimi and B. Recht, “Random features for large-scale kernel machines,” Advances in neural information processing systems, vol. 20, 2007. [93] K. Xu, W. Hu, J. Leskovec, and S. Jegelka, “How powerful are graph neural networks?” in International Conference on Learning Representations, 2019. [94] Z. Ying, J. You, C. Morris, X. Ren, W. Hamilton, and J. Leskovec, “Hierarchical graph representation learning with differentiable pooling,” Advances in neural information processing systems, vol. 31, 2018. [95] M. Glymour, J. Pearl, and N. P. Jewell, Causal inference in statistics: A primer. John Wiley & Sons, 2016. [96] A. Balke and J. Pearl, “Probabilistic evaluation of counterfactual queries,” Association for the Advancement of Artiﬁcial Intelligence, 1994. [97] J. Pearl and D. Mackenzie, The book of why: the new science of cause and effect. Basic books, 2018. [98] C. W. Granger, “Investigating causal relations by econometric models and cross-spectral methods,” Econometrica: journal of the Econometric Society, pp. 424–438, 1969. [99] M. Arjovsky, L. Bottou, I. Gulrajani, and D. Lopez-Paz, “Invariant risk minimization,” arXiv preprint arXiv:1907.02893, 2019. [100] S. Chang, Y. Zhang, M. Yu, and T. Jaakkola, “Invariant rationalization,” in International Conference on Machine Learning. PMLR, 2020, pp. 1448–1458. [101] K. Ahuja, E. Caballero, D. Zhang, Y. Bengio, I. Mitliagkas, and I. Rish, “Invariance principle meets information bottleneck for out-of-distribution generalization,” Neural Information Processing Systems (NeurIPS), 2021. [102] N. Tishby and N. Zaslavsky, “Deep learning and the information bottleneck principle,” in 2015 ieee information theory workshop (itw). IEEE, 2015, pp. 1–5. [103] T. N. Kipf and M. Welling, “Semi-supervised classiﬁcation with graph convolutional networks,” in International Conference on Learning Representations, 2017. [104] M. Long, Y. Cao, J. Wang, and M. Jordan, “Learning transferable features with deep adaptation networks,” in International conference on machine learning. PMLR, 2015, pp. 97–105. [105] W. Zellinger, B. A. Moser, T. Grubinger, E. Lughofer, T. Natschla¨ger, and S. Saminger-Platz, “Robust unsupervised domain adaptation for neural networks via moment alignment,” Information Sciences, vol. 483, pp. 174–191, 2019. [106] F. Wu, A. Souza, T. Zhang, C. Fifty, T. Yu, and K. Weinberger, “Simplifying graph convolutional networks,” in International conference on machine learning. PMLR, 2019, pp. 6861– 6871. [107] A. Gretton, A. Smola, J. Huang, M. Schmittfull, K. Borgwardt, and B. Scho¨lkopf, “Covariate shift by kernel mean matching,” Dataset shift in machine learning, vol. 3, no. 4, p. 5, 2009. [108] Y. Ganin, E. Ustinova, H. Ajakan, P. Germain, H. Larochelle, F. Laviolette, M. Marchand, and V. Lempitsky, “Domainadversarial training of neural networks,” The journal of machine learning research, vol. 17, no. 1, pp. 2096–2030, 2016. [109] H. Rahimian and S. Mehrotra, “Distributionally robust optimization: A review,” arXiv preprint arXiv:1908.05659, 2019. [110] Q. Dou, D. Coelho de Castro, K. Kamnitsas, and B. Glocker, “Domain generalization via model-agnostic learning of semantic features,” Neural Information Processing Systems, vol. 32, 2019. [111] D. Mahajan, S. Tople, and A. Sharma, “Domain generalization using causal matching,” in International Conference on Machine Learning. PMLR, 2021, pp. 7313–7324. [112] M. Zhang, N. S. Sohoni, H. R. Zhang, C. Finn, and C. Re´, “Correct-n-contrast: A contrastive approach for im-
+
+PREPRINT
+
+19
+
+proving robustness to spurious correlations,” arXiv preprint arXiv:2203.01517, 2022. [113] Y. You, T. Chen, Z. Wang, and Y. Shen, “When does selfsupervision help graph convolutional networks?” in international conference on machine learning. PMLR, 2020, pp. 10 871–10 880. [114] K. Xu, M. Zhang, J. Li, S. S. Du, K.-i. Kawarabayashi, and S. Jegelka, “How neural networks extrapolate: From feedforward to graph neural networks,” International Conference on Learning Representations, 2021. [115] B. Knyazev, G. W. Taylor, and M. Amer, “Understanding attention and generalization in graph neural networks,” Advances in neural information processing systems, vol. 32, 2019. [116] S. Gui, X. Li, L. Wang, and S. Ji, “GOOD: A graph outof-distribution benchmark,” in Neural Information Processing Systems Datasets and Benchmarks Track, 2022. [117] H. Yuan, H. Yu, S. Gui, and S. Ji, “Explainability in graph neural networks: A taxonomic survey,” IEEE Transactions on Pattern Analysis and Machine Intelligence, 2022. [118] Y. Ji, L. Zhang, J. Wu, B. Wu, L.-K. Huang, T. Xu, Y. Rong, L. Li, J. Ren, D. Xue et al., “Drugood: Out-of-distribution (ood) dataset curator and benchmark for ai-aided drug discovery–a focus on afﬁnity prediction problems with noise annotations,” arXiv preprint arXiv:2201.09637, 2022. [119] B. Rozemberczki, C. Allen, and R. Sarkar, “Multi-scale attributed node embedding,” Journal of Complex Networks, vol. 9, no. 2, p. cnab014, 2021. [120] A. Pareja, G. Domeniconi, J. Chen, T. Ma, T. Suzumura, H. Kanezashi, T. Kaler, T. Schardl, and C. Leiserson, “Evolvegcn: Evolving graph convolutional networks for dynamic graphs,” in Association for the Advancement of Artiﬁcial Intelligence, vol. 34, no. 04, 2020, pp. 5363–5370. [121] F. Scarselli, A. C. Tsoi, and M. Hagenbuchner, “The vapnik– chervonenkis dimension of graph and recursive neural networks,” Neural Networks, vol. 108, pp. 248–259, 2018. [122] V. N. Vapnik and A. Y. Chervonenkis, “On the uniform convergence of relative frequencies of events to their probabilities,” in Measures of complexity. Springer, 2015, pp. 11–30. [123] S. Verma and Z.-L. Zhang, “Stability and generalization of graph convolutional neural networks,” in Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, 2019, pp. 1539–1548. [124] O. Bousquet and A. Elisseeff, “Stability and generalization,” The Journal of Machine Learning Research, vol. 2, pp. 499– 526, 2002. [125] V. Garg, S. Jegelka, and T. Jaakkola, “Generalization and representational limits of graph neural networks,” in International Conference on Machine Learning. PMLR, 2020, pp. 3419– 3430. [126] S. Lv, “Generalization bounds for graph convolutional neural networks via rademacher complexity,” arXiv preprint arXiv:2102.10234, 2021. [127] R. Liao, R. Urtasun, and R. Zemel, “A pac-bayesian approach to generalization bounds for graph neural networks,” International Conference on Learning Representations, 2021. [128] J. Ma, J. Deng, and Q. Mei, “Subgroup generalization and fairness of graph neural networks,” Advances in Neural Information Processing Systems, vol. 34, 2021. [129] S. S. Du, K. Hou, R. R. Salakhutdinov, B. Poczos, R. Wang, and K. Xu, “Graph neural tangent kernel: Fusing graph neural networks with graph kernels,” Advancesf in neural information processing systems, vol. 32, 2019. [130] S. Zhang, M. Wang, S. Liu, P.-Y. Chen, and J. Xiong, “Fast learning of graph neural networks with guaranteed generalizability: one-hidden-layer case,” in International Conference on Machine Learning. PMLR, 2020, pp. 11 268–11 277. [131] A. Baranwal, K. Fountoulakis, and A. Jagannath, “Graph convolution for semi-supervised classiﬁcation: Improved linear separability and out-of-distribution generalization,” International Conference on Machine Learning, 2021.
+
+[132] S. Maskey, R. Levie, Y. Lee, and G. Kutyniok, “Generalization analysis of message passing neural networks on large random graphs,” in Advances in Neural Information Processing Systems, 2022.
+[133] R. Ying, D. Bourgeois, J. You, M. Zitnik, and J. Leskovec, “Gnnexplainer: Generating explanations for graph neural networks,” Advances in neural information processing systems, vol. 32, p. 9240, 2019.
+[134] Y. LeCun, L. Bottou, Y. Bengio, and P. Haffner, “Gradientbased learning applied to document recognition,” Proceedings of the IEEE, vol. 86, no. 11, pp. 2278–2324, 1998.
+[135] R. Achanta, A. Shaji, K. Smith, A. Lucchi, P. Fua, and S. Su¨sstrunk, “Slic superpixels compared to state-of-the-art superpixel methods,” IEEE transactions on pattern analysis and machine intelligence, vol. 34, no. 11, pp. 2274–2282, 2012.
+[136] J. Devlin, M. Chang, K. Lee, and K. Toutanova, “BERT: pre-training of deep bidirectional transformers for language understanding,” in Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies, NAACLHLT. Association for Computational Linguistics, 2019, pp. 4171–4186.
+[137] D. Mendez, A. Gaulton, A. P. Bento, J. Chambers, M. De Veij, E. Fe´lix, M. P. Magarin˜os, J. F. Mosquera, P. Mutowo, M. Nowotka et al., “Chembl: towards direct deposition of bioassay data,” Nucleic acids research, vol. 47, no. D1, pp. D930–D940, 2019.
+[138] P. Velicˇkovic´, R. Ying, M. Padovano, R. Hadsell, and C. Blundell, “Neural execution of graph algorithms,” International Conference on Learning Representations, 2020.
+[139] J. Ko, T. Kwon, K. Shin, and J. Lee, “Learning to pool in graph neural networks for extrapolation,” arXiv preprint arXiv:2106.06210, 2021.
+[140] Y. Wang, Y. Ma, W. Jin, C. Li, C. C. Aggarwal, and J. Tang, “Customized graph neural networks,” arXiv, 2020.
+[141] Y. Qin, X. Wang, Z. Zhang, P. Xie, and W. Zhu, “Graph neural architecture search under distribution shifts,” in International Conference on Machine Learning. PMLR, 2022, pp. 18 083– 18 095.
+[142] L. Galke, B. Franke, T. Zielke, and A. Scherp, “Lifelong learning of graph neural networks for open-world node classiﬁcation,” in 2021 International Joint Conference on Neural Networks (IJCNN). IEEE, 2021, pp. 1–8.
+[143] W. Jin, T. Zhao, J. Ding, Y. Liu, J. Tang, and N. Shah, “Empowering graph representation learning with test-time graph transformation,” arXiv preprint arXiv:2210.03561, 2022.
+[144] K. Han, B. Lakshminarayanan, and J. Liu, “Reliable graph neural networks for drug discovery under distributional shift,” NeurIPS Workshop, 2021.
+[145] N. Yang, K. Zeng, Q. Wu, X. Jia, and J. Yan, “Learning substructure invariance for out-of-distribution molecular representations,” in Neural Information Processing Systems, 2022.
+[146] K. Sinha, S. Sodhani, J. Pineau, and W. L. Hamilton, “Evaluating logical generalization in graph neural networks,” International Conference on Machine Learning Workshop, 2020.
+[147] R. Li, Y. Cao, Q. Zhu, G. Bi, F. Fang, Y. Liu, and Q. Li, “How does knowledge graph embedding extrapolate to unseen data: a semantic evidence view,” Association for the Advancement of Artiﬁcial Intelligence, 2022.
+[148] K. Li, B. DeCost, K. Choudhary, M. Greenwood, and J. Hattrick-Simpers, “A critical examination of robustness and generalizability of machine learning prediction of materials properties,” arXiv preprint arXiv:2210.13597, 2022.
+
+PREPRINT
+
+20
+
+Haoyang Li received his B.E. from the Department of Computer Science and Technology, Tsinghua University in 2018. He is a Ph.D. candidate in the Department of Computer Science and Technology of Tsinghua University. His research interests are mainly in machine learning on graphs and out-of-distribution generalization. He has published several papers in prestigious conferences and journals, e.g., NeurIPS, KDD, ICLR, IEEE TKDE, etc.
+
+Xin Wang is currently an Assistant Professor at the Department of Computer Science and Technology, Tsinghua University. He got both of his Ph.D. and B.E degrees in Computer Science and Technology from Zhejiang University, China. He also holds a Ph.D. degree in Computing Science from Simon Fraser University, Canada. His research interests include multimedia intelligence and recommendation in social media. He has published over 100 high-quality research papers in top conferences and journals including ICML, NeurIPS, IEEE TPAMI, IEEE TKDE, ACM KDD, WWW, ACM SIGIR, ACM Multimedia etc. He is the recipient of 2020 ACM China Rising Star Award and 2022 IEEE TCMC Rising Star Award.
+Ziwei Zhang received his Ph.D. from the Department of Computer Science and Technology, Tsinghua University, in 2021. He is currently a postdoc researcher in the Department of Computer Science and Technology at Tsinghua University. His research interests focus on machine learning on graphs, including graph neural network (GNN), network embedding (a.k.a. network representation learning), and automated graph machine learning. He has published over 20 papers in prestigious conferences and journals, including KDD, NeurIPS, ICML, AAAI, IJCAI, and TKDE.
+Wenwu Zhu is currently a Professor in the Department of Computer Science and Technology at Tsinghua University, the Vice Dean of National Research Center for Information Science and Technology, and the Vice Director of Tsinghua Center for Big Data. Prior to his current post, he was a Senior Researcher and Research Manager at Microsoft Research Asia. He was the Chief Scientist and Director at Intel Research China from 2004 to 2008. He worked at Bell Labs New Jersey as Member of Technical Staff during 1996-1999. He received his Ph.D. degree from New York University in 1996. His current research interests are in the area of data-driven multimedia networking and Cross-media big data computing. He has published over 350 referred papers, and is inventor or co-inventor of over 50 patents. He received eight Best Paper Awards, including ACM Multimedia 2012 and IEEE Transactions on Circuits and Systems for Video Technology in 2001 and 2019. He served as EiC for IEEE Transactions on Multimedia (2017-2019). He served in the steering committee for IEEE Transactions on Multimedia (2015-2016) and IEEE Transactions on Mobile Computing (20072010), respectively. He serves as General Co-Chair for ACM Multimedia 2018 and ACM CIKM 2019, respectively. He is an AAAS Fellow, IEEE Fellow, SPIE Fellow, and a member of The Academy of Europe (Academia Europaea).
+

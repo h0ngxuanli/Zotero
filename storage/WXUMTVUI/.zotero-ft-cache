@@ -1,0 +1,626 @@
+What-If Motion Prediction for Autonomous Driving
+
+arXiv:2008.10587v1 [cs.LG] 24 Aug 2020
+
+Siddhesh Khandelwal∗ University of British Columbia
+skhandel@cs.ubc.ca
+Andrew Hartnett Argo AI
+ahartnett@argo.ai
+
+William Qi∗ Carnegie Mellon University
+wq@cs.cmu.edu
+
+Jagjeet Singh Argo AI
+jsingh@argo.ai
+
+Deva Ramanan Carnegie Mellon University and Argo AI
+deva@cs.cmu.edu
+
+Abstract
+Forecasting the long-term future motion of road actors is a core challenge to the deployment of safe autonomous vehicles (AVs). Viable solutions must account for both the static geometric context, such as road lanes, and dynamic social interactions arising from multiple actors. While recent deep architectures have achieved state-of-the-art performance on distance-based forecasting metrics, these approaches produce forecasts that are predicted without regard to the AV’s intended motion plan. In contrast, we propose a recurrent graph-based attentional approach with interpretable geometric (actor-lane) and social (actor-actor) relationships that supports the injection of counterfactual geometric goals and social contexts. Our model can produce diverse predictions conditioned on hypothetical or “what-if" road lanes and multi-actor interactions. We show that such an approach could be used in the planning loop to reason about unobserved causes or unlikely futures that are directly relevant to the AV’s intended route.
+1 Introduction
+Forecasting or predicting the future states of other actors in complex social scenes is a central challenge in the development of autonomous vehicles (AVs). This is a particularly difﬁcult task because actor futures are multi-modal and depend on other actors, road structures, and even the AV’s intended motion plan. The emergence of large-scale AV testing, together with the public release of driving datasets and maps [5, 8, 21, 37], has stimulated promising recent work on data-driven feedforward approaches [3, 7, 11, 15, 31, 39] designed to address these challenges.
+Representations: Most approaches embed both social and map information within a birds-eye-view (BEV) rasterized image, allowing learned models (typically a combination of CNNs and RNNs) to predict trajectories from extracted features. Although convenient, there are some drawbacks to rasterization: 1) the resulting models tend to require a large number of parameters [16] and 2) some facets of the problem are best represented in coordinate spaces that are not conducive to rasterization. For example, while the physics of vehicle motion are generally modeled in Euclidean space, lanefollowing behaviors and map-based interactions are easier to represent in curvilinear coordinates of the road network [8]. Similarly, social interactions between N actors can be captured naturally in a topological graph representation with N nodes; notable recent methods VectorNet [16] and SAMMP [28] take such an approach, representing individual objects as nodes that may attend to one another.
+Explainability: While the strong benchmark performance of feedforward models is encouraging, safety critical applications may require top-down feedback and causal explainability. For example,
+∗Denotes equal contribution
+Preprint. Under review.
+
+Figure 1: While many feasible futures may exist for a given actor, only a small subset may be relevant to the AV’s planner. In (a), neither of the dominant predicted modes (solid red) interact with the AV’s intended trajectory (solid grey). Instead, the planner only needs to consider an illegal left turn across trafﬁc (dashed red). (b) depicts a partial set of lane segments within the scene; illegal maneuvers such as following segment b can either be mapped or hallucinated. A centerline (centered polyline) associated with a lane segment is shown in segment f (dashed black). The planner can utilize the directed lane graph (c) to identify lanes which may interact with its intended route. Black arrows denote directed edges, while thick grey undirected edges denote conﬂicting lanes. Such networks are readily available in open street map APIs [18] and the recently-released Argoverse [8] dataset.
+because the space of all potential futures in real-world urban driving settings is quite large, real-time planning may require the ability for a planner to interactively probe the forecaster, exploring only those futures that are relevant for planning (see Fig.1a). Approaches that require re-generation or re-processing of the scene context in order to explore alternate futures may be too inefﬁcient for real-time planning.
+Our Approach: In this paper, we develop a RNN-based approach for context-aware multi-modal behavior forecasting. Our approach does not require rasterized input and includes both a roadnetwork attention module and a dynamic interaction graph to capture interpretable geometric and social relationships. In contrast to existing graph-based approaches [16, 28], we structure our model to efﬁciently support counterfactual reasoning. The social context of individual agents can be manipulated in order to condition upon additional hypothetical (unobserved) actors or to ablate speciﬁc social inﬂuences (Fig. 5). We make intimate use of the road network, generating topological goals in the form of lane polylines that are constructed from the underlying directed graph of lane segments (Fig. 1c). Importantly, rather than encoding the full local map structure, we explicitly condition forecasts upon individual topological goals. This allows the planner to reason about and query for relevant trajectories (e.g. "reforecast that actor’s motion given the left turn intersecting my path"). To our knowledge, we are the ﬁrst to demonstrate counterfactual forecasts based on such topological queries.
+2 Related Work
+State-of-the-art models for multi-agent motion forecasting borrow heavily from both the natural language (sequence models) and computer vision (feature learning) communities. Although an extensive body of relevant work exists, the seq2seq [38] and ResNet [19] architectures are of particular theoretical and practical importance. Our work is most related to methods that forecast from intermediate representations such as tracking output [28], although a signiﬁcant body of work that operates directly on sensor input also exists [6, 26]; we do not explore such approaches in-depth.
+Motion Forecasting: Until recently, motion forecasting research has primarily focused on pedestrian trajectories, either in the context of ﬁrst-person activity recognition [22], sports [43], or multiactor surveillance [33]. Social-LSTM [1] introduced social pooling within a RNN encoder-decoder architecture, providing a template to address varying numbers of actors and permutation problems caused by social input. Extensions such as SoPhie [34] have leveraged features extracted from the physical environment, attention mechanisms, and adversarial training. DESIRE [23] proposed a scene-context fusion layer that aggregates interactions between agents and the scene context.
+Conditional Forecasting: Recent work has also investigated forecasting models conditioned on intent: [7, 30] condition the agent’s forecast on a predeﬁned set of anchor trajectories, while [13, 14] treat forecasting as a classiﬁcation problem, ﬁrst predicting a high level maneuver before conditioning
+2
+
+predictions on that maneuver. Other methods, such as [39], predict a conditional probability density over the trajectories of other actors given a hypothetical rollout of the focal agent. Our work is most related to PRECOG [32], which demonstrates that conditioning on an actor’s goal alters the future states of other actors within the scene (similar to polyline conditioning). Our approach, however, requires no rasterized input and can efﬁciently alter the social context as well.
+Rasterization: Popular methods for AV forecasting [3, 15] have employed complex rasterized representations of scene context, constructing BEV images of the surrounding environment by combining trajectory histories with rich semantic information (lanes, speed limits, trafﬁc light states, etc.) from maps. Although some of these methods [12, 15, 30] generate all predicted states simultaneously, others [3, 7, 8, 23, 28, 39] employ a recurrent decoder to predict states sequentially; [20] experiments with both approaches. More recently, there has been interest towards rasterizationfree approaches for capturing scene context; [28] uses multi-head attention to encode interactions between social actors. We adopt a similar approach, attending over lane polylines from the map, in addition to the social graph.
+Graph Neural Networks: Graph neural networks and graph convolution have emerged in response to problems that cannot be easily represented by matrices of pixels or simple vectors. Architectures vary widely in response to diverse underlying problems and we refer the reader to [42] and [4] for a comprehensive review. Our work is built upon graph attention networks (GATs), introduced in [41]. VectorNet [16] is a closely related method, which proposes a deep graphical model over individual road components and agent histories (represented as sets of vectors), claiming a 70% reduction in model size compared to rasterized counterparts. Our work features similar advantages in parameter efﬁciency, but represents lane polylines as ordered sequences of points. Additionally, VectorNet conditions over the entire local neighborhood (e.g. left turn lane, right turn lane, neighboring lanes etc.) and is consequently not structured for counterfactual reasoning over speciﬁc map elements (e.g. right turn lane). Finally, VectorNet employs a deterministic decoder limited to a single trajectory. In contrast, our approach employs a multi-modal decoder capable of generating diverse predictions.
+
+3 Method
+
+Our proposed architecture, the what-if motion predictor (WIMP), addresses the task of motion
+
+forecasting by learning a continuous-space xnt ∈ R2 denote the n-th actor’s planar (x,
+denote the joint state of all N actors. Let
+
+yXd)isc=co.roer{tedX-itni1am,tXees2sa,yt.s.ttei.mm, Xewtt}iathnddeNnXoittnet=et.hraecxjtoi1tni,ngxt a2toc,bt.os.er.sr,.vxaLNtbelet
+
+history up until time n. Analogously, let
+
+tYan=d. X{nY=t+1{,XYn1t,+X2,n2.,....,.Y, Xt+ntT}}redperneosteentththeejoenintitrestoabteseorfvaabllleahcitsotrosryfofrorfuatcutorer
+
+time-steps t + 1 to t + T . Let Yt, Yn, and ytn be deﬁned accordingly.
+
+Road Network Representation via Polylines: Popular approaches for motion forecasting often rely on rasterized representations to provide contextual information about scene and road geometry [3, 15, 39]. Instead, we represent a valid path through the road network (directed graph of lane segments) using the concatenated center polylines of each road segment. Conditioning on polylinebased inputs has several advantages over its rasterized counterpart: i) it provides a strong, evidencebased prior for accurate predictions, ii) it allows for interpretable model behaviour analysis and enables counterfactual predictions that condition on hypothetical “what-if" polylines (see Section 4.3), and iii) it leads to more memory efﬁcient models that do not require image-processing components.
+
+We represent the reference polyline that guides actor n as a set of P discrete points Cn = {cn1 , cn2 , . . . , cnP }, where cni ∈ R2; the collective set of such polylines for all actors is denoted by C = C1, C2, . . . , CN . Polyline Cn is obtained by searching the road network along the direction of motion for the highest similarity lane segment to Xn (additional details provided in Appendix B). The ﬁnal objective is to effectively model the conditional distribution Pr(Y|X, C);
+though it is possible to model the aforementioned distribution in a joint fashion, it is often intractable and computationally inefﬁcient for large N . Similar to [28, 39], we employ a RNN-based architecture to sequentially model Pr(Y|X, C). Speciﬁcally, we assume that the following factorization holds:
+
+t+T
+
+t+T N
+
+Pr(Y|X, C) =
+
+Pr(Yδ|Yt+1, . . . , Yδ−1, X, C) =
+
+Pr(yδn|Yt+1, . . . , Yδ−1, X, Cn)
+
+δ=t+1
+
+δ=t+1 n=1
+
+(1)
+
+3
+
+Figure 2: Overview of the data ﬂow within the WIMP encoder-decoder architecture (left) and polyline attention module (right). Input trajectories and reference polylines are ﬁrst used to compute per-actor embeddings; social context is then incorporated via graph attention. Finally, a set of predictions is generated using a map-aware decoder that attends to relevant regions of the polyline via soft-attention.
+
+It should be noted that even though Eq. 1 factorizes as a product of conditionals over individual actors conditioned on individual polylines, global information regarding other actors and polylines is implicitly encapsulated via the history X and previous predictions {Yt+1, . . . , Yδ−1}. To capture this distribution, we propose a novel recurrent, graph-based, attentional approach. As shown in Fig. 2, the WIMP architecture has three key components: i) a graph-based encoder that captures scene context and higher-order social interactions, ii) a decoder that generates diverse, multi-modal predictions, and iii) a novel polyline attention mechanism that selects relevant regions of the road network to condition on. Next, we will describe each of these components in detail.
+
+3.1 Historical Context via Recurrence
+
+hnt = Φenc xnt , snt , hnt−1 , snt = Φpoly Cn, xnt , hnt−1
+
+(2)
+
+Each actor’s contextual history htn is captured via a shared recurrent encoder Φenc. Similar to [39], we also employ a point-of-view transformation Γ(Xn) to normalize each actor’s history to a reference
+
+frame by translation and rotation such that the +x-axis aligns with a focal agent F ’s heading (such as the AV) and xF1 = (0, 0).
+
+3.2 Geometric Context via Polyline Attention
+
+As described in Eq. 2, each actor n attends to segments of their reference polyline Cn through the
+learned function Φpoly. Intuitively, drivers pay attention to areas of the road network that they are currently close to, as well as future goal locations that they plan to reach. Φpoly operationalizes this intuition by predicting, for each actor n and timestep t, a current and goal index along its polyline:
+
+ant = arg min d cnp , xnt , bnt = arg min d cnp , Φf xnt , hnt−1, ∆
+
+(3)
+
+p
+
+p
+
+where d(·) is a distance metric and Φf is a learned function that hallucinates a coarse waypoint ∆ time-steps in the future. It should be noted that Φf doesn’t make use of any polyline information and predicts the waypoint solely based on kinematic history; training is conducted in a self-supervised
+manner using ground-truth future trajectories as labels. The vectorized attention-weighted representation snt for the segment C¯ nt between current and goal indices can then be obtained as follows (where Q, V, K are learned transformation matrices, similar to those employed in [28]):
+
+Φpoly(Cn, xnt , hnt−1) =
+
+υtnr Vcnr
+
+,
+
+υtnr
+
+=
+
+softmax
+r
+
+Qhnt−1
+
+Kcnr
+
+(4)
+
+r∈[ant ,bnt ]
+
+3.3 Social Context via Graph Attention
+As Φenc runs independently over all actors, the hidden representation obtained after t time-steps hnt for a particular actor n is oblivious to other dynamic participants in the scene. One possible solution is to provide xit; ∀i = n as an input to Eq. 2, but this is computationally inefﬁcient and memory intensive. Instead of capturing social interactions in the planar coordinate space, we leverage the
+
+4
+
+Figure 3: Visualizing the map lane polyline attention weights generated during decoding. In the scenario depicted in (a), the focal actor’s history is shown in yellow and its ground-truth future in red. The red circle highlights the true state 3s into the future. The solid green line denotes a predicted trajectory with a black chevron marking the t = +3s state. The dashed green line shows the reference polyline. Grey cars/circles illustrate the current positions of on/off roadway actors. In (b, c, d), opacity corresponds to the magnitude of social attention. The subset of the polyline selected by the polyline attention module is shown in solid blue (points denoted as black circles), and the attention weights within that segment are shown via an ellipse (for predictions at t = +0s, +1s, +2s respectively). Points outside the ellipse have negligible attention. WIMP learns to attend smoothly to upcoming points along the reference polyline.
+
+ability of Φenc to generate rich latent hidden representations hnt for a particular actor n. Inspired by [41], we employ a graph attention module Φgat that operates over these representations as follows:
+
+
+
+
+
+h¯nt
+
+=
+
+σ
+
+hnt
+
++
+
+1 D
+
+D
+
+αndj Wdhjt 
+
+,
+
+αnd j
+
+=
+
+softmax
+j
+
+ad
+
+Wdhnt , Wdhjt
+
+(5)
+
+d=1 j∈N \n
+
+where D is a hyperparameter denoting the number of attention heads, [·, ·] is the concatenation operation, is the inner product, and Wd, ad are learned parameters. Note that there is a subtle
+difference between Eq. 5 and the architecture proposed in [41], wherein, for each agent n, we focus on learning a residual change to its socially-unaware hidden representation hnt . Intuitively, this can be thought of as an actor initially having a socially-agnostic estimate of its future trajectory, with
+Φenc learning a residual change to incorporate information from other actors within the scene.
+
+3.4 Decoding
+Following Eq. 1, WIMP aims to learn the conditional distribution Pr(yδn|Yt+1, . . . , Yδ−1, X, Cn) for each actor n. To achieve this goal, we employ a LSTM-based decoder Φdec that: i) generates diverse and multi-modal predictions, and ii) conditions each prediction on a reference polyline Cn. Particularly, for a future time-step δ, we can obtain yδn as follows:
+yδn+1 = Φpred (onδ ) , onδ , h¯nδ = Φdec Yδ, ¯snδ , h¯nδ−1 , ¯snδ = Φpoly Cn, yδn, h¯nδ−1 (6)
+where Φpred is a learned prediction function and Φpoly is a polyline-attention module as described in Section 3.2. We note that the implementation of Φpred is architecturally agnostic; for example, Φpred could be a bivariate Gaussian as in [39], or a mixture of Gaussians as in [28]. For datasets like Argoverse [8] that only evaluate predictions for a single focal actor F , decoder input Yδ might only contain predictions for a single actor yδF . However, even in this scenario, WIMP is still able to model social interactions via embeddings h¯nt obtained from the graph-based encoder.
+
+3.5 Learning
+WIMP is trained on collections of triplets containing: historical trajectories, ground-truth future trajectories, and map-based road context {(X, Y, C)}. Following standard forecasting benchmarks, we only predict the future trajectory for a single focal agent in each training example, denoted as YF .
+Winner-Takes-All: To encourage diversity and multi-modality in the set of predicted trajectories, we learn a mixture of M different predictors. Diversity is encouraged through a “multiple choice"
+
+5
+
+[17] or “winner-takes-all" loss that explicitly assigns each training example to a particular mixture:
+
+loss
+
+=
+
+min
+m∈{1...M }
+
+||Yˆ mF
+
+−
+
+YF
+
+||
+
+(7)
+
+where Yˆ mF is the focal trajectory predicted by the mth mixture. Having experimented with various distance functions, we found the L1 norm between trajectories to perform well. We also experimented with multi-agent prediction of future trajectories for all actors, but did not observe improved performance. We posit that this may be due to the large numbers of parked actors present in urban driving scenarios, which may require different representations or larger capacity forecasting models.
+Optimization: By keeping track of the arg min m index for each training example, WTA loss naturally clusters training examples into M sets. Previous work has shown that directly optimizing this loss can lead to poor results because (a) it is difﬁcult to optimize stochastically with minibatch SGD, as the optimization is sensitive to initialization and (b) each mixture can be prone to overﬁtting, as it is trained with less data. One proposed solution is “evolving WTA" (EWTA) [27], where the single minimum minm is replaced with the M lowest-cost mixtures. Initializing with M = M , examples are initially associated with all M clusters, encouraging every mixture to generate identical predictions. Over time, as M is annealed to 1 (resulting in standard WTA loss), iterative specialization of each mixture ensures that each of the ﬁnal mixtures has been “pre-trained" with the full dataset.
+Mixture Ranking: The above produces M different predicted trajectories, which can be fed directly into multi-output forecasting benchmarks that require methods to return M predictions. To repurpose these outputs for single-prediction evaluations, we rank each mixture’s accuracy on a validation set.
+
+4 Experiments
+We demonstrate the effectiveness of WIMP at generating accurate, interpretable, and controllable trajectory predictions for roadway actors. We ﬁrst show that the scene attention encoder is capable of capturing the complex contextual, semantic, and social relationships that are present in real-world urban driving scenarios. These learned scene embeddings can be combined with multi-modal decoders to generate a diverse set of plausible future trajectories. We then perform a series of counterfactual reasoning-based experiments to demonstrate how the distribution of predicted modes is inﬂuenced by scene context. The implementation details and hyper-parameters are provided in Appendix A.
+4.1 Experimental Setup
+Datasets. We conduct our experiments using the Argoverse [8] motion forecasting dataset, a large scale vehicle trajectory dataset containing more than 300,000 curated scenarios extracted from vehicle logs in urban driving scenarios. Given a 2 second trajectory history as input, the goal is to predict the future motion of a particular focal agent over the next 3 seconds (sampled at ≈ 100 ms intervals). In addition to the focal agent history, location histories of nearby (social) actors are also provided. Importantly, Argoverse includes a semantic vector map composed of lane-based polylines.
+Although the Argoverse dataset provides a high volume of interesting data for both training and evaluation, the focal trajectories are not particularly diverse in terms of directional variation, with more than 80% of scenarios featuring straight line trajectories over the full 5 second window. In order to evaluate how WIMP performs in the presence of uncertainty, we also extract a small subset (≈350 examples) of particularly challenging scenarios that are characterized by blind turns (deﬁned as examples where the observed 2-sec. trajectory is straight, but the ground truth future 3-sec. trajectory contains a turn and/or lane change). Even for recent state-of-the-art methods, the blind turn (BT) subset presents a signiﬁcant challenge, as generation of high-quality predictions necessitates the incorporation of both social and semantic information to resolve uncertainty.
+In addition to Argoverse, we also evaluate using the NuScenes prediction dataset, which contains a similar collection of approximately 40,000 scenarios that were extracted from 1,000 curated scenes. These scenarios were collected within two distinct regions on different continents, featuring trajectories from both left-hand and right-hand drive locales. Due to the geographic diversity of data and more signiﬁcant representation of complex scenarios such as turns and intersections, NuScenes presents a more challenging prediction task than the base Argoverse dataset.
+
+6
+
+Metrics. To evaluate prediction quality, we make use of widely adopted forecasting metrics: minimum average displacement error (ADE) and minimum ﬁnal displacement error (FDE) [8], evaluated for both single (K = 1) and multi-modal (K = 6) prediction scenarios. To capture prediction performance in more challenging scenarios, we also adopt the miss rate (MR) metric: the fraction of scenarios with FDE > 2m.
+
+4.2 Quantitative Results
+Argoverse Motion Forecasting. We compare WIMP to several recent state-of-the art (SOTA) methods: SAMMP [28] (self-attention-based model, joint-winner of the 2019 Argoverse Forecasting Challenge), UULM-MRM (rasterization-based model, joint-winner of the 2019 Argoverse Forecasting Challenge), VectorNet [16] (recent polyline-based model), and LaneGCN [24] (concurrentlydeveloped lane graph-based model). Evaluating on the Argoverse challenge test set (results summarized in Table 1), we show that each of these methods is highly competitive, performing far above the bar set by K-NN and LSTM based baselines. We further show that WIMP out-performs all prior published work and achieves similar performance to concurrent work, while providing unique advantages in ﬂexibility. Lastly, because many of the top-ranked entries in the Argoverse challenge do not provide descriptions of their methodology, we compare against such methods in Appendix D.
+
+MODEL
+LANEGCN [24] SAMMP [28] UULM-MRM NN + MAP(PRUNE) [8] LSTM + MAP(PRIOR) [8] VECTORNET[16]
+WIMP (M = 1) WIMP (M = 6)
+
+MR(K=6)
+0.16 0.19 0.22 0.52 0.67
+-
+0.17
+
+FDE(K=6)
+1.36 1.55 1.55 3.19 4.19
+-
+1.42
+
+ADE(K=6)
+0.87 0.95 0.96 1.68 2.08
+-
+0.90
+
+FDE(K=1)
+3.78 4.08 4.32 7.62 6.45 4.01
+3.89 4.03
+
+ADE(K=1)
+1.71 1.81 1.97 3.38 2.92 1.81
+1.78 1.82
+
+Table 1: Motion forecasting performance evaluated on the Argoverse test set, with MR and minimum FDE/ADE reported for both single (K = 1) and multi-modal (K = 6) prediction scenarios.
+
+Evaluation in Challenging Scenarios. As the overall Argoverse dataset is biased towards sim- Model
+
+MR FDE ADE
+
+ple straight line trajectories, we also evaluate prediction performance on the BT subset (re-
+
+SAMMP NN + Map (Prune)
+
+0.67 4.91 2.38 0.61 5.11 3.93
+
+sults summarized in Table 2), which consists LSTM + Map (Prior) 0.51 2.64 3.01
+
+primarily of challenging blind turn scenarios. In this setting, we show that WIMP out-performs non-map-based approaches (such as SAMMP)
+
+WIMP WIMP (Oracle)
+
+0.49 3.52 1.62 0.33 2.46 1.30
+
+by a much larger margin than across the full dataset, as polyline and social graph-based attention allows the model to resolve and account for uncertainty even in complex scenarios with multiple feasible future trajectories. In such scenarios, models employing polyline-based coordinate systems, such as LSTM + Map (Prior)
+
+Table 2: Motion forecasting performance evaluated on the Argoverse BT validation set. As the selected data is inherently multi-modal, we only report metrics for (K = 6) predictions. SAMMP results were obtained from our implementation of [28], using hyper-parameters shared with WIMP.
+
+from [8]), also perform surprisingly well, as the prediction space is strongly conditioned on map
+
+information, trading overall performance for better turn prediction results. We note that WIMP is
+
+signiﬁcantly less impacted by this bias-variance trade-off, delivering top performance in both BT
+
+and general settings. We also demonstrate that prediction accuracy improves with reference polyline
+
+quality. By employing an oracle to select the optimal polyline in hindsight (after observing the
+
+future), we observe signiﬁcant improvements, indicating that WIMP can take advantage of “what-if"
+
+polylines provided by such oracles. We analyze this further in the next section.
+
+Ablation Study In order to demonstrate how each component of the WIMP architecture contributes to overall prediction performance, we perform an ablation study and summarize the results in Table 3. We obtain best results when the model is provided with both map and social context, while coupled to a L1-based EWTA loss [27]. We also experiment with alternative loss formulations: replacing EWTA
+
+7
+
+loss with negative log likelihood (NLL) signiﬁcantly degrades performance, while standard L1 loss provides impressive (K = 1) performance but cannot be adapted to make multiple predictions.
+
+CONTEXT
+MAP + SOCIAL MAP + SOCIAL
+MAP + SOCIAL SOCIAL MAP NONE
+
+LOSS
+EWTA L1
+NLL EWTA EWTA EWTA
+
+MR(K=6)
+0.12 -
+0.23 0.16 0.16 0.23
+
+FDE(K=6)
+1.14 -
+1.61 1.39 1.38 1.70
+
+ADE(K=6)
+0.75 -
+1.07 0.86 0.85 0.95
+
+FDE(K=1)
+3.19 3.01
+6.37 5.05 3.80 5.86
+
+ADE(K=1)
+1.45 1.40
+1.41 1.61 1.69 1.87
+
+Table 3: Ablation studies for WIMP with different input conﬁgurations and training objectives. Quantitative results reported for (K = 1) and (K = 6) metrics on the Argoverse validation set.
+NuScenes Motion Forecasting. To evaluate the generalizability of our proposed prediction architecture, we also compare WIMP to several recent learning-based methods and a physics-based baseline on the NuScenes prediction dataset; results are summarized in Table 4. Without any hyper-parameter tuning or changes to model architecture (compared to the model evaluated on Argoverse), WIMP achieves state-of-the-art results in both single (K = 1) and multi-modal (K = 5, 10) prediction scenarios, out-performing all previous methods in both miss rate and displacement error. WIMP delivers especially strong results on NuScenes due to the high proportion of intersection and turn-based scenarios, which are difﬁcult to solve without integration of both map and social context.
+
+MODEL
+
+MR(K=10) ADE(K=10) MR(K=5) ADE(K=5) FDE(K=1) OFFROADRATE
+
+LISA
+
+0.46
+
+1.24
+
+0.59
+
+1.81
+
+8.57
+
+0.07
+
+TRAJECTRON++[35]
+
+0.57
+
+1.51
+
+0.70
+
+1.88
+
+9.52
+
+0.25
+
+CXX
+
+0.60
+
+1.29
+
+0.69
+
+1.63
+
+8.86
+
+0.08
+
+COVERNET[30]
+
+0.64
+
+1.92
+
+0.76
+
+2.62
+
+11.36
+
+0.13
+
+PHYSICS ORACLE[30] 0.88
+
+3.70
+
+0.88
+
+3.70
+
+9.09
+
+0.12
+
+WIMP
+
+0.43
+
+1.11
+
+0.55
+
+1.84
+
+8.49
+
+0.04
+
+Table 4: Motion forecasting performance evaluated on the NuScenes validation set, with MR and minimum FDE/ADE reported for (K = 1), (K = 5), and (K = 10) prediction scenarios. Metrics are computed using the reference implementation provided with the NuScenes devkit.
+4.3 Counterfactual Validation
+Our proposed approach to conditional forecasting readily supports investigations of hypothetical or unlikely scenarios (counterfactuals). This capability can be readily used by a planner to allocate computation to only relevant futures, or to reason about social inﬂuences from occluded regions of the road network. Importantly, these counterfactual queries can also be used to investigate and evaluate models beyond distance-based metrics. Sensible predictions conditioned on extreme contextual input indicates that our model has learned a powerful causal representation of driving behavior and is likely to generalize well (see Figs. 4 and 5).
+
+5 Discussion
+In this paper, we proposed a recurrent graph-based attentional framework with interpretable geometric and social relationships that supports the injection of counterfactual contextual states. Leveraging information from historical, social, and geometric sources, WIMP facilitates joint multi-modal prediction of future states over an arbitrary number of actors within a scene, out-performing all previous methods on the Argoverse forecasting dataset. In future work, it would be interesting to extend the polyline selection procedure with an end-to-end trainable solution, enabling the model to automatically select candidate polylines based on observed scene context. Alternative directions for future research could explore applications of WIMP beyond autonomous driving, perhaps for prediction of pedestrian trajectories or human actions; we will release code1 to facilitate such work.
+1Code will be released at https://github.com/wqi/WIMP.
+
+8
+
+Figure 4: Visualizations of two prediction scenarios that condition on (a) heuristically-selected polylines (see Appendix B for details) and corresponding (b) counterfactual reference polylines. When making diverse predictions, WIMP learns to generate some trajectories independent of the conditioning polyline (see the straight through predictions in (a)). Additionally, if the reference polyline is semantically or geometrically incompatible with the observed scene history (as in (2b) where the counterfactual polyline intersects other actors), the model learns to ignore the map input, relying only on social and historical context. Visualization style follows Fig. 3.
+Figure 5: Visualizations of two scenarios that condition on (a) ground-truth scene context and (b) counterfactual social contexts (best viewed with magniﬁcation). Counterfactual actors are highlighted with a grey circle. In (1b), we inject a stopped vehicle just beyond the intersection, blocking the ground-truth right turn. Given the focal agent’s history and velocity, this makes a right turn extremely unlikely, and that mode vanishes. In (2b) we replace the the leading actor in (2a) with a stopped vehicle. As expected, this causes the model to predict trajectories containing aggressive deceleration. The ﬁnal velocity (vf ) of a representative trajectory is 3.3m/s in the counterfactual setting, compared with 10.3m/s in the original scene. Visualization style follows Fig. 3.
+Broader Impact
+The ability to plan, conditioned on the future states of dynamic agents in complex roadway environments is a central challenge to the safe and efﬁcient operation of autonomous vehicles. Progress on the motion prediction problem has downstream consequences for the deployment timeline, scale, and performance of autonomous vehicles as paratransit, long-haul freight, and local delivery options. Implications of the mass deployment of AVs are examined and simulated in an increasing number of economic [9], public policy [2, 25], and most recently public health [10] papers. We refer the reader to [29] and [2] for a literature review and holistic synthesis respectively. Independent of the implications of autonomous vehicles deployment at scale, this project is an explicit attempt to impact and focus future research on motion forecasting in this domain. Recent work has proposed innovative architectures and achieved impressive benchmark performance, however often without consideration for the pragmatic requirements necessary to deploy these architectures on public roadways. (1) Prediction systems serve the planner. Proposed prediction models should discuss how predictions can be utilized by the planner to address difﬁcult scenarios safely. (2) Learned AV systems must respond well to novel scenarios outside the domain of training data. Models should demonstrate prudent behavior in response to extreme scenarios or perturbed inputs. (3) AV subsystems must be interpretable. Interpretable and traceable decisions are necessary to build compelling safety cases for both regulatory approval and public trust.
+9
+
+Acknowledgments and Disclosure of Funding
+This work was supported by the CMU Argo AI Center for Autonomous Vehicle Research.
+References
+[1] Alexandre Alahi, Kratarth Goel, Vignesh Ramanathan, Alexandre Robicquet, Li Fei-Fei, and Silvio Savarese. Social lstm: Human trajectory prediction in crowded spaces. In Proceedings of the IEEE conference on computer vision and pattern recognition, pages 961–971, 2016.
+[2] James M Anderson, Kalra Nidhi, Karlyn D Stanley, Paul Sorensen, Constantine Samaras, and Oluwatobi A Oluwatola. Autonomous vehicle technology: A guide for policymakers. Rand Corporation, 2014.
+[3] Mayank Bansal, Alex Krizhevsky, and Abhijit Ogale. Chauffeurnet: Learning to drive by imitating the best and synthesizing the worst. arXiv preprint arXiv:1812.03079, 2018.
+[4] Peter W Battaglia, Jessica B Hamrick, Victor Bapst, Alvaro Sanchez-Gonzalez, Vinicius Zambaldi, Mateusz Malinowski, Andrea Tacchetti, David Raposo, Adam Santoro, Ryan Faulkner, et al. Relational inductive biases, deep learning, and graph networks. arXiv preprint arXiv:1806.01261, 2018.
+[5] Holger Caesar, Varun Bankiti, Alex H Lang, Sourabh Vora, Venice Erin Liong, Qiang Xu, Anush Krishnan, Yu Pan, Giancarlo Baldan, and Oscar Beijbom. nuscenes: A multimodal dataset for autonomous driving. arXiv preprint arXiv:1903.11027, 2019.
+[6] Sergio Casas, Wenjie Luo, and Raquel Urtasun. Intentnet: Learning to predict intention from raw sensor data. In Conference on Robot Learning, pages 947–956, 2018.
+[7] Yuning Chai, Benjamin Sapp, Mayank Bansal, and Dragomir Anguelov. Multipath: Multiple probabilistic anchor trajectory hypotheses for behavior prediction. arXiv preprint arXiv:1910.05449, 2019.
+[8] Ming-Fang Chang, John W Lambert, Patsorn Sangkloy, Jagjeet Singh, Slawomir Bak, Andrew Hartnett, De Wang, Peter Carr, Simon Lucey, Deva Ramanan, and James Hays. Argoverse: 3d tracking and forecasting with rich maps. In Conference on Computer Vision and Pattern Recognition (CVPR), 2019.
+[9] Lewis M Clements and Kara M Kockelman. Economic effects of automated vehicles. Transportation Research Record, 2606(1):106–114, 2017.
+[10] Travis J Crayton and Benjamin Mason Meier. Autonomous vehicles: Developing a public health research agenda to frame the future of transportation policy. Journal of Transport & Health, 6:245–252, 2017.
+[11] Henggang Cui, Thi Nguyen, Fang-Chieh Chou, Tsung-Han Lin, Jeff Schneider, David Bradley, and Nemanja Djuric. Deep kinematic models for physically realistic prediction of vehicle trajectories. arXiv preprint arXiv:1908.00219, 2019.
+[12] Henggang Cui, Vladan Radosavljevic, Fang-Chieh Chou, Tsung-Han Lin, Thi Nguyen, Tzu-Kuo Huang, Jeff Schneider, and Nemanja Djuric. Multimodal trajectory predictions for autonomous driving using deep convolutional networks. In 2019 International Conference on Robotics and Automation (ICRA), pages 2090–2096. IEEE, 2019.
+[13] Nachiket Deo, Akshay Rangesh, and Mohan M Trivedi. How would surround vehicles move? a uniﬁed framework for maneuver classiﬁcation and motion prediction. IEEE Transactions on Intelligent Vehicles, 3(2):129–140, 2018.
+[14] Nachiket Deo and Mohan M Trivedi. Multi-modal trajectory prediction of surrounding vehicles with maneuver based lstms. In 2018 IEEE Intelligent Vehicles Symposium (IV), pages 1179–1184. IEEE, 2018.
+[15] Nemanja Djuric, Vladan Radosavljevic, Henggang Cui, Thi Nguyen, Fang-Chieh Chou, Tsung-Han Lin, and Jeff Schneider. Motion prediction of trafﬁc actors for autonomous driving using deep convolutional networks. arXiv preprint arXiv:1808.05819, 2018.
+[16] Jiyang Gao, Chen Sun, Hang Zhao, Yi Shen, Dragomir Anguelov, Congcong Li, and Cordelia Schmid. Vectornet: Encoding hd maps and agent dynamics from vectorized representation. arXiv preprint arXiv:2005.04259, 2020.
+[17] Abner Guzman-Rivera, Dhruv Batra, and Pushmeet Kohli. Multiple choice learning: Learning to produce multiple structured outputs. In Advances in Neural Information Processing Systems, pages 1799–1807, 2012.
+10
+
+[18] Mordechai Haklay and Patrick Weber. Openstreetmap: User-generated street maps. IEEE Pervasive Computing, 7(4):12–18, 2008.
+[19] Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. Deep residual learning for image recognition. In Proceedings of the IEEE conference on computer vision and pattern recognition, pages 770–778, 2016.
+[20] Joey Hong, Benjamin Sapp, and James Philbin. Rules of the road: Predicting driving behavior with a convolutional model of semantic interactions. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 8454–8462, 2019.
+[21] R. Kesten, M. Usman, J. Houston, T. Pandya, K. Nadhamuni, A. Ferreira, M. Yuan, B. Low, A. Jain, P. Ondruska, S. Omari, S. Shah, A. Kulkarni, A. Kazakova, C. Tao, L. Platinsky, W. Jiang, and V. Shet. Lyft level 5 av dataset 2019. urlhttps://level5.lyft.com/dataset/, 2019.
+[22] Kris M Kitani, Brian D Ziebart, James Andrew Bagnell, and Martial Hebert. Activity forecasting. In European Conference on Computer Vision, pages 201–214. Springer, 2012.
+[23] Namhoon Lee, Wongun Choi, Paul Vernaza, Christopher B Choy, Philip HS Torr, and Manmohan Chandraker. Desire: Distant future prediction in dynamic scenes with interacting agents. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 336–345, 2017.
+[24] Ming Liang, Bin Yang, Rui Hu, Yun Chen, Renjie Liao, Song Feng, and Raquel Urtasun. Learning lane graph representations for motion forecasting. arXiv preprint arXiv:2007.13732, 2020.
+[25] Todd Litman. Autonomous vehicle implementation predictions. Victoria Transport Policy Institute Victoria, Canada, 2017.
+[26] Wenjie Luo, Bin Yang, and Raquel Urtasun. Fast and furious: Real time end-to-end 3d detection, tracking and motion forecasting with a single convolutional net. In The IEEE Conference on Computer Vision and Pattern Recognition (CVPR), June 2018.
+[27] Osama Makansi, Eddy Ilg, Ozgun Cicek, and Thomas Brox. Overcoming limitations of mixture density networks: A sampling and ﬁtting framework for multimodal future prediction. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 7144–7153, 2019.
+[28] Jean Mercat, Thomas Gilles, Nicole El Zoghby, Guillaume Sandou, Dominique Beauvois, and Guillermo Pita Gil. Multi-head attention for multi-modal joint vehicle motion forecasting, 2019.
+[29] Dimitris Milakis, Bart Van Arem, and Bert Van Wee. Policy and society related implications of automated driving: A review of literature and directions for future research. Journal of Intelligent Transportation Systems, 21(4):324–348, 2017.
+[30] Tung Phan-Minh, Elena Corina Grigore, Freddy A Boulton, Oscar Beijbom, and Eric M Wolff. Covernet: Multimodal behavior prediction using trajectory sets. arXiv preprint arXiv:1911.10298, 2019.
+[31] Nicholas Rhinehart, Kris M Kitani, and Paul Vernaza. R2p2: A reparameterized pushforward policy for diverse, precise generative path forecasting. In Proceedings of the European Conference on Computer Vision (ECCV), pages 772–788, 2018.
+[32] Nicholas Rhinehart, Rowan McAllister, Kris Kitani, and Sergey Levine. Precog: Prediction conditioned on goals in visual multi-agent settings. In The IEEE International Conference on Computer Vision (ICCV), October 2019.
+[33] Alexandre Robicquet, Amir Sadeghian, Alexandre Alahi, and Silvio Savarese. Learning social etiquette: Human trajectory understanding in crowded scenes. In European conference on computer vision, pages 549–565. Springer, 2016.
+[34] Amir Sadeghian, Vineet Kosaraju, Ali Sadeghian, Noriaki Hirose, Hamid Rezatoﬁghi, and Silvio Savarese. Sophie: An attentive gan for predicting paths compliant to social and physical constraints. In The IEEE Conference on Computer Vision and Pattern Recognition (CVPR), June 2019.
+[35] Tim Salzmann, Boris Ivanovic, Punarjay Chakravarty, and Marco Pavone. Trajectron++: Multi-agent generative trajectory forecasting with heterogeneous data for control. arXiv preprint arXiv:2001.03093, 2020.
+[36] Nitish Srivastava, Geoffrey Hinton, Alex Krizhevsky, Ilya Sutskever, and Ruslan Salakhutdinov. Dropout: a simple way to prevent neural networks from overﬁtting. The journal of machine learning research, 15(1):1929–1958, 2014.
+11
+
+[37] Pei Sun, Henrik Kretzschmar, Xerxes Dotiwalla, Aurelien Chouard, Vijaysai Patnaik, Paul Tsui, James Guo, Yin Zhou, Yuning Chai, Benjamin Caine, et al. Scalability in perception for autonomous driving: An open dataset benchmark. arXiv preprint arXiv:1912.04838, 2019.
+[38] Ilya Sutskever, Oriol Vinyals, and Quoc V Le. Sequence to sequence learning with neural networks. In Advances in neural information processing systems, pages 3104–3112, 2014.
+[39] Charlie Tang and Russ R Salakhutdinov. Multiple futures prediction. In Advances in Neural Information Processing Systems, pages 15398–15408, 2019.
+[40] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez, Łukasz Kaiser, and Illia Polosukhin. Attention is all you need. In Advances in neural information processing systems, pages 5998–6008, 2017.
+[41] Petar Velicˇkovic´, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Lio, and Yoshua Bengio. Graph attention networks. arXiv preprint arXiv:1710.10903, 2017.
+[42] Zonghan Wu, Shirui Pan, Fengwen Chen, Guodong Long, Chengqi Zhang, and Philip S Yu. A comprehensive survey on graph neural networks. arXiv preprint arXiv:1901.00596, 2019.
+[43] Stephan Zheng, Yisong Yue, and Jennifer Hobbs. Generating long-term trajectories using deep hierarchical networks. In Advances in Neural Information Processing Systems, pages 1543–1551, 2016.
+12
+
+Appendix
+A Implementation Details
+Although we demonstrate the WIMP forecasting framework using a vehicle trajectory prediction task in an autonomous driving setting, the architecture is designed such that concrete implementations of learned components and transformations are abstracted away. This improves generalization, as a variety of prediction tasks can be supported through the selection of speciﬁc component conﬁgurations. To improve reproducibility, we share the speciﬁc implementation details (including hyper-parameters for training and model conﬁguration) for the WIMP model we use to report results on Argoverse.
+Normalization. Prior to all other operations, every collection of points speciﬁed in global Argoverse world coordinates (input trajectories, reference polylines, etc.) within each scenario is ﬁrst transformed to a local coordinate space that is normalized with respect to focal agent F . This is implemented using an afﬁne transformation A, such that the positive X-axis becomes aligned with the focal agent’s heading (deﬁned as the angle between xF1 and xF20) and xF1 = (0, 0) Polyline Attention. Both the encoder Φenc and decoder Φdec make use of polyline attention module Φpoly to capture priors provided by the map. However, weights are not shared between the two polyline attention modules. This is largely a consequence of Φdec only predicting a trajectory for the focal agent F (owing to the task formulated by the Argoverse [8] dataset), whereas Φenc takes observed trajectories from all actors as input. Φpoly is implemented as a 4-layer LSTM, where the hidden state is a 4 × 512 dimensional vector. The distance metric d(·) in Equation 3 is the L2-norm. The transformations Q, K, V deﬁned in Equation 4 are learned matrices of size 512 × 512 and are used in the same manner as [28, 40]. We use a dropout [36] rate of 0.5 during training, which is applied over the ﬁrst three layers.
+Encoder. The shared recurrent encoder Φenc used to capture each actor’s location history is implemented as a 4-layer LSTM with a 512-dimensional hidden state. We use a dropout rate of 0.5 during training, which is applied over the ﬁrst three layers. Graph Attention. The graph attention module Φgat takes as input the ﬁnal hidden state htn, for each actor n. Following Equation 5 of the main paper, we set the number of attention heads D to 4, and the learned parameters Wd and ad are of sizes 2048 × 512 and 1024 × 1 respectively.
+Decoder. The decoder Φdec is conﬁgured identically to the encoder Φenc, wherein we use a 4-layer LSTM with a 512-dimensional hidden state. Following Equation 6 of the main paper, Φpred is a linear layer that transforms the 512-dimensional output onδ of Φdec into a 2-dimensional prediction. Training. For training on the Argoverse dataset, we use the ADAM optimizer with stochastic minibatches containing 100 scenarios each; no weight decay is employed, but gradients are clipped to a maximum magnitude of 1.0. The learning rate is initialized to a value of 0.0001 and annealed by a factor of 2 every 30 epochs. We couple the optimizer to an EWTA-based loss (as described in Section 3.5), the value of M is intialized to 6 and annealed by 1 every 10 epochs until M = 1 at epoch 50. Validation metrics are computed after every 3 training epochs and training is terminated once validation metrics have failed to improve for 30 epochs in a row. Each model requires approximately 100 epochs to train on average, taking about 28 hours of compute time on an AWS “p3.8xlarge" instance equipped with 4x V100 GPUs.
+Evaluation. As predictions are generated in the normalized local coordinate space, they are ﬁrst transformed back to the global world space using an inverse afﬁne transformation A−1 before evaluation. The minimum ﬁnal displacement error (minFDE) metric is computed by taking the minimum of L2 distances between the end points of each of the k predicted trajectories and the ground truth future; minimum average displacement error (minADE) is then obtained by computing the average L2 distance corresponding to the predicted trajectory with lowest end point error. Finally, we compute the miss rate, which measures the proportion of scenarios where minFDE exceeds a threshold value (set at 2m in the Argoverse Forecasting Challenge).
+13
+
+B Polyline Selection
+To obtain relevant reference trajectories from the underlying vector map, we employ a heuristic-based polyline proposal module based on code released in the Argoverse API [8]. Using either the observed (0-2s) history of the focal actor (during evaluation) or the full (0-5s) ground truth trajectory (during training), we query the proposal module for a ranked list of candidate polylines sorted by similarity to the reference trajectory. These candidate polylines are obtained through the following procedure:
+1. Find Candidate Lanes: We ﬁrst search the map lane graph to ﬁnd the set of all lanes containing nodes that are located within a 2.5m distance from the last point of the query trajectory. If no lanes are found, we iteratively expand the search radius by a factor of 2 until at least one candidate lane is identiﬁed.
+2. Construct Candidate Polylines: For each candidate lane node returned in the above set, we construct corresponding polylines by recursively traversing the lane graph through successor and predecessor nodes, stopping once a distance threshold has been reached in both directions. In our implementation, we set this distance threshold to be 2× the total length of the query trajectory. We then connect the traversed nodes with directed edges (from earliest predecessor to latest successor), forming a polyline composed of individual points. To show how candidate polylines Lc are constructed from candidate lane node A:
+Enumerated Successors: {(A->B->C), (A->D->E)} Enumerated Predecessors: {(F->G->A), (H->I->A)}
+Constructed Lane Polylines: L1 : F->G->A->B->C L2 : H->I->A->B->C L3 : F->G->A->D->E L4 : H->I->A->D->E Lc: {L1, L2, L3, L4}
+3. Remove Overlapping Polylines: Next, we ﬁlter the set of candidate polylines constructed in the previous step by removing polylines that overlap signiﬁcantly with other candidates.
+4. Sort By Point-in-Polygon Score: We then sort the ﬁltered set of candidate polylines by point-in-polyline (PIP) score, deﬁned as the number of query trajectory points that lie within the polygon formed by lane regions corresponding to each polyline. If there are n points in the query trajectory, the PIP score is bounded to the range [0, n]. To give a concrete example, if n = 20 and PIP scores for candidate polylines Lc are {L1: 15, L2: 10, L3: 5, L4: 20}, the sorted list of candidate polylines will be returned in the order Lpip = [L4, L1, L2, L3].
+5. Sort By Polyline-Trajectory Alignment: We also sort the ﬁltered set of candidate lines by a polyline-trajectory alignment-based score. To compute this score, the query trajectory is ﬁrst mapped to the 2D polyline-based curvilinear coordinate system (as deﬁned in Argoverse), wherein axes are deﬁned to be tangential and perpendicular to a reference polyline. We deﬁne the alignment score to be the maximum tangential distance reached along the query trajectory (better alignment results in longer distances travelled along the reference polyline). To give a concrete example, if the maximum tangential distance for each of the candidate polylines is {L1: 10 , L2: 25, L3: 2, L4: 20}, the sorted list of candidate polylines will be returned in the order La = [L2, L4, L1, L3].
+6. Selecting Polylines: We sort candidate polylines using two different methods of scoring because examining PIP score in isolation can sometimes be misleading. For example, a car moving slowly across an intersection could result in high PIP scores being assigned to polylines obtained from lanes with orthogonal directions of travel. Using the polylinetrajectory alignment score alone can also result in similar confusion. For example, a nearby protected turn lane that is parallel to the query trajectory’s direction of travel may be assigned a high alignment score, even if the polyline represents a semantically different future.
+For this reason, it is important to rank polyline proposals using a combination of both metrics. In our implementation, we employ a heuristic-based selection process, wherein the polylines are drawn from the top of Lpip and La in alternating order. To give a concrete example, in the scenario we have posed above, querying for the best 2 polylines would return L = [L4, L2] (where L4 is the best PIP polyline and L2 is the best-aligned polyline).
+14
+
+7. Using Proposed Polylines: During training, we query for and use only the top-ranked polyline proposal from each set. However, at inference time, it is possible to trade off prediction diversity and accuracy by controlling the the number of polyline proposals and predictions generated per polyline (e.g. 6 predictions conditioned on 1 polyline vs. 1 prediction conditioned on each of 6 polylines).
+
+C Improving Maps via Prediction
+
+Planning and forecasting in AVs are tightly cou-
+
+pled to semantic map data that is collected, pro-
+
+cessed, and annotated ofﬂine. By examining
+
+for repeated and signiﬁcant disagreement be-
+
+tween heuristically chosen lane polylines and
+
+accurate forecasted trajectories, we can automat-
+
+ically identify map locations where the proposed
+
+lane polylines fail to capture the dominant modes
+
+of trafﬁc behavior (shown in Fig. 6).
+
+Figure 6: BEV visualizations of three different
+
+intersections where accurate predictions based on
+
+This ancilary beneﬁt of explicit path-conditioning polyline proposals from the vector map disagree
+
+could serve as an important feedback mechanism with the observed mode of trafﬁc behavior. Visu-
+
+for generation and maintenance of safe and cur- alization style follows Fig. 3.
+
+rent maps. Without updates, maps can quickly
+
+become outdated in urban environments, as active construction and development modiﬁes the road
+
+network and induces change in trafﬁc patterns. One such way that map updates could be performed in
+
+an online setting is to assign a weighted prior for each map polyline, with value inversely proportional
+
+to the rate of disagreement between conditioned predictions and the corresponding polyline. These
+
+polyline weights can then be used as an input to a heuristic or learning-based polyline proposal
+
+module to enable dynamic selection of high-quality reference trajectories. As variables within the
+
+environment change (e.g. construction, weather, potholes), priors can be automatically updated to
+
+capture the updated distribution of driver behavior.
+
+D Argoverse Challenge Entries
+Due to the dynamic nature of the Argoverse leaderboard, it can be difﬁcult to accurately compare prediction performance against competing approaches during an ongoing competition. Rankings of state-of-the-art entries can shift rapidly and no information is available about individual entries; in the closing weeks of the competition, signiﬁcant changes have been observed on a near-daily basis. Although WIMP out-performs all previously published and publicly-released methods in the evaluated MR and DE-based metrics, several of the most recent leaderboard entries have since improved further upon our results. Comparing against these entries, we report the state of the leaderboard as captured at two points in time: one on Mar. 23, 2020 (Table 5) and the other on Jun. 8, 2020 (Table 6).
+
+E Dynamic Visualizations
+As trajectory prediction is a fundamentally three-dimensional task that requires integration of information across space and time, it can be difﬁcult to capture temporal context using static 2D images alone. To address this issue, we provide dynamic visualizations (following the style of Fig. 3) for each of the BEV scenarios shown in the main text (Figs. 3-5).
+We also include additional dynamic visualizations from prediction scenarios that capture a broad range of interesting events: acceleration, braking, full stops, fast driving, exiting driveways, lane changes, left turns, right turns, wide turns, and use of protected turn lanes. These examples are intended to demonstrate that WIMP not only generates predictions that are accurate and diverse, but also generalizes to a wide variety of geographic and semantic settings. These visualizations will be made available here: https://github.com/wqi/WIMP.
+
+15
+
+TEAM NAME
+“POLY" “LGN" [24] “LSTM" “TESTS" “JEAN" “UST" “CXX" “UULM-MRM" “EL CAMINO"
+WIMP (M = 6)
+
+RANK
+1 2 3 5 6 7 8 9 10
+4
+
+MR(K=6)
+0.14 0.16 0.17 0.18 0.18 0.19 0.19 0.22 0.25
+0.17
+
+FDE(K=6)
+1.50 1.36 1.67 1.50 1.48 1.45 1.71 1.55 1.98
+1.42
+
+ADE(K=6)
+0.91 0.87 0.99 0.93 0.93 0.92 0.99 0.94 1.13
+0.90
+
+FDE(K=1)
+4.00 3.78 4.26 4.44 4.17 4.09 4.31 4.19 4.84
+4.03
+
+ADE(K=1)
+1.79 1.71 1.91 2.02 1.86 1.86 1.91 1.90 2.17
+1.82
+
+Table 5: Motion forecasting performance evaluated on the Argoverse test set, reported for the top 10 (ranked by MR) entries on the Argoverse Forecasting Challenge leaderboard (as of May 23, 2020). MR and minimum FDE/ADE metrics are reported for both single (K = 1) and multi-modal (K = 6) prediction scenarios. Top-ranked entries have improved performance signiﬁcantly beyond the bar set by 2019 Argoverse Forecasting Challenge joint-winners SAMMP [28] and UULM. The best entry is bolded, while the second-best is underlined. WIMP ranks second on K=6 metrics for FDE/ADE and third for MR and K=1 metrics.
+
+TEAM NAME
+“JEAN" “POLY" “ALIBABA-ADLAB" “LGN" [24] “LSTM" “UST" “CXX" “MT" “UULM-MRM"
+WIMP (M = 6)
+
+RANK
+1 2 3 4 5 7 8 9 10
+6
+
+MR(K=6)
+0.13 0.13 0.16 0.16 0.17 0.19 0.19 0.22 0.22
+0.17
+
+FDE(K=6)
+1.42 1.48 1.48 1.36 1.67 1.45 1.71 1.66 1.55
+1.42
+
+ADE(K=6)
+0.97 0.92 0.92 0.87 0.99 0.92 0.99 0.98 0.94
+0.90
+
+FDE(K=1)
+3.73 3.95 4.35 3.78 4.26 4.09 4.31 8.23 4.19
+4.03
+
+ADE(K=1)
+1.68 1.77 1.97 1.71 1.91 1.86 1.91 3.58 1.89
+1.82
+
+Table 6: Motion forecasting performance evaluated on the Argoverse test set, reported for the top 10 (ranked by MR) entries on the Argoverse Forecasting Challenge leaderboard (as of June 8 , 2020). MR and minimum FDE/ADE metrics are reported for both single (K = 1) and multi-modal (K = 6) prediction scenarios. Note that the leaderboard rankings have shifted signiﬁcantly from Table 5, with the addition of new entries and reﬁnement of existing methods. WIMP ranks second for K=6 ADE/FDE metrics.
+
+16
+

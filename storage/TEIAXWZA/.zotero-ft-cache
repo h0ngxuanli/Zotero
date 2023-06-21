@@ -1,0 +1,88 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2006.11165
+
+Help | Advanced Search
+Search
+Computer Science > Cryptography and Security
+(cs)
+[Submitted on 19 Jun 2020 ( v1 ), last revised 17 Dec 2021 (this version, v4)]
+Title: Backdoor Attacks to Graph Neural Networks
+Authors: Zaixi Zhang , Jinyuan Jia , Binghui Wang , Neil Zhenqiang Gong
+Download a PDF of the paper titled Backdoor Attacks to Graph Neural Networks, by Zaixi Zhang and Jinyuan Jia and Binghui Wang and Neil Zhenqiang Gong
+Download PDF
+
+    Abstract: In this work, we propose the first backdoor attack to graph neural networks (GNN). Specifically, we propose a \emph{subgraph based backdoor attack} to GNN for graph classification. In our backdoor attack, a GNN classifier predicts an attacker-chosen target label for a testing graph once a predefined subgraph is injected to the testing graph. Our empirical results on three real-world graph datasets show that our backdoor attacks are effective with a small impact on a GNN's prediction accuracy for clean testing graphs. Moreover, we generalize a randomized smoothing based certified defense to defend against our backdoor attacks. Our empirical results show that the defense is effective in some cases but ineffective in other cases, highlighting the needs of new defenses for our backdoor attacks. 
+
+Comments: 	In ACM SACMAT, 2021
+Subjects: 	Cryptography and Security (cs.CR) ; Machine Learning (cs.LG)
+Cite as: 	arXiv:2006.11165 [cs.CR]
+  	(or arXiv:2006.11165v4 [cs.CR] for this version)
+  	https://doi.org/10.48550/arXiv.2006.11165
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Jinyuan Jia [ view email ]
+[v1] Fri, 19 Jun 2020 14:51:01 UTC (384 KB)
+[v2] Thu, 17 Dec 2020 17:17:33 UTC (1,219 KB)
+[v3] Thu, 16 Dec 2021 02:32:03 UTC (2,743 KB)
+[v4] Fri, 17 Dec 2021 02:03:38 UTC (2,743 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Backdoor Attacks to Graph Neural Networks, by Zaixi Zhang and Jinyuan Jia and Binghui Wang and Neil Zhenqiang Gong
+    PDF
+    Other formats 
+
+Current browse context:
+cs.CR
+< prev   |   next >
+new | recent | 2006
+Change to browse by:
+cs
+cs.LG
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+DBLP - CS Bibliography
+listing | bibtex
+Jinyuan Jia
+Binghui Wang
+Neil Zhenqiang Gong
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

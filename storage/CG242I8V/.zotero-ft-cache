@@ -1,0 +1,88 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2201.11349
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 27 Jan 2022]
+Title: Confidence May Cheat: Self-Training on Graph Neural Networks under Distribution Shift
+Authors: Hongrui Liu , Binbin Hu , Xiao Wang , Chuan Shi , Zhiqiang Zhang , Jun Zhou
+Download a PDF of the paper titled Confidence May Cheat: Self-Training on Graph Neural Networks under Distribution Shift, by Hongrui Liu and 5 other authors
+Download PDF
+
+    Abstract: Graph Convolutional Networks (GCNs) have recently attracted vast interest and achieved state-of-the-art performance on graphs, but its success could typically hinge on careful training with amounts of expensive and time-consuming labeled data. To alleviate labeled data scarcity, self-training methods have been widely adopted on graphs by labeling high-confidence unlabeled nodes and then adding them to the training step. In this line, we empirically make a thorough study for current self-training methods on graphs. Surprisingly, we find that high-confidence unlabeled nodes are not always useful, and even introduce the distribution shift issue between the original labeled dataset and the augmented dataset by self-training, severely hindering the capability of self-training on graphs. To this end, in this paper, we propose a novel Distribution Recovered Graph Self-Training framework (DR-GST), which could recover the distribution of the original labeled dataset. Specifically, we first prove the equality of loss function in self-training framework under the distribution shift case and the population distribution if each pseudo-labeled node is weighted by a proper coefficient. Considering the intractability of the coefficient, we then propose to replace the coefficient with the information gain after observing the same changing trend between them, where information gain is respectively estimated via both dropout variational inference and dropedge variational inference in DR-GST. However, such a weighted loss function will enlarge the impact of incorrect pseudo labels. As a result, we apply the loss correction method to improve the quality of pseudo labels. Both our theoretical analysis and extensive experiments on five benchmark datasets demonstrate the effectiveness of the proposed DR-GST, as well as each well-designed component in DR-GST. 
+
+Comments: 	Accepted to the ACM Web Conference (WWW)2022. Work done during internship at Ant Group
+Subjects: 	Machine Learning (cs.LG) ; Artificial Intelligence (cs.AI)
+Cite as: 	arXiv:2201.11349 [cs.LG]
+  	(or arXiv:2201.11349v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2201.11349
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Hongrui Liu [ view email ]
+[v1] Thu, 27 Jan 2022 07:12:27 UTC (5,789 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Confidence May Cheat: Self-Training on Graph Neural Networks under Distribution Shift, by Hongrui Liu and 5 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2201
+Change to browse by:
+cs
+cs.AI
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+DBLP - CS Bibliography
+listing | bibtex
+Binbin Hu
+Xiao Wang
+Chuan Shi
+Zhiqiang Zhang
+Jun Zhou
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

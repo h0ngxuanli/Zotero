@@ -1,0 +1,1418 @@
+CI-GNN: A Granger Causality-Inspired Graph Neural Network for Interpretable Brain Network-Based Psychiatric Diagnosis
+Kaizhong Zheng1, Shujian Yu2,3∗, Badong Chen1∗ 1Institute of Artiﬁcial Intelligence and Robotics, Xi’an Jiaotong University, Xi’an
+2Machine Learning Group, UiT - Arctic University of Norway, Norway 3Department of Computer Science, Vrije Universiteit Amsterdam, Amsterdam–
+kzzheng@stu.xjtu.edu.cn, yusj9011@gmail.com, chenbd@mail.xjtu.edu.cn
+
+arXiv:2301.01642v1 [stat.ML] 4 Jan 2023
+
+Abstract
+
+There is a recent trend to leverage the power of graph neural networks (GNNs) for brain-network based psychiatric diagnosis, which, in turn, also motivates an urgent need for psychiatrists to fully understand the decision behavior of the used GNNs. However, most of the existing GNN explainers are either post-hoc in which another interpretive model needs to be created to explain a well-trained GNN, or do not consider the causal relationship between the extracted explanation and the decision, such that the explanation itself contains spurious correlations and suffers from weak faithfulness. In this work, we propose a granger causality-inspired graph neural network (CI-GNN), a built-in interpretable model that is able to identify the most inﬂuential subgraph (i.e., functional connectivity within brain regions) that is causally related to the decision (e.g., major depressive disorder patients or healthy controls), without the training of an auxillary interpretive network. CI-GNN learns disentangled subgraph-level representations α and β that encode, respectively, the causal and noncausal aspects of original graph under a graph variational autoencoder framework, regularized by a conditional mutual information (CMI) constraint. We theoretically justify the validity of the CMI regulation in capturing the causal relationship. We also empirically evaluate the performance of CI-GNN against three baseline GNNs and four
+
+Preprint submitted to Elsevier
+
+January 5, 2023
+
+state-of-the-art GNN explainers on synthetic data and two large-scale brain disease datasets. We observe that CI-GNN achieves the best performance in a wide range of metrics and provides more reliable and concise explanations which have clinical evidence.
+Keywords: Graph Neural Network (GNN), Explainability of GNN, Causal Generation, Brain Network, Psychiatric Diagnosis
+Introduction
+Psychiatric disorders have constituted an extensive social and economic burden for health care systems worldwide Wittchen et al. (2011), but the underlying pathological and neural mechanism of the psychiatric disorders still remains uncertain. There are no uniﬁed or neuropathological structural traits for psychiatric diagnosis due to the clinical heterogeneity Goodkind et al. (2015); Lanillos et al. (2020). Current diagnosis for psychiatric disorders are mainly based on subjective symptoms and signs Zhang et al. (2021), such as insomnia and anxiety, etc. However, this way for diagnosis has huge limitations in heavily relying on related symptoms and observational status, which could lead to misdiagnosis and delay the early diagnosis and treatment Huang et al. (2020).
+As a noninvasive neuroimaging technique, the functional magnetic resonance imaging (fMRI) Matthews and Jezzard (2004) has become a popular to investigate neural patterns of brain function for psychiatric disorders Peraza-Goicolea et al. (2020). Using fMRI, extensive studies in psychiatric diagnosis have been conducted to apply functional connectivity (FC) measured with the pairwise correlations of fMRI time series as features to discriminate psychiatric patients and healthy controls, as illustrated in Figure 1a. In general, current diagnostic models based on FC usually adopt a two-stage training strategy which includes feature selection (e.g., two sample t-test Du et al. (2018), principal component analysis (PCA) Zhang et al. (2019) and clustering coefﬁcient Challis et al. (2015)) and shallow classiﬁcation model (e.g., support vector machines (SVM) Pan and Xu (2018), LASSO Yamashita et al. (2020) and random forest Cordova et al. (2020)). However, shallow or simple classiﬁcation models could not capture and analyze the topological and nonlinear information of complex brain networks and fail to achieve acceptable performance for large-scale datasets Sui et al. (2020). In addition, the performance of these models depend heavily on the used feature selection methods and the classiﬁer, which may lead to inconsistent performance and unreliable or even inaccurate predictions Li et al. (2021).
+2
+
+(a) Traditional Psychiatric Diagnostic Model
+(b) Modern Diagnostic model with built-in Interpretable Graph Neural Networks Figure 1: The overview of the pipeline for (a) traditional psychiatric diagnostic model and (b) modern diagnostic model with built-in interpretable graph neural networks (e.g., our CI-GNN). The resting-state fMRI data are parcellated by an brain atlas such as the automated anatomical labelling (AAL) atlas and calculated the functional connectivity matrices. For traditional psychiatric diagnostic model, which constitutes a two-stage training strategy, it ﬁrstly selects the most informative features using feature selection techniques and then discriminates psychiatric patients and healthy controls using classic classiﬁcation models on top of selected features. For CI-GNN, the functional connectivity matrices are transferred to functional graphs, which are then sent to CI-GNN to make a decision (i.e., psychiatric patients or healthy controls). Our CI-GNN can also discover the most informative edges, a.k.a., potential biomarker, for each participant.
+Recently, an emerging trend is to utilize graph neural networks (GNNs) Hamilton et al. (2017); Zhao et al. (2022) to construct uniﬁed end-to-end psychiatric diagnostic model Zhou et al. (2020). In these studies, brain could be modeled as a graph, with nodes representing brain regions of interest (ROIs) and edge represent-
+3
+
+ing FC between ROIs. Despite a substantial improvement in performance, most of existing GNN models are essentially still black-box regimes which are hard to elucidate the underlying decisions behind the predictions. These black-box models cannot be fully trusted and do not meet the demands of fairness, security, and robustness Yuan et al. (2020, 2021); Zeng et al. (2022), which severely hinders their real-world applications, particularly in medical diagnosis in which a transparent decision-making process is a prerequisite Li et al. (2021). Therefore, developing novel GNNs with both high precision and human understandable explanations is an emerging consensus.
+So far, tremendous efforts have been made to improve the explainability of GNNs. According to Yuan et al. (2020), existing approaches can be divided into two categories: the instance-level explanation and the model-level explanations. For example, GNNExplainer Ying et al. (2019) and PGExplainer Luo et al. (2020) extract a compact subgraph to provide the instance-level explanations, while XGNN Yuan et al. (2020) generates the discriminative graph patterns to provide the model-level explanations. Despite of recent advances, existing GNN explainers usually suffer from one or more of the following issues:
+1. Post-hoc explanation: Most explainers are post-hoc, in which another interpretive model needs to be created to explain a well-trained GNN Zhang et al. (2022). However, post-hoc explanations are usually not reliable, inaccurate, and could even be misleading in the entire model decision process Rudin (2018). Unlike post-hoc explanation, built-in interpretable models Miao et al. (2022) generate explanations by models themselves, without the post-training of an auxiliary network. Hence, the built-in explanations are regarded to be more faithful to what the models actually reveal.
+2. Ignorance of causal-effect relationships: Most GNN explainers recognize predictive subgraphs only by the input-outcome associations rather than their intrinsic causal relationships, which may lead to the obtained explanations contain spurious correlations that are not trustable.
+3. Small-scale evaluations: In biomedical ﬁelds such as bioinformatics and neuroimaging, most GNN explainers are just applied to small-scale datasets, such as molecules Debnath et al. (1991) and proteins Borgwardt et al. (2005). In this sense, their practical performance in large-scale biomedical applications (e.g., brain disease diagnosis) is still uncertain.
+To address above technical issues and also evaluate the usefulness of interpretability in real-world clinical applications, we develop a new GNN architecture for psychiatric diagnosis which is able to discriminate psychiatric patients
+4
+
+and healthy controls, and obtain biomarkers causally related to the label Y , as illustrated in Figure 1b. We term our architecture the Causality Inspired Graph Neural Network (CI-GNN) and evaluate its performance on two large-scale brain disease datasets. Note that, the general idea of explainability of GNNs has recently been extended to brain network analysis. BrainNNExplainer Cui et al. (2021) and IBGNN Cui et al. (2022) learn a global explanation mask to highlight disorderspeciﬁc biomarkers including salient ROIs and important connections, which produces group-level explanations. However, for psychiatric diagnosis, the instancelevel explanation is more important, due to the uncertain onset and heterogeneity of symptoms in patients Qiu et al. (2020). BrainGNN Li et al. (2021) designs a novel ROI-aware graph convolutional (Ra-GConv) layers and pooling layer to detect the important nodes for investigating the disorder mechanism, which generates a node-level explanation. However, for brain disorders, it is recognized that connections rather than single nodes alterations can reveal properties of brain disorders van den Heuvel and Sporns (2019), which means edge-level (i.e., functional connectivities) explanations are more critical than node-level explanations in brain disorders analysis. Therefore, distinct to BrainNNExplainer and BrainGNN, we propose in this work a built-in interpretable GNN for brain disorders analysis that can produce instance-level explanation on edges. Moreover, our explanation is also causal-driven.
+To summarize, our main contributions are threefold:
+• We propose a new built-in interpretable GNN for brain disorders analysis. Our developed CI-GNN enjoys a few unique properties: the ability to produce instance-level explanation on edges; the causal-driven mechanism; and the ability to learn disentangled latent representations α and β, such that only α induces a subgraph Gsub that is causally related to Y .
+• We rely on the conditional mutual information (CMI) I(α; Y |β) to measure the strength of causal inﬂuence of subgraph on labels. We also analyze the rationality of CMI term from a Granger causality perspective Seth (2007). Additionally, we introduce the matrix-based Re´nyi’s δ-order mutual information Giraldo et al. (2014); Yu et al. (2019) to make the computation of the CMI term amenable, such that the whole model can be trained end-to-end.
+• Extensive experiments are conducted on synthetic data and two multi-site, large-scale brain disease datasets which contain more than 1, 000 participants across 17 independent sites, demonstrating the effectiveness and superiority of CI-GNN. In contrast, Cui et al. (2021) only tests on 52 patients
+5
+
+with bipolar disorder and 45 healthy controls. Note that, as demonstrated in the Appendix, our model can also be generalized to other ﬁelds such as molecules.
+Related work
+Psychiatric Diagnostic Model The past few years have seen growing prevalence of utilizing FC as neurolog-
+ical biomarkers to develop the computer-aided diagnosic models for psychiatric disorder. Traditionally, these models are two-stage training strategy where some connections are selected from all the connections FC using feature selection methods and concatenated as a long feature vector, and then are sent to classiﬁcation model. For feature selection methods, one typical approach is to use the grouplevel statistical test Du et al. (2018) such as t-test, ranksum-test at each FC edge to select the salient connections that are signiﬁcantly different between two groups. Another popular approach is to use unsupervised dimension reduction Zhang et al. (2019) such as principal component analysis (PCA), tensor decomposition approach to extract low-dimensional features. Zhang et al. (2019) propose a novel tensor network principal components analysis (TN-PCA) method to obtain lowdimensional features from brain network matrices.
+For classiﬁcation model, shallow or linear machine learning classiﬁers RubinFalcone et al. (2018) such as random forest (RF) and support vector machine (SVM) are still the most popular choices. Rubin-Falcone et al. (2018) use SVM to develop a diagnostic model for bipolar disorder (BD) and major depressive disorder (MDD), and achieves a combined accuracy of 75%. However, shallow or linear classiﬁcation models could not capture and analyze the topological and nonlinear information of complex brain networks. More importantly, they fail to achieve acceptable performance for large-scale psychiatric datasets more than 1000 subjects Sui et al. (2020). In addition, two-stage training strategy could lead to the unreliable and inaccurate predictions. In this study, CI-GNN is a uniﬁed end-toend and selfexplaining disease diagnostic model which is able to identify causal biomarkers elucidating the underlying diagnostic decisions.
+Graph Neural Networks Because graph neural networks (GNNs) have powerful graph-representation
+ability, they have been widely applied in the various graph tasks including graph classiﬁcation Zhang et al. (2018), link prediction Schlichtkrull et al. (2018) and node classiﬁcation Bo et al. (2021). Our brain network analysis deals with graph
+6
+
+classiﬁcation. Let {(G1, Y1) , (G2, Y2) , ..., (Gn, Yn)} be a set of n graphs with their corresponding labels. Given Gn = (V, E) the n-th graph of size Nn, V = {Vi|i ∈ {1, 2, ..., Nn}} and E = {(Vi, Vj) |Vi, Vj ∈ V} represent nodes and edges set of Gn, respectively, GNN leverages aggregation strategy A to learn the representation of node v of G and further use READOUT strategy R to learn the representation of G. Their message passing procedures are deﬁned as:
+
+h(vk) = A(k) hu(k−1) : u ∈ N (v) ,
+
+(1)
+
+hG = R h(vk)|v ∈ G ,
+
+(2)
+
+where h(vk) is the representation of node v for the k-th layer, hG refers to the representation of entire graph, and N (v) is the set of neighbour nodes of v.
+GraphSAGE Hamilton et al. (2017), Graph Convolutional Network (GCN) Welling and Kipf (2016) and Graph Isomorphism Network (GIN) Xu et al. (2018) are
+
+the most popular GNNs, and their aggregation strategy utilize max-, mean- and sum-pooling respectively. For R, a typical implementation is averaging or summation Welling and Kipf (2016); Xu et al. (2018). Recently, several studies consider the hierarchical structure of graph (i.e. the pooling aggregation) to learn the graph
+
+embedding Ying et al. (2018); Bianchi et al. (2020). In this work, we use GIN as the basic classiﬁer and summation as READOUT
+strategy. Their message passing procedures can be deﬁnes as follow:
+
+
+
+
+
+hkv = MLPk  1 + k · hkv−1 +
+
+hku−1 ,
+
+(3)
+
+u∈N (v)
+
+hG = SUM h(vk)|v ∈ G ,
+
+(4)
+
+where MLP denotes a multi-layer perceptron and is a learnable parameter.
+
+Interpretability in Graph Neural Networks
+Recently, there is a surge of interest in investigating the GNN explanation. According to Yuan et al. (2020), existing GNN explanation approaches can be divided into gradients or features based methods Baldassarre and Azizpour (2019), perturbation-based methods Ying et al. (2019), decomposition methods Schnake et al. (2020), and surrogate methods Vu and Thai (2020). In particular, perturbationbased methods employ distinct mask generators to select important subgraph struc-
+
+7
+
+ture and then evaluate and optimize the mask generators through the performance of subgraphs on a well-trained GNN.
+The different types of mask generators is an important aspect to distinguish between these methods. For example, GNNExplainer Ying et al. (2019) and PGExplainer Luo et al. (2020) employ edge masks to identify a compact subgraph structure, while ZORRO Funke et al. (2020) uses node masks and node feature masks to recognize essential input nodes and node features.
+On the other hand, studying the interpretability of GNNs from a causal perspective has recently gained increased attention. StableGNN Fan et al. (2021) develops the Causal Variable Distinguishing (CVD) regularizer to get rid of spurious correlation. RC-Explainer Wang et al. (2022) investigates the causal attribution of different edges to provide local optimal explanations for GNN. Moreover, Gem Lin et al. (2021) leverages the idea of Granger causality to handle the graph-structure data with interdependency, while Orphicx Lin et al. (2022) further identify the underlying causal factors from latent space.
+However, the above mentioned GNN explainers are post-hoc in nature and only evaluated on small-scale datasets (such as molecule, proteins and text sentences, etc.) with dozens of nodes. Although DIR-GNN Wu et al. (2021) is also a built-in interpretable GNN based on causal mechanism, it relies on discovering invariant rationales across different distributions, rather than Granger causality.
+In this study, we propose a self-explaining GNN model (CI-GNN) which enables automatic identiﬁcation of subgraphs also from a Granger causality perspective, by learning masks over edges. More importantly, we also exemplify the usefulness of our CI-GNN on two brain disease datasets which contain hundreds of nodes and thousands of edges. Our results as will be shown in the experiments are consistent with clinical observations.
+A Granger Causality-Inspired Graph Neural Network
+We use the following causal graph as shown in Figure 2(a) to elaborate such causal-effect relationship. Speciﬁcally, we assume that the input graph data X is generated by latent factors α and β, whereas only α is causally related to decision or class label Y . That is, there is a spurious correlation between β and Y . For example, in the BA-2Motif dataset Luo et al. (2020) in which graphs with House motifs are labeled with 0 and the ones with Cycle are with 1. Therefore, the remaining subgraph such as the Tree structure (see Figure 2(b-c)) does not “causally” relate to label Y which can be viewed as spurious correlations.
+8
+
+﻿Spurious Correlations
+
+﻿Spurious
+Correlations
+
+Causal
+
+𝛼
+
+(House)
+
+X
+
+Y
+
+𝛽
+
+﻿Spurious
+
+Correlations
+
+Causal (Cycle)
+
+(a)
+
+(b)
+
+(c)
+
+Figure 2: (a) Directed acyclic graph reﬂects the causal-effect relationship between latent factor α and label Y , whereas there is a spurious correlation between β and Y ; (b)-(c) Visualization of causal and non-causal subgraphs for House and Cycle motif classiﬁcation. Here, House and Cycle motifs are causal subgraphs, while Tree motif is non-causal subgraph.
+
+Based on Figure 2(a), we develop a causal-inspired Graph Neural Network (CI-GNN). The overall framework of CI-GNN is illustrated in Figure 3. CI-GNN consists of four modules: a Graph variational autoencoder (GraphVAE) Simonovsky and Komodakis (2018) is used to learn (disentangled) latent factors Z = [α; β], from which the decoder is able to reconstruct graph feature matrix X and graph adjancency matrix A with separate heads; a causal effect estimator that ensures only α is causally related to label Y ; a linear decoder θ2 to generate the causal subgraph Gsub from α; and a base classiﬁer ϕ that uses Gsub for graph classiﬁcation. In the following, we elaborate the four modules in detail.
+
+Graph Variational Autoencoders (GraphVAE)
+Given an input graph G = (A, X), where A ∈ Rn×n is graph adjacency matrix, node feature X ∈ Rn×d is the node feature matrix, we obtain the reconstructed graph G = (Ac, Xc) using the GraphVAE. Here, n is the number of nodes and d is the dimension of node features. The encoder of GraphVAE is a basic GCN. Speciﬁcally, Z in the output of a k-layer GCN can be deﬁned as:
+
+Zk = σ A˜Zk−1W k−1 ,
+
+(5)
+
+where
+
+A˜
+
+=
+
+D−
+
+1 2
+
+AˆD−
+
+1 2
+
+,
+
+Aˆ
+
+=
+
+A
+
++
+
+I,
+
+D
+
+=
+
+jAˆij is a diagonal degree matrix. In
+
+addition, W is a trainable matrix σ (·) is the sigmoid activation function.
+
+9
+
+﻿Input graph 𝒢
+
+GraphVAE
+
+Z
+
+GCN
+
+⍺
+
+Encoder
+
+∅
+
+β
+
+A’
+Multihead Decoder
+𝜃1
+X’
+
+Causal Effect Estimator
+⍺ 𝐶 𝛼; 𝑌
+﻿Causal Influence
+
+Linear Decoder
+𝜃2
+
+Causal Subgraph
+
+Causal Subgraph Generator
+
+Classifier 𝜑
+
+Output Probs
+
+Figure 3: The overall architecture of our proposed CI-GNN. The model consists of four modules: GraphVAE, causal effect estimator, causal subgraph generator and a basic classiﬁer ϕ. Given an input Graph G = {A, X}, GraphVAE learns (disentangled) latent factors Z = [α; β]. The causal effect estimator ensures that only α is causally related to label Y by the conditional mutual information (CMI) regularization I (α; Y |β). Based on α, we introduce another linear decoder θ2 to generate causal subgraph Gsub, which can then be used for graph classiﬁcation by classiﬁer ϕ.
+
+The decoder of our modiﬁed GraphVAE has separate heads: a multi-layer perceptron (MLP) is used to reconstruct X, and a linear inner product decoder is used to recover A. Formally, the reconstruction procedure is formulated as:
+
+Ac = σ ZZT ,
+
+(6)
+
+Xc = MLP (Z) .
+
+The objective of our GraphVAE can be deﬁned as:
+
+LGraphVAE = E [ X − Xc F ] + E [ A − Ac F ]
+
+(7)
+
+− E [DKL [q (Z|A, X) p (Z)]] ,
+
+in which q (Z|A, X) denotes the encoder model, · F is deﬁned as the Frobenius norm and p (Z) represents a prior distribution, which is assumed to follow an
+isotropic Gaussian.
+
+Causal Effect Estimator
+According to Figure 2(a), Z ∈ Rn×(K+L) is consisted of causal factor α ∈ Rn×K and non-causal factor β ∈ Rn×L. Here, K and L are pre-deﬁned feature dimensions for α and β, respectively. Our framework needs to ensure that α and β are disentangled or independent, and α have a direct causal impact on label Y .
+
+10
+
+Mathematically, the objective of the causal effect estimator can be formulated as:
+
+max C (α, Y ) − I (α; β) ,
+
+(8)
+
+α,β
+
+in which C (·, ·) measures the strength of causal inﬂuence from α to Y , I (·; ·) denotes mutual information. Minimizing I(α; β) forces the independence between α and β.
+According to Corollary 1, to guarantee C (α, Y ) could capture functional dependence, we resort to a conditional mutual information (CMI) term:
+
+C (α, Y ) = I (α; Y |β)
+
+(9)
+
+to measure the causal inﬂuence of α on Y when “imposing” β. In practice, one can also use the MI term I(α; Y ) as suggested in O’Shaughnessy et al. (2020).
+
+Corollary 1. I(α; Y |β) is able to measure the causal effect of α on Y when “imposing” β in the sense of Granger causality Seth (2007).
+
+The proof is shown in the Appendix. Note that, although we do not use “do” operator to introduce intervention, O’Shaughnessy et al. (2020) shows that I (α → Y |do (β)) = I (α; Y |β) from the rules of do-calculus.
+Therefore, the objective in Eq. (8) becomes:
+
+Lcausal = −I (α; Y |β) + I (α; β) .
+
+(10)
+
+According to Shannon’s chain rule MacKay (2003), I (α; β) and I (α; Y |β) can be decomposed as (see also Fig. 4 for an illustration):
+
+I (α; β) = H (α) + H (β) − H (α, β) ,
+
+(11)
+
+I (α; Y |β) =H (α|β) − H (α|Y, β)
+
+=H (α, β) + H (Y, β)
+
+(12)
+
+− H (β) − H (α, Y, β) ,
+
+in which H denotes entropy or joint entropy. In this work, instead of using the popular mutual information neural estima-
+tor (MINE) Belghazi et al. (2018) which may make the joint training becomes unstable or even result in negative mutual information values Yu et al. (2022), we use the matrix-based Re´nyi’s δ-order entropy functional Giraldo et al. (2014);
+
+11
+
+𝐻𝛼
+
+𝐻𝑌
+
+{a}
+
+{b}
+
+𝐻(𝛼|𝑌, 𝛽) {e} 𝐻(𝑌|𝛼, 𝛽)
+
+𝐼(𝛼; 𝑌|𝛽) 𝐼(𝛼; 𝛽|𝑌)
+
+{g}
+
+{d}
+
+{f}
+
+{c} 𝐻(𝛽|𝛼, 𝑌)
+
+𝐼 𝛼; 𝑌 − 𝐼(𝛼; 𝑌|𝛽)
+𝐼(𝑌; 𝛽|𝛼)
+
+𝐻𝛽
+
+Figure 4: Venn diagram depicting entropy interaction among α, β and Y . H (α) = {a, e, g, d}, H (Y ) = {b, e, g, f }, H (β) = {c, d, g, f }, I (α; Y ) = {e, g}, I (α; β) = {d, g}, I (Y ; β) = {g, f } and H (α, Y, β) = {a, b, c, d, e, f, g}
+
+Yu et al. (2019) to estimate different entropy terms in Eqs. (11) and (12)1. This newly proposed estimator can be simply computed (without density estimation or any auxiliary neural network) and is also differentiable which suits well for deep learning applications. For brevity, we directly give the deﬁnitions.
+
+Deﬁnition 1. Let κ : χ × χ → R be a real valued positive deﬁnite kernel that is also inﬁnitely divisible Bhatia (2006). Given {xi}ni=1 ∈ χ, each xi can be a real-valued scalar or vector, and the Gram matrix K ∈ Rn×n computed as
+Kij = κ(xi, xj), a matrix-based analogue to Re´nyi’s δ-entropy can be given by
+the following functional:
+
+1 Hδ(A) = 1 − δ log2
+
+tr(Aδ )
+
+1 = 1 − δ log2
+
+n
+λi(A)δ ,
+
+(13)
+
+i=1
+
+where δ ∈ (0, 1) ∪ (1, ∞). A is the normalized K, i.e., A = K/ tr(K). λi(A)
+
+1Conventionally, we should use α-order. Since α denotes latent causal factor in our work, we use δ-order to avoid confusion.
+
+12
+
+denotes the i-th eigenvalue of A.
+Deﬁnition 2. Given a set of n samples {xi, yi, zi}ni=1, each sample contains three measurements x ∈ χ, y ∈ γ and z ∈ obtained from the same realization. Given positive deﬁnite kernels κ1 : χ × χ → R, κ2 : γ × γ → R, and κ3 : × → R, a matrix-based analogue to Re´nyi’s δ-order joint-entropy can be deﬁned as:
+
+A◦B◦C
+
+Hδ(A, B, C) = Hδ tr(A ◦ B ◦ C) ,
+
+(14)
+
+where Aij = κ1(xi, xj) , Bij = κ2(yi, yj), Cij = κ3(zi, zj), and A◦B ◦C denotes the Hadamard product between the matrices A, B and C.
+Now, given {αi, βi, yi}Bi=1 in a mini-batch of B samples, we ﬁrst need to evaluate three Gram matrices Kα = κ(αi, αj) ∈ RB×B, Kβ = κ(βi, βj) ∈ RB×B, and Ky = κ(yi, yj) ∈ RB×B associated with α, β and Y , respectively. Based on Deﬁnitions 1 and 2, the entropy and joint entropy terms in Eqs. (11) and (12), such as H(α) and H(α, Y, β), all can be simply computed over the eigenspectrum of Kα, Kβ, Ky, or their Hadamard product. For more details, we refer interested readers to Appendix.
+To obtain causal factor α from X, the overall loss becomes:
+
+L1 = LGraphVAE + λLcausal,
+
+(15)
+
+where λ is the hyper-parameter.
+
+Causal Subgraph Generator
+Since α is an embedding representation that is unable to directly provide explanations, we propose causal subgraph generator for better explanation and visualization. To be speciﬁc, given α ∈ Rn×K, we use another linear inner product decoder θ2 Li et al. (2021) to obtain causal subgraph Gsub:
+
+Gsub = σ ααT .
+
+(16)
+
+Subsequently, the trained causal subgraph Gsub is fed into the basic classiﬁer to output the prediction Y = ϕ◦θ2 (X, α), where ϕ is a classiﬁer. The cross-entropy loss is used to optimize the basic classiﬁer:
+
+C
+
+Lce = − Yi log (Yi )
+
+(17)
+
+i=1
+
+13
+
+in which C is the number of classes. According to Eq. (8) and Eq. (17), the optimization objective of θ2 and ϕ is:
+
+L2 = LCE + λLcausal
+
+(18)
+
+Training Procedures
+
+Algorithm 1: Overview of CI-GNN Training
+
+Input: Training graphs Gtrain = {Gi, yi}, Training epoch E, generative casual epoch EGC
+Output: Trained model, Causal subgraph Gsub 1 Initialize model parameters. 2 for t = 1, 2 · ··, E do
+
+3 if t < EGC then
+
+4
+
+Optimizing objective function Eq. (15);
+
+5
+
+Performing GraphVAE to generate α and β
+
+6 else
+
+7
+
+Optimizing objective function Eq. (18);
+
+8
+
+Performing causal subgraph generator to generate Gsub
+
+9 end
+
+10 end
+
+As shown in Algorithm 1, the training procedure includes two stages. We ﬁrst perform GraphVAE to infer causal factor α and non-causal factor β by optimizing Eq. (15). When the stage I training is converged (in our implementation, the convergence can be determined if the reconstruction error is smaller than a threshold or the number of training epochs exceeds a predetermined value), we then perform causal subgraph generator to generate Gsub from α and optimize Eq. (18).
+Experiments
+Datasets We select one benchmark dataset (BA-2Motif Yuan et al. (2020)) and two
+brain disease datasets (ABIDE and Rest-meta-MDD) in the experiments: • BA-2Motif Yuan et al. (2020): It is a graph classiﬁcation benchmark dataset that contains 1000 graphs and 2 types of graph label. Each graph could attach distinct motifs including House-structed motif and Cycle-structed motif, which are determined by graph labels.
+14
+
+• ABIDE Di Martino et al. (2014): It openly shares more than 1, 000 restingstate fMRI data of autism patients (ASD) and typically developed (TD) participants2. Following the preprocessing and sample selection, a total of 528 patients with ASD and 571 TD individuals are used in this paper.
+• REST-meta-MDD Yan et al. (2019): It is one of the largest MDD dataset including more than 2000 participants from twenty-ﬁve independent research groups3. In this study, 1604 participants (848 MDDs and 794 HCs) were selected according to the sample selection.
+Table 1 demonstrates the detailed statistics of these datasets. Preprocessing of two brain disease datasets are provided in the Appendix.
+
+Table 1: Data statistics.
+
+Datasets
+
+Edges Nodes Graphs Classes
+
+BA-2Motifs 25.48 25 1000 2 ABIDE 2971.93 116 1099 2
+REST-meta-MDD 3021.32 116 1604 2
+
+Baselines For comparison, we evaluate the performance of our CI-GNN against four
+traditional psychiatric diagnostic classiﬁers including support vector machines (SVM) with linear and RBF kernel Pan and Xu (2018), random forest (RF) Rigatti (2017) and LASSO Ranstam and Cook (2018), three baseline GNNs (GCN Welling and Kipf (2016), GAT Velicˇkovic´ et al. (2018), GIN Xu et al. (2018)) and six recently proposed state-of-the-art (SOTA) graph explainers, namely subgraph information bottleneck (SIB) Yu et al. (2021), GNNExplainer Ying et al. (2019), PGExplainer Luo et al. (2020), RC-Explainer Wang et al. (2022), OrphicX Lin et al. (2022) and DIR-GNN Wu et al. (2021). Note that, SIB also uses information bottleneck to extract subgraph, but it is not causality-driven and does not consider latent factors. OrphicX also originates from a Granger causality perspective and learns disentangled representations α and β, but it is post-hoc and does not ensure the independence between α and β. In addition, although DIR-GNN Wu
+2http://fcon 1000.projects.nitrc.org/indi/abide/ 3http://rfmri.org/REST-meta-MDD/
+15
+
+et al. (2021) is also a built-in interpretable GNN based on causal mechanism, it relies on discovering invariant rationales across different distributions, rather than Granger causality.
+Implementation Details For all competing models, we use the Adam optimizer Kingma and Ba (2015)
+and the learning rate is turned in 0.001. The dropout rate is set as 0.5 and the weight decay is set as 0.0005. The number of layers of GCN, GAT and GIN is set as 3. In addition, the batch size is set as 32. For CI-GNN, λ in Eq. (15) is set to be 0.001, respectively. The feature dimensions K and L for α and β are set as 56 and 8. In the training of CI-GNN, the train epoch E is set to be 450, and the generative causal epoch EGC is set to be 150. For the matrix-based Re´nyi’s δ-order entropy, we set δ=1.01 and kernel size σ with the average of mean values for all samples as performed in Zheng et al. (2022). Hyper-parameters in CI-GNN are besed on grid search or recommended settings of related work.
+For baselines, we conduct grid search or recommended settings to determine the ﬁnal settings. We train each model with 300 epochs. For GIN, GAT and GCN, we use the recommended hyperparameters of related work to train the models. For SIB, the weight β of the mutual information term I (G, Gsub) is selected from {0.00001, 0.1}. For GNNExplainer, the weight of mutual information (MI) is set to be 0.5 according to recommended setting. For PGExplainer, the temperature τ in reparameterization is set to be 0.1 according to recommended setting. For RC-Explainer, the beam search is selected from {2, 4, 8, 16}.
+Evaluation on Classiﬁcation Performance
+We demonstrate the classiﬁcation performances in terms of Accuracy, F1score and matthew’s cerrelatien ceefﬁcient (MCC) in Table 2. The random data splitting strategy is 80% for training, 10% for validation, and the remaining 10% for testing. Based on the random data splitting, each model was conducted across 3 independent runs. The ablation study, statistical tests over different performance metrics are provided in the Appendix.
+Extensive experiments show that CI-GNN yields signiﬁcant improvements over all baselines in terms of all evaluating metrics in three graph classiﬁcation datasets, indicating that CI-GNN has great advantages for graph classiﬁcation tasks.
+For synthetic dataset, CI-GNN achieves an accuracy rate of 99.9% exceeding other baselines. Considering the House and Cycle motif are directly related to labels, the superior performance can be explained by the model’s ability to correctly
+16
+
+Table 2: The classiﬁcation performance and standard deviations of CI-GNN and the baselines.The best and second best performances are in bold and underlined, respectively.
+
+Methods
+
+BA-2motifs
+
+Accuracy
+
+F1
+
+MCC
+
+Accuracy
+
+ABIDE F1
+
+MCC
+
+REST-meta-MDD
+
+Accuracy
+
+F1
+
+MCC
+
+Linear-SVM RBF-SVM
+RF LASSO
+GCN GAT GIN SIB DIR-GNN GNNExplainer PGExplainer RC-Explainer CI-GNN (Ours)
+
+0.50 ± 0.02 0.47 ± 0.02 0.96 ± 0.02 0.53 ± 0.01 0.99 ± 0.01 0.61 ± 0.01 0.66 ± 0.01 0.82 ± 0.05 0.99 ± 0.01
+
+0.50 ± 0.02 0.47 ± 0.02 0.96 ± 0.02 0.53 ± 0.01 0.99 ± 0.01 0.61 ± 0.01 0.66 ± 0.01 0.82 ± 0.05 0.99 ± 0.01
+
+0.00 ± 0.00 0.00 ± 0.00 0.93 ± 0.03 0.03 ± 0.03 0.99 ± 0.03 0.26 ± 0.02 0.31 ± 0.02 0.64 ± 0.10 0.99 ± 0.01
+
+0.64 ± 0.06 0.66 ± 0.04 0.64 ± 0.04 0.69 ± 0.04 0.66 ± 0.04 0.67 ± 0.06 0.63 ± 0.01 0.64 ± 0.05 0.67 ± 0.02 0.64 ± 0.03 0.67 ± 0.01 0.69 ± 0.04 0.70 ± 0.01
+
+0.66 ± 0.07 0.66 ± 0.07 0.67 ± 0.03 0.71 ± 0.06 0.60 ± 0.05 0.68 ± 0.04 0.62 ± 0.04 0.63 ± 0.03 0.68 ± 0.03 0.56 ± 0.08 0.66 ± 0.02 0.72 ± 0.04 0.66 ± 0.02
+
+0.29 ± 0.13 0.32 ± 0.07 0.28 ± 0.07 0.38 ± 0.08 0.33 ± 0.08 0.32 ± 0.15 0.24 ± 0.04 0.28 ± 0.09 0.34 ± 0.05 0.28 ± 0.04 0.34 ± 0.02 0.40 ± 0.09 0.39 ± 0.01
+
+0.63 ± 0.02 0.66 ± 0.03 0.60 ± 0.02 0.61 ± 0.02 0.63 ± 0.01 0.63 ± 0.04 0.66 ± 0.03 0.64 ± 0.04 0.64 ± 0.02 0.68 ± 0.04 0.64 ± 0.03 0.61 ± 0.05 0.76 ± 0.02
+
+0.61 ± 0.03 0.64 ± 0.03 0.56 ± 0.02 0.59 ± 0.02 0.60 ± 0.05 0.61 ± 0.07 0.67 ± 0.01 0.65 ± 0.03 0.64 ± 0.04 0.69 ± 0.10 0.49 ± 0.22 0.58 ± 0.16 0.77 ± 0.02
+
+0.34 ± 0.14 0.32 ± 0.05 0.20 ± 0.03 0.22 ± 0.04 0.26 ± 0.02 0.24 ± 0.06 0.31 ± 0.06 0.28 ± 0.09 0.30 ± 0.04 0.50 ± 0.06 0.20 ± 0.12 0.21 ± 0.10 0.62 ± 0.02
+
+“-” denotes the missing values (traditional psychiatric diagnostic classiﬁer could not analyze the graph dataset).
+
+identify causal subgraphs (House and Cycle motif). This result also suggests that CI-GNN is able to remove the impact of spurious correlation to a certain extent and recognizes causal subgraphs associated with the true label.
+For brain disease datasets, CI-GNN achieves signiﬁcant and consistent improvements over all SOTA approaches. One should note that, ABIDE and RESTmeta-MDD are two multi-site, large-scale brain disease datasets including more than 1, 000 participants and 17 independent sites, where each graph contains hundreds of nodes and thousands of edges. We also performed leave-one-site-out cross validations to further justify the generalization ability of CI-GNN. Empirical results are shown in the Appendix.
+
+Hyperparameter Analysis
+
+We investigate the sensitivity of the pre-deﬁned feature dimensions K and
+
+L for α and β using ABIDE and REST-meta-MDD datasets. We train the CI-
+
+GNN
+
+with
+
+different
+
+ratios
+
+of
+
+K K +L
+
+,
+
+when
+
+we
+
+ﬁx
+
+the
+
+sum
+
+of
+
+feature
+
+dimensions
+
+Z = K + L equals to 64. As shown in Figure 5, we observe that CI-GNN achieves
+
+the
+
+highest
+
+accuracy
+
+on
+
+both
+
+brain
+
+disease
+
+datasets,
+
+when
+
+K K +L
+
+is
+
+set
+
+to
+
+0.8.
+
+Ablation Study
+We further use ablation study to investigate the inﬂuence of GraphVAE and causal effect estimator. Speciﬁcally, we compare the classiﬁcation accuracy among
+
+17
+
+Accuracy Accuracy
+
+0.75
+
+CI-GNN
+
+0.80
+
+CI-GNN
+
+GIN
+
+GIN
+
+0.70 0.75
+
+0.65
+
+0.70 0.60
+
+0.55 0.0 0.2 0.4 0.6 0.8 1.0 K/(K+L)
+(a) ABIDE
+
+0.65 0.0 0.2 0.4 0.6 0.8 1.0 K/(K+L)
+(b) REST-meta-MDD
+
+Figure 5: Sensitivity of the pre-deﬁned feature dimensions K and L for α and β.
+
+the three variants of CI-GNN including the original model, CI-GNN-NoCausal (CI-GNN without causal effect estimator) and GIN (CI-GNN without GraphVAE and causal effect estimator) on three datasets. As shown in Figure 6, we observe that CI-GNN outperforms CI-GNN-NoCausal on all datasets, particularly two brain disease datasets, suggesting that the improvements can be attributed to the identifying of causal factors α. In addition, the more superior performance of CI-GNN-NoCausal than GIN indicates that GraphVAE is effective and important.
+
+Accuracy Accuracy Acuracy
+
+1.1
+
+0.75
+
+0.8
+
+1.0
+
+0.70
+
+0.7
+
+0.9
+
+0.8
+
+0.65
+
+0.6
+
+0.7
+
+0.6 CI-GNNG-INNoCausal CI-GNN
+(a) BA2Motif
+
+0.60 CI-GNNG-INNoCausal CI-GNN
+(b) ASD dataset
+
+0.5 CI-GNNG-INNoCausal CI-GNN
+(c) MDD dataset
+
+Figure 6: Ablation study on three datasets.
+
+To validate that I (α, β) force the independence between α and β, we compare
+
+18
+
+the change in correlation between α and β before and after using I (α, β) as loss (CI-GNN and CI-GNN-nonMI). Speciﬁcally, we use a popular correlation method Hilbert-Schmidt independence criterion (HSIC) Gretton et al. (2005) to measure the independence between α and β in BA-2motif dataset. The according results are reported in the table 3. As can be seen, when using loss I (α, β), independence between α and β increases as epoches increase, while independence remains the same without loss I (α, β).
+
+Table 3: Changes of Hilbert-Schmidt independence criterion (HSIC) between α and β with/without loss I (α, β).
+
+Epoches
+
+1 50 100
+
+CI-GNN 0.044 0.033 0.032 CI-GNN-nonMI 0.044 0.043 0.043
+
+Computational Complexity of CI-GNN We compare the efﬁciency of CI-GNN with three SOTA GNN explainers and
+report the time required per instance for each model in Table 4. As can we see, the time complexity of CI-GNN is higher than GNNExplainer and PGExplainer due to the complexity of causal effect estimator and training strategy. However, CI-GNN has less computational cost compared with RC-Explainer, indicating that the time spent for CI-GNN is acceptable for graph causal explanation.
+Table 4: Efﬁciency studies of different methods on three graph classiﬁcation datasets (inference time per instance (ms)).
+
+Datasets GNNExp PGExp RC-Exp CI-GNN
+
+BA-2Motifs
+
+6.5
+
+ABIDE
+
+4.1
+
+REST-meta-MDD 1.9
+
+11.8 40.5 37.2 9.5 37.3 32.8 9.4 37 32.8
+
+Evaluation on Quality of Explanations To assess the interpretation of CI-GNN, we further investigate explanations for
+graph classiﬁcation task on BA2Motif and REST-meta-MDD datasets. Figure 79 show the interpretation of BA2Motif, REST-meta-MDD and ABIDE datasets, respectively.
+19
+
+For BA2Motif dataset, Cycle and House motifs are causal factors which determine the graph label, while Tree motif is non-causal factor which is spuriously associated with the true label Luo et al. (2020). In Figure 7, CI-GNN could successfully recognize the Cycle and House motifs that explain the labels, while GNNExplainer, PGExplainer and RC-Explainer assign the larger weights on edges out of Cycle and House motifs, suggesting that Tree motif (the spurious correlation) obtained by GNNExplainer, PGExplainer and RC-Explainer could lead to unreliable prediction.
+
+Case 1:
+
+GNNExplainer
+
+PGExplainer
+
+RC-Explainer
+
+CI-GNN (Ours)
+
+Cycle
+Case 2:
+
+House
+Figure 7: Interpretation comparisons on BA2Motif. The House and Cycle constructed by the green nodes and red nodes are the ground-truth motifs that determine the graph labels. The orange nodes construct the Tree motif which is spuriously associated with the label. The red node connects the ground-truth motif and Tree motif. Important edges of explanatory subgraph are highlighted for each model. CI-GNN can identify House and Cycle motifs, while other methods assign the larger weights on Tree motif.
+We further quantitatively evaluate the explanation accuracy of CI-GNN and other GNN explainers and use µ to control the size of explanatory subgraph. Speciﬁcally, the size of explanatory subgraph can be represented as [µ × |G|]. Moreover, we also compute the area under curve (AUC) for the accuracy curve over different µ ∈ [0.1, 0.2, ...1.0]. Because the ground truth causal subgraph for real-world brain disease datasets are not available, the explanation performance is compared only on the synthetic dataset. The corresponding results are presented in Table 5. We observe that CI-GNN can achieve the best explanation performance no matter size of explanatory subgraph, indicating the explanatory reliability of CI-GNN.
+20
+
+Table 5: Explanation accuracy in terms of AUC on BA2Motif. The best and second best performances are in bold and underlined, respectively.
+
+µ
+
+3 4 5 AUC
+
+GNNExplainer 0.65 0.85 0.94 0.85 PGExplainer 0.65 0.87 0.95 0.86 RC-Explainer 0.63 0.85 0.93 0.82
+OrphicX 0.67 0.83 0.96 0.83 CI-GNN (Ours) 0.68 0.91 0.96 0.88
+
+Figure 8 demonstrates the comparison of connectomes for three SOTA graph explainers and CI-GNN on REST-meta-MDD dataset, where the color of each node depends on which the brain network it belongs to. In addition, the size of nodes is determined by the number of connections for them. It can be seen that the connections between and within limbic network (nodes with color yellow) in CI-GNN are stronger than that of other SOTA graph explainers. This result is consistent with previous clinical ﬁnding Jacob et al. (2022), in which limbic subregion plays an important role in the diagnosis of major depression and is associated with depression severity. In addition, we observe that patients with MDD exhibits tight connections between and within cerebellum (nodes with color pine green) in three SOTA graph explainers, while these interactions in CI-GNN are much more sparse. As we know, MDD is a common psychiatric disorder involving in affective and cognitive impairments Belmaker and Agam (2008), but cerebellum is a brain structure directly related to motor function. The hyper-connectivity of the cerebellum in patients with MDD is incompatible with our common sense, suggesting three SOTA graph explainers recognize the spurious correlation.
+In Figure 9, we show interpretation of GNNExplainer, PGExplainer, RC-Explainer and CI-GNN on ABIDE. As can be seen, CI-GNN is able to recognize the tight connections between somatomotor network (SMN). This ﬁnding is in line with the previous study Lin et al. (2022), where the hidden markov model (HMM) states in ASD patients are characterized by the activation pattern of SMN. However, other methods fail to identify some connections associated with ASD.
+Evaluation on Other Graph Datasets
+To assess the robustness and generalization of our model, we further test the performance and interpretation of three bioinformatics datasets including MUTAG, PROTEINS and NCI1. The data statistics of three bioinformatics datasets
+21
+
+(a) GNNExplainer
+
+(b) PGExplainer
+
+(c) RC-Explainer
+
+(d) CI-GNN
+
+Figure 8: Interpretation comparisons on MDD datasets. The colors of brain neural systems are described as: visual network (VN), somatomotor network(SMN), dorsal attention network (DAN), ventral attention network (VAN), limbic network (LIN), frontoparietal network (FPN), default mode network (DMN), cerebellum (CBL) and subcortial network (SBN), respectively. CI-GNN can successfully recognize the interactions between and within limbic network that plays an important role in the diagnosis of major depression and is associated with depression severity. However, other methods mainly ﬁnd the cerebellum connections and almost fail to identify some connections associated with depression.
+
+are provided in the Appendix. Table 6 demonstrates the performance results on MUTAG, PROTEINS and NCI1. As can be seen, CI-GNN achieves the highest
+
+22
+
+(a) GNNExplainer
+
+(b) PGExplainer
+
+(c) RC-Explainer
+
+(d) CI-GNN
+
+Figure 9: Interpretation comparisons on ASD datasets. The colors of brain neural systems are described as: visual network (VN), somatomotor network(SMN), dorsal attention network (DAN), ventral attention network (VAN), limbic network (LIN), frontoparietal network (FPN), default mode network (DMN), cerebellum (CBL) and subcortial network (SBN), respectively. CI-GNN can successfully recognize the interactions between SMN that is the important characterization in patients with ASD. However, other methods almost fail to identify some connections associated with autism.
+
+performance in accuracy, F1-score and MCC, which indicates that our CI-GNN can also be generalized to molecular data (rather than just brain networks). Ablation studies are provided in the Appendix.
+
+23
+
+Table 6: The classiﬁcation performance of accuracy, F1 and MCC and standard deviations of CIGNN and the baselines on three bioinformatics datasets. The best and second best performances are in bold and underlined, respectively.
+
+Methods
+
+Accuracy
+
+MUTAG F1
+
+MCC
+
+PROTEINS
+
+Accuracy
+
+F1
+
+MCC
+
+Accuracy
+
+NCI1 F1
+
+MCC
+
+GCN GAT GIN SIB DIR-GNN GNNExplainer PGExplainer RC-Explainer CI-GNN (Ours)
+
+0.87 ± 0.08 0.90 ± 0.05 0.90 ± 0.06 0.75 ± 0.05 0.87 ± 0.08 0.88 ± 0.03 0.87 ± 0.03 0.82 ± 0.06 0.93 ± 0.03
+
+0.90 ± 0.06 0.93 ± 0.04 0.93 ± 0.03 0.82 ± 0.02 0.92 ± 0.04 0.91 ± 0.01 0.87 ± 0.04 0.87 ± 0.03 0.94 ± 0.02
+
+0.90 ± 0.06 0.93 ± 0.04 0.93 ± 0.03 0.82 ± 0.02 0.61 ± 0.24 0.91 ± 0.01 0.87 ± 0.04 0.87 ± 0.03 0.94 ± 0.02
+
+0.76 ± 0.03 0.78 ± 0.03 0.77 ± 0.03 0.79 ± 0.01 0.77 ± 0.01 0.80 ± 0.01 0.80 ± 0.02 0.67 ± 0.06 0.82 ± 0.02
+
+0.66 ± 0.05 0.63 ± 0.12 0.67 ± 0.01 0.72 ± 0.03 0.72 ± 0.02 0.69 ± 0.01 0.73 ± 0.04 0.42 ± 0.12 0.76 ± 0.04
+
+0.49 ± 0.05 0.50 ± 0.12 0.52 ± 0.05 0.56 ± 0.03 0.58 ± 0.02 0.55 ± 0.01 0.60 ± 0.04 0.27 ± 0.08 0.61 ± 0.05
+
+0.76 ± 0.01 0.72 ± 0.01 0.82 ± 0.01 0.65 ± 0.01 0.71 ± 0.01 0.68 ± 0.01 0.65 ± 0.02 0.65 ± 0.03 0.83 ± 0.02
+
+0.75 ± 0.03 0.71 ± 0.03 0.82 ± 0.01 0.69 ± 0.02 0.70 ± 0.01 0.63 ± 0.05 0.65 ± 0.03 0.65 ± 0.13 0.82 ± 0.02
+
+0.52 ± 0.01 0.45 ± 0.01 0.63 ± 0.04 0.30 ± 0.01 0.42 ± 0.01 0.60 ± 0.01 0.30 ± 0.05 0.31 ± 0.08 0.65 ± 0.03
+
+Furthermore, we compare the interpretation of CI-GNN between GNNExplainer, PGExplainer and RCExplainer on MUTAG in Figure 10. As we know, labels of MUTAG include mutagenic and non-mutagnic. Mutagenic structure is determined by carbon rings and N O2 groups Debnath et al. (1991). Obviously, we observe that CI-GNN correctly identiﬁes N O2 groups but other explainers fail to obtain. Furthermore, CI-GNN also recognizes F atom on carbon rings and N atom in carbon rings that the causal factors for non-mutagic.
+
+Figure 10: Interpretation comparisons on MUTAG. Important edges of explanatory subgraph are highlighted for each model.
+24
+
+Conclusions and Future Work In this work, we proposed the ﬁrst built-in interpretable graph neural net-
+works from a causal perspective, in the sense that our model is able to learn a disentangled latent representation α (and its associated subgraph structure) that is causally related to ﬁnal decision Y . In terms of application, we evaluated our model on two large-scale, multi-site brain disease datasets and tested its performances on brain network-based psychiatric disorder diagnosis. Our model consistently achieved the highest classiﬁcation accuracy in both datasets and identiﬁed subgraph biomarkers which are coincide with clinical observations.
+In the future, we will evaluate the generalization ability of our model to outof-distribution (OOD) datasets. This is just because our model is able to extract a causal latent representation that is also possibly “invariant” under distributional shift. We will also test the performances of other possible causal effect estimators (e.g., the mutual information term I(α; Y ) or I(α; Yˆ )) and theoretical investigate their inner connections. Acknowledgments
+This work was supported by the National Natural Science Foundation of China with grant numbers (62088102, U21A20485, 61976175).
+25
+
+Appendix
+
+This document contains the Appendix for the “CI-GNN: A Causality-Inspired Graph Neural Network for Interpretable Brain Network Analysis” manuscript. It is organized into the following topics and sections:
+1. Proof of Corollary 1 2. Detailed Experimental Setup and Additional Experimental Results
+(a) Preprocessing of Two Brain Disease Datasets (b) Data statistics of three bioinformatics datasets (c) Architecture of CI-GNN (d) Evaluation Metrics (e) Additional Experimental Results for Performance (f) Leave-One-Site-Out Cross Validaion (g) Additional Ablation Study 3. Minimal Implementation of CI-GNN in PyTorch
+
+Proof of Corollary 1
+
+Corollary 1. I(α; Y |β) is able to measure the causal effect of α on Y when “im-
+
+posing” β.
+
+Proof. From a Granger causality perspective Granger (1969), variable X causes
+
+another variable Y if, in a statistical sense, the prediction of Y is improved by
+
+incorporating information about X. The general idea of Granger causality can be
+
+extended if a third variable Z is taken into account Chen et al. (2006). In this case,
+
+the evaluation of the conditional Granger causality I (X → Y |Z) in the time do-
+
+main is fairly straightforward through comparison of two predictions of Y , one
+
+when Z is given, the other when (X, Z) are given together.
+
+Let X denotes observational random variables (e.g., features) and Y a dis-
+
+crete valued random variable (e.g., class labels) which takes L different vales (c1, c2, ..., cL) . We aim to infer Y from X. Suppose the predicted output is Yˆ , then
+the prediction error probability from X to Y is pe (X → Y ) = P Y = Yˆ . In
+
+Bayesian statistics, the upper and lower bounds of pe can be derived by informationtheoretic criteria. Speciﬁcally, these bounds can be determined as O¨ zdenizci and
+
+Erdog˘mus¸ (2019):
+
+H (Y |X)
+
+H (Y |X) − 1
+
+2
+
+≥ pe ≥
+
+, log L
+
+(.1)
+
+26
+
+with H (Y |X) denotes the Shannon conditional entropy of Y given X. In fact, the lower bound in Eq. (.1) is the famed Fano’s inequality Fano and Hawkins (1961), whereas the upper bound is also known as the Hellman-Raviv bound Hellman and Raviv (1970). Together, these inequalities suggest that the prediction performance of X to Y can be quantiﬁed by the conditional entropy H (Y |X).
+Now, to quantify the strength of causal effect of variable α on Y , when imposing on a third variable β, one can directly compare the difference between prediction error probabilities pe (α → Y ) and pe ((α, β) → Y ) , in a Granger sense (i.e., if the prediction of Y can be improved by incorporating information about β):
+
+I (α → Y |β) = pe (α → Y ) − pe ((α, β) → Y ) .
+
+(.2)
+
+On the other hand, given Eq. (.1), one can replace pe (α → Y ) and pe ((α, β) → Y ) by H (Y |α) and H (Y |α, β), as a surrogate. Therefore, we obtain:
+
+I (α → Y |β) ≈ H (Y |α) − H (Y |α, β) = I (Y ; α|β) .
+
+(.3)
+
+Detailed Experimental Setup
+Preprocessing of Two Brain Disease Datasets
+Table .7 shows the demographic and clinical characteristics of both brain disease datasets. For ABIDE, resting-state fMRI data are preprocessed using the statistical parametric mapping (SPM) software4. The preprocessing procedures include discarding the initial 10 volumes, slice-timing correction, head motion correction, space normalization, smoothing (6 mm), temporal bandpass ﬁltering (0.01-0.1 HZ) and regressing out the effects of head motion, white matter and cerebrospinal ﬂuid signals (CSF). For REST-meta-MDD dataset, we choose 1, 604 subjects according to exclusion criteria including poor spatial normalization, bad coverage, excessive head movement, centers with fewer than 10 participants and incomplete time series data and information. We employ preprocessed data previously made available by the REST-meta-MDD for further analysis.
+After preprocessing, we extract mean time series of each region of interest (ROI) according to the automated anatomical labelling (AAL) atlas. Furthermore, we calculate the functional connectivity between all ROI pairs by Pearson’s correlation and further generate 116 × 116 functional connectivity matrix (brain network).
+
+4https://www.ﬁl.ion.ucl.ac.uk/spm/software/spm12/
+27
+
+Table .7: Demographic and clinical characteristics.
+
+Characteristic
+
+ABIDE
+
+ASD
+
+TD
+
+REST-meta-MDD
+
+MDD
+
+HC
+
+Sample size
+
+528
+
+571
+
+828
+
+776
+
+Age
+
+17.0 ± 8.4 17.1 ± 7.7 34.3 ± 11.5 34.4 ± 13.0
+
+Gender (M/F) 464/64 471/100 301/527 318/458
+
+Data statistics of three bioinformatics datasets In addition to the synthetic dataset and brain disease datasets, we also se-
+lect three bioinformatics datasets including MUTAG Debnath et al. (1991), PROTEINS Borgwardt et al. (2005) and NCI1 Wale et al. (2008):
+• MUTAG Debnath et al. (1991): It has 288 molecule graphs and 2 graph labels including mutagenic and nonmutagenic.
+• PROTEINS Borgwardt et al. (2005): It is a graph classiﬁcation bioinformatics dataset that includes 1,113 graph structures of proteins. For each graph, nodes mean secondary structure elements (SSEs) and the existence of an edge is determined by whether two nodes are adjacent along the amino-acid sequence or in space.
+• NCI1 Wale et al. (2008): It is a bioinformatics dataset with 4, 110 graphstructured chemical compounds. Positive sample is judged by whether it has the ability to suppress or inhibit the growth of a panel of human tumor cell lines
+The statistics of three bioinformatics datasets are summarized in Table .8.
+Architecture of CI-GNN Table .9 summarizes the architecture of CI-GNN including the neurons of
+GCN encoder φ, multi-head decoder θ1, linear decoder θ2 and the basic classiﬁer ϕ.
+
+28
+
+Table .8: Statistics of three bioinformatics datasets.
+
+Datasets # of Edges (avg) # of Nodes (avg) # of Graphs # of Classes
+
+MUTAG
+
+9.90
+
+PROTEINS
+
+72.8
+
+NCI1
+
+32.3
+
+17.93
+
+188
+
+2
+
+39.06
+
+1113
+
+2
+
+29.87
+
+4110
+
+2
+
+Table .9: Architecture of CI-GNN.
+
+#Neurons of GCN Encoder φ
+
+[128,64]
+
+#Neurons of Multi-head Decoder θ1 [16] and [1]
+
+#Neurons of Linear Decoder θ2
+
+[1]
+
+#Neurons of Classiﬁer ϕ [128,128,128,64,32,2]
+
+Evaluation Metrics
+We use accuracy, f1-score and matthew’s cerrelatien ceefﬁcient (MCC) as performance metrics to evaluate the effectiveness of our model. These measures are deﬁned as:
+
+accuracy =
+
+TP + TN
+
+,
+
+(.4)
+
+TP + TN + FP + FN
+
+2 × TP
+
+F1 =
+
+,
+
+(.5)
+
+2 × TP + FP + FN
+
+TP× TN − FP× FN
+
+MCC = [(TP+ FP)× (TP+ FN)× (TN+ FP)× (TN+ FN)]0.5 ,
+
+(.6)
+
+where TP and TN refer to the true-positive and true-negative values, and FP and FN denote false-positive and false-negative values, respectively.
+
+Additional Experimental Results for Performance
+we report the empirical result in which the basic classiﬁer is a GCN or GAT in Table .10.
+In order to validate the superior performance of CI-GNN, we report the ranks over different performance metrics in each dataset and further perform Nemenyi’s
+
+29
+
+Table .10: The classiﬁcation performance and standard deviations of variants of CI-GNN. The best performances are in bold.
+
+Metrics
+
+Method BA-2motifs MUTAG PROTEINS NCI1
+
+ABIDE REST-meta-MDD
+
+Accuracy
+
+CI-GNN (GCN) CI-GNN (GAT)
+
+0.62 ± 0.02 0.65 ± 0.02
+
+0.87 ± 0.10 0.92 ± 0.06
+
+0.77 ± 0.02 0.79 ± 0.01
+
+0.76 ± 0.01 0.73 ± 0.01
+
+0.65 ± 0.03 0.68 ± 0.01
+
+0.71 ± 0.03 0.74 ± 0.02
+
+F1
+
+CI-GNN (GCN) 0.61 ± 0.10 0.89 ± 0.09 0.69 ± 0.03 0.75 ± 0.04 0.55 ± 0.10 CI-GNN (GAT) 0.62 ± 0.01 0.93 ± 0.05 0.67 ± 0.03 0.72 ± 0.02 0.69 ± 0.01
+
+0.72 ± 0.01 0.76 ± 0.03
+
+MCC
+
+CI-GNN (GCN) 0.25 ± 0.04 0.72 ± 0.20 0.51 ± 0.05 0.52 ± 0.01 0.30 ± 0.07 CI-GNN (GAT) 0.30 ± 0.01 0.81 ± 0.11 0.54 ± 0.04 0.45 ± 0.02 0.37 ± 0.02
+
+0.55 ± 0.06 0.59 ± 0.03
+
+post-hoc test Nemenyi (1963) to test the statistical difference in all methods. According results are shown in Table .11 and Figure .11. Results indicate that CIGNN is able to achieve the best performance on all datasets no matter the performance metrics. Furthermore, we observe that CI-GNN are signiﬁcantly different from the SIB and RC-Explainer.
+
+Table .11: A summarization of different approaches and their average ranks over different performance metrics in each dataset. The overall average ranks over different datasets are shown. The best two performance in each dataset are in bold and underlined, respectively.
+
+Methods BA-2Motifs MUTAG PROTEINS NCI1 ABIDE REST-meta-MDD Ave.
+
+GCN
+
+6.08
+
+5.67
+
+6.25
+
+3.42 4.17
+
+GAT
+
+6.58
+
+3.25
+
+5.75
+
+4.58 3.33
+
+GIN
+
+2.33
+
+3.00
+
+4.25
+
+1.58 7.08
+
+SIB
+
+6.17
+
+7.08
+
+3.75
+
+6.42 5.83
+
+GNNExplainer 5.25
+
+4.75
+
+4.42
+
+5.33 6.00
+
+PGExplainer
+
+4.67
+
+4.75
+
+2.33
+
+6.67 3.75
+
+RC-Explainer
+
+3.58
+
+5.92
+
+7.17
+
+6.58 2.92
+
+CI-GNN
+
+1.33
+
+1.58
+
+2.08
+
+1.42 2.92
+
+3.50
+
+4.85
+
+4.67
+
+4.69
+
+4.25
+
+3.75
+
+4.67
+
+5.65
+
+3.00
+
+4.79
+
+7.33
+
+4.92
+
+7.08
+
+5.54
+
+1.50
+
+1.81
+
+Leave-One-Site-Out Cross Validation To further assess the generalization ability of CI-GNN, we perform leave-
+one-site-out cross validations on two brain disease datasets including ABIDE and REST-meta-MDD. Both datasets encompass 17 independent sites. Speciﬁcally, each dataset is divided into the training set (16 sites out of 17 sites) and the testing set (remaining site out of 17 sites). In addition, we compare the accuracy of CI-GNN with SIB. The experimental results are presented in Table .12.
+As can be seen, CI-GNN achieves the better mean generalization accuracy of 0.71 and 0.77 than SIB and obtains noticeable improvements in most of sites on
+30
+
+GCN GAT
+
+0.85
+
+GIN SIB GNNExplainer
+
+0.65 *
+0.45
+
+PGExplainer
+
+RC-Explainer
+
+*
+
+CI-GNN
+
+*
+
+*
+
+GCN GAT
+
+GIN GNNSEIBxplPaiGnEerxpRlaCin-EerxplainerCI-GNN
+
+0.25 0.05
+
+Figure .11: The statistical differences (p-values) between all competing methods pairs using a Nemenyi’s post-hoc test are shown. Signiﬁcant differences (p < 0.05) are marked with a star. Our method are signiﬁcantly different from the SIB and RC-Explainer.
+
+ABIDE and REST-meta-MDD, respectively. Considering that the data collected by the different sites are heterogenous, these results suggest that CI-GNN could have the potential to handle the out-of-distribution (OOD) datasets.
+Additional Ablation Study Figure .12 further demonstrates the inﬂuence of GraphVAE and causal effect
+estimator on molecular datasets including MUTAG, NCI1 and PROTEINS.
+
+31
+
+Table .12: Leave-one-site-out cross validation on ABIDE and REST-meta-MDD. The best performance in each site is in bold.
+
+ABIDE
+
+REST-meta-MDD
+
+Site
+
+Sample (ASD/TD) SIB CI-GNN Site Sample (MDD/HC) SIB CI-GNN
+
+CMU CALTECH
+KKI LEUVEN MAX MUN
+NYU OHSU OLIN PITT SBL SDSU STANFORD TRINITY UCLA
+UM USM YALE Mean
+
+11/13 19/19 22/33 29/35 24/33 79/105 13/15 20/16 30/27 15/15 14/22 20/20 24/25 54/45 68/77 58/43 28/28 31/34
+
+0.79 0.75 site1 0.68 0.83 site2 0.58 0.82 site3 0.64 0.6 site4 0.63 0.69 site5 0.64 0.64 site6 0.61 0.67 site7 0.64 0.79 site8 0.61 0.78 site9 0.63 0.69 site10 0.75 0.83 site11 0.63 0.75 site12 0.63 0.64 site13 0.6 0.63 site14 0.62 0.61 site15 0.59 0.66 site16 0.61 0.75 site17 0.64 0.71 Mean
+
+73/73 16/14 18/23 35/37 39/48 48/48 45/26 20/17 20/16 61/32 30/37 41/41 18/31 245/225 79/65 18/20 22/23 49/46
+
+0.59 0.63 0.73 0.83 0.83 0.85 0.65 0.76 0.7 0.7 0.75 0.81 0.74 0.75 0.69 0.73 0.76 0.72 0.71 0.68 0.72 0.81 0.62 0.75 0.8 0.73 0.72 0.77 0.72 0.82 0.73 0.75 0.76 0.8 0.72 0.76
+
+Minimal Implementation of CI-GNN In PyTorch
+We ﬁnally provide PyTorch implementation of CI-GNN. Speciﬁcally, we show the code of the matrix-based Re´nyi’s δ-order entropy functional as well as how to adaptively choose kernel width σ. We also show the code to evaluate the loss of causal effect estimator (i.e., Eq. (10) in the main manuscript) and to optimize L1 (i.e., Eq. (15) in the main manuscript).
+1
+import torch 3 from scipy . spatial . distance import pdist , squareform
+5 def reyi entropy (k, eps=1e−8, alpha=1.01) :
+7 k = k /( torch . trace (k)+eps) eigv = torch .abs( torch . linalg . eigh(k) [0])
+9 eig pow = eigv**alpha entropy = (1/(1− alpha ) ) * torch . log2( torch . sum(eig pow))
+32
+
+Accuracy Accuracy Accuracy
+
+1.0
+
+1.0
+
+0.9
+
+0.9
+
+0.9
+
+0.8
+
+0.8
+
+0.8
+
+0.7
+
+0.7
+
+0.7
+
+0.6 CI-GNNG-INNoCausal CI-GNN
+(a) MUTAG
+
+0.6 CI-GNNG-INNoCausal CI-GNN
+(b) NCI1
+
+0.6 CI-GNNG-INNoCausal CI-GNN
+(c) PROTEINS
+
+Figure .12: Ablation study on molecular datasets.
+
+11 return entropy
+
+13 def pairwise distances (x) :
+
+15 #x should be two dimensional
+
+if x.dim()==1:
+
+17
+
+x = x.unsqueeze(1)
+
+instances norm = torch . sum(x**2,−1).reshape ((−1,1) ) 19 return −2*torch.mm(x,x.t() ) + instances norm + instances norm . t ()
+
+21 def calculate sigma (x) :
+
+23 x = x.cpu() . detach () . numpy() k = squareform( pdist (x, ’ euclidean ’ ) ) # Calculate Euclidiean distance between all samples.
+25 sigma = np.mean(np.mean(np.sort(k [:, :10], 1)) )
+
+27 return sigma
+
+29 def calculate gram mat (x) :
+
+33
+
+31 dist = pairwise distances (x)
+sigma = calculate sigma (x)**2 33 return torch . exp(− dist /sigma)
+
+35 def calculate causal loss ( alpha , beta , Y):
+
+37 s alpha = calculate sigma mat ( alpha )
+s beta = calculate sigma mat ( beta )
+39 s Y = calculate sigma mat (Y)
+#compute the causal inﬂuence of alpha on Y
+41 Conditional MI = reyi entropy (s Y*s beta ) + reyi entropy ( s alpha * s beta ) − reyi entropy ( s beta ) − reyi entropy ( s alpha *s Y*s beta) #compute the mutual information between alpha and beta
+43 MI = reyi entropy ( s alpha ) + reyi entropy ( s beta ) −
+reyi entropy ( s alpha , s beta ) return MI − Conditional MI
+
+45
+
+def generative causal (Z, Y, VAE loss, K, lambda1):
+
+47
+
+’’’
+
+Args:
+
+49
+
+Z: the unobserved latent factor obtained by GraphVAE
+
+Y: the true label
+
+51
+
+VAE loss: the objective function of GraphVAE
+
+K: the pre−deﬁned feature dimensions for alpha
+
+53
+
+lambda: the hyper−parameters
+
+’’’
+
+55
+alpha = z [:,: K] 57 beta = z [:, K:]
+causal loss = calculate causal loss ( alpha , beta ,Y) 59 #compute gradient
+loss = VAE loss + lambda * causal loss 61 loss . backward()
+optimizer . step () 63 optimizer . zero grad ()
+
+CI-GNN PyTorch
+
+34
+
+References
+H.-U. Wittchen, F. Jacobi, J. Rehm, A. Gustavsson, M. Svensson, B. Jo¨nsson, J. Olesen, C. Allgulander, J. Alonso, C. Faravelli, et al., The size and burden of mental disorders and other disorders of the brain in europe 2010, European neuropsychopharmacology 21 (2011) 655–679.
+M. Goodkind, S. B. Eickhoff, D. J. Oathes, Y. Jiang, A. Chang, L. B. JonesHagata, B. N. Ortega, Y. V. Zaiko, E. L. Roach, M. S. Korgaonkar, et al., Identiﬁcation of a common neurobiological substrate for mental illness, JAMA psychiatry 72 (2015) 305–315.
+P. Lanillos, D. Oliva, A. Philippsen, Y. Yamashita, Y. Nagai, G. Cheng, A review on neural network models of schizophrenia and autism spectrum disorder, Neural Networks 122 (2020) 338–363.
+Y. Zhang, W. Wu, R. T. Toll, S. Naparstek, A. Maron-Katz, M. Watts, J. Gordon, J. Jeong, L. Astolﬁ, E. Shpigel, et al., Identiﬁcation of psychiatric disorder subtypes from functional connectivity patterns in resting-state electroencephalography, Nature biomedical engineering 5 (2021) 309–323.
+Z.-A. Huang, Z. Zhu, C. H. Yau, K. C. Tan, Identifying autism spectrum disorder from resting-state fmri using deep belief network, IEEE Transactions on neural networks and learning systems 32 (2020) 2847–2861.
+P. M. Matthews, P. Jezzard, Functional magnetic resonance imaging, Journal of Neurology, Neurosurgery & Psychiatry 75 (2004) 6–12.
+J. A. Peraza-Goicolea, E. Mart´ınez-Montes, E. Aubert, P. A. Valde´s-Herna´ndez, R. Mulet, Modeling functional resting-state brain networks through neural message passing on the human connectome, Neural Networks 123 (2020) 52–69.
+Y. Du, Z. Fu, V. D. Calhoun, Classiﬁcation and prediction of brain disorders using functional connectivity: promising but challenging, Frontiers in neuroscience 12 (2018) 525.
+Z. Zhang, G. I. Allen, H. Zhu, D. Dunson, Tensor network factorizations: Relationships between brain structural connectomes and traits, Neuroimage 197 (2019) 330–343.
+35
+
+E. Challis, P. Hurley, L. Serra, M. Bozzali, S. Oliver, M. Cercignani, Gaussian process classiﬁcation of alzheimer’s disease and mild cognitive impairment from resting-state fmri, NeuroImage 112 (2015) 232–243.
+X. Pan, Y. Xu, A novel and safe two-stage screening method for support vector machine, IEEE transactions on neural networks and learning systems 30 (2018) 2263–2274.
+A. Yamashita, Y. Sakai, T. Yamada, N. Yahata, A. Kunimatsu, N. Okada, T. Itahashi, R. Hashimoto, H. Mizuta, N. Ichikawa, et al., Generalizable brain network markers of major depressive disorder across multiple imaging sites, PLoS biology 18 (2020) e3000966.
+M. Cordova, K. Shada, D. V. Demeter, O. Doyle, O. Miranda-Dominguez, A. Perrone, E. Schifsky, A. Graham, E. Fombonne, B. Langhorst, et al., Heterogeneity of executive function revealed by a functional random forest approach across adhd and asd, NeuroImage: Clinical 26 (2020) 102245.
+J. Sui, R. Jiang, J. Bustillo, V. Calhoun, Neuroimaging-based individualized prediction of cognition and behavior for mental disorders and health: methods and promises, Biological psychiatry 88 (2020) 818–828.
+X. Li, Y. Zhou, N. Dvornek, M. Zhang, S. Gao, J. Zhuang, D. Scheinost, L. H. Staib, P. Ventola, J. S. Duncan, Braingnn: Interpretable brain graph neural network for fmri analysis, Medical Image Analysis 74 (2021) 102233.
+W. Hamilton, Z. Ying, J. Leskovec, Inductive representation learning on large graphs, Advances in neural information processing systems 30 (2017).
+X. Zhao, J. Wu, H. Peng, A. Beheshti, J. J. Monaghan, D. McAlpine, H. Hernandez-Perez, M. Dras, Q. Dai, Y. Li, et al., Deep reinforcement learning guided graph neural networks for brain network analysis, Neural Networks 154 (2022) 56–67.
+Z. Zhou, X. Chen, Y. Zhang, D. Hu, L. Qiao, R. Yu, P.-T. Yap, G. Pan, H. Zhang, D. Shen, A toolbox for brain network construction and classiﬁcation (brainnetclass), Human brain mapping 41 (2020) 2808–2826.
+H. Yuan, J. Tang, X. Hu, S. Ji, Xgnn: Towards model-level explanations of graph neural networks, in: Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, 2020, pp. 430–438.
+36
+
+H. Yuan, H. Yu, J. Wang, K. Li, S. Ji, On explainability of graph neural networks via subgraph explorations, in: International Conference on Machine Learning, PMLR, 2021, pp. 12241–12252.
+J. Zeng, X. Wang, J. Liu, Y. Chen, Z. Liang, T.-S. Chua, Z. L. Chua, Shadewatcher: Recommendation-guided cyber threat analysis using system audit records, in: 2022 IEEE Symposium on Security and Privacy (SP), IEEE Computer Society, 2022, pp. 1567–1567.
+H. Yuan, H. Yu, S. Gui, S. Ji, Explainability in graph neural networks: A taxonomic survey, arXiv preprint arXiv:2012.15445 (2020).
+Z. Ying, D. Bourgeois, J. You, M. Zitnik, J. Leskovec, Gnnexplainer: Generating explanations for graph neural networks, Advances in neural information processing systems 32 (2019).
+D. Luo, W. Cheng, D. Xu, W. Yu, B. Zong, H. Chen, X. Zhang, Parameterized explainer for graph neural network, Advances in neural information processing systems 33 (2020) 19620–19631.
+Z. Zhang, Q. Liu, H. Wang, C. Lu, C. Lee, Protgnn: Towards self-explaining graph neural networks, in: Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 36, 2022, pp. 9127–9135.
+C. Rudin, Please stop explaining black box models for high stakes decisions, Stat 1050 (2018) 26.
+S. Miao, M. Liu, P. Li, Interpretable and generalizable graph learning via stochastic attention mechanism, in: International Conference on Machine Learning, PMLR, 2022, pp. 15524–15543.
+A. K. Debnath, R. L. Lopez de Compadre, G. Debnath, A. J. Shusterman, C. Hansch, Structure-activity relationship of mutagenic aromatic and heteroaromatic nitro compounds. correlation with molecular orbital energies and hydrophobicity, Journal of medicinal chemistry 34 (1991) 786–797.
+K. M. Borgwardt, C. S. Ong, S. Scho¨nauer, S. Vishwanathan, A. J. Smola, H.P. Kriegel, Protein function prediction via graph kernels, Bioinformatics 21 (2005) i47–i56.
+37
+
+H. Cui, W. Dai, Y. Zhu, X. Li, L. He, C. Yang, Brainnnexplainer: An interpretable graph neural network framework for brain network based disease analysis, in: ICML 2021 Workshop on Interpretable Machine Learning in Healthcare, 2021.
+H. Cui, W. Dai, Y. Zhu, X. Li, L. He, C. Yang, Interpretable graph neural networks for connectome-based brain disorder analysis, in: International Conference on Medical Image Computing and Computer-Assisted Intervention, Springer, 2022, pp. 375–385.
+S. Qiu, P. S. Joshi, M. I. Miller, C. Xue, X. Zhou, C. Karjadi, G. H. Chang, A. S. Joshi, B. Dwyer, S. Zhu, et al., Development and validation of an interpretable deep learning framework for alzheimer’s disease classiﬁcation, Brain 143 (2020) 1920–1933.
+M. P. van den Heuvel, O. Sporns, A cross-disorder connectome landscape of brain dysconnectivity, Nature reviews neuroscience 20 (2019) 435–446.
+A. Seth, Granger causality, Scholarpedia 2 (2007) 1667.
+L. G. S. Giraldo, M. Rao, J. C. Principe, Measures of entropy from data using inﬁnitely divisible kernels, IEEE Transactions on Information Theory 61 (2014) 535–548.
+S. Yu, L. G. S. Giraldo, R. Jenssen, J. C. Principe, Multivariate extension of matrix-based re´nyi’s α-order entropy functional, IEEE transactions on pattern analysis and machine intelligence 42 (2019) 2960–2966.
+H. Rubin-Falcone, F. Zanderigo, B. Thapa-Chhetry, M. Lan, J. M. Miller, M. E. Sublette, M. A. Oquendo, D. J. Hellerstein, P. J. McGrath, J. W. Stewart, et al., Pattern recognition of magnetic resonance imaging-based gray matter volume measurements classiﬁes bipolar disorder and major depressive disorder, Journal of affective disorders 227 (2018) 498–505.
+M. Zhang, Z. Cui, M. Neumann, Y. Chen, An end-to-end deep learning architecture for graph classiﬁcation, in: Proceedings of the AAAI conference on artiﬁcial intelligence, volume 32, 2018.
+M. Schlichtkrull, T. N. Kipf, P. Bloem, R. v. d. Berg, I. Titov, M. Welling, Modeling relational data with graph convolutional networks, in: European semantic web conference, Springer, 2018, pp. 593–607.
+38
+
+D. Bo, X. Wang, C. Shi, H. Shen, Beyond low-frequency information in graph convolutional networks, in: Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 35, 2021, pp. 3950–3957.
+M. Welling, T. N. Kipf, Semi-supervised classiﬁcation with graph convolutional networks, in: J. International Conference on Learning Representations (ICLR 2017), 2016.
+K. Xu, W. Hu, J. Leskovec, S. Jegelka, How powerful are graph neural networks?, in: International Conference on Learning Representations, 2018.
+Z. Ying, J. You, C. Morris, X. Ren, W. Hamilton, J. Leskovec, Hierarchical graph representation learning with differentiable pooling, Advances in neural information processing systems 31 (2018).
+F. M. Bianchi, D. Grattarola, C. Alippi, Spectral clustering with graph neural networks for graph pooling, in: International Conference on Machine Learning, PMLR, 2020, pp. 874–883.
+F. Baldassarre, H. Azizpour, Explainability techniques for graph convolutional networks, in: International Conference on Machine Learning (ICML) Workshops, 2019 Workshop on Learning and Reasoning with Graph-Structured Representations, 2019.
+T. Schnake, O. Eberle, J. Lederer, S. Nakajima, K. T. Schu¨tt, K.-R. Mu¨ller, G. Montavon, Xai for graphs: explaining graph neural network predictions by identifying relevant walks (2020).
+M. Vu, M. T. Thai, Pgm-explainer: Probabilistic graphical model explanations for graph neural networks, Advances in neural information processing systems 33 (2020) 12225–12235.
+T. Funke, M. Khosla, A. Anand, Hard masking for explaining graph neural networks (2020).
+S. Fan, X. Wang, C. Shi, P. Cui, B. Wang, Generalizing graph neural networks on out-of-distribution graphs, arXiv preprint arXiv:2111.10657 (2021).
+X. Wang, Y. Wu, A. Zhang, F. Feng, X. He, T.-S. Chua, Reinforced causal explainer for graph neural networks, IEEE Transactions on Pattern Analysis and Machine Intelligence (2022).
+39
+
+W. Lin, H. Lan, B. Li, Generative causal explanations for graph neural networks, in: International Conference on Machine Learning, PMLR, 2021, pp. 6666– 6679.
+W. Lin, H. Lan, H. Wang, B. Li, Orphicx: A causality-inspired latent variable model for interpreting graph neural networks, Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (2022) 13729–13738.
+Y. Wu, X. Wang, A. Zhang, X. He, T.-S. Chua, Discovering invariant rationales for graph neural networks, in: International Conference on Learning Representations, 2021.
+M. Simonovsky, N. Komodakis, Graphvae: Towards generation of small graphs using variational autoencoders, in: International conference on artiﬁcial neural networks, Springer, 2018, pp. 412–422.
+M. O’Shaughnessy, G. Canal, M. Connor, C. Rozell, M. Davenport, Generative causal explanations of black-box classiﬁers, Advances in Neural Information Processing Systems 33 (2020) 5453–5467.
+D. J. MacKay, Information theory, inference and learning algorithms, Cambridge university press, 2003.
+M. I. Belghazi, A. Baratin, S. Rajeshwar, S. Ozair, Y. Bengio, A. Courville, D. Hjelm, Mutual information neural estimation, in: International conference on machine learning, PMLR, 2018, pp. 531–540.
+J. Yu, J. Cao, R. He, Improving subgraph recognition with variational graph information bottleneck, in: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, 2022, pp. 19396–19405.
+R. Bhatia, Inﬁnitely divisible matrices, The American Mathematical Monthly 113 (2006) 221–235.
+J. Li, H. Shao, D. Sun, R. Wang, Y. Yan, J. Li, S. Liu, H. Tong, T. Abdelzaher, Unsupervised belief representation learning in polarized networks with information-theoretic variational graph auto-encoders, In Proceedings of ACM Conference (2021).
+A. Di Martino, C.-G. Yan, Q. Li, E. Denio, F. X. Castellanos, K. Alaerts, J. S. Anderson, M. Assaf, S. Y. Bookheimer, M. Dapretto, et al., The autism brain
+40
+
+imaging data exchange: towards a large-scale evaluation of the intrinsic brain architecture in autism, Molecular psychiatry 19 (2014) 659–667.
+C.-G. Yan, X. Chen, L. Li, F. X. Castellanos, T.-J. Bai, Q.-J. Bo, J. Cao, G.-M. Chen, N.-X. Chen, W. Chen, et al., Reduced default mode network functional connectivity in patients with recurrent major depressive disorder, Proceedings of the National Academy of Sciences 116 (2019) 9078–9083.
+S. J. Rigatti, Random forest, Journal of Insurance Medicine 47 (2017) 31–39.
+J. Ranstam, J. Cook, Lasso regression, Journal of British Surgery 105 (2018) 1348–1348.
+P. Velicˇkovic´, G. Cucurull, A. Casanova, A. Romero, P. Lio`, Y. Bengio, Graph attention networks, in: International Conference on Learning Representations, 2018.
+J. Yu, T. Xu, Y. Rong, Y. Bian, J. Huang, R. He, Recognizing predictive substructures with subgraph information bottleneck, IEEE Transactions on Pattern Analysis and Machine Intelligence (2021).
+D. P. Kingma, J. Ba, Adam: A method for stochastic optimization, in: International Conference on Learning Representations, 2015.
+K. Zheng, S. Yu, B. Li, R. Jenssen, B. Chen, Brainib: Interpretable brain networkbased psychiatric diagnosis with graph information bottleneck, arXiv preprint arXiv:2205.03612 (2022).
+A. Gretton, O. Bousquet, A. Smola, B. Scho¨lkopf, Measuring statistical dependence with hilbert-schmidt norms, in: International conference on algorithmic learning theory, Springer, 2005, pp. 63–77.
+Y. Jacob, L. S. Morris, G. Verma, S. B. Rutter, P. Balchandani, J. W. Murrough, Altered hippocampus and amygdala subregion connectome hierarchy in major depressive disorder, Translational psychiatry 12 (2022) 1–9.
+R. H. Belmaker, G. Agam, Major depressive disorder, New England Journal of Medicine 358 (2008) 55–68.
+P. Lin, S. Zang, Y. Bai, H. Wang, Reconﬁguration of brain network dynamics in autism spectrum disorder based on hidden markov model, Frontiers in Human Neuroscience (2022) 6.
+41
+
+C. W. Granger, Investigating causal relations by econometric models and crossspectral methods, Econometrica: journal of the Econometric Society (1969) 424–438.
+Y. Chen, S. L. Bressler, M. Ding, Frequency decomposition of conditional granger causality and application to multivariate neural ﬁeld potential data, Journal of neuroscience methods 150 (2006) 228–237.
+O. O¨ zdenizci, D. Erdog˘mus¸, Information theoretic feature transformation learning for brain interfaces, IEEE Transactions on Biomedical Engineering 67 (2019) 69–78.
+R. M. Fano, D. Hawkins, Transmission of information: A statistical theory of communications, American Journal of Physics 29 (1961) 793–794.
+M. Hellman, J. Raviv, Probability of error, equivocation, and the chernoff bound, IEEE Transactions on Information Theory 16 (1970) 368–372.
+N. Wale, I. A. Watson, G. Karypis, Comparison of descriptor spaces for chemical compound retrieval and classiﬁcation, Knowledge and Information Systems 14 (2008) 347–375.
+P. B. Nemenyi, Distribution-free multiple comparisons., Princeton University, 1963.
+42
+

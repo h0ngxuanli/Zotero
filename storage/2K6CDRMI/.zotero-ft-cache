@@ -1,0 +1,899 @@
+Robust Counterfactual Explanations on Graph Neural Networks
+Mohit Bajaj1∗ Lingyang Chu2* Zi Yu Xue1,3 Jian Pei4 Lanjun Wang1 Peter Cho-Ho Lam1 Yong Zhang1
+1Huawei Technologies Canada Co., Ltd. 2McMaster University 3 The University of British Columbia 4Simon Fraser University
+{mohit.bajaj1, zi.yu.xue, lanjun.wang, cho.ho.lam, yong.zhang3}@huawei.com chul9@mcmaster.ca, jpei@cs.sfu.ca
+Abstract
+Massive deployment of Graph Neural Networks (GNNs) in high-stake applications generates a strong demand for explanations that are robust to noise and align well with human intuition. Most existing methods generate explanations by identifying a subgraph of an input graph that has a strong correlation with the prediction. These explanations are not robust to noise because independently optimizing the correlation for a single input can easily overﬁt noise. Moreover, they are not counterfactual because removing an identiﬁed subgraph from an input graph does not necessarily change the prediction result. In this paper, we propose a novel method to generate robust counterfactual explanations on GNNs by explicitly modelling the common decision logic of GNNs on similar input graphs. Our explanations are naturally robust to noise because they are produced from the common decision boundaries of a GNN that govern the predictions of many similar input graphs. The explanations are also counterfactual because removing the set of edges identiﬁed by an explanation from the input graph changes the prediction signiﬁcantly. Exhaustive experiments on many public datasets demonstrate the superior performance of our method.
+1 Introduction
+Graph Neural Networks (GNNs) [22, 37, 50] have achieved great practical successes in many realworld applications, such as chemistry [31], molecular biology [17], social networks [3] and epidemic modelling [34]. For most of these applications, explaining predictions made by a GNN model is crucial for establishing trust with end-users, identifying the cause of a prediction, and even discovering potential deﬁciencies of a GNN model before massive deployment. Ideally, an explanation should be able to answer questions like “Would the prediction of the GNN model change if a certain part of an input molecule is removed?” in the context of predicting whether an artiﬁcial molecule is active for a certain type of proteins [19, 41], “Would an item recommended still be recommended if a customer had not purchased some other items in the past?” for a GNN built for recommendation systems [9, 44]. Counterfactual explanations [28] in the form of “If X had not occurred, Y would not have occurred” [26] are the principled way to answer such questions and thus are highly desirable for GNNs. In the context of GNNs, a counterfactual explanation identiﬁes a small subset of edges of the input graph instance such that removing those edges signiﬁcantly changes the prediction made by the GNN. Counterfactual explanations are usually concise and easy to understand [28, 36] because they align well with the human intuition to describe a causal situation [26]. To make explanations more trustworthy, the counterfactual explanation should be robust to noise, that is, some slight changes on
+∗Equal contribution.
+35th Conference on Neural Information Processing Systems (NeurIPS 2021).
+
+an input graph do not change the explanation signiﬁcantly. This idea aligns well with the notion of robustness discussed for DNN explanations in computer vision domain [11]. According to Ghorbani et al. [11] many interpretations on neural networks are fragile as it is easier to generate adversarial perturbations that produce perceptively indistinguishable inputs that are assigned the same predicted label, yet have very different interpretations. Here, the concepts of “fragile” “robustness” describe the same concept from opposite perspectives. An interpretation is said to be fragile if systematic perturbations can lead to dramatically different interpretations without changing the label. Otherwise, the interpretation is said to be robust. How to produce robust counterfactual explanations on predictions made by general graph neural networks is a novel problem that has not been systematically studied before. As to be discussed in Section 2, most GNN explanation methods [45, 25, 46, 37, 32] are neither counterfactual nor robust. These methods mostly focus on identifying a subgraph of an input graph that achieves a high correlation with the prediction result. Such explanations are usually not counterfactual because, due to the high non-convexity of GNNs, removing a subgraph that achieves a high correlation does not necessarily change the prediction result. Moreover, many existing methods [45, 25, 37, 32] are not robust to noise and may change signiﬁcantly upon slight modiﬁcations on input graphs, because the explanation of every single input graph prediction is independently optimized to maximize the correlation with the prediction, thus an explanation can easily overﬁt the noise in the data. In this paper2, we develop RCExplainer, a novel method to produce robust counterfactual explanations on GNNs. The key idea is to ﬁrst model the common decision logic of a GNN by set of decision regions where each decision region governs the predictions on a large number of graphs, and then extract robust counterfactual explanations by a deep neural network that explores the decision logic carried by the linear decision boundaries of the decision regions. We make the following contributions. First, we model the decision logic of a GNN by a set of decision regions, where each decision region is induced by a set of linear decision boundaries of the GNN. We propose an unsupervised method to ﬁnd decision regions for each class such that each decision region governs the prediction of multiple graph samples predicted to be the same class. The linear decision boundaries of the decision region capture the common decision logic on all the graph instances inside the decision region, thus do not easily overﬁt the noise of an individual graph instance. By exploring the common decision logic encoded in the linear boundaries, we are able to produce counterfactual explanations that are inherently robust to noise. Second, based on the linear boundaries of the decision region, we propose a novel loss function to train a neural network that produces a robust counterfactual explanation as a small subset of edges of an input graph. The loss function is designed to directly optimize the explainability and counterfactual property of the subset of edges, such that: 1) the subgraph induced by the edges lies within the decision region, thus has a prediction consistent with the input graph; and 2) deleting the subset of edges from the input graph produces a remainder subgraph that lies outside the decision region, thus the prediction on the remainder subgraph changes signiﬁcantly. Last, we conduct comprehensive experimental study to compare our method with the state-of-the-art methods on ﬁdelity, robustness, accuracy and efﬁciency. All the results solidly demonstrate the superior performance of our approach.
+2 Related work
+The existing GNN explanation methods [46, 37, 45, 32, 25] generally fall into two categories: model level explanation [46] and instance level explanation [37, 45, 32, 25]. A model level explanation method [46] produces a high-level explanation about the general behaviors of a GNN independent from input examples. This may be achieved by synthesizing a set of artiﬁcial graph instances such that each artiﬁcial graph instance maximizes the prediction score on a certain class. The weakness of model level explanation methods is that an input graph instance may not contain an artiﬁcial graph instance, and removing an artiﬁcial graph from an input graph does not necessarily change the prediction. As a result, model level explanations are substantially different from counterfactual explanations, because the synthesized artiﬁcial graphs do not provide insights into how the GNN makes its prediction on a speciﬁc input graph instance. The instance level explanation methods [37, 45, 32, 25] explain the prediction(s) made by a GNN on a speciﬁc input graph instance or multiple instances by identifying a subgraph of an input graph
+2Other versions of the paper are available at https://arxiv.org/abs/2107.04086
+2
+
+instance that achieves a high correlation with the prediction on the input graph. GNNExplainer [45] removes redundant edges from an input graph instance to produce an explanation that maximizes the mutual information between the distribution of subgraphs of the input graph and the GNN’s prediction. Following the same idea by Ying et al. [45], PGExplainer [25] parameterizes the generation process of explanations by a deep neural network, and trains it to maximize a similar mutual information based loss used by GNNExplainer [45]. The trained deep neural network is then applied to generate explanations for a single input graph instance or a group of input graphs. MEG [30] incorporates strong domain knowledge in chemistry with a reinforcement learning framework to produce counterfactual explanations on GNNs speciﬁcally built for compound prediction, but the heavy reliance on domain knowledge largely limits its applicability on general GNNs. The recently proposed CF-GNNExplainer [24] independently optimizes the counterfactual property for each explanation but ignores the correlation between the prediction and the explanation. Some studies [32, 37] also adapt the existing explanation methods of image-oriented deep neural networks to produce instance level explanations for GNNs. Pope et al. [32] extend several gradient based methods [33, 35, 49] to explain predictions made by GNNs. The explanations are prone to gradient saturation [12] and may also be misleading [1] due to the heavy reliance on noisy gradients. Velickovic et al. [37] extend the attention mechanism [7, 8] to identify the nodes in an input graph that contribute the most to the prediction. This method has to retrain the GNN with the altered architecture and the inserted attention layers. Thus, the explanations may not be faithful to the original GNN. Instance level explanations from most of the methods are usually not counterfactual because, due to the non-convexity of GNNs, removing an explanation subgraph from the input graph does not necessarily change the prediction result. Moreover, those methods [45, 25, 37, 32, 24] are usually not robust to noise because the explanation of every single input graph prediction is independently optimized. Thus, an explanation can easily overﬁt the noise inside input graphs and may change signiﬁcantly upon slight modiﬁcations on input graphs. To tackle the weaknesses in the existing methods, in this paper, we directly optimize the counterfactual property of an explanation along with the correlation between the explanation and the prediction. Our explanations are also much more robust to modiﬁcations on input graphs, because they are produced from the common decision logic on a large group of similar input graphs, which do not easily overﬁt the noise of an individual graph sample. Please note that our study is substantially different from adversarial attacks on GNNs. The adversarial attacking methods [51, 53, 42, 43, 20] use adversarial examples to change the predictions of GNNs but ignore the explainability of the generated adversarial examples [10]. Thus, the adversarial examples generated by adversarial attacks may not explain the original prediction. Our method is substantially different from the above works because we focus on explaining the prediction by directly optimizing the counterfactual property of an explanation along with correlation of the explanation with the prediction. We also require that the explanation is generally valid for a large set of similar graph instances by extracting it from the common linear decision boundaries of a large decision region.
+3 Problem Formulation
+Denote by G = {V, E} a graph where V = {v1, v2, . . . , vn} is the set of n nodes and E ⊆ V × V is the set of edges. The edge structure of a graph G is described by an adjacency matrix A ∈ {0, 1}n×n, where Aij = 1 if there is an edge between node vi and vj; and Aij = 0 otherwise. Denote by φ a GNN model that maps a graph to a probability distribution over a set of classes denoted by C. Let D denote the set of graphs that are used to train the GNN model φ. We focus on GNNs that adopt piecewise linear activation functions, such as MaxOut [14] and the family of ReLU [13, 15, 29]. The robust counterfactual explanation problem is deﬁned as follows.
+Deﬁnition 1 (Robust Counterfactual Explanation Problem) Given a GNN model φ trained on a set of graphs D, for an input graph G = {V, E}, our goal is to explain why G is predicted by the GNN model as φ(G) by identifying a small subset of edges S ⊆ E, such that (1) removing the set of edges in S from G that causes the maximum drop in the conﬁdence of the original prediction; and (2) S is stable and doesn’t change when the edges and the feature representations of the nodes of G are perturbed by random noise.
+3
+
+In the deﬁnition, the ﬁrst requirement requires that the explanation S is counterfactual, and the second requirement requires that the explanation is robust to noisy changes on the edges and nodes of G.
+
+4 Method
+In this section, we ﬁrst introduce how to extract the common decision logic of a GNN on a large set of graphs with the same predicted class. This is achieved by a decision region induced by a set of linear decision boundaries of the GNN. Then, based on the linear boundaries of the decision region, we propose a novel loss function to train a neural network that produces robust counterfactual explanations. Last, we discuss the time complexity of our method when generating explanations.
+
+4.1 Modelling Decision Regions
+
+Following the routines of many deep neural network explanation methods [33, 48], we extract the
+
+decision region of a GNN in the d-dimensional output space Od of the last convolution layer of the GNN. The features generated by the last convolution layer are more conceptually meaningful
+
+and more robust to noise than those raw features of input graphs, such as vertices and edges [52, 2].
+
+Denote by φgc the mapping function realized by the graph convolution layers that maps an input
+
+gcoranpnhecGtetdoliatysegrrsapthhaet mmbaepdsdtihneggφrgacp(hGe)m∈beOddd,inagndφgbcy(Gφf)ctothae
+
+mapping function realized by the fully predicted distribution over the classes
+
+in C. The overall prediction φ(G) made by the GNN can be written as φ(G) = φfc(φgc(G)).
+
+For the GNNs that adopt piecewise linear activation functions for the hidden neurons, such as
+
+MaxOut [14] characterized
+
+and the family of ReLU [13, 15, 29], the by a piecewise linear decision boundary
+
+fdoercmiseidonbylogciocnnoef cφtefdc
+
+in the space Od is pieces of decision
+
+hyperplanes in Od [1]. We call these hyperplanes linear decision boundaries (LDBs), and denote
+
+by H the set of LDBs induced number of convex polytopes.
+
+Abycφofncv.exThpeolsyettoopfeLisDfBosrminedHbpyaratistiuobnssetthoef
+
+space Od LDBs in
+
+into H.
+
+a large All the
+
+graphs whose graph embeddings are contained in the same convex polytope are predicted as the same
+
+class [4]. Therefore, the the graphs whose graph
+
+LDBs of a convex polytope encode the common embeddings lie within the convex polytope [4].
+
+Hdeecreis,ioangrloapghicGofiφs fccovoenreadll
+
+by a convex polytope if the graph embedding φgc(G) is contained in the convex polytope.
+
+Based on the above insight, we model the decision region for a set of graph instances as a convex polytope that satisﬁes the following two properties. First, the decision region should be induced by a subset of the LDBs in H. In this way, when we extract counterfactual explanations from the LDBs, the explanations are loyal to the real decision logic of the GNN. Second, the decision region should cover many graph instances in the training dataset D, and all the covered graphs should be predicted as the same class. In this way, the LDBs of the decision region capture the common decision logic on all the graphs covered by the decision region. Here, the requirement of covering a larger number of graphs ensures that the common decision logic is general, and thus it is less likely to overﬁt the noise of an individual graph instance. As a result, the counterfactual explanations extracted from the LDBs of the decision region are insensitive to slight changes in the input graphs. Our method can be easily generalized to incorporate prediction conﬁdence in the coverage measure, such as considering the count of graphs weighted by prediction conﬁdence. To keep our discussion simple, we do not pursue this detail further in the paper.
+
+Next, we illustrate how to extract a decision region satisfying the above two requirements. The key idea is to ﬁnd a convex polytope covering a large set of graph instances in D that are predicted as the same class c ∈ C.
+
+Denote by Dc ⊆ D the set of graphs in D predicted as a class c ∈ C, by P ⊆ H a set of LDBs that
+
+partition the space Od into a set of convex polytopes, and by r(P, c) the convex polytope induced by
+
+P that covers the largest number of graphs in covered by r(P, c), and by h(P, c) the number
+
+oDf cg.raDpehnsoitneDbythga(tPa,rec)cothveerneudmbyberr(Pof,
+
+graphs in c) but are
+
+nDoct
+
+predicted as class c. We extract a solving the following constrained
+
+decision region covering optimization problem.
+
+a
+
+large
+
+set
+
+of
+
+graph
+
+instances
+
+in
+
+Dc
+
+by
+
+max g(P, c), s.t. h(P, c) = 0
+
+(1)
+
+P ⊆H
+
+This formulation realizes the two properties of decision regions because P ⊆ H ensures that the decision region is induced by a subset of LDBs in H, maximizing g(P, c) requires that r(P, c) covers
+
+4
+
+a large number of graphs in r(P, c) are predicted as the
+
+Dsacm, aencdlatshsecc.onstraint
+
+h(P ,
+
+c)
+
+=
+
+0
+
+ensures
+
+that
+
+all
+
+the
+
+graphs
+
+covered
+
+by
+
+Once we ﬁnd a solution P to the above problem, the decision region r(P, c) can be easily obtained by ﬁrst counting the number of graphs in Dc covered by each convex polytope induced by P, and then select the convex polytope that covers the largest number of graphs in Dc.
+
+4.2 Extracting Decision Regions
+
+The optimization problem in Equation (1) is intractable for standard GNNs, mainly because it is impractical to compute H, all the LDBs of a GNN. The number of LDBs in H of a GNN is exponential with respect to the number of neurons in the worst case [27]. To address this challenge, we substitute H by a sample H˜ of LDBs from H˜. A LDB in the space Od can be written as w x + b = 0, where is x ∈ Od is a variable, w is the basis term, and b corresponds to the bias. Following [4], for any input graph G, a linear boundary can be sampled from H by computing
+
+w
+
+=
+
+∂
+
+(max1(φfc(α)) − ∂α
+
+max2(φfc(α))) |α=φgc(G),
+
+(2)
+
+and
+
+b = max1(φfc(α)) − max2(φfc(α)) − wT α|α=φgc(G),
+
+(3)
+
+where max1(φfc(α))) and max2(φfc(α)) are the largest and the second largest values in the vector
+
+wφfecc(aαn)s, aremsppleectaivseulby.seGt iovfeninapnutingpruapt hgsraupnhifGor,mEqlyuafrtioomnsD(2,)aannddu(s3e)Eidqeunattiifoynosn(e2)LaDnBd
+
+from H. Thus, (3) to derive a
+
+sample of LDBs as H˜ ⊂ H.
+
+Now, we substitute H in Equation (1) by H˜ to produce the following problem.
+
+max g(P, c), s.t. h(P, c) ≤ δ,
+
+(4)
+
+P ⊆H˜
+
+where δ ≥ 0 is a tolerance parameter to keep this problem feasible. The parameter δ is required because substituting H by H˜ ignores the LDBs in H \ H˜. Thus, the convex polytope r(P, c) induced by subset of boundaries in H˜ may contain instances that are not predicted as class c. We directly set δ = h(H˜, c), which is the smallest value of δ that keeps the practical problem feasible.
+
+The problem in Equation (4) can be proven to be a Submodular Cost Submodular Cover (SCSC) problem [18] (see Appendix D for proof) that is well known to be NP-hard [5]. We adopt a greedy boundary selection method to ﬁnd a good solution to this problem [40]. Speciﬁcally, we initialize P as an empty set, and then iteratively select a new boundary h from H˜ by
+
+h
+
+=
+
+arg min
+h∈H˜ \P
+
+g(P, c) − g(P ∪ h(P, c) − h(P
+
+{h}, c) + ∪ {h}, c)
+
+,
+
+(5)
+
+where g(P, c) − g(P ∪ {h}, c) is the decrease of g(P, c) when adding h into P, and h(P, c) − h(P ∪ {h}, c) is the decrease of h(P, c) when adding h into P. Both g(P, c) and h(P, c) are non-increasing when adding h ∈ H˜ into P because adding a new boundary h may only exclude some graphs from the convex polytope r(P, c).
+
+Intuitively, in each iteration, Equation (5) selects a boundary h ∈ H˜ such that adding h into P reduces g(P, c) the least and reduces h(P, c) the most. In this way, we can quickly reduce h(P, c) to be smaller than δ without decreasing g(P, c) too much, which produces a good feasible solution to the practical problem. We add a small constant to the numerator such that, when there are multiple candidates of h that do not decrease g(P, c), we can still select the h that reduces h(P, c) the most.
+
+We apply a peeling-off strategy to iteratively extract multiple decision regions. For each class c ∈ C,
+
+we ﬁrst solve the practical problem once to ﬁnd a decision region r(P, c), then we remove the graphs
+
+covered by r(P, c) ﬁnding the decision
+
+rfergoimonDs uc.sinIfg
+
+there are remaining graphs predicted as the class c, we continue the remaining graphs until all the graphs in Dc are removed. When
+
+all the graphs in decision regions
+
+wDec
+
+are removed found.
+
+for
+
+each
+
+class
+
+c
+
+∈
+
+C,
+
+we
+
+stop
+
+the
+
+iteration
+
+and
+
+return
+
+the
+
+set
+
+of
+
+5
+
+4.3 Producing Explanations In this section, we introduce how to use the LDBs of decision regions to train a neural network that produces a robust counterfactual explanation as a small subset of edges of an input graph. We form explanations as a subset of edges because GNNs make decisions by aggregating messages passed on edges. Using edges instead of vertices as explanations can provide better insights on the decision logic of GNNs.
+
+4.3.1 The Neural Network Model
+
+Dcoeunnotteerfbayctufθaltehxepnlaenuaratilonneotwn othrke
+
+to generate a subset of edges prediction φ(G). θ represents
+
+of an input graph G the set of parameters
+
+as of
+
+the the
+
+robust neural
+
+network. For experiments, our explanation network f consists of 2 fully connected layers with a
+
+ReLU activation and the hidden dimension of 64.
+
+For last
+
+any two connected convolution layer
+
+ovfertthieceGs NviNanfdorvtjhoeftwGo,
+
+dveenrotitceebs,yrzeispaencdtizvjeltyh.eTehmebnedeudirnagl sneptrwodourkcefdθbtyakthees
+
+zexi palnadnaztjioans.
+
+the input and outputs the This can be written as
+
+probability
+
+for
+
+the
+
+edge
+
+between
+
+vi
+
+and
+
+vj
+
+to
+
+be
+
+part
+
+of
+
+the
+
+Mij = fθ(zi, zj ),
+
+(6)
+
+where When
+
+tMheirje
+
+denotes the probability that the edge is no edge between vi and vj, that is,
+
+bAetiwj =een0,vwi aensdetvMj isijc=on0ta.ined
+
+in
+
+the
+
+explanation.
+
+For an matrix
+
+input graph that carries
+
+G = {V, E} the complete
+
+with n vertices information to
+
+gaenndearattreaianerodbnuesut rcaolunnettewrfoarcktufaθl,
+
+M is an n-by-n explanation as a
+
+subset of edges, denoted by S ⊆ E. Concretely, we obtain S by selecting all the edges in E whose
+
+corresponding entries in M are larger than 0.5.
+
+4.3.2 Training Model fθ
+
+FtGrheomSer paianirnneddduineiccrpetusidoutbnbgygrφarS(apGphfhr)Go,GmoE=uGr\S(gVioss,aucElcohi)sn,tsthdiosaetttnertanohittenewpabiryteghdoSiφoc(dt⊆iGomn)E;oodatnnehldGefdsEθue\bslSeusteccinthhgoatnhfthgaeteedstgehsedeisggpenprsireﬁoidcndiacuSntciteolfydrnofbomryonmGfthθφept(rosoGudeb)xu.gpcrelaaspinha
+
+Since producing S process, we deﬁne
+
+tbwyofpθroisxya
+
+discrete operation that graphs to approximate
+
+is hard to incorporate in an end-to-end training GS and GE\S, respectively, such that the proxy
+
+graphs are determined by θ through continuous functions that can be smoothly incorporated into an
+
+end-to-end training process.
+
+The proxy graph of GS, denoted by Gθ, is deﬁned by regarding M instead of A as the adjacency
+
+mthaetreinxt.riTehsaitniM s, GinθshteaasdexoafcAtly.
+
+the same Here, the
+
+graph structure as G, but subscript θ means Gθ is
+
+the edge weights determined by θ.
+
+of
+
+Gθ
+
+is
+
+given
+
+by
+
+wTheeigphrtobxeytwgereanpheaocfhGpEai\rSo,fdveenrotitceeds
+
+by vi
+
+aGnθd,
+
+also vj is
+
+have the same deﬁned as
+
+graph
+
+structure
+
+as
+
+G,
+
+but
+
+the
+
+edge
+
+Mij =
+
+1 − Mij 0
+
+if Aij = 1 if Aij = 0
+
+(7)
+
+The edge smoothly
+
+weights of both incorporate Gθ
+
+Gθ and and Gθ
+
+Ginθtoaaren
+
+determined end-to-end
+
+by θ through continuous training framework.
+
+functions,
+
+thus
+
+we
+
+can
+
+As discussed later in this to be close to either 0 or
+
+section, we 1, such that
+
+use Gθ
+
+aanredgGulθarbizeattteior napteprrmoxtiomfaotreceGtSheavnadluGeEo\fSearecshpeencttriyveilny.Mij
+
+We formulate our loss function as
+
+L(θ) =
+
+{λLsame(θ, G) + (1 − λ)Lopp(θ, G) + βRsparse(θ, G) + µRdiscrete(θ, G)} , (8)
+
+G∈D
+
+where λ ∈ [0, 1], β ≥ 0 and µ ≥ 0 are the hyperparameters controlling the importance of each term. The inﬂuence of these parameters is discussed in Appendix G. The ﬁrst term of our loss function requires that the prediction of the GNN on Gθ is consistent with the prediction on G. Intuitively, this
+
+6
+
+means that the edges with larger weights in by requiring Gθ to be covered by the same
+
+GdeθcdisoimoninraetgeiothnecporveedriicntgioGn o. n
+
+G.
+
+We
+
+formulate
+
+this
+
+term
+
+Denote by HG the set of LDBs that induce the decision region covering G, and by |HG| the number of LDBs in HG. For the i-th LDB hi ∈ HG, denote by Bi(x) = wi x + bi, where wi and bi are the basis and bias of hi, respectively, and x ∈ Od is a point in the space Od. The sign of Bi(x) indicates wpforhroemptohureltaritoaenptaholeitnoﬁtrtxshteltiedersimsotanonftcheoeuoprfolaosisptsiovfienustnicxdteiforonormathshein.eDgaetnivoetesbidyeσo(f·)hith, eansdtatnhdeaarbdssoilgumteovidalufuen|cBtiio(xn,)|wies
+
+Lsame(θ, G)
+
+=
+
+1 |HG|
+
+σ (−Bi(φgc(G))
+hi ∈HG
+
+∗
+
+Bi(φgc(Gθ))) ,
+
+(9)
+
+strheugecihosanthmcaeot vmseiidrnienimgofiGzei.nvgerLy sLaDmeB(θin, GH)Ge.ncTohuuras,geGsθthise
+
+egnracpohureamgebdedtdoinbgescφogvce(rGed)
+
+abnydthφegcs(aGmθe)
+
+to lie on decision
+
+The second term of our loss function optimizes the counterfactual property of the explanations by rtbheeqicsuamiursieneagnresthdteuhcapitnregthdeitchtseieowtnoeofignehdGtsgθeostfowthbieethsseliagerndgigeﬁercsawsneitgliygnhidﬁtsicfafiennrtelGynθtcfharraoenmggeotshoetdhpecroepudrneictdetiircoftnaiocotnun.aGlFoe.xllIponlwtauniinatgitvioethnlyes, above intuition, we formulate the second term as
+
+Lopp(θ,
+
+G)
+
+=
+
+min
+hi ∈HG
+
+σ
+
+(Bi(φgc(G))
+
+∗
+
+Bi (φgc (Gθ )))
+
+,
+
+(10)
+
+stcfhruooecvmheorpttehhpdaeotbspmyirteetidhnsieiicmdtdeiieozscnioinsofginoaLntGolrep.eapgs(itθo,onGnce)oLveneDrcBionugirnaGgH,eGtsh.tuhTsehthgiserafppurhretdheimecrtbimoednedaoinnnsgGtshθφatcgacG(nGθbi)esacenhndacnoφgugercad(gGseiθdg)nntiooﬁtcltiaoentoblnye
+
+Similar to [45], we use on an input graph G to
+
+aprLo1durecgeualasrpizaarstieomn RatrsipxarMse,(θsu, cGh)th=at
+
+oMnly1aosnmtahlel
+
+matrix M produced number of edges in
+
+Gbyafrθe
+
+selected as the counterfactual explanation. We also follow [45] to use an entropy regularization
+
+Rdiscrete(θ,
+
+G)
+
+=
+
+−
+
+1 |M|
+
+(Mij log(Mij) + (1 − Mij) log(1 − Mij))
+
+(11)
+
+i,j
+
+to push the value of each entry in GS and GE\S well, respectively.
+
+Mij
+
+to
+
+be
+
+close
+
+to
+
+either
+
+0
+
+or
+
+1,
+
+such
+
+that
+
+Gθ
+
+and
+
+Gθ
+
+approximate
+
+Now we can use the graphs in D and the extracted an end-to-end manner by minimizing L(θ) over θ
+
+decision regions to train using back propagation.
+
+the neural Once we
+
+ﬁnneitswhotrrkaifnθinign
+
+fexθp, wlaenactaionnﬁSrstbaypspelylefcθtintog
+
+produce the matrix all the edges in E
+
+M for whose
+
+an input graph corresponding
+
+G = (V, E), entries in M
+
+and are
+
+then obtain larger than
+
+the 0.5.
+
+We do not need the extracted boundaries for inference as the the decision logic of GNN is already
+
+distilled into the explanation network f during the training.
+
+As discussed in Appendix B, our method can be easily extended to generate robust counterfactual explanations for node classiﬁcation tasks.
+
+Our method is highly efﬁcient with a time complexity O(|E|) for explaining the prediction on an
+
+input graph G, where |E| is the total number of edges in G. be directly used without retraining to predict explanations
+
+oAndduintisoeneanllgyr,atphhesn.eTurhaulsnoeutwr omrketfhθodcains
+
+signiﬁcantly faster than the other methods [45, 32, 47, 38] that require retraining each time when
+
+generating explanations on a new input graph.
+
+5 Experiments
+We conduct series of experiments to compare our method with the state-of-the-art methods including GNNExplainer [45], PGExplainer [25], PGM-Explainer [38], SubgraphX [47] and CFGNNExplainer [24]. For the methods that identify a set of vertices as an explanation, we use the set of vertices to induce a subgraph from the input graph, and then use the set of edges of the induced subgraph as the explanation. For the methods that identify a subgraph as an explanation, we directly use the set of edges of the identiﬁed subgraph as the explanation.
+
+7
+
+Fidelity Fidelity Fidelity
+
+0.7 0.6 0.5 0.4 0.3 0.2 0.1 0.075
+
+(a) Mutagenicity
+80 85 90 95 Sparsity (%) GNNExplainer PGExplainer
+
+(b) BA-2motifs
+
+(c) NCI1
+
+0.5
+
+0.5
+
+0.4
+
+0.4
+
+0.3
+
+0.3
+
+0.2
+
+0.2
+
+0.1
+
+0.1
+
+0.075
+
+80
+
+85
+
+90
+
+95
+
+Sparsity (%)
+
+0.0
+
+75
+
+80
+
+85
+
+90
+
+95
+
+Sparsity (%)
+
+PGM-Explainer SubgraphX
+
+CF-GNNExplainer RCExp-NoLDB (Ours)
+
+RCExplainer (Ours)
+
+Figure 1: Fidelity performance averaged across 10 runs for the datasets at different levels of sparsity.
+
+To demonstrate the effectiveness of the decision regions, we derive another baseline method named RCExp-NoLDB that adopts the general framework of RCExplainer but does not use the LDBs of decision regions to generate explanations. Instead, RCExp-NoLDB directly maximizes the prediction conﬁdence on class c for Gθ and minimizes the prediction conﬁdence of class c for Gθ. We evaluate the explanation performance on two typical tasks: the graph classiﬁcation task that uses a GNN to predict the class of an input graph, and the node classiﬁcation task that uses a GNN to predict the class of a graph node. For the graph classiﬁcation task, we use one synthetic dataset, BA-2motifs [25], and two real-world datasets, Mutagenicity [21] and NCI1 [39]. For the node classiﬁcation task, we use the same four synthetic datasets as used by GNNExplainer [45], namely, BA-SHAPES, BA-COMMUNITY, TREE-CYCLES and TREE-GRID.
+Limited by space, we only report here the key results on the graph classiﬁcation task for ﬁdelity, robustness and efﬁciency. Please refer to Appendix E for details on datasets, baselines and the experiment setups. Detailed experimental comparison on the node classiﬁcation task will be discussed in Appendix F where we show that our method produces extremely accurate explanations. The code3 is publicly available.
+
+5.1 Fidelity
+
+Fidelity is measured by the decrease of prediction conﬁdence after removing the explanation (i.e., a
+
+set of edges) from the input graph [32]. We use ﬁdelity to evaluate how counterfactual the generated
+
+explanations are on the datasets Mutagenicity, NCI1 and BA-2motifs. A large ﬁdelity score indicates
+
+stronger counterfactual characteristics. It is important to note that ﬁdelity may be sensitive to sparsity
+
+of explanations. The sparsity of an explanation S with respect to an input graph G = (V, E) is
+
+sparsity(S,
+
+G)
+
+=
+
+1
+
+−
+
+|S| |E|
+
+,
+
+that
+
+is,
+
+the
+
+percentage
+
+of
+
+edges
+
+remaining
+
+after
+
+the
+
+explanation
+
+is
+
+removed
+
+from G. We only compare explanations with the same level of sparsity.
+
+Figure 1 shows the results about ﬁdelity. Our approach achieves the best ﬁdelity performance at all levels of sparsity. The results validate the effectiveness of our method in producing highly counterfactual explanations. RCExplainer also signiﬁcantly outperforms RCExp-NoLDB. This conﬁrms that using LDBs of decision regions extracted from GNNs produces more faithful counterfactual explanations.
+
+CF-GNNExplainer performs the best among the rest of the methods. This is expected as it optimizes the counterfactual behavior of the explanations which results in higher ﬁdelity for the explanations in comparison to those produced by other methods such as GNNExplainer and PGExplainer.
+
+The ﬁdelity performance of SubgraphX reported in [47] was obtained by setting the features of nodes that are part of the explanation to 0 but not removing the explanation edges from the input graph. This does not remove the message passing roles of the explanation nodes from the input graph because the edges connected to those nodes still can pass messages. In our experiments, we directly block the messages that are passed on the edges in the explanation, which completely prevents the explanation nodes in the input graph to participate in the message passing. As a result, the performance of SubgraphX drops signiﬁcantly.
+
+3Code available at https://marketplace.huaweicloud.com/markets/aihub/notebook/detail/ ?id=e41f63d3-e346-4891-bf6a-40e64b4a3278
+8
+
+AUC AUC AUC
+
+1.0 0.9 0.8 0.7 0.6 0.5 0
+
+(a) Mutagenicity
+
+10
+
+20
+
+Noise (%)
+
+GNNExplainer
+
+1.0 0.9 0.8 0.7 0.6 30 0.5 0
+PGExplainer
+
+(b) BA-2motifs
+
+10
+
+20
+
+Noise (%)
+
+CF-GNNExplainer
+
+1.0
+
+0.9
+
+0.8
+
+0.7
+
+0.6
+
+0.5
+
+30
+
+0
+
+RCExp-NoLDB (Ours)
+
+(c) NCI1
+
+10
+
+20
+
+30
+
+Noise (%)
+
+RCExplainer (Ours)
+
+Figure 2: Noise robustness (AUC) averaged across 10 runs for the datasets at different levels of noise.
+
+5.2 Robustness Performance
+In this experiment, we evaluate the robustness of all methods by quantifying how much an explanation changes after adding noise to the input graph. For an input graph G and the explanation S, we produce a perturbed graph G by adding random noise to the node features and randomly adding or deleting some edges of the input graph such that the prediction on G is consistent with the prediction on G . Using the same method we obtain the explanation S on G . Considering top-k edges of S as the ground-truth and comparing S against them, we compute a receiver operating characteristic (ROC) curve and evaluate the robustness by the area under curve (AUC) of the ROC curve. We report results for k = 8 in Figure 2. Results for other values of k are included in Appendix F where we observe similar trend. Figure 2 shows the AUC of GNNExplainer, PGExplainer, RCExp-NoLDB and RCExplainer at different levels of noise. A higher AUC indicates better robustness. The percentage of noise shows the proportion of nodes and edges that are modiﬁed. Baselines such as PGM-Explainer and SubgraphX are not included in this experiment as they do not output the edge weights that are required for computing AUC. We present additional robustness experiments in Appendix F where we extend all the baselines to report node and edge level accuracy. GNNExplainer performs the worst on most of the datasets, since it optimizes each graph independently without considering other graphs in the training set. Even when no noise is added, the AUC of GNNExplainer is signiﬁcantly lower than 1 because different runs produce different explanations for the same graph prediction. PGExplainer is generally more robust than GNNExplainer because the neural network they trained to produce explanations implicitly considers all the graphs used for training. CF-GNNExplainer also performs worse than RCExplainer, which means it is more susceptible to the noise as compared to RCExplainer. Our method achieves the best AUC on all the datasets, because the common decision logic carried by the decision regions of a GNN is highly robust to noise. PGExplainer achieves a comparable performance as our method on the Mutagenicity dataset, because the samples of this dataset share a lot of common structures such as carbon rings, which makes it easier for the neural network trained by PGExplainer to identify these structures in presence of noise. However, for BA-2motifs and NCI1, this is harder as samples share very few structures and thus the AUC of PGExplainer drops signiﬁcantly. RCExplainer also signiﬁcantly outperforms RCExp-NoLDB on these datasets which highlights the role of decision boundaries in making our method highly robust.
+
+Method GNNExplainer PGExplainer PGM-Explainer SubgraphX CF-GNNExplainer RCExplainer
+
+Time
+
+1.2s ± 0.2 0.01s ± 0.03 13.1s ± 3.9 77.8s ± 4.5
+
+4.6s ± 0.2
+
+0.01s ± 0.02
+
+Table 1: Average time cost for producing an explanation on a single graph sample.
+
+Efﬁciency. We evaluate efﬁciency by comparing the average computation time taken for inference on unseen graph samples. Table 1 shows the results on the Mutagenicity dataset. Since our method also can be directly used for unseen data without any retraining, it is as efﬁcient as PGExplainer and signiﬁcantly faster than GNNExplainer, PGM-Explainer, SubgraphX and CF-GNNExplainer.
+6 Conclusion
+In this paper, we develop a novel method for producing counterfactual explanations on GNNs. We extract decision boundaries from the given GNN model to formulate an intuitive and effective
+
+9
+
+counterfactual loss function. We optimize this loss to train a neural network to produce explanations with strong counterfactual characteristics. Since the decision boundaries are shared by multiple samples of the same predicted class, explanations produced by our method are robust and do not overﬁt the noise. Our experiments on synthetic and real-life benchmark datasets strongly validate the efﬁcacy of our method. In this work, we focus on GNNs that belong to Piecewise Linear Neural Networks (PLNNs). Extending our method to other families of GNNs and tasks such as link prediction, remains an interesting future direction. Our method will beneﬁt multiple ﬁelds where GNNs are intensively used. By allowing the users to interpret the predictions of complex GNNs better, it will promote transparency, trust and fairness in the society. However, there also exist some inherent risks. A generated explanation may expose private information if our method is not coupled with an adequate privacy protection technique. Also, some of the ideas presented in this paper may be adopted and extended to improve adversarial attacks. Without appropriate defense mechanisms, the misuse of such attacks poses a risk of disruption in the functionality of GNNs deployed in the real world. That said, we ﬁrmly believe that these risks can be mitigated through increased awareness and proactive measures.
+Acknowledgments and Disclosure of Funding
+Lingyang Chu’s research is supported in part by the startup grant provided by the Department of Computing and Software of McMaster University. All opinions, ﬁndings, conclusions, and recommendations in this paper are those of the authors and do not necessarily reﬂect the views of the funding agencies.
+References
+[1] J. Adebayo, J. Gilmer, M. Muelly, I. Goodfellow, M. Hardt, and B. Kim. Sanity checks for saliency maps. In Advances in Neural Information Processing Systems.
+[2] A. Bojchevski and S. Günnemann. Certiﬁable robustness to graph perturbations. arXiv preprint arXiv:1910.14356, 2019.
+[3] E. Cho, S. A. Myers, and J. Leskovec. Friendship and mobility: user movement in location-based social networks. In Proceedings of the 17th ACM SIGKDD international conference on Knowledge discovery and data mining, pages 1082–1090, 2011.
+[4] L. Chu, X. Hu, J. Hu, L. Wang, and J. Pei. Exact and consistent interpretation for piecewise linear neural networks: A closed form solution. In Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, pages 1244–1253, 2018.
+[5] V. Crawford, A. Kuhnle, and M. Thai. Submodular cost submodular cover with an approximate oracle. In International Conference on Machine Learning, pages 1426–1435. PMLR, 2019.
+[6] A. K. Debnath, R. L. Lopez de Compadre, G. Debnath, A. J. Shusterman, and C. Hansch. Structure-activity relationship of mutagenic aromatic and heteroaromatic nitro compounds. correlation with molecular orbital energies and hydrophobicity. Journal of medicinal chemistry, 34(2):786–797, 1991.
+[7] M. Denil, S. G. Colmenarejo, S. Cabi, D. Saxton, and N. de Freitas. Programmable agents. arXiv preprint arXiv:1706.06383, 2017.
+[8] Y. Duan, M. Andrychowicz, B. C. Stadie, J. Ho, J. Schneider, I. Sutskever, P. Abbeel, and W. Zaremba. One-shot imitation learning. arXiv preprint arXiv:1703.07326, 2017.
+[9] W. Fan, Y. Ma, Q. Li, Y. He, E. Zhao, J. Tang, and D. Yin. Graph neural networks for social recommendation. In The World Wide Web Conference, pages 417–426, 2019.
+[10] T. Freiesleben. Counterfactual explanations & adversarial examples–common grounds, essential differences, and potential transfers. arXiv preprint arXiv:2009.05487, 2020.
+[11] A. Ghorbani, A. Abid, and J. Zou. Interpretation of neural networks is fragile. In Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 33, pages 3681–3688, 2019.
+[12] X. Glorot and Y. Bengio. Understanding the difﬁculty of training deep feedforward neural networks. In Proceedings of the thirteenth international conference on artiﬁcial intelligence and statistics, pages 249–256. JMLR Workshop and Conference Proceedings, 2010.
+10
+
+[13] X. Glorot, A. Bordes, and Y. Bengio. Deep sparse rectiﬁer neural networks. In Proceedings of the fourteenth international conference on artiﬁcial intelligence and statistics, pages 315–323. JMLR Workshop and Conference Proceedings, 2011.
+[14] I. Goodfellow, D. Warde-Farley, M. Mirza, A. Courville, and Y. Bengio. Maxout networks. In International conference on machine learning, pages 1319–1327. PMLR, 2013.
+[15] K. He, X. Zhang, S. Ren, and J. Sun. Delving deep into rectiﬁers: Surpassing human-level performance on imagenet classiﬁcation. In Proceedings of the IEEE international conference on computer vision, pages 1026–1034, 2015.
+[16] L. Holdijk, M. Boon, S. Henckens, and L. de Jong. [re] parameterized explainer for graph neural network. In ML Reproducibility Challenge 2020, 2021.
+[17] W. Huber, V. J. Carey, L. Long, S. Falcon, and R. Gentleman. Graphs in molecular biology. BMC bioinformatics, 8(6):1–14, 2007.
+[18] R. K. Iyer and J. A. Bilmes. Submodular optimization with submodular cover and submodular knapsack constraints. In Advances in Neural Information Processing Systems.
+[19] M. Jiang, Z. Li, S. Zhang, S. Wang, X. Wang, Q. Yuan, and Z. Wei. Drug–target afﬁnity prediction using graph neural network and contact maps. RSC Advances, 10(35):20701–20712, 2020.
+[20] H. Jin and X. Zhang. Latent adversarial training of graph convolution networks. In ICML Workshop on Learning and Reasoning with Graph-Structured Representations, 2019.
+[21] J. Kazius, R. McGuire, and R. Bursi. Derivation and validation of toxicophores for mutagenicity prediction. Journal of medicinal chemistry, 48(1):312–320, 2005.
+[22] T. N. Kipf and M. Welling. Semi-supervised classiﬁcation with graph convolutional networks. In 5th International Conference on Learning Representations, ICLR 2017, Conference Track Proceedings.
+[23] M. Liu, Y. Luo, L. Wang, Y. Xie, H. Yuan, S. Gui, H. Yu, Z. Xu, J. Zhang, Y. Liu, K. Yan, H. Liu, C. Fu, B. Oztekin, X. Zhang, and S. Ji. DIG: A turnkey library for diving into graph deep learning research. arXiv preprint arXiv:2103.12608, 2021.
+[24] A. Lucic, M. ter Hoeve, G. Tolomei, M. de Rijke, and F. Silvestri. Cf-gnnexplainer: Counterfactual explanations for graph neural networks. arXiv preprint arXiv:2102.03322, 2021.
+[25] D. Luo, W. Cheng, D. Xu, W. Yu, B. Zong, H. Chen, and X. Zhang. Parameterized explainer for graph neural network. In Advances in Neural Information Processing Systems.
+[26] C. Molnar. Interpretable Machine Learning. 2019. https://christophm.github.io/ interpretable-ml-book/.
+[27] G. Montúfar, R. Pascanu, K. Cho, and Y. Bengio. On the number of linear regions of deep neural networks. arXiv preprint arXiv:1402.1869, 2014.
+[28] R. Moraffah, M. Karami, R. Guo, A. Raglin, and H. Liu. Causal interpretability for machine learningproblems, methods and evaluation. ACM SIGKDD Explorations Newsletter, 22(1):18–33, 2020.
+[29] V. Nair and G. E. Hinton. Rectiﬁed linear units improve restricted boltzmann machines. In Icml, 2010. [30] D. Numeroso and D. Bacciu. Meg: Generating molecular counterfactual explanations for deep graph
+networks. arXiv preprint arXiv:2104.08060, 2021. [31] D. E. Pires, T. L. Blundell, and D. B. Ascher. pkcsm: predicting small-molecule pharmacokinetic and
+toxicity properties using graph-based signatures. Journal of medicinal chemistry, 58(9):4066–4072, 2015. [32] P. E. Pope, S. Kolouri, M. Rostami, C. E. Martin, and H. Hoffmann. Explainability methods for graph
+convolutional neural networks. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 10772–10781, 2019. [33] R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra. Grad-cam: Visual explanations from deep networks via gradient-based localization. In Proceedings of the IEEE international conference on computer vision, pages 618–626, 2017. [34] P. L. Simon, M. Taylor, and I. Z. Kiss. Exact epidemic models on graphs using graph-automorphism driven lumping. Journal of mathematical biology, 62(4):479–508, 2011. [35] K. Simonyan, A. Vedaldi, and A. Zisserman. Deep inside convolutional networks: Visualising image classiﬁcation models and saliency maps. ICLR, 2014.
+11
+
+[36] K. Sokol and P. A. Flach. Counterfactual explanations of machine learning predictions: opportunities and challenges for ai safety. In SafeAI@ AAAI, 2019.
+[37] P. Velickovic, G. Cucurull, A. Casanova, A. Romero, P. Liò, and Y. Bengio. Graph attention networks. In 6th International Conference on Learning Representations, ICLR 2018, Conference Track Proceedings.
+[38] M. Vu and M. T. Thai. Pgm-explainer: Probabilistic graphical model explanations for graph neural networks. In Advances in Neural Information Processing Systems.
+[39] N. Wale and G. Karypis. Comparison of descriptor spaces for chemical compound retrieval and classiﬁcation. In Sixth International Conference on Data Mining (ICDM’06), pages 678–689, 2006. doi: 10.1109/ICDM.2006.39.
+[40] L. A. Wolsey. An analysis of the greedy algorithm for the submodular set covering problem. Combinatorica, 2(4):385–393, 1982.
+[41] J. Xiong, Z. Xiong, K. Chen, H. Jiang, and M. Zheng. Graph neural networks for automated de novo drug design. Drug Discovery Today, 2021.
+[42] H. Xu, Y. Ma, H.-C. Liu, D. Deb, H. Liu, J.-L. Tang, and A. K. Jain. Adversarial attacks and defenses in images, graphs and text: A review. International Journal of Automation and Computing, 17(2):151–178, 2020.
+[43] K. Xu, H. Chen, S. Liu, P.-Y. Chen, T.-W. Weng, M. Hong, and X. Lin. Topology attack and defense for graph neural networks: An optimization perspective. arXiv preprint arXiv:1906.04214, 2019.
+[44] R. Yin, K. Li, G. Zhang, and J. Lu. A deeper graph neural network for recommender systems. KnowledgeBased Systems, 185:105020, 2019.
+[45] Z. Ying, D. Bourgeois, J. You, M. Zitnik, and J. Leskovec. Gnnexplainer: Generating explanations for graph neural networks. In Advances in Neural Information Processing Systems, volume 32, 2019.
+[46] H. Yuan, J. Tang, X. Hu, and S. Ji. Xgnn: Towards model-level explanations of graph neural networks. In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, pages 430–438, 2020.
+[47] H. Yuan, H. Yu, J. Wang, K. Li, and S. Ji. On explainability of graph neural networks via subgraph explorations. arXiv preprint arXiv:2102.05152, 2021.
+[48] M. D. Zeiler and R. Fergus. Visualizing and understanding convolutional networks. In European conference on computer vision, pages 818–833. Springer, 2014.
+[49] J. Zhang, S. A. Bargal, Z. Lin, J. Brandt, X. Shen, and S. Sclaroff. Top-down neural attention by excitation backprop. International Journal of Computer Vision, 126(10):1084–1102, 2018.
+[50] M. Zhang and Y. Chen. Link prediction based on graph neural networks. In Advances in Neural Information Processing Systems.
+[51] D. Zügner and S. Günnemann. Adversarial attacks on graph neural networks via meta learning. arXiv preprint arXiv:1902.08412, 2019.
+[52] D. Zügner and S. Günnemann. Certiﬁable robustness and robust training for graph convolutional networks. In Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, pages 246–256, 2019.
+[53] D. Zügner, A. Akbarnejad, and S. Günnemann. Adversarial attacks on neural networks for graph data. In Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, pages 2847–2856, 2018.
+12
+

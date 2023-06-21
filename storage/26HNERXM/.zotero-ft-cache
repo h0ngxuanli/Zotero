@@ -1,0 +1,804 @@
+arXiv:2208.07530v1 [cs.LG] 16 Aug 2022
+
+Knowledge-Injected Federated Learning
+Zhenan Fan1,2, Zirui Zhou2, Jian Pei4, Michael P. Friedlander1, Jiajie Hu3, Chengliang Li3, and Yong Zhang2
+1University of British Columbia, {zhenanf, mpf}@cs.ubc.ca 2Huawei Technologies Canada, {zirui.zhou, yong.zhang3}@huawei.com 3Huawei Technologies China, {hujiajie1, lichengliang2}@huawei.com
+4Simon Fraser University, jpei@cs.sfu.ca
+August 17, 2022
+Abstract
+Federated learning is an emerging technique for training models from decentralized data sets. In many applications, data owners participating in the federated learning system hold not only the data but also a set of domain knowledge. Such knowledge includes human know-how and craftsmanship that can be extremely helpful to the federated learning task. In this work, we propose a federated learning framework that allows the injection of participants’ domain knowledge, where the key idea is to reﬁne the global model with knowledge locally. The scenario we consider is motivated by a real industry-level application, and we demonstrate the eﬀectiveness of our approach to this application.
+1 Introduction
+With the development of artiﬁcial intelligence, people recognize that many powerful machine learning models are driven by large decentralized datasets of various data types. However, in many industryscale applications, training data is obtained and maintained by diﬀerent data owners instead of centralized at the data center, and sharing data is often forbidden due to privacy requirements. Federated learning (FL) is an emerging machine learning framework in which multiple data owners (also referred to as clients) participate in collaboratively training a model without sharing their local data with each other [18, 33].
+Another challenge with artiﬁcial intelligence is integrating domain knowledge into purely datadriven models, i.e., parameters of the model are learned through training data without any human engineering [8, 11]. For example, human know-how and craftsmanship, which may not be learnable from the training data, can be formulated as prediction models, and combing them with a purely data-driven model may boost its performance and reduce the risk of overﬁtting [10]. As another example, knowledge of natural laws or security guidelines can be formulated as external constraints, and incorporating such constraints can prevent a purely data-driven model from making unreasonable predictions [6]. These circumstances have led to increased research on improving machine learning models by additionally incorporating domain knowledge into the learning process [28].
+It is then natural to consider a situation where data owners have not only local data sets but also local domain knowledge. In Section 6, we show a real industrial application satisfying this situation, which also motivates this research work. Although local domain knowledge can be highly beneﬁcial to the learning task, current techniques for FL tasks do not allow the injection of local knowledge. So
+1
+
+Server
+
+Client Client
+
+Knowledge Data Knowledge Data
+
+Knowledge
+
+Client
+
+Data
+
+Figure 1: Knowledge-injected federated learning.
+
+it would be useful to provide a solution for FL that can account for and beneﬁt from local knowledge and data sets. A simple illustration is shown in Figure 1.
+In this work, we consider a collaborative learning task where there is a server responsible for invigilating the training process and multiple clients with diﬀerent local data sets and domain knowledge. In particular, domain knowledge is represented in terms of knowledge-based models (KM). We consider two widely seen types of KMs: prediction-type knowledge-based model (P-KM) and range-type knowledge-based model (R-KM). The P-KM predicts a label for the given data instance, which is known to perform relatively well on the learning task, and the R-KM predicts a range of the possible labels for the given data instance such that the true label is guaranteed to be within this range. As mentioned above, P-KMs can represent human know-how and craftsmanship, and R-KMs can originate from natural laws or security guidelines. A more detailed introduction to KMs will be given in Section 4.
+We aim to design an FL framework such that the local domain knowledge can be injected. More speciﬁcally, each client is expected to obtain a local model that utilizes the local P-KM as a reference, and its prediction falls into the range given by the local R-KM. Moreover, as these KMs can be very valuable, their privacy should be protected as well as the local dataset. The more detailed setting and requirements will be given in Section 5.1.
+Our contribution can be summarized as follows. We propose a framework for solving the knowledgeinjected FL problem. Suppose the server provides the structure of a general deep learning model, which we call it server model. The key idea behind our framework is the design of a local functiontransformation mapping that depends on the local KMs; see Deﬁnition 5.1. The function-transformation mapping can locally transform the server model into a personalized local model that satisﬁes the abovementioned requirements; see Proposition 5.1. Moreover, we show that most existing FL algorithms can be applied to solve our proposed system and the privacy of local KMs can be protected in the sense that they are not shared during the training process; see Section 5.3. Finally, we verify the eﬀectiveness of our framework on a real industry-level problem (Section 6), and extensive numerical experiments on real and public data sets (Section 7).
+
+2
+
+2 Related work
+According to our investigation, we haven’t found any work on injecting domain knowledge into the FL process. So in this section, we instead review some literature on two related topics: knowledge-injected machine learning and personalized FL.
+Knowledge-injected machine learning. Improving machine learning models via incorporating prior knowledge into the learning process has recently gained a lot of attention [27, 6]. We mainly focus on the works where the knowledge is interpreted as hard constraints on the prediction, which is similar to the role of the R-KM in our case. This task is challenging because a direct formulation would lead to an optimization problem with inﬁnitely many constraints. To tackle this problem, Hu et al. [14] suggest incorporating the hard constraints with unlabelled data so that when the unlabelled data set is large enough, the ﬁnal model is expected to satisfy the constraints. Similarly, Nandwani et al. [24] suggest relaxing the constraints to the training set and then solving the relaxed constrained optimization problem via a primal-dual method. When the training data set is large enough, the ﬁnal model is also expected to satisfy the constraints. Alternatively, Lee et al. [20] suggest incorporating the hard constraints into the inference process instead of the training process. They propose a gradientbased inference method, which can enforce the outputs of the model to satisfy the hard constraint. In this work, we instead suggest incorporating the hard constraints into the model formulation so that the output is guaranteed to satisfy the constraints.
+Personalized federated learning. Personalized FL refers to the research on adjusting the FL process to solve the data heterogeneity issue [9, 12]. Although personalization is not the motivation for this work, based on our proposed framework, every client receives a personalized model at the end of the training. Broadly speaking, personalization can be divided into two categories: (1) every client has the same model structure but with diﬀerent weights, and (2) clients’ models diﬀer slightly in structure. There are many approaches that fall into the ﬁrst category including local ﬁne-tuning [21, 29], metalearning [7, 16, 12] and regularization [25, 15]. There are relatively fewer works that belong to the second category. Deng et al. [9] propose to adapt the global model through a convex combination with clients’ local models. Alternatively, Arivazhagan et al. [1] suggest clients locally add a personalized layer to the global model and the weights of the personalized layer will get updated during the training. Our approach can be seen as a combination of [9] and [1], where the major diﬀerence is that in our case, the personalized layer consists of the local KMs and its parameters are ﬁxed. We postpone a more detail discussion to Section 5.2.
+
+3 Preliminaries
+
+We introduce some notations used in this paper. We use [k] to denote the set of integers {1, . . . , k}. We denote by OneHot(k) the set of k-dimensional binary vectors with exactly one entry being nonzero, and MultiHot(k) the set of k-dimensional binary vectors with at least one entry being non-zero. We use ∆k to denote the k-dimensional simplex, i.e.,
+
+∆k = x ∈ Rk+
+
+k
+xi = 1 .
+i=1
+
+For any z ∈ Rk, we use supp(z) to represent the set of nonzero entries of z, i.e.,
+
+supp(z) = {i | zi = 0}.
+
+3
+
+The mapping softmax : Rk → ∆k is deﬁned by
+
+softmax(z)i =
+
+exp(zi)
+
+k j=1
+
+exp(zj
+
+)
+
+∀i = 1, . . . , k.
+
+The mapping crossentropy : ∆k × ∆k → R is deﬁned by
+
+k
+crossentropy(p, q) = − qi log(pi).
+i=1
+
+We deﬁne ◦ as the composition operator, i.e., for any two mappings f : Rm → Rn and g : Rk → Rm, we have
+f ◦ g(x) = f (g(x))∀x ∈ Rk.
+We let C(Rn, Rk) be the set of mappings from Rn to Rk.
+
+4 Knowledge-based models
+
+We consider the scenario where the knowledge held by each client of the FL system is in the form of KMs. These models provide guidance on predictions based on various types of knowledge, such as empirical evidence, mechanism of the application domain, and causality of the input-output relationship. Below we provide a formal deﬁnition of KMs in the context of classiﬁcation.
+Recall that in a standard k-class classiﬁcation problem, we are given i.i.d. data samples D = {(x(i), y(i))}Ni=1 ⊂ X × OneHot(k) that are drawn from an underlying distribution F and a hypothesis space Θ that is a set of mappings from X to [k]. The goal is to ﬁnd a mapping f ∗ ∈ Θ such that
+
+f ∗ = arg min E(x,y)∼F [f (x) = y].
+
+(1)
+
+f ∈Θ
+
+Deﬁnition 4.1. We say that a mapping g is a KM for the data distribution F if it satisﬁes the following conditions:
+
+(a) The domain of g equals to the feature space X .
+
+(b) g is independent of the training data D.
+
+(c) For any (x, y) ∼ F, g(x) provides information on the true label y.
+
+Deﬁnition 4.1(b) emphasizes that knowledge and training data are two independent sources of information on F, and Deﬁnition 4.1(c) suggests that they can complement each other in solving the learning problem (1).
+KMs can be divided into multiple categories depending on the type of information they provide. In this work, we focus on the following two types that are commonly seen in practice: prediction type and range type.
+
+Deﬁnition 4.2. Suppose that g is a KM for the data distribution F (Deﬁnition 4.1).
+
+(a) We say that g is of prediction type if it is a mapping from X to OneHot(k) and for any (x, y) ∼ F, g(x) is a point estimation of y.
+
+(b) We say that g is of range type if it is a mapping from X to MultiHot(k) and for any (x, y) ∼ F, one has supp(y) ⊆ supp(g(x)).
+
+4
+
+In other words, for any (x, y) ∼ F, a P-KM gp predicts a class label gp(x), which is an estimation of its true label y; while a R-KM gr states that the true label y must be within gr(x), which is a subset of all the k classes. Below are some motivating examples of the two models:
+(a) Mechanistic prediction models, such as diﬀerential equations that describe the underlying physical processes, can be considered as P-KMs. These models normally generalize well. On the other hand, since they are usually obtained by simplifying the real-world process and ignoring unpredictable factors, their accuracy can be improved by combining them with data-driven approaches.
+(b) Prediction models learned in the past can also be P-KMs for the new learning task. Suppose that a prediction model g had been learned from data collected before the equipment was recently updated and a set D of new data samples has been collected since the update. As the updated equipment may use more advanced technology, such as cameras with higher resolution and wearable devices with more accurate sensors, the new data set D has the potential to lead to a more accurate prediction model than g. Besides, since g was learned from a much larger set of data than D and had been continuously reﬁned in practice, it can be helpful to prevent the newly trained model from overﬁtting.
+(c) A R-KM can be derived from the causality of the input-output relationship. In practice, domain experts usually have some causality-based rules that any prediction model has to satisfy. For example, if the value of some feature of a data sample is above a certain threshold, then its label must be within some subset of [k]. R-KMs can be injected into the training process to prevent the learned model from making predictions of no sense.
+5 Federated learning with knowledge-based models
+This section formally introduces the collaborative learning task and our proposed methodology.
+5.1 Problem setting
+Suppose there are M clients. Each client m has a training data set Dm ∼ F m, where F m is a conditional data distribution depending on underlying data distribution F. For example, Fm can be the conditional distribution such that the label is ﬁxed to be 1, i.e.,
+F m = {(x, y) ∼ F | supp(y) = {1}}.
+Moreover, each client m has a P-KM gpm and a R-KM grm for the local data distribution F m (Definition 4.2). Besides the clients, there is also a server that designs the global model structure and organizes the training. We will describe the roles of the server in Section 5.2 and Section 5.3.
+As we introduced in Section 4, local training data and KMs are two diﬀerent sources for data distribution. So integrating the local KMs into the learning process can beneﬁt this collaborative learning task. Moreover, similar to data, KMs are assets for their owners. Indeed, it may be obtained via years of investment, and it can be valuable to its owner’s business. So their privacy should be protected during the training process.
+More speciﬁcally, we want to design an FL framework so that each client m obtains a personalized, predictive model f m : X → ∆k satisfying some requirements listed below.
+Requirement 5.1. We want the framework to satisfy the following requirements.
+(a) Each personalized model f m utilizes the local P-KM gpm where the trust level of gpm is controllable;
+5
+
+Figure 2: Illustration of the function transformation mapping Tλ,gp,gr (Deﬁnition 5.1).
+
+(b) Each personalized model f m agrees with the local R-KM grm, i.e., for any x ∈ X , we have supp(f m(x)) ⊆ supp(grm(x));
+
+(c) Privacy of local dataset and local KMs needs to be protected.
+The following assumption guarantees that there is no conﬂict between local P-KMs and R-KMs.
+Assumption 5.1. For each client m, the local P-KM gpm agrees with the local R-KM grm, i.e., for any x ∈ X , we have
+supp(gpm(x)) ⊆ supp(grm(x)).
+
+5.2 Architecture design
+Now we show how to design the personalized model f m. Suppose the server provides a general deep learning model f (θ; ·) : X → Rk with θ ∈ Rd being the model parameters, e.g. multilayer perceptron network and convolutional neural network, which we call server model. Our key idea is to design a function-transformation mapping that can locally transform the server model f into a local model f m, which utilizes local KMs. We give an explicit formula for this function-transformation mapping in the following deﬁnition.
+
+Deﬁnition 5.1 (Function transformation). Given a scalar λ ∈ [0, 1] and functions gp : X →
+OneHot(k) and gr : X → MultiHot(k), we develop a function-transformation mapping Tλ,gp,gr : C(X , Rk) → C(X , Rk) such that for all x ∈ X
+
+Tλ,gp,gr (f )(x) = (1 − λ) · softmax(f (x) + ∞ · (gr(x) − 1k)) + λ · gp(x),
+
+(2)
+
+where 1k denotes the k-dimensional vector with all ones.
+
+Based on the function-transformation mapping T , we can construct the local personalized model
+
+as
+
+f m(θ; ·) := T m(f (θ; ·)) with T m = Tλm,gpm,grm .
+
+(3)
+
+6
+
+As we can see from the construction, all the personalized models f m share the same component f with θ being the trainable global parameter, and the function-transformation mapping T m locally adds a layer consisting of local KMs gpm and grm, to f . A geometric illustration is shown is Figure 2.
+As we brieﬂy discussed in Section 1, both convex combination with local models [9] and adding personalized layers [1] are not new ideas in FL. In our design, both the structure and the parameters of the personalized layer are ﬁxed and determined by the local KMs. The most important feature of our design is that the personalized model f m indeed satisﬁes the requirements we introduced in Section 5.1, which will be shown in the following proposition.
+Proposition 5.1 (Properties of the personalized model f m). For any client m, let f m denote the personalized model constructed via (3). Under Assumption 5.1, the following three properties hold for f m(θ; ·) with any model parameter θ ∈ Rd.
+(a) f m(θ; ·) is a valid predictive model in the sense that for any x ∈ X , we have
+f m(θ; x) ∈ ∆k.
+
+(b) The scalar λm ∈ [0, 1] controls the trust-level of the local P-KM gpm in sense that for any x ∈ X , we have f m(θ; x), gpm(x) ≥ λm.
+Moreover, if λm > 0.5, then f m coincides with gpm in the sense that for any x ∈ X , we have
+
+arg
+
+max{zi
+i
+
+|
+
+z
+
+=
+
+f m(θ;
+
+x)}
+
+=
+
+supp(gpm(x)).
+
+(c) f m(θ; ·) agrees with the local R-KM grm for any parameter λm ∈ [0, 1] in the sense that for any x ∈ X , we have supp(f m(θ; x)) ⊆ supp(grm(x)).
+(d) Let x ∈ X denote an arbitrary data point and let ∇θf (θ; x) ∈ Rk×d denote the Jacobian matrix of the deep learning model f (θ; x). Then the Jacobian matrix of f m(θ; x) can be expressed as
+∇θf m(θ; x) = (1 − λm) diag(s) − sT s · ∇θf (θ; x),
+
+where
+
+s = softmax(f (θ; x) + ∞ · (hm ◦ Φm(x) − 1k)).
+
+Proof of Proposition 5.1 is contained in Appendix A. Proposition 5.1 shows some nice properties of the personalized model f m. More speciﬁcally, Proposition 5.1(a) guarantees that f m is a valid prediction model, Proposition 5.1(b) illustrates how λm controls the trust-level of the local P-KM gpm and shows that our design satisﬁes Requirement 5.1(a), Proposition 5.1(c) shows that our design satisﬁes Requirement 5.1(b), and Proposition 5.1(d) shows that the ﬁrst order information of f m can
+be easily obtained as long as we know the Jacobian for the server model f .
+
+5.3 Federated optimization
+This section deﬁnes the optimization problem and shows how to update the global model parameter θ.
+
+7
+
+Algorithm 1: FedAvg algorithm for solving the distributed optimization problem (4).
+
+0 Input: server; M clients; model initialization θ ∈ Rd; sampling rate τ ∈ [0, 1]; number of
+
+communication rounds T ; batch size C; number of epochs in each round E; learning
+
+rate η
+
+1 for each round t = 0, 1, . . . , T do
+
+2 Server randomly samples a subset of clients St ⊂ [M ] with |St| = τ M
+
+3 for each selected client m ∈ St in parallel do
+
+4
+
+Client m downloads latest model from server θm ← θ
+
+5
+
+Client m randomly splits local datasets Dm into batches Bm with batch size C
+
+6
+
+for each local epoch e = 0, 1, . . . , E do
+
+7
+
+for each batch Bm ∈ Btm do
+
+8 9
+
+Client Client
+
+m m
+
+cuopmdaptuetseslolcoaclaml boadteclhagsrθamdie←ntθ∇mBθ−mηL∇mBθ(θmmL)ma(sθmin) (6)
+
+10
+
+Client m uploads local model θm to server
+
+11
+
+Server
+
+updates
+
+global
+
+model
+
+θ
+
+←
+
+1 |St|
+
+m∈St θm
+
+12 return θ
+
+Optimization problem Given the construction of the personalized models f m (3), we propose the following distributed empirical risk minimization problem
+
+M
+
+min L(θ) := Lm(θ)
+
+(4)
+
+θ m=1
+
+with
+
+Lm(θ)
+
+:=
+
+1 |Dm|
+
+crossentropy(f m(θ; x), y),
+
+(5)
+
+(x,y)∈Dm
+
+where Lm denotes the local empirical loss when applying personalized model f m to local dataset Dm.
+
+First order oracle One advantage of our proposed model is the easy accessibility of its ﬁrst order
+
+information. Assume that we have an oracle for computing the Jacobian matrix ∇θf (θ; x) ∈ Rk×d for any data point x ∈ Rn, then given a batch Bm ⊂ Dm, the batch gradient of the local loss Lm can be
+
+expressed as
+
+∇Bθ m Lm(θ)
+
+=
+
+−1 |Bm|
+
+yT diag(f m(θ; x))−1∇θf m(θ; x),
+
+(6)
+
+(x,y)∈Bm
+
+where the Jacobian matrix ∇θf m(θ; x) ∈ Rk×d can be computed as in Proposition 5.1(d).
+
+Algorithm Another advantage of our proposed model is that it is robust to optimization algorithms. Almost all the existing FL algorithms can be applied to solve (4), e.g. FedAvg[22] SCAFFOLD [17] and Scaﬀnew [23]. As an example, we show how to apply FedAvg in Algorithm 1.
+
+Privacy As we can see from Algorithm 1, the only information passed between the server and the clients is the batch gradient, which is the same setting as in the conventional FL framework. As we can see from the expression (6), the batch gradient doesn’t reveal the explicit formulas of the local KMs. Moreover, there has been an emerging paradigm in designing diﬀerentially private FL framework [13, 30]. In particular, Hao et al. [13] show that diﬀerential privacy of the gradient
+
+8
+
+Figure 3: Illustration of coking process.
+mapping can be achieved by adding homomorphic encryption to the batch gradient. Their approach can be directly applied in our case because our proposed model is robust to optimization algorithms.
+6 Case study: coal-mixing in coking process
+In this section, we conduct a case study on a real industry-level application that satisﬁes and motivates our framework.
+In China, coke is the main material in blast furnace iron-making, and its quality directly aﬀects the output of steel. As a typical energy conversion industry, the coking industry plays a very important role in the national economy. Nearly 90% of the coke it produces is used for iron smelting in the iron and steel industry, which greatly contributes to the country’s industrialization, modernization, and urbanization process.
+Due to the limited resources of high-quality coking coal, coking industries usually need to mix a variety of raw coal with a certain proportion. It is worth noting that the coal-mixing step accounts for up to 80% of the key factors aﬀecting the cost of the coking process.
+Determining the proportion of diﬀerent raw coal is the key ingredient in the coal-mixing step, as it directly aﬀects the quality of the ﬁnal coke. It is also a very challenging task as there is no explicit formula modelling the relationship between the features of raw coal and the quality of the ﬁnal coke. Currently, most domestic coking industries require technical experts to predict the quality of the ﬁnal coke given a type of raw coal, which relies on the long-term experience of the experts. More speciﬁcally, technical experts will provide a P-KM and an R-KM, such that given features of a type of raw coal, the P-KM and the R-KM will, respectively, return a prediction and a range on the quality of the ﬁnal coke. Finally, these KMs can provide an eﬀective reference for engineers to obtain high-quality coke. Namely, given the requirements of coke quality, the engineers can ﬁnd a feasible coal-mixing plan with the lowest cost, which can greatly improve production proﬁts. The whole process is illustrated in Figure 3.
+However, due to the limitation of manual computing, technical experts usually can only utilize part of the features of the raw coal. As a consequence, the prediction given by the P-KM may be unstable, and although the range given by the R-KM will contain the true quality, it may be too large to be useful. This motivates us to use machine learning techniques to enhance the KMs so that the performance on the coke-quality prediction task can be improved.
+One bottleneck of applying machine learning techniques in this task is the scarcity of data because
+9
+
+TA
+
+POV
+
+Industry ML P-KM MLwKM FL FLwKM ML P-KM MLwKM FL FLwKM
+
+1
+
+56% 51%
+
+66% 68% 68% 8% 0%
+
+0%
+
+7%
+
+0%
+
+2
+
+43% 40%
+
+51% 62% 63% 16% 0%
+
+0% 11% 0%
+
+3
+
+51% 38%
+
+47% 60% 61% 7% 0%
+
+0%
+
+3%
+
+0%
+
+4
+
+42% 43%
+
+52% 67% 64% 6% 0%
+
+0% 12% 0%
+
+Table 1: Numerical results for the case study (Section 6). Comparison between the performance of ﬁve approaches introduced in Section 6.1.
+measuring the quality of the ﬁnal coke is very expensive. To tackle this problem, we unite several coking industries to work on this task collaboratively, but their local datasets and KMs’ privacy needs to be protected.
+Now we formally deﬁne the problem and present the numerical results. We have M = 4 coking industries. Each industry m has a dataset Dm = {(xi ∈ R17, yi ∈ OneHot(20))}Ni=m1, where xi contains 17 diﬀerent features of the raw coal i including its ash content, volatile fraction, coal rock reﬂectivity, etc. and yi presents the 20 grades of quality of coke made from the raw coal i. As we illustrated before, the local KMs only utilize part of the features due to the limitation of manual computing, i.e., each industry m has a prediction model gˆpm : R5 → OneHot(20) and a range model gˆrm : R5 → OneHot(20). To match the deﬁnition of KMs (Deﬁnition 4.1), we introduce a mask mapping Φ : R17 → R5 and deﬁne the local P-KM and R-KM respectively as grm ≡ gˆpm ◦ Φ and grm ≡ gˆpm ◦ Φ. The formal deﬁnition of the mask mapping Φ is given in Appendix B. Due to the company’s regulations, we do not make the datasets public nor reveal the explicit formula of the KMs. We will test the performance of our approach on public datasets in Section 7.
+
+6.1 Numerical results
+
+In this case study, we compare the performance of ﬁve diﬀerent approaches:
+
+1. Machine learning (ML). Each industry m trains a model on its local training data set without the injection of local KMs and without FL.
+
+2. P-KM. Each industry m uses its local P-KM gpm to make prediction.
+3. Machine learning with KM (MLwKM). Each industry m locally trains the knowledgeinjected model, i.e., minimizing Lm(θ) to obtain a local model f m, where Lm is deﬁned in (5).
+
+4. Federated learning (FL). All the industries conduct a standard FL without the injection of domain knowledge.
+
+5. Federated learning with KM (FLwKM). The approach we proposed in Section 5.
+
+We use two metrics to evaluate the performance of these approaches on the test data set. The
+
+ﬁrst is the test accuracy (TA) and the second is the percentage of violation (POV) concerning the
+
+R-KM, i.e.
+
+P OV
+
+=
+
+1 |Dtmest|
+
+(x,y)∈Dtmest
+
+1({f
+
+m(x)
+
+∈/
+
+h(x)}).
+
+(7)
+
+The numerical results are shown in Table 1. From the table, we can see that for industries 1,
+
+2 and 3, FLwKM outperforms the other four approaches. For industry 4, although FL gives higher
+
+test accuracy, it has more violations than FLwKM. We postpone a more detailed comparison of these
+
+approaches to Section 7.4.
+
+10
+
+7 Experiments
+In this section, we conduct experiments on real-world datasets to evaluate the eﬀectiveness of our approach. We want to answer the following three questions: (i) Does our proposed approach help learn more powerful models in the low data setting? (Section 7.3) (ii) Do KMs and the FL framework help learn more powerful models? (Section 7.4) (iii) What is the impact of hyperparameter λ? (Section 7.5)
+We implement our approach in the Julia language [4]. Our code is publicly available at https: //github.com/ZhenanFanUBC/FedMech.jl.
+7.1 Data sets and distribution
+Covtype The ﬁrst dataset we use is the Forest Cover Type dataset [5], where the task is to predict forest cover type from cartographic variables. The dataset is downloaded from the website of LIBSVM1. It is a multi-class classiﬁcation problem with the number of classes k = 7 and the feature space X = R54.
+FMNIST The second dataset we use is the Fashion MNIST dataset [32], where the task is to predict the categories for grayscale images of fashion products. The dataset is obtained from the Julia package MLDatasets.jl2. It is a multi-class classiﬁcation problem with the number of classes k = 10 and the feature space X = R28×28.
+Data distribution For both datasets, we set the number of clients to be 5 and distribute the data to clients in a non-i.i.d. fashion, i.e., each client gets samples of only 5 classes, and the numbers of local training samples are not equal, which is the similar setting as in the FedAvg paper [22].
+7.2 Server and knowledge-based models
+Server model f (θ, ·) For Covtype dataset, we set the server model f (θ, ·) to be the multi-layer perception model with two hidden layers. For FMNIST dataset, we set the server to be the famous LeNet-5 model originally proposed by LeCun et al. [19].
+P-KM gpm For the Covtype dataset, we train a multinomial logistic regression model as the PKM gpm for each client m, where we use part of the training points with 18 features. Similar to Section 6, we use a mask mapping to model the limited feature situation. For the FMNIST dataset, we train a convolutional neural network as the P-KM gpm for each client m, where we use part of the training images with a low-resolution view. We use a maxpooling operator to model the low-resolution situation.
+R-KM grm For both datasets, we locally construct a hashmap as the R-KM grm for each client m. Importantly, we guarantee that both the true label and the label predicted by the P-KM gm are contained in the range given by grm, which satisﬁes the Assumption 5.1.
+7.3 Impact of the number of training data
+In this experiment, we want to examine the performance of our approach under the setting of low data. For each client m, we set the hyperparameter λm = 0.3 and change the size of the local training set Dm. The result is shown in Table 2, where the entries represent the test accuracy. From the result, we can see that the performance of our approach improves as training data increases. Moreover, we
+1https://www.csie.ntu.edu.tw/ cjlin/libsvm/ 2https://github.com/JuliaML/MLDatasets.jl
+11
+
+Client 1 2 3 4 5
+
+1% Data 92% 71% 93% 79% 94%
+
+Covtype
+
+5% Data 10% Data
+
+94%
+
+94%
+
+83%
+
+88%
+
+94%
+
+94%
+
+83%
+
+84%
+
+95%
+
+96%
+
+30% Data 95% 90% 95% 86% 97%
+
+1% Data 88% 79% 84% 84% 89%
+
+FMNIST
+
+5% Data 10% Data
+
+90%
+
+92%
+
+87%
+
+87%
+
+90%
+
+90%
+
+89%
+
+91%
+
+91%
+
+92%
+
+30% Data 94% 90% 94% 93% 95%
+
+Table 2: Numerical results for the impact of the number of data, where the entries show the accuracy on the local test datasets (Section 7.3).
+
+Covtype
+
+FMNIST
+
+Client Metric ML P-KM MLwKM FL FLwKM ML P-KM MLwKM FL FLwKM
+
+1
+
+TA 87% 83% POV 2% 0%
+
+89% 90% 92% 81% 78%
+
+0%
+
+3%
+
+0%
+
+9% 0%
+
+85% 83% 88%
+
+0%
+
+9%
+
+0%
+
+2
+
+TA 54% 59% POV 10% 0%
+
+62% 65% 71% 74% 59% 0% 10% 0% 12% 0%
+
+69% 74% 79% 0% 12% 0%
+
+3
+
+TA 87% 83% POV 4% 0%
+
+90% 88% 93% 82% 61%
+
+0%
+
+6%
+
+0%
+
+8% 0%
+
+80% 82% 84%
+
+0%
+
+8%
+
+0%
+
+4
+
+TA 65% 67% 79% 67% 79% 76% 65% 76% 76% 84%
+
+POV 15% 0%
+
+0% 13% 0% 12% 0%
+
+0% 12% 0%
+
+5
+
+TA 92% 87% POV 2% 0%
+
+92% 92% 94% 85% 79%
+
+0%
+
+3%
+
+0%
+
+6% 0%
+
+85% 85% 89%
+
+0%
+
+6%
+
+0%
+
+Table 3: Numerical results for the impact of KMs and the FL framework, where the entries show the accuracy on the local test datasets (Section 7.4).
+observe that the marginal improvement decreases as training data increases for all the clients and datasets, suggesting that our proposed approach is most useful under the low data setting.
+
+7.4 Impact of knowledge-based models and federated learning
+In this experiment, we want to examine the improvement brought by the KMs and the FL framework. We compare the ﬁve approaches as listed in Section 6.1. For each client, we set the hyperparameter λm = 0.3 and use 1% of the training data to model the situation of low data. The result is shown in Table 3, where entries represent the test accuracy (TA) and the percentage of violation (POV) (7). We observe that our proposed approach FLwKM consistently performs the best among the ﬁve approaches, supporting the eﬀectiveness of our design. Besides, by comparing the performance of P-KM and MLwKM, we can see the beneﬁt brought by the machine learning model. Similarly, by comparing the performance of FL and FLwKM, we can see the beneﬁt brought by the KMs.
+
+7.5 Impact of the hyperparameter λ
+In this experiment, we want to see the impact of the local hyperparameter λm. As we illustrated in Proposition 5.1(b), when λm ≥ 0.5, f m will make the same prediction as the local P-KM gpm, and when λm = 0.0, f m does not utilize anything from gpm. So for each client m, we test the performance of the model for λm ∈ {0.0, 0.1, . . . , 0.5}. The result is shown in Figure 4. The curves show that a small λm may not be enough to bring the beneﬁt from gpm, and a large λm may cause gpm to dominate. The U-shape of the curves also suggests that we can use cross-validation [2] or bilevel optimization [3] techniques to obtain a good λ in practice.
+
+12
+
+test accuracy
+
+1.00
+
+Covtype
+
+1.00
+
+FMNIST
+
+0.95
+
+0.95
+
+0.90
+
+0.90
+
+0.85
+
+0.85
+
+0.80
+
+0.80
+
+0.75
+
+0.75
+
+0.70
+
+0.70
+
+0.65 0.0 0.1 0.2 0.3 0.4 0.5 0.65 0.0 0.1 0.2 0.3 0.4 0.5
+
+client 1
+
+client 2
+
+client 3
+
+client 4
+
+client 5
+
+Figure 4: Numerical results for the impact of the hyperparameter λ, where the x-axis represents the parameter λ and the y-axis represents the accuracy of the test dataset (Section 7.5).
+
+8 Conclusion
+We propose a federated learning framework where the clients can work collaboratively using local data sets and local domain knowledge without sharing such information. We show that our framework can be applied to solve a real industry-level problem. Moreover, we show that our framework can be extended to solve regression problems (Appendix C).
+There are also many interesting future directions. For example, it is interesting to extend our methodology to other types of knowledge-based models. As another example, it is also possible to extend our methodology to vertical federated learning.
+
+References
+[1] Manoj Ghuhan Arivazhagan, Vinay Aggarwal, Aaditya Kumar Singh, and Sunav Choudhary. Federated learning with personalization layers. arXiv preprint arXiv:1912.00818, 2019.
+[2] Sylvain Arlot and Alain Celisse. A survey of cross-validation procedures for model selection. Statistics surveys, 4:40–79, 2010.
+[3] James Bergstra, R´emi Bardenet, Yoshua Bengio, and Bal´azs K´egl. Algorithms for hyperparameter optimization. Advances in neural information processing systems, 24, 2011.
+[4] Jeﬀ Bezanson, Alan Edelman, Stefan Karpinski, and Viral B Shah. Julia: A fresh approach to numerical computing. SIAM review, 59(1):65–98, 2017.
+[5] Jock A Blackard and Denis J Dean. Comparative accuracies of artiﬁcial neural networks and discriminant analysis in predicting forest cover types from cartographic variables. Computers and electronics in agriculture, 24(3):131–151, 1999.
+[6] Andrea Borghesi, Federico Baldo, and Michela Milano. Improving deep learning models via constraint-based domain knowledge: a brief survey. arXiv preprint arXiv:2005.10691, 2020.
+[7] Fei Chen, Mi Luo, Zhenhua Dong, Zhenguo Li, and Xiuqiang He. Federated meta-learning with fast convergence and eﬃcient communication. arXiv preprint arXiv:1802.07876, 2018.
+[8] Yuntian Chen and Dongxiao Zhang. Integration of knowledge and data in machine learning. ArXiv, abs/2202.10337, 2022.
+
+13
+
+[9] Yuyang Deng, Mohammad Mahdi Kamani, and Mehrdad Mahdavi. Adaptive personalized federated learning. arXiv preprint arXiv:2003.13461, 2020.
+[10] Alberto Diez-Olivan, Javier Del Ser, Diego Galar, and Basilio Sierra. Data fusion and machine learning for industrial prognosis: Trends and perspectives towards industry 4.0. Information Fusion, 50:92–111, 2019.
+[11] Weinan E. The dawning of a new era in applied mathematics. Notices of the American Mathematical Society, 68:1, 2021.
+[12] Alireza Fallah, Aryan Mokhtari, and Asuman Ozdaglar. Personalized federated learning: A meta-learning approach. arXiv preprint arXiv:2002.07948, 2020.
+[13] Meng Hao, Hongwei Li, Guowen Xu, Sen Liu, and Haomiao Yang. Towards eﬃcient and privacypreserving federated deep learning. In ICC 2019-2019 IEEE international conference on communications (ICC), pages 1–6. IEEE, 2019.
+[14] Zhiting Hu, Xuezhe Ma, Zhengzhong Liu, Eduard Hovy, and Eric Xing. Harnessing deep neural networks with logic rules. arXiv preprint arXiv:1603.06318, 2016.
+[15] Yutao Huang, Lingyang Chu, Zirui Zhou, Lanjun Wang, Jiangchuan Liu, Jian Pei, and Yong Zhang. Personalized cross-silo federated learning on non-iid data. In AAAI, pages 7865–7873, 2021.
+[16] Yihan Jiang, Jakub Koneˇcny`, Keith Rush, and Sreeram Kannan. Improving federated learning personalization via model agnostic meta learning. arXiv preprint arXiv:1909.12488, 2019.
+[17] Sai Praneeth Karimireddy, Satyen Kale, Mehryar Mohri, Sashank Reddi, Sebastian Stich, and Ananda Theertha Suresh. SCAFFOLD: Stochastic controlled averaging for federated learning. In Proceedings of ICML, pages 5132–5143, 2020.
+[18] Jakub Koneˇcny´, H. Brendan McMahan, Felix X. Yu, Peter Richtarik, Ananda Theertha Suresh, and Dave Bacon. Federated learning: Strategies for improving communication eﬃciency. In NIPS Workshop on Private Multi-Party Machine Learning, 2016. URL https://arxiv.org/ abs/1610.05492.
+[19] Yann LeCun, L´eon Bottou, Yoshua Bengio, and Patrick Haﬀner. Gradient-based learning applied to document recognition. Proceedings of the IEEE, 86(11):2278–2324, 1998.
+[20] Jay Yoon Lee, Sanket Vaibhav Mehta, Michael Wick, Jean-Baptiste Tristan, and Jaime Carbonell. Gradient-based inference for networks with output constraints. In Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 33, pages 4147–4154, 2019.
+[21] Yishay Mansour, Mehryar Mohri, Jae Ro, and Ananda Theertha Suresh. Three approaches for personalization with applications to federated learning. arXiv preprint arXiv:2002.10619, 2020.
+[22] Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, and Blaise Aguera y Arcas. Communication-eﬃcient learning of deep networks from decentralized data. In Proceedings of AISTATS, pages 1273–1282, 2017.
+[23] Konstantin Mishchenko, Grigory Malinovsky, Sebastian Stich, and Peter Richt´arik. Proxskip: Yes! local gradient steps provably lead to communication acceleration! ﬁnally! arXiv preprint arXiv:2202.09357, 2022.
+14
+
+[24] Yatin Nandwani, Abhishek Pathak, and Parag Singla. A primal dual formulation for deep learning with constraints. Advances in Neural Information Processing Systems, 32, 2019.
+[25] Canh T Dinh, Nguyen Tran, and Josh Nguyen. Personalized federated learning with moreau envelopes. Advances in Neural Information Processing Systems, 33:21394–21405, 2020.
+[26] Luis Torgo and Joao Gama. Regression using classiﬁcation algorithms. Intelligent Data Analysis, 1(4):275–292, 1997.
+[27] Laura Von Rueden, Sebastian Mayer, Katharina Beckh, Bogdan Georgiev, Sven Giesselbach, Raoul Heese, Birgit Kirsch, Julius Pfrommer, Annika Pick, Rajkumar Ramamurthy, et al. Informed machine learning–a taxonomy and survey of integrating knowledge into learning systems. arXiv preprint arXiv:1903.12394, 2019.
+[28] Laura von Rueden, Sebastian Mayer, Katharina Beckh, Bogdan Georgiev, Sven Giesselbach, Raoul Heese, Birgit Kirsch, Julius Pfrommer, Annika Pick, Rajkumar Ramamurthy, Michal Walczak, Jochen Garcke, Christian Bauckhage, and Jannis Schuecker. Informed machine learning - a taxonomy and survey of integrating prior knowledge into learning systems. IEEE Transactions on Knowledge and Data Engineering, 2021.
+[29] Kangkang Wang, Rajiv Mathews, Chlo´e Kiddon, Hubert Eichner, Fran¸coise Beaufays, and Daniel Ramage. Federated evaluation of on-device personalization. arXiv preprint arXiv:1910.10252, 2019.
+[30] Kang Wei, Jun Li, Ming Ding, Chuan Ma, Howard H Yang, Farhad Farokhi, Shi Jin, Tony QS Quek, and H Vincent Poor. Federated learning with diﬀerential privacy: Algorithms and performance analysis. IEEE Transactions on Information Forensics and Security, 15:3454–3469, 2020.
+[31] Sholom M Weiss and Nitin Indurkhya. Rule-based machine learning methods for functional prediction. Journal of Artiﬁcial Intelligence Research, 3:383–403, 1995.
+[32] Han Xiao, Kashif Rasul, and Roland Vollgraf. Fashion-mnist: a novel image dataset for benchmarking machine learning algorithms. arXiv preprint arXiv:1708.07747, 2017.
+[33] Qiang Yang, Yang Liu, Tianjian Chen, and Yongxin Tong. Federated machine learning: Concept and applications. ACM Transactions on Intelligent Systems and Technology (TIST), 10(2):1–19, 2019.
+15
+
+Appendix A Proof for Proposition 5.1
+Proof. (a) Consider any θ ∈ Rd and x ∈ X . By the deﬁnition of P-KM, we know that gpm(x) ∈ ∆k. Similarly, by the deﬁnition of the softmax function, we know that softmax(f (θ; x) + ∞ · (grm(x) − 1k)) ∈ ∆k. Therefore, it follows that f m(θ; x) ∈ ∆k.
+(b) The ﬁrst part is straightforward, namely, we have f m(θ; x), gpm(x) ≥ λmgpm(x), gpm(x) = λm.
+Now we show the second part. Given x ∈ X , suppose that supp(gpm(x)) = {i} ⊂ [k]. Then by the ﬁrst part, it follows that for any θ ∈ Rd, we have
+f m(θ; x)i ≥ λm. Therefore, if λm ≥ 0.5, combing Proposition 5.1(a), we can conclude that
+{i} ⊆ supp(f m(θ; x)).
+
+(c) By Assumption 5.1, we know that supp(gpm(x)) ⊆ supp(grm(x)) ∀x ∈ X .
+By the construction of f m, we only need to show supp softmax(f (θ; x) + ∞ · (grm(x) − 1k)) ⊆ supp(grm(x)).
+Consider any i ∈ [k] \ supp(grm(x)). We have softmax(f (θ; x) + ∞ · (grm(x) − 1k))i = 0.
+Therefore, it follows that i ∈/ supp softmax(f (θ; x) + ∞ · (grm(x) − 1k)) .
+
+(d) By the construction of f m and chain rule, we know that
+
+∇θf m(θ; x) = (1 − λm)∇s softmax(s) · ∇θs,
+
+where
+
+s = softmax(f (θ; x) + ∞ · (hm ◦ Φm(x) − 1k)).
+
+By the deﬁnition of softmax, it can be derived that
+
+∇s softmax(s) = diag(s) − sT s.
+
+Similarly, we have
+
+∇θs = ∇θf (θ; x).
+
+Finally, combing these together leads to the desired result.
+
+16
+
+Appendix B Mask and Maxpool operator
+In this section, we introduce two operators used in this work.
+
+Mask operator. Let Ω be a subset of {1, . . . , n} with |Ω| = k, the mask operator ΦΩ : Rn → Rk is
+
+deﬁned as
+
+ΦΩ(x)i = xΩ[i] ∀i = 1, . . . , k,
+
+(8)
+
+where Ω[i] denotes the i-th element in Ω.
+
+Maxpool operator Given any matrix X ∈ Rn×n, let p be an integer such that n mod p = 0, then the p-by-p Maxpool operator Φ(p,p) : Rn×n → Rk×k, where k = n/p, is deﬁned as
+
+Φ(p,p)(X)i,j = max(X(i−1)p+1:ip,(j−1)p+1:ip),
+
+(9)
+
+where max(X(i−1)p+1:ip,(j−1)p+1:iq) denotes the maximal value in the submatrix.
+
+Appendix C Extension to regression problem
+
+So far, we have shown that our proposed approach can be applied to multiclass classiﬁcation problems. This section shows that our approach can be extended to solve regression problems using a discretization technique initially developed by Torgo and Gama [26].
+We consider a standard regression problem
+
+(x ∈ X , y ∈ [ , u]) ∼ F,
+
+(10)
+
+where F is the underlying data distribution, x is the feature vector and y is the label with and u being the ﬁnite lower and upper bounds.
+Similarly, we deﬁne the KMs for the regression problem (10).
+Deﬁnition C.1. Suppose that g is a KM for the data distribution F (Deﬁnition 4.1).
+(a) We say that g is of prediction type if it is a mapping from X to [ , u] and for any (x, y) ∼ F, g(x) is a point estimation of y.
+(b) We say that g is of range type if it is a mapping from X to 2[ ,u] and for any (x, y) ∼ F , one has y ∈ g(x).
+
+Now we illustrate how we apply our classiﬁcation inductive learning system on the regression problem. The main idea is to transform the regression problem into a closely related classiﬁcation problem. The idea of mapping regression into classiﬁcation was originally considered by Weiss and Indurkhya [31] and was later extensively explored by Torgo and Gama [26]. Here we follow the discretization methodology developed in [26].
+First, we deﬁne k as the number of classes that we want to have. Next, we partition the interval [ , u] into k intervals with the same range, i.e.
+
+Pk = {[ , + ), [ + , + 2 ), . . . , [ + (k − 1) , u]} ,
+
+where
+
+:=
+
+u− k
+
+.
+
+Then
+
+we
+
+construct
+
+two
+
+mappings
+
+φgp : [ , u] → OneHot(k),
+
+17
+
+and φgr : 2[ ,u] → MultiHot(k)
+that can transform the KMs for the regression problem (Deﬁnition C.1) to the KMs for the classiﬁcation problem (Deﬁnition 4.2). The explicit formulations of these two mappings are
+
+1 s ∈ [ + (i − 1) , + i )
+
+∀s ∈ [ , u], φgp(s)i = 0 otherwise
+
+and
+
+1 S ∩ [ + (i − 1) , + i ) = ∅ ∀S ⊆ [ , u], φgr (S)i = 0 otherwise.
+
+Finally, let {(xi ∈ X , yi ∈ [ , u])}Ni=1 denote the training set for the regression problem, gp : X → [ , u] denote the corresponding P-KM and gr : X → 2[ ,u] denote the corresponding R-KM. Then after the transformation, we will get a classiﬁcation problem with training set {(xi, φgp(yi))}Ni=1, P-KM φgp ◦ gp and R-KM φgr ◦ gr.
+
+18
+

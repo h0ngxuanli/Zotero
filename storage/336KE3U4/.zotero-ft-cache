@@ -1,0 +1,1493 @@
+Revealing Unfair Models by Mining Interpretable Evidence
+
+Mohit Bajaj Huawei Technologies Canada
+Burnaby, Canada mohit.bajaj1@huawei.com
+
+Lingyang Chu McMaster University
+Hamilton, Canada chul9@mcmaster.ca
+
+Vittorio Romaniello University of British Columbia
+Vancouver, Canada vittorio.romaniello@stat.ubc.ca
+
+Gursimran Singh Huawei Technologies Canada
+Burnaby, Canada gursimran.singh1@huawei.com
+
+Jian Pei Simon Fraser University
+Burnaby, Canada jpei@cs.sfu.ca
+
+Zirui Zhou Huawei Technologies Canada
+Burnaby, Canada zirui.zhou@huawei.com
+
+Lanjun Wang Tianjin University
+Tianjin, China wanglanjun@tju.edu.cn
+
+Yong Zhang Huawei Technologies Canada
+Burnaby, Canada yong.zhang3@huawei.com
+
+arXiv:2207.05811v1 [cs.LG] 12 Jul 2022
+
+Abstract—The popularity of machine learning has increased the risk of unfair models getting deployed in high-stake applications, such as justice system, drug/vaccination design, and medical diagnosis. Although there are effective methods to train fair models from scratch, how to automatically reveal and explain the unfairness of a trained model remains a challenging task. Revealing unfairness of machine learning models in interpretable fashion is a critical step towards fair and trustworthy AI. In this paper, we systematically tackle the novel task of revealing unfair models by mining interpretable evidence (RUMIE). The key idea is to ﬁnd solid evidence in the form of a group of data instances discriminated most by the model. To make the evidence interpretable, we also ﬁnd a set of human-understandable key attributes and decision rules that characterize the discriminated data instances and distinguish them from the other nondiscriminated data. As demonstrated by extensive experiments on many real-world data sets, our method ﬁnds highly interpretable and solid evidence to effectively reveal the unfairness of trained models. Moreover, it is much more scalable than all of the baseline methods.
+Index Terms—model fairness, interpretable evidence, unfair models
+I. INTRODUCTION
+Deployment of unfair machine learning models in the society, if unchecked, can lead to signiﬁcant discrimination against certain groups of subjects [1]–[4]. For example, a particular group of prisoners may get discriminated by an AI-assisted justice system to receive unfair judgements [5]. A group of consumers may be discriminated by not allowing them to avail some premium services based on their communities and neighborhoods [6].
+Many fair machine learning methods [7]–[11] focus on training fair models, however, there has been little control on the fairness of models trained by third-parties [5]. Therefore, before deploying a trained model, it is crucial to reveal and explain potential unfairness of the model.
+How can we reveal and explain the unfairness of a trained model on a given data distribution?
+Existing model explanation methods [12] cannot reveal and explain the unfairness of a trained model, because they
+
+focus on answering the questions of why and how a machine learning model makes a prediction, but they ignore the fairness of the prediction.
+We attempt to tackle this challenging task by borrowing the principled idea of statistical hypothesis testing [13]. Speciﬁcally, we assume that the model is fair and then try to reject the assumption by ﬁnding the most extreme evidence in data to demonstrate the unfairness of the model.
+Intuitively, the most extreme evidence in data is the group of data instances that are discriminated the most by the model. A group of data instances is said to be discriminated if an instance in the group has a much lower probability of getting a favorable prediction, such as mortgage approval and college entrance admission, than the other data instances not contained in the group [14].
+To explain why a group of data instances gets discriminated by the model, it is also important to identify the set of key attributes that characterizes the group and distinguishes the instances in the group from the rest of the data instances.. For example, to demonstrate that a correctional offender management system is unfair, one can ﬁnd solid evidence in data, such as the group of African-American with dark skin and are younger than 25 who are subject to a much higher false negative rate on releasing decisions than the other suspects [15]. The key attribute values “African-American” and “dark skin” explain why the group of suspects is discriminated by the system.
+Following the above intuition, we propose a novel data mining task named Revealing Unfair Models by mining Interpretable Evidence (RUMIE), which aims to reveal and explain potential unfairness of a trained model by ﬁnding the most discriminated group of instances and the corresponding key attributes.
+RUMIE is a challenging task for multiple reasons. First, the discriminated group of data instances is often characterized by multiple key attributes. Thus, the time cost of searching the discriminated group and the key attributes grows exponentially with respect to the number of attributes. Continuous attributes
+
+make this task further challenging as there may exist huge number of unique assignments for such attributes. Second, it is challenging to interpret the discriminated group and key attributes to an end user without machine learning background, because the user may not understand how and why the key attributes characterize the discriminated group.
+In this paper, we make the following contributions. First, we propose the novel task of RUMIE. The goal is to ﬁnd a discriminated group of instances that is most discriminated by a trained model. We also aim to interpret why the group of instances is discriminated by ﬁnding a small set of key attributes that characterizes the discriminated group of instances and distinguishes them from the other data instances that are not discriminated. Second, we propose an effective algorithm to efﬁciently ﬁnd the most discriminated group of data instances. While the scalability of brute-force searching methods is signiﬁcantly limited by the exponential number of combinations of attributes, our method achieves outstanding efﬁciency by formulating a continuous numerical optimization problem, which can be efﬁciently solved by a well designed method. Third, to explain to the users how the key attributes characterize the discriminated group, we use the key attributes to construct a decision tree that separates the discriminated group from the other data instances. Then, we derive humanunderstandable rules from the decision tree to explain how the key attributes distinguish the discriminated group from the other data instances. As shown in extensive case studies, the key attributes and the decision tree provides clear interpretation on why the group of instances are discriminated. Last, we report extensive experiments on many real-world data sets to demonstrate the superior performance and scalability of our method.
+II. RELATED WORK
+In this section, we discuss the relationship between our work and four category of related works, such as discrimination discovery, software testing, fair model training and fairness evaluation tools.
+A. Discrimination Discovery and Software Testing
+Discrimination discovery approaches are related to our work because discrimination often indicates unfairness. Thus, methods developed to discover the discrimination in data are potentially related to revealing the unfairness of a machine learning model.
+Many discrimination discovery methods have been developed to ﬁnd discrimination in databases. Please see [16] for an excellent survey. Some of these works focus on individual discrimination [17], [18] where the goal is to identify individual instances in the data sets that are discriminated by the model in contrast to other similar instances that are favored by the model. There also exist some methods that align with our goal of revealing unfairness in models by identifying groups of instances being discriminated. Among these works, our work is the most related to the following. The DDD method [19]
+
+uses frequent item set mining to ﬁnd the most common assignments of the categorical attributes of data instances and then analyze discrimination based on the common assignments. FairDB [20] uses Approximate Conditional Functional Dependencies (ACFDs) to capture discriminating association rules between attribute assignments and predictions.
+Both the methods use pattern mining techniques to discover the discrimination in databases. Since the adopted pattern mining techniques cannot effectively deal with real-valued data, these methods cannot effectively ﬁnd evidence in realvalued data to reveal the unfairness of a trained machine learning model.
+It is possible to extended DDD [19] and FairDB [20] to tackle the RUMIE task by quantizing real-valued data attributes into categorical ones. However, as demonstrated by extensive experiments in Section V-D, both the methods cannot achieve good performance because due to the information loss caused by the quantization.
+Another related work is a software testing method named Themis [21], which was originally proposed to test the unfairness of a software system in a data-independent manner. The key idea is to build test cases by adaptively sampling synthetic data from the uniform distribution of all possible combinations of data attributes.
+The correctness of Themis relies on the adaptive conﬁdencedriven sampling strategy, which is difﬁcult to extend to sampling from real data. As discussed later in Section V, Themis can be extended to ﬁnd a solution to the RUMIE task. However, the solution cannot effectively reveal the unfairness of a model on a set of real data instances, because the results produced by Themis are based on synthetic data instances, which are independent from real data.
+B. Fair Model Training
+The family of fair-model-training methods [7]–[11] focus on mitigating the bias of models. The pre-processing methods [7], [8] attempt to mitigate the bias of a model by modifying the training data with pre-processing techniques, such as removing and masking sensitive attributes like “gender”, “race”, “age”, etc. The in-processing methods [9], [22], [23] mitigate the bias of a model by smoothly incorporating model fairness in the training objective of the model. The post-processing methods [10] focus on reversing the biased predictions made by an unfair trained model.
+The fair-model-training methods are effective in training fair models from scratch. However, they cannot be straightforwardly extended to tackle the RUMIE task because they do not ﬁnd the most discriminated group of instances to reveal the unfairness of a trained model.
+Some methods [24]–[32] develop new measures of fairness and leverage such measures to train fair models. Demographic parity [14] computes the fractions of data instances predicted positive in multiple groups and takes the absolute value of the difference of the fractions to measure discrimination. Equality of false positive rate [33] computes the fraction of data instances falsely predicted positive in the true negative
+
+population of each group. It improves model fairness by requiring such fractions of all groups to be the same. Equality of false discovery rate [31] requires the percentage of false positive predictions in all positive predictions to be the same for each group of data instances.
+The above methods focus on developing fairness measures to train fair models, but they do not ﬁnd evidence to reveal the unfairness of a trained model. Therefore, they cannot be directly applied to tackle the RUMIE task.
+C. Fairness Evaluation Tools
+There are also several published tools [34]–[36] to compute the unfairness of trained models, such as the AI Fairness 360 Open Source Toolkit [34], the What-If Tool [35], and the open source bias audit toolkit named Aequitas [36].
+These interactive tools are developed to compute existing fairness metrics when the group of data instances and sensitive attributes are provided. They rely on users to input a group of data instances or a set of sensitive attributes, and then output the signiﬁcance of unfairness of the model with respect to the user inputs.
+These tools cannot tackle the RUMIE task because they serve substantially different purposes. For the RUMIE task, the discriminated group of data instances and the corresponding key attributes are not known beforehand. The goal of RUMIE is to automatically ﬁnd such groups of data instances and attributes to reveal the unfairness of a trained model.
+III. PROBLEM FORMULATION
+In this section, we ﬁrst introduce how to evaluate the signiﬁcance of discrimination for a group of data instances, then we deﬁne the RUMIE task and formulate it as a continuous optimization problem.
+A. Evaluating the Signiﬁcance of Discrimination
+Discrimination and fairness are like two sides of the same coin. A low level of fairness usually means a high level of discrimination. Therefore, we can measure the signiﬁcance of discrimination of a machine learning model based on the fairness measurements of the model [14], [22], [33], [37]–[39].
+Existing model fairness measurements can be categorized into the following two major categories.
+The individual fairness measurements [14], [40] evaluate whether a data instance is treated fairly by a model by investigating how likely a pair of similar instances receive similar predictions from the model. A data instance is said to be treated fairly by the model if it receives a similar prediction with that of another similar data instance.
+The group fairness measurements [22], [33], [37], [38], [41] evaluate the fairness of a model on all data instances by evaluating how balanced the predictions of the model are on a pre-deﬁned pair of protected groups of data instaces (e.g., the group of ‘female’ versus the group of ‘male’).
+Since our goal is to reveal the unfairness of a trained machine learning model, we are more interested in measuring the fairness of the model on all data instances instead of individual
+
+data instances. Therefore, the group fairness measurements are more suitable for our task.
+Many group fairness measurements have been developed in literature, such as disparate impact [37], demographic parity [14], [22], [38], difference of F1-scores [39], equal odds [33], and equal opportunities [33]. Many of these measurements can be incorporated into our proposed framework to reveal the unfairness of models. Without loss of generality, we focus on developing our framework based on demographic parity [14], [22], [38]. In the end of Section III-B, we will discuss the key idea to incorporate some other group fairness measurements into our framework.
+Next, we give a brief introduction to demographic parity [14], [22], [38] and extend it to a discrimination score to measure the discrimination signiﬁcance of a model on a group of data instances.
+Denote by g a trained classiﬁcation model and by D a set of data instances. Among all the classes, we assume that there is one favorable class/prediction. The choice of favorable prediction is application dependent. For example, it may be getting a mortgage application approved in a bank or a suspect being freed by a law system. We denote by fav the favorable class/prediction.
+Denote by S ⊂ D a group of data instances in D and by D \ S the other group containing the rest of the data instances in D. Let P(fav | S) and P(fav | D\S) be the probabilities of a data instance x ∈ D receiving a favorable prediction from g when x is uniformly sampled from S and D \ S, respectively.
+According to the deﬁnition of demographic parity [14], [22], [38], the model g is said to be fair with respect to the groups S and D \ S if
+
+P(fav | S) = P(fav | D \ S),
+
+(1)
+
+which means the instances in the groups S and D \ S have equal probabilities of receiving favorable predictions.
+Demographic parity is a boolean measurement that only tells whether a model is fair or not. It cannot be directly applied to measure the discrimination signiﬁcance of a model. Therefore, we extend demographic parity to compute the discrimination score of g on S as
+
+DScore(S) = P(fav | D \ S) − P(fav | S), (2)
+
+which has a real valued range from −1 to 1 to measure the
+signiﬁcance of discrimination of a model. If DScore(S) = 0, then P(fav | S) = P(fav | D \ S), thus
+the model g is fair. If DScore(S) ∈ [−1, 0), then P(fav | S) > P(fav | D\S),
+which means a data instance in S has a higher probability to receive a favorable prediction than a data instance in D \ S. Therefore, the group S is not discriminated by the model g.
+If DScore(S) ∈ (0, 1], then P(fav | S) < P(fav | D \ S), which means a data instance in S has a lower probability to receive a favorable prediction than a data instance in D \ S. Therefore, the group S is discriminated by the model g.
+A larger value of DScore(S) means that an instance in S
+has a lower probability to receive a favorable prediction than
+
+an instance in D \S, which further indicates a more signiﬁcant discrimination on S.
+B. The RUMIE Task
+In this subsection, we ﬁrst deﬁne the RUMIE task. Then we propose a probabilistic framework to model the RUMIE task as a continuous optimization problem. Last, we discuss the key idea to incorporate some other group fairness measurements into our framework.
+Deﬁnition 1 (RUMIE task): Given a classiﬁcation model g, a set of data instances D, and a set of sensitive attributes A that may be potentially related to the discrimination of g on groups of instances in D, the task of revealing unfair models by mining interpretable evidence (RUMIE) is to
+1) ﬁnd the group of data instances, denoted by S ⊂ D, that is the most discriminated by the model g; and
+2) interpret the discrimination on the data instances in S by ﬁnding a small set of key attributes, denoted by Q ⊆ A, such that the data instances in S are separated from those in D \ S in the feature space of Q.
+Here, the feature space of Q, denoted by SpaceQ, is the space where a data instance is represented by the attributes in Q. The discriminated group S is said to be separated from D \ S in SpaceQ if S and D \ S are classiﬁed as two different classes by the classiﬁcation boundary of a binary classiﬁer in SpaceQ.
+To clearly explain to an end user why and how S is separated from D \S, we also want the classiﬁcation boundary separating S and D \ S to be simple. Here, a classiﬁcation boundary is said to be simple if the partitions of data set D induced by the classiﬁcation boundary have a small minimum description length. For example, a linear classiﬁcation boundary of a logistic regression classiﬁer is said to be simpler than a non-linear classiﬁcation boundary of a deep neural network.
+We refer to (S, Q) as the interpretable evidence to demonstrate the unfairness of g. The discriminated group S is the evidence to demonstrate the unfairness of g because S is discriminated the most by g. A higher discrimination score on S means more unfairness exists in g. The set of key attributes Q allows us to interpret the reason behind the discrimination of S because these attributes are used to separate the discriminated group S from the other group D\S. A simpler classiﬁcation boundary to separate S and D \ S in SpaceQ indicates the existence of the discriminated group is less possible by chance, and thus is more signiﬁcant.
+Tackling the RUMIE task requires to ﬁnd the optimal set of S that maximizes the discrimination score DScore(S); and it also requires to ﬁnd a small set of sensitive attributes denoted by Q such that S and D \ S are well separated by a simple decision boundary in SpaceQ. This can be done by a bruteforce search approach that enumerates all values of S and Q to ﬁnd their optimal values. However, the brute-force search approach does not scale up well on large data sets, because the time cost grows exponentially with respect to the size of D and A.
+
+To efﬁciently tackle the RUMIE task, we propose a probabilistic framework to model it as a continuous optimization problem, which can be efﬁciently solved by a gradient-based optimization method [42].
+The key idea is to model the discrete variables S and Q by functions of continuous variables, and then formulate the optimization objective of RUMIE as a continuous function.
+First, we model S as a random set of data instances, where the probability of a data instance x ∈ D belonging to S is modelled by
+
+P(x ∈ S) = fθ(σA(x)).
+
+(3)
+
+Here, σA(x) is the projection of x to the feature space SpaceA of the attributes in A, fθ : SpaceA → [0, 1] is a continuous function parametrized by a vector θ with |A| entries, and |A| is the number of attributes in A. Every entry in θ is a continuous
+real-valued variable.
+For a given set of data instances D, the distribution of S is determined by θ. Therefore, S is a function of the continuous variables in θ.
+Second, we model Q as a function of continuous variables by formulating fθ as a logistic regression classiﬁer, that is,
+
+fθ (σA (x))
+
+=
+
+1+
+
+1 e−θ
+
+σA(x) ,
+
+(4)
+
+where the none-zero entries in θ correspond to the set of key attributes Q ∈ A because the data instances in S and D \S are well separated by the simple linear decision boundary induced by fθ in SpaceQ. Since the value of Q is determined by θ, Q is a function of continuous variables.
+As illustrated later, we will enhance the interpretability of Q by reducing the size of Q with a sparsity constraint on θ and generate a set of more interpretable rules by distilling fθ into a simple decision tree.
+Third, we introduce how to formulate the optimization objective of the RUMIE task as a continuous function of θ.
+Since the RUMIE task requires to ﬁnd the group of data instances that is the most discriminated by the model g, we need to ﬁnd a discriminated group S that maximizes the discrimination score DScore(S) in Equation (2).
+Since we model S as a random set of data instances parametrized by θ, the discrimination score DScore(S) is a real-valued random variable, which cannot be straight-
+forwardly maximized. Therefore, instead of directly maximizing the random variable DScore(S), we seek to maximize its expectation
+
+E[DScore(S)] = E[P(fav | D \ S)] − E[P(fav | S)], (5)
+
+where E[P(fav | D \ S)] and E[P(fav | S)] are the expectations of P(fav | S) and P(fav | D \ S), respectively. Here, P(fav | S) and P(fav | D \ S) are random variables because S is a random set of data instances.
+
+Recall that P(fav | S) is the probability of a data instance x receiving a favorable prediction from g when it is uniformly sampled from S. We write P(fav | S) as
+
+P(fav | S) =
+
+x∈D
+
+1fav(x) ∗ 1(x ∈ x∈D 1(x ∈ S)
+
+S)
+
+.
+
+(6)
+
+where 1fav(x) ∈ {0, 1} is an indicator function that is equal to 1 only if g makes a favorable prediction on x; and 1(x ∈
+S) ∈ {0, 1} is an indicator function that is equal to 1 only if
+x ∈ S.
+Since every data instance x has a probability of P(x ∈ S)
+to belong to S, the indicator function 1(x ∈ S) is a random
+
+variable following a Bernoulli distribution, and its expectation
+
+is
+
+E[1(x ∈ S)] = P(x ∈ S).
+
+(7)
+
+Since the numerator and denominator in Equation (6) are conditionally independent given θ, we have
+
+E[P(fav | S)] =
+
+x∈D 1fav(x) ∗ E[1(x ∈ S)] x∈D E[1(x ∈ S)]
+
+(8)
+
+=
+
+x∈D
+
+1fav(x) ∗ P(x ∈
+x∈D P(x ∈ S)
+
+S)
+
+.
+
+(9)
+
+Similarly, we can derive
+
+E[P(fav | D \ S)] =
+
+x∈D
+
+1fav(x) ∗
+x∈D P(x
+
+P(x ∈D
+
+∈D \ S)
+
+\
+
+S
+
+)
+
+,
+
+(10)
+
+where P(x ∈ D \ S) = 1 − P(x ∈ S) is the probability of an instance x not belonging to S.
+Recall that P(x ∈ S) = fθ(σA(x)) is a function of θ. Thus both E[P(fav | S)] and E[P(fav | D \ S)] are realvalued functions of θ. Therefore, E[DScore(S)] is a reavalued function of θ, which can be maximized with respect
+to θ.
+Last, we model the RUMIE task as the following contin-
+uous optimization problem, which aims to maximize the expected discrimination score on S.
+
+arg max E[DScore(S)] − λ ∗ C(k, θ),
+
+θ
+
+s.t.
+
+α
+
+≤
+
+E[|S |] |D|
+
+≤
+
+β,
+
+(11)
+
+where λ > 0, α ∈ [0, 1] and β ∈ [0, 1], α ≤ β, are positive real-valued hyper-parameters, E[|S|] is the expected size of S and |D| is the size of D.
+The second term λ∗C(k, θ) in the objective of the optimization problem is a regularization term that reduces the size of Q
+to enhance the interpretability of the discrimination evidence. Here k refers to size of Q and implies the maximum number of sensitive attributes to be considered for distinguishing S from D \ S. Choosing k provides the user with the ﬂexibility
+to adjust the interpretability as per their needs. The term
+
+C(k, θ)
+
+=
+
+1 |A| − k
+
+|A|−k
+smallest(θ, j),
+
+(12)
+
+j=1
+
+is the L-1 reduced penalization term adopted from [43]–[45] . The function smallest(θ, j) returns the j-th smallest absolute value of the entries in θ.
+Maximizing the objective minimizes the term C(k, θ), which enforces the vector θ to contain k effective non-zero entries while squeezing the rest of the entries to be very small or zero [44], [45]. After ﬁnding a solution θ∗ to the continuous optimization problem, we strictly enforce the maximum limit of k sensitive attributes by keeping only the k entries with the largest absolute values in θ∗ and setting the other entries in θ∗ to zero.
+Comparing to using the L1-norm of θ as a regularization term to induce the sparsity of θ, C(k, θ) provides a better control on the number of non-zero entries in θ [43]–[45]. A small value of k leads to a small set of Q thus produces a clear interpretation for the reason behind discrimination of a group.
+In the constraint of the optimization problem, α and β constrain the expected proportion taken by S in D. Since different end users may be interested in different sizes of discriminated instance groups for different applications, the thresholds α and β provide a good ﬂexibility to suit the needs of different end users. For example, a bank’s fairness policy may only be violated if at least 20% of its clients are being discriminated by a deployed AI lender model.
+Next, we discuss how to incorporate some other group fairness measurements, such as disparate impact [37], difference of F1-scores [39], equal odds [33], and equal opportunities [33] into the proposed framework.
+The key idea is to extend a fairness measurement into a discrimination score DScore(S), and then compute the expected discrimination score E[DScore(S)] on the distribution of S. Since the distribution of S is parameterized by θ, E[DScore(S)] is a continuous function of θ, and it can be directly plugged in Equation (11) to formulate a continuous optimization problem for the RUMIE task.
+It is straight-forward to extend a fairness measurement to a discrimination score. The real-valued measurements such as difference of F1-scores [39] and disparate impact [37] can be directly used as discrimination scores and can be optimized with respect to θ. The boolean measurements such as equal odds [33], and equal opportunities [33] can be extended to a real-valued discrimination score in a similar way as we extend demographic parity [14], [22], [38]. Deriving the expectation of a discriminated score on the distribution of S is straightforward, thus we skip the details.
+IV. MINING INTERPRETABLE EVIDENCES
+In this section, we ﬁrst introduce how to ﬁnd the set of key attributes Q and the discriminated group S by solving the continuous optimization problem. Then, we introduce a heuristic method to trade the discrimination score on S for a better interpretation on S.
+A. Finding the Key Attributes and the Discriminated Group
+To ﬁnd the set of key attributes Q and the discriminated group S, we ﬁrst ﬁnd a local optimal solution θ∗ to the
+
+continuous optimization problem in Equation (11), then we derive Q and S from θ∗.
+The continuous optimization problem is a standard con-
+strained continuous optimization problem, which can be effec-
+tively and efﬁciently solved by the classic penalty method [42], [46], [47]. The solution θ∗ is a local optimal solution because
+the loss function is non-convex.
+We use stochastic gradient descent (SGD) [48] to optimize θ. The time complexity of SGD is linear with respect to the number of attributes in A, thus our method can ﬁnd a local optimal solution to the RUMIE task much faster than the other baselines that exhaustively search the feature space SpaceA of the attributes in A. Also our method’s runtime is insensitive to choice of k where as the runtime of other methods increases substantially with increase in k due to exponential increase in search space of possible attribute combinations.
+Next, we introduce how to derive the set of key attributes Q from the solution θ∗.
+Recall that fθ∗ is the classiﬁer to separate S from D \S, the attributes corresponding to the top-k largest absolute values in θ∗ are taken as the set of key attributes Q. To keep θ∗ consistent with Q, we also update θ∗ by reserving only those k entries corresponding to the key attributes in Q and setting the other entries to zero.
+Deriving the discrimination group S from θ∗ is straightforward. Since the function fθ∗ is a logistic regression classiﬁer that separates the data instances in S and D \ S, that is,
+
+S x∈
+
+if fθ∗ (σA(x)) ≥ 0.5,
+
+(13)
+
+D \ S if fθ∗ (σA(x)) < 0.5.
+
+Therefore, we can derive the discriminated group as S = {x ∈ D | fθ∗ (σA(x)) ≥ 0.5}.
+Algorithm 1 summarizes how to compute the discriminated group S, the set of key attributes Q, and the solution θ∗ to the continuous optimization problem. Steps 2-3 ﬁnds a local optimal solution θ∗ to the continuous optimization problem; steps 4-8 derives the set of attributes Q from θ∗; and steps 9-12 derives the group S from θ∗.
+Since θ∗ is a local optimal solution to the continuous optimization problem, the discriminated group S returned by Algorithm 1 may not have the largest discrimination score,
+and there may exist other discriminated groups with larger
+discrimination scores. However, this does not compromise our goal to reveal the unfairness of the model g, because the existence of the discriminated group S returned by Algorithm 1 is already a solid evidence to reveal that the model g is at least as unfair as indicated by the discrimination score on S.
+As demonstrated by extensive experiments in Section V,
+solving the continuous optimization problem can effectively
+and efﬁciently ﬁnd solid evidence to reveal the unfairness of the model g, and the discriminated group derived from this solution corresponds to much more signiﬁcant discrimination
+than those found by the other strong baseline methods.
+
+Algorithm 1: Find Key Attributes and Discriminated
+
+Group
+
+Input: A trained model g, a set of data instances D, and a
+
+set of sensitive attribute A.
+
+Output: The set of key attributes Q, the discriminated group S, and the solution θ∗.
+
+1: Initialization: Q ← ∅ and S ← ∅.
+
+2: Solve the continuous optimization problem in Equation (11) by penalty method [42] to get a solution θ∗.
+3: Update θ∗ by keeping only the top-k entries with the largest
+
+absolute value and set the rest of the entries to zero.
+
+4: for each sensitive attribute a ∈ A do 5: if The corresponding entry of a in θ∗ is not zero then
+
+6:
+
+Q ← Q ∪ a.
+
+7: end if
+
+8: end for
+
+9: for each data instance x ∈ D do
+
+10: if fθ∗ (σA(x)) ≥ 0.5 then
+
+11:
+
+S ← S ∪ x.
+
+12: end if
+
+13: end for 14: return Q, S, and θ∗.
+
+B. Trading Discrimination Score for Better Interpretability
+For an end user without machine learning background, the discriminated group S and the set of key attributes Q found by Algorithm 1 are not easy to understand because it is still unclear how the key attributes in Q work to separate S from D \ S.
+In the example of the correctional offender management system [15], a discriminated group S is a group of suspects and the set Q consists of three attributes, “race”, “skin color” and “age”. Since each of the three attributes can take many different values, simply showing the attributes to an end user without telling them speciﬁc combinations of attribute values that are associated with the discrimination cannot effectively explain how the group of discriminated people are separated from the non-discriminated group. To effectively explain to end users, we need to produce human-understandable rules, such as “the discriminated group is African-American with dark skin and younger than 25”, where it is clear how speciﬁc values of “race”, “skin color” and “age” combine to characterize the discriminated group. Moreover, a discriminated group can be large and may contain several sub-groups of suspects, such as “African-American with dark skin and younger than 25”, “Asian-American with dark skin”, and “Asian-American with light skin and older than 30”. An effective and intuitive approach is to properly organize these sub-groups in a decision tree to clearly explain them to users.
+Next, we introduce how to translate the evidence (S, Q) into human-understandable rules. The key idea is to train a decision tree to separate S from D \S in SpaceQ. In this way, the decision rules generated by the decision tree interpret how the key attributes in Q work to separate S from D \ S.
+A naive method is to directly train a decision tree, denoted by T , to separate S from D \ S in SpaceQ such that S is the set of positive instances classiﬁed by T . However, since
+
+the piece-wise linear decision boundary of a decision tree is substantially different from the linear decision boundary of the logistic regression classiﬁer in Equation (4), T can be a complicated tree with large depth. In this case, the decision rules of T may be too complicated to understand. In order to generate simple rules that are easy to understand, we have to prune T to produce a shallow decision tree P whose depth is as small as possible.
+Denote by S ⊆ D the set of discriminated instances classiﬁed by P. Due to the information loss caused by pruning, S may not be exactly the same as S, which means the discrimination score of S may not be as large as that of S. However, S can still be a good evidence to reveal the unfairness of the model g if its discrimination score is not signiﬁcantly less than that of S.
+Recall that the decision rules of P will be more interpretable than that of T . Thus using S as the evidence to the RUMIE task is essentially trading discrimination score for better interpretability.
+Based on the above insights, we formulate the following decision-tree-based translation problem to trade discrimination score for better interpretability.
+Deﬁnition 2 (Decision-Tree-Based Translation problem): Given a decision tree T trained to separate S and D \ S in SpaceQ, the decision-tree-based translation problem is to prune T into a shallow decision tree P such that
+1) the depth of P is as small as possible; and 2) the groups S and D \ S classiﬁed by P satisfy the size
+constraints of RUMIE task mentioned in Equation (11).
+Algorithm 2 summarizes our method to tackle this problem. We adopt the minimal cost-complexity pruning (MCP) algorithm [49], [50] to prune T . This algorithm has a parameter ψ ≥ 0 to control the level of pruning. For a larger value of ψ, T will be pruned more heavily, thus P will be a shallower tree with a smaller depth.
+The key idea of Algorithm 2 is to ﬁnd the largest value of ψ such that the size constraints on S and D \ S mentioned in Equation (11) are still satisﬁed. Then, we return S and D \ S as the interpretable evidence, and use the decision rules derived from P to explain how the key attributes distinguish S from D\S .
+Extensive case studies in Section V-C demonstrate the outstanding interpretability of the evidences found by our method. In Section V-D, we also demonstrate that this interpretability comes with very little loss in discrimination score corresponding to S.
+V. EXPERIMENTS
+In this section, we introduce the baseline methods and the evaluation metrics that we use for comparison. Then, we introduce the data sets and discuss the setup of the RUMIE task on each data set. Next, we conduct interesting case studies to comprehensively demonstrate the outstanding interpretability of the evidences found by our method. Last, we quantitatively analyze the experimental performance of all
+
+Algorithm 2: Decision-tree-based Translation Input: A set of data instances D, the discriminated group S,
+the set of key attributes Q. Output: A shallow decision tree P.
+1: Train a decision tree T to separate S from D \ S in SpaceQ. 2: Set the parameter ψ of the (MCP) algorithm [50] to zero. 3: repeat 4: ψ ← ψ + , where > 0 is a small ﬁxed step-size. 5: Prune T by MCP [50] to produce a pruned decision tree P. 6: Find S ⊆ D that is classiﬁed by P as the discriminated
+group. 7: until S or D \ S no longer satisfy size constraints of
+Equation (11) 8: return The last P when S and D \ S satisﬁed the size
+constraints of Equation (11).
+compared methods and discuss why our method can achieve superior performance than the other baseline methods.
+A. Baseline Methods and Evaluation Metrics
+As discussed previously in Section II, the RUMIE task is a novel task that has not been addressed systematically. The closest baseline methods are as follows.
+The ﬁrst baseline that we design is named Enum. It is an enumeration method that exhaustively searches all the combinations of all values of the sensitive attributes in A such that maximum number of attributes considered in the combinations are not more than k. For each continuous variable, it selects one of the unique values of the variable as a threshold and discretizes the rest values based on if they are greater than the selected threshold or not. This is repeated for each unique value of the continuous attribute where it is chosen as the threshold and rest of the values are discretized based on it. This baseline is effective in ﬁnding good quality solutions, however, the time cost grows exponentially with respect to the number of attributes.
+The second baseline is Themis [21]. As introduced in Section II, Themis was originally proposed to test the discrimination of a software system based on sampled synthetic data instances. The output of Themis is the values of a subset of sensitive attributes, which deﬁne a group of synthetic data instances discriminated by the tested software system.
+To extend Themis for the RUMIE task, we ﬁrst use Themis to test the model g as the software system and get the output of Themis, that is, the set of values for maximum of k number of sensitive attributes. Then, we regard the subset of sensitive attributes as Q and obtain S by extracting the data instances in D whose values of attributes in Q match the values returned by Themis. For the comprehensiveness of our experiment, we compare with 3 versions of Themis, namely, Themis-1k, Themis-500, Themis-100, where the numbers 1k, 500, and 100 represent the numbers of sampled synthetic data instances drawn from each possible combination of attributes.
+The third baseline we use is DDD [19] that uses frequent itemset mining to ﬁnd common attribute assignments to reveal signiﬁcant discrimination patterns. We adapt it to RUMIE task
+
+Unmarried?
+
+<latexit sha1_base64="Ky6hV8BLOe0halfQyT9h5b1eg6Q=">AAACAHicbVDLSsNAFJ3UV62vqAsXbkKLUBFCIkXdCEVduKzUPqAJZTKdtEMnkzAzEULIxm/wD9y4UMStn+Guf+Ok7UKrBy4czrmXe+/xIkqEtKyJVlhaXlldK66XNja3tnf03b22CGOOcAuFNORdDwpMCcMtSSTF3YhjGHgUd7zxde53HjAXJGT3MomwG8AhIz5BUCqprx/cNFHIcdUJoBwhSNNmdnxpmbW+XrFMawrjL7HnpFIvOydPk3rS6OtfziBEcYCZRBQK0bOtSLop5JIgirOSEwscQTSGQ9xTlMEACzedPpAZR0oZGH7IVTFpTNWfEykMhEgCT3Xmd4pFLxf/83qx9C/clLAolpih2SI/poYMjTwNY0A4RpImikDEibrVQCPIIZIqs5IKwV58+S9pn5r2mVm7U2lcgRmK4BCUQRXY4BzUwS1ogBZAIAPP4BW8aY/ai/aufcxaC9p8Zh/8gvb5DUJPmIY=</latexit>
+D
+
+S
+
+core(S
+
+)
+
+=
+
+0.4
+
+Proportion of data instances receiving favorable predictions
+
+Sex is not male?
+
+True
+
+False
+
+Not owning a house?
+
+True
+
+False
+
+<latexit sha1_base64="v8StFG7sixdFsPzOSIE5B7zhfk8=">AAACAXicbVDLSsNAFJ3UV62vqBvBzdAiVISQFFE3QlEXLiu1D2hCmUwn7dDJg5mJEELd+At+ghsXirj1L9z1b5y0XWjrgQuHc+7l3nvciFEhTXOs5ZaWV1bX8uuFjc2t7R19d68pwphj0sAhC3nbRYIwGpCGpJKRdsQJ8l1GWu7wOvNbD4QLGgb3MomI46N+QD2KkVRSVz+4qeOQk7LtIznAiKX10fGlaVQqXb1kGuYEcJFYM1KqFu2T53E1qXX1b7sX4tgngcQMCdGxzEg6KeKSYkZGBTsWJEJ4iPqko2iAfCKcdPLBCB4ppQe9kKsKJJyovydS5AuR+K7qzA4V814m/ud1YuldOCkNoliSAE8XeTGDMoRZHLBHOcGSJYogzKm6FeIB4ghLFVpBhWDNv7xImhXDOjNO71QaV2CKPDgERVAGFjgHVXALaqABMHgEL+ANvGtP2qv2oX1OW3PabGYf/IH29QO4HZjA</latexit>
+D
+
+S
+
+core(S
+
+)
+
+=
+
+0.22
+
+Priors > 3 ?
+False True
+
+G 1 <latexitsha1_base64="8k5xMlVMvLOmE3cylDCvwYgZ6KQ=">AAAB6nicbVC7SgNBFL3rM8ZXVLCxGQyCVdi1UMsQCy0TNA9IljA7mU2GzM4uM3eFEPIJNhaK2Nr6F36BnY3f4uRRaOKBC4dz7uXee4JECoOu++UsLa+srq1nNrKbW9s7u7m9/ZqJU814lcUy1o2AGi6F4lUUKHkj0ZxGgeT1oH819uv3XBsRqzscJNyPaFeJUDCKVrq9bnvtXN4tuBOQReLNSL54WPkW76WPcjv32erELI24QiapMU3PTdAfUo2CST7KtlLDE8r6tMublioaceMPJ6eOyIlVOiSMtS2FZKL+nhjSyJhBFNjOiGLPzHtj8T+vmWJ46Q+FSlLkik0XhakkGJPx36QjNGcoB5ZQpoW9lbAe1ZShTSdrQ/DmX14ktbOCd17wKjaNEkyRgSM4hlPw4AKKcANlqAKDLjzAEzw70nl0XpzXaeuSM5s5gD9w3n4AoZuREg==</latexit>
+
+G 3 <latexitsha1_base64="V4Q4QYWApNmZEQHrP4S8GF4TMv0=">AAAB6nicbVC7SgNBFL0bXzG+ooKNzWAQrMKuglqGWGiZoHlAsoTZyWwyZGZ2mZkVwpJPsLFQxNbWv/AL7Gz8FiePQhMPXDiccy/33hPEnGnjul9OZml5ZXUtu57b2Nza3snv7tV1lChCayTikWoGWFPOJK0ZZjhtxopiEXDaCAZXY79xT5Vmkbwzw5j6AvckCxnBxkq3152zTr7gFt0J0CLxZqRQOqh+s/fyR6WT/2x3I5IIKg3hWOuW58bGT7EyjHA6yrUTTWNMBrhHW5ZKLKj208mpI3RslS4KI2VLGjRRf0+kWGg9FIHtFNj09bw3Fv/zWokJL/2UyTgxVJLpojDhyERo/DfqMkWJ4UNLMFHM3opIHytMjE0nZ0Pw5l9eJPXTonde9Ko2jTJMkYVDOIIT8OACSnADFagBgR48wBM8O9x5dF6c12lrxpnN7MMfOG8/pKORFA==</latexit>
+
+G 2 <latexitsha1_base64="vp3f16vaM3GDsTbOJJ5gwnlnjf4=">AAAB6nicbVC7SgNBFL0bXzG+ooKNzWAQrMJuCrUMsdAyQfOAZAmzk9lkyOzMMjMrhCWfYGOhiK2tf+EX2Nn4LU4ehSYeuHA4517uvSeIOdPGdb+czMrq2vpGdjO3tb2zu5ffP2homShC60RyqVoB1pQzQeuGGU5bsaI4CjhtBsOrid+8p0ozKe7MKKZ+hPuChYxgY6Xb626pmy+4RXcKtEy8OSmUj2rf7L3yUe3mPzs9SZKICkM41rrtubHxU6wMI5yOc51E0xiTIe7TtqUCR1T76fTUMTq1Sg+FUtkSBk3V3xMpjrQeRYHtjLAZ6EVvIv7ntRMTXvopE3FiqCCzRWHCkZFo8jfqMUWJ4SNLMFHM3orIACtMjE0nZ0PwFl9eJo1S0TsvejWbRgVmyMIxnMAZeHABZbiBKtSBQB8e4AmeHe48Oi/O66w148xnDuEPnLcfox+REw==</latexit>
+
+<latexit sha1_base64="uHIpRyK2MVxPyj0+U2bmB+V3UfU=">AAACAXicbVDLSsNAFJ3UV62vqBvBTWgRKkJIpD42QlEXLiu1D2hCmUwn7dDJJMxMhBDqxl/wE9y4UMStf+Guf+Ok7UKrBy4czrmXe+/xIkqEtKyxlltYXFpeya8W1tY3Nrf07Z2mCGOOcAOFNORtDwpMCcMNSSTF7YhjGHgUt7zhVea37jEXJGR3MomwG8A+Iz5BUCqpq+9d11HIcdkJoBwgSNP66PDCMisnXb1kmdYExl9iz0ipWnSOnsbVpNbVv5xeiOIAM4koFKJjW5F0U8glQRSPCk4scATREPZxR1EGAyzcdPLByDhQSs/wQ66KSWOi/pxIYSBEEniqMztUzHuZ+J/XiaV/7qaERbHEDE0X+TE1ZGhkcRg9wjGSNFEEIk7UrQYaQA6RVKEVVAj2/Mt/SfPYtE/Nyq1K4xJMkQf7oAjKwAZnoApuQA00AAIP4Bm8gjftUXvR3rWPaWtOm83sgl/QPr8Bv7OYxQ==</latexit>
+D
+
+S
+
+core(S
+
+)
+
+=
+
+0.45
+
+Age <= 25 ?
+
+True
+
+False
+
+| G1 <latexitsha1_base64="psM34NqcuYMlQUUGeRc/hB7+c+w=">AAACXXicbVFBT9swGHXCGJABK+zAgYu1agikqUq6qnBBQnCAYyetgNRUleN8KRa2E+wvSFXon+S2XfZXcEPENtgnWXp+733+7OekkMJiGP70/KV3y+9XVteCD+sbmx9bW9uXNi8NhyHPZW6uE2ZBCg1DFCjhujDAVCLhKrk9W+hX92CsyPUPnBUwVmyqRSY4Q0dNWhgnMBW6gruyZuaxznWpEjBBozApphrSebD3cD6JHo67/a+9/rc4DvYG+7FieINYZex+HiuRUuc4OA47YS+IQad/euvdy4xJq+08ddG3IGpAmzQ1mLQe4zTnpQKNXDJrR1FY4LhiBgWX4I4vLRSM37IpjBzUTIEdV3U6c/rFMSnNcuOWRlqzf3dUTFk7U4lzLp5jX2sL8n/aqMTsaFwJXZQImj8PykpJMaeLqGkqDHCUMwcYN8LdlfIbZhhH9yGBCyF6/eS34LLbifqd3vdu++S0iWOV7JLPZJ9E5JCckAsyIEPCyS+PeGte4P32l/11f/PZ6ntNzyfyT/k7T2RgtAI=</latexit>
+
+|
+
+=
+
+26, 463
+
+P (fav | G1) = 0.04
+
+| G2 <latexitsha1_base64="fLg0ZpDzPZGPhtrfUmMesZdwdD0=">AAACXXicbVFNT9wwEHVSaCHlY1sOHHqxugKBhFZJuoL2gITKoT1upS4gbVYrx5ksFrYT7AnSKuyf7A0u/JV6Q9QW6EiWnt+bD89zWkphMQzvPP/V0vLrNyurwdu19Y3Nzrv3Z7aoDIchL2RhLlJmQQoNQxQo4aI0wFQq4Ty9Ol3o5zdgrCj0T5yVMFZsqkUuOENHTTqYpDAVuobrqmHmiS50pVIwQaswKaYasnmwe/ttEt8ex/HBp6MvSRLsDvYSxfASsc7ZzTxRIqMuY/847PX7QQI6+1vb3P7MmHS6YS9sgr4EUQu6pI3BpPMryQpeKdDIJbN2FIUljmtmUHAJrn1loWT8ik1h5KBmCuy4btyZ0x3HZDQvjDsaacP+W1EzZe1MpS5zsY59ri3I/2mjCvPP41roskLQ/HFQXkmKBV1YTTNhgKOcOcC4Ee6tlF8ywzi6DwmcCdHzlV+Cs7gXHfb6P+LuydfWjhXygXwkeyQiR+SEfCcDMiSc3HvEW/UC78Ff9tf8jcdU32trtsiT8Ld/A3HJtAo=</latexit>
+
+|
+
+=
+
+22, 379
+
+P (fav | G2) = 0.44
+
+S<latexitsha1_base64="d/63xn391ILUOtIKcyMC1eVcyqU=">AAAB+HicbVDLSsNAFL2pr1ofjbp0M1gEVyWRom6EogtdVrQPaEOYTKft0MkkzEyEGvolblwo4tZPceffOGmz0NYDA4dz7uWeOUHMmdKO820VVlbX1jeKm6Wt7Z3dsr2331JRIgltkohHshNgRTkTtKmZ5rQTS4rDgNN2ML7O/PYjlYpF4kFPYuqFeCjYgBGsjeTb5V6I9Yhgnt5PL29817crTtWZAS0TNycVyNHw7a9ePyJJSIUmHCvVdZ1YeymWmhFOp6VeomiMyRgPaddQgUOqvHQWfIqOjdJHg0iaJzSaqb83UhwqNQkDM5nFVIteJv7ndRM9uPBSJuJEU0HmhwYJRzpCWQuozyQlmk8MwUQykxWREZaYaNNVyZTgLn55mbROq+5ZtXZXq9Sv8jqKcAhHcAIunEMdbqEBTSCQwDO8wpv1ZL1Y79bHfLRg5TsH8AfW5w9QXJLf</latexit>
+
+= G1
+
+D<latexitsha1_base64="HTb1DKQKvkeNtmMLZSEdZWYD9Yg=">AAACDHicbVDLSgMxFM34rPVVdekmWARXZaYUdSMUFXRZ0T6gM5RMmmlDk8yQZIQyzAe48VfcuFDErR/gzr8x0w6irQcCh3POJfceP2JUadv+shYWl5ZXVgtrxfWNza3t0s5uS4WxxKSJQxbKjo8UYVSQpqaakU4kCeI+I21/dJH57XsiFQ3FnR5HxONoIGhAMdJG6pXKLkd6iBFLLlNXEc2piNWPdpueXfWqJmVX7AngPHFyUgY5Gr3Sp9sPccyJ0JghpbqOHWkvQVJTzEhadGNFIoRHaEC6hgrEifKSyTEpPDRKHwahNE9oOFF/TySIKzXmvklma6pZLxP/87qxDk69hIoo1kTg6UdBzKAOYdYM7FNJsGZjQxCW1OwK8RBJhLXpr2hKcGZPnietasU5rtRuauX6eV5HAeyDA3AEHHAC6uAaNEATYPAAnsALeLUerWfrzXqfRhesfGYP/IH18Q2N1Zvu</latexit>
+
+\S
+
+= G2
+
+(a) Adult Census data set
+
+Duration > 39 ?
+
+True
+
+False
+
+| G1 <latexitsha1_base64="lz1qI/BxpnuRmfmvCbtbV3DJpPc=">AAACXHicbVHBTtwwEHUCLUso7QISFy5WV0X0skooAi5IqD3AcZG6gLRZrRxnsljYTrAnSKuwP8mNS3+FOiECCh3J0vN78zSe56SQwmIYPnj+wuKHj0ud5WDl0+rnL9219XObl4bDkOcyN5cJsyCFhiEKlHBZGGAqkXCRXP+q9YtbMFbk+jfOChgrNtUiE5yhoyZdGycwFbqCm7Jh5rHOdakSMEGrMCmmGtJ5sH13Monujn5EYRwH24OdWDG8QqwydjuPlUipk78fhf39gyAGnb4Ym9vzgCCYdHthP2yKvgdRC3qkrcGkex+nOS8VaOSSWTuKwgLHFTMouAQ3oLRQMH7NpjByUDMFdlw14czpN8ekNMuNOxppw752VExZO1OJ66wXsm+1mvyfNioxOxxXQhclguZPg7JSUsxpnTRNhQGOcuYA40a4t1J+xQzj6P6jDiF6u/J7cL7bj/b7e2e7veOfbRwdskW+kh0SkQNyTE7JgAwJJw/k0et4y94ff9Ff8VefWn2v9WyQf8rf/AucCbR3</latexit>
+
+|
+
+=
+
+310
+
+P (fav | G1) = 0.67
+
+| G2 <latexitsha1_base64="IznUVBYMmox+0zaG2P5U+mPWxP4=">AAACXHicbVFNT9wwEHVSaJdQ2m2ReunFYlUEl1WyraAXJASHclwkFpA2q5XjTBYL20ntCdIq7J/sjQt/BZwQUb5GsvT83jyN5zkppLAYhjee/25p+f2Hzkqw+nHt0+ful6+nNi8NhxHPZW7OE2ZBCg0jFCjhvDDAVCLhLLk8rPWzKzBW5PoE5wVMFJtpkQnO0FHTro0TmAldwd+yYRaxznWpEjBBqzApZhrSRbB5/Wc6uN6Ldn/GcbA53IoVwwvEKmNXi1iJlDp5ey/s7wyCGHT639jcHgcEwbTbC/thU/Q1iFrQI20Np91/cZrzUoFGLpm14ygscFIxg4JLcANKCwXjl2wGYwc1U2AnVRPOgv5wTEqz3LijkTbsU0fFlLVzlbjOeiH7UqvJt7RxidnvSSV0USJo/jAoKyXFnNZJ01QY4CjnDjBuhHsr5RfMMI7uP+oQopcrvwang3600/91POjtH7RxdMh3skG2SER2yT45IkMyIpzckDuv4614t/6Sv+qvPbT6XutZJ8/K/3YPo6K0ew==</latexit>
+
+|
+
+=
+
+173
+
+P (fav | G2) = 0.62
+
+| G3 <latexitsha1_base64="n1twK/v3a1k+bNcXmHfE4Jfm1iw=">AAACW3icbVFdT9swFHXCBl3GoGPiaS/WqiH2UiUUBi9ICB62x06igNRUlePctBa2E+wbpCr0T+5pe+CvTHNCtA/gSpaOz7kfvsdJIYXFMPzp+SsvXq6udV4Fr9ffbGx2325d2Lw0HEY8l7m5SpgFKTSMUKCEq8IAU4mEy+T6rNYvb8FYketzXBQwUWymRSY4Q0dNuyZOYCZ0BTdlwyxjnetSJWCCVmFSzDSky2Dn7st0cHc8GMRxsDPcjRXDOWKVsdtlrERKnfrpOOwfHAUx6PRvXXP70z8Ipt1e2A+boE9B1IIeaWM47X6P05yXCjRyyawdR2GBk4oZFFyCG1BaKBi/ZjMYO6iZAjupGm+W9KNjUprlxh2NtGH/raiYsnahEpdZL2QfazX5nDYuMTuaVEIXJYLmD4OyUlLMaW00TYUBjnLhAONGuLdSPmeGcXTfUZsQPV75KbjY60ef+/vf9nonp60dHfKefCC7JCKH5IR8JUMyIpz8IL+8Na/j3fsrfuCvP6T6XlvzjvwX/vZvGKG0Qw==</latexit>
+
+|
+
+=
+
+33
+
+P (fav | G3) = 0.58
+
+| G4 <latexitsha1_base64="/2gUEf4kD2KRVvd6vlHJRJR1u0g=">AAACXHicbVFBT9swFHYCjBLGVpjEhYu1agguVYIq6AUJscN27KQVkJqqcpyXYmE7mf2CVIX+SW5c+CubEyLGYE+y9Pn73qfn9zkppLAYhg+ev7K69m69sxFsvt/68LG7vXNh89JwGPNc5uYqYRak0DBGgRKuCgNMJRIuk5uvtX55C8aKXP/ERQFTxeZaZIIzdNSsa+ME5kJX8KtsmGWsc12qBEzQKkyKuYZ0GezffZsN7k4Hw0EcB/ujg1gxvEasMna7jJVIqZMPT8P+8CSIQad/jc3teUAQzLq9sB82Rd+CqAU90tZo1r2P05yXCjRyyaydRGGB04oZFFyCG1BaKBi/YXOYOKiZAjutmnCW9ItjUprlxh2NtGFfOiqmrF2oxHXWC9nXWk3+T5uUmA2nldBFiaD506CslBRzWidNU2GAo1w4wLgR7q2UXzPDOLr/qEOIXq/8Flwc9aPj/uDHUe/svI2jQ/bIZ3JAInJCzsh3MiJjwskD+e11vA3v0V/1N/2tp1bfaz2fyD/l7/4BvtG0iw==</latexit>
+
+|
+
+=
+
+484
+
+P (fav | G4) = 0.87
+
+<latexit sha1_base64="ywj3z4k29JrgP39uGgE4aiq4uYU=">AAACCXicbZC7SgNBFIbPeo3xtmppMxgEq7Abg9oIQYtYRjQXyC7L7GSSDJm9MDMrhCWtja9iY6GIrW9g59s4m2yhiT8MfPznHOac3485k8qyvo2l5ZXVtfXCRnFza3tn19zbb8koEYQ2ScQj0fGxpJyFtKmY4rQTC4oDn9O2P7rO6u0HKiSLwns1jqkb4EHI+oxgpS3PRE6A1ZBgnt5NLuue7ZAkRnWvgnI49cySVbamQotg51CCXA3P/HJ6EUkCGirCsZRd24qVm2KhGOF0UnQSSWNMRnhAuxpDHFDpptNLJuhYOz3Uj4R+oUJT9/dEigMpx4GvO7O95XwtM/+rdRPVv3BTFsaJoiGZfdRPOFIRymJBPSYoUXysARPB9K6IDLHAROnwijoEe/7kRWhVyvZZuXpbLdWu8jgKcAhHcAI2nEMNbqABTSDwCM/wCm/Gk/FivBsfs9YlI585gD8yPn8Ab72Y4g==</latexit>
+
+S
+
+= G1 [ G2 [ G3
+
+(b) German Credit data set
+
+D<latexitsha1_base64="HY2U7b/xOl6xU4Oqf0I/aWzGswA=">AAACDHicbVDLSgMxFM3UV62vqks3wSK4KjNS1I1QVNBlRfuAzlAyaaYNTTJDkhHKMB/gxl9x40IRt36AO//GTDuIth4IHM45l9x7/IhRpW37yyosLC4trxRXS2vrG5tb5e2dlgpjiUkThyyUHR8pwqggTU01I51IEsR9Rtr+6CLz2/dEKhqKOz2OiMfRQNCAYqSN1CtXXI70ECOWXKauIppTEasf7TY9u+rVTMqu2hPAeeLkpAJyNHrlT7cf4pgToTFDSnUdO9JegqSmmJG05MaKRAiP0IB0DRWIE+Ulk2NSeGCUPgxCaZ7QcKL+nkgQV2rMfZPM1lSzXib+53VjHZx6CRVRrInA04+CmEEdwqwZ2KeSYM3GhiAsqdkV4iGSCGvTX8mU4MyePE9aR1XnuFq7qVXq53kdRbAH9sEhcMAJqINr0ABNgMEDeAIv4NV6tJ6tN+t9Gi1Y+cwu+APr4xuQ3Zvw</latexit>
+
+\S
+
+= G4
+
+False True
+
+| G1 <latexitsha1_base64="9yIndfwug+zsUo1+lj4DnRmaA4A=">AAACXHicbVFdT9swFHUy2EqArRsSL3uxVg2BhKq4D1tfkNB4gMdOWgGpqSrHuSkWtpPZN0hV6J/cGy/8FXBDtA/YlSwdn3M/fI/TUkmHcXwXhK/W1l+/6WxEm1vbb9913384d0VlBYxFoQp7mXIHShoYo0QFl6UFrlMFF+n1yUq/uAHrZGF+4KKEqeZzI3MpOHpq1nVJCnNpavhZNcwyMYWpdAo2ahWu5NxAtoz2bk9n7PaIHbIhS5Job7SfaI5XiHXOb5aJlhn1CQdHcX8wjBIw2Z/S5vZ7xKzbi/txE/QlYC3okTZGs+6vJCtEpcGgUNy5CYtLnNbcohQKfPvKQcnFNZ/DxEPDNbhp3ZizpJ89k9G8sP4YpA37d0XNtXMLnfrM1TruubYi/6dNKsyH01qaskIw4mlQXimKBV05TTNpQaBaeMCFlf6tVFxxywX6/4i8Cez5yi/B+aDPvvTZ90Hv+FtrR4d8JJ/IPmHkKzkmZ2RExkSQO/IQdIKN4D5cCzfD7afUMGhrdsg/Ee4+AvpOtMA=</latexit>
+
+|
+
+=
+
+1, 181
+
+P (fav | G1) = 0.28
+
+| G2 <latexitsha1_base64="U1H/QLnW6iC4+7JR05RgYW7P8Zo=">AAACXHicbVFda9swFJW9bkvcdc022MteRENLByPY7tjHQ6BsD9tjBk1biEOQ5etEVJI96boQnPzJvfVlf2VTHLOPthcER+fcD92jtJTCYhjeeP6DnYePHne6we6Tvaf7vWfPz21RGQ5jXsjCXKbMghQaxihQwmVpgKlUwkV69XmjX1yDsaLQZ7gsYarYXItccIaOmvVsksJc6Bq+Vw2zTnShK5WCCVqFSTHXkK2Do9WXWbwaRm/iKE6S4Gh0nCiGC8Q6Z9frRImMuoTXw3Bw8jFIQGd/S5vbnxGzXj8chE3QuyBqQZ+0MZr1fiRZwSsFGrlk1k6isMRpzQwKLsG1ryyUjF+xOUwc1EyBndaNOWt66JiM5oVxRyNt2H8raqasXarUZW7Wsbe1DXmfNqkw/zCthS4rBM23g/JKUizoxmmaCQMc5dIBxo1wb6V8wQzj6P4jcCZEt1e+C87jQfRu8PZb3D/91NrRIa/IATkmEXlPTslXMiJjwskN+eV1vK7309/xd/29barvtTUvyH/hv/wN+Sy0wg==</latexit>
+
+|
+
+=
+
+1, 212
+
+P (fav | G2) = 0.39
+
+| G3 <latexitsha1_base64="xXBUu9lBFQdlW8E2gyCKVlTBUos=">AAACXHicbVFdT9swFHUyNkoYo4DECy/WqiEmTVUC02APSGg8wGORVkBqqspxboqF7QT7BqkK/ZO88cJfYW6I+NyVLB2fcz98j5NCCotheOf5H+Y+fppvLQSLn5e+LLdXVk9tXhoOfZ7L3JwnzIIUGvooUMJ5YYCpRMJZcnk408+uwViR6784KWCo2FiLTHCGjhq1bZzAWOgKrsqamcY616VKwASNwqQYa0inwebN0WjnZn/nR/TzdxwHm72tWDG8QKwydj2NlUipS/i+H3Z394IYdPpcWt+eRozanbAb1kHfg6gBHdJEb9S+jdOclwo0csmsHURhgcOKGRRcgmtfWigYv2RjGDiomQI7rGpzpvSbY1Ka5cYdjbRmX1ZUTFk7UYnLnK1j32oz8n/aoMRsb1gJXZQImj8OykpJMaczp2kqDHCUEwcYN8K9lfILZhhH9x+BMyF6u/J7cLrdjX51o5PtzsGfxo4W2SBfyRaJyC45IMekR/qEkzvy4LW8Be/en/MX/aXHVN9ratbIq/DX/wET77TP</latexit>
+
+|
+
+=
+
+3, 149
+
+P (fav | G3) = 0.78
+
+S<latexitsha1_base64="F1uq9QXSWhQJLSQ5o49+N8GHYD0=">AAACAHicbVDLSsNAFJ3UV62vqAsXbgaL4KokpagboeiiLivaBzQhTKaTduhkEmYmQgnZ+CtuXCji1s9w5984abPQ1gMXDufcy733+DGjUlnWt1FaWV1b3yhvVra2d3b3zP2DrowSgUkHRywSfR9JwignHUUVI/1YEBT6jPT8yU3u9x6JkDTiD2oaEzdEI04DipHSkmceOSFSY4xYep9dtTzbwUkMW17dM6tWzZoBLhO7IFVQoO2ZX84wwklIuMIMSTmwrVi5KRKKYkayipNIEiM8QSMy0JSjkEg3nT2QwVOtDGEQCV1cwZn6eyJFoZTT0Ned+bly0cvF/7xBooJLN6U8ThTheL4oSBhUEczTgEMqCFZsqgnCgupbIR4jgbDSmVV0CPbiy8ukW6/Z57XGXaPavC7iKINjcALOgA0uQBPcgjboAAwy8AxewZvxZLwY78bHvLVkFDOH4A+Mzx+lG5XL</latexit>
+
+= G1 [ G2
+
+D<latexitsha1_base64="oUzzK1UJjbI+ZZo/7MDz3qMFmIA=">AAACDHicbVDLSgMxFM3UV62vqks3wSK4KjNa1I1QVNBlRfuAzlAyaaYNTTJDkhHKMB/gxl9x40IRt36AO//GTDuIVg8EDuecS+49fsSo0rb9aRXm5hcWl4rLpZXVtfWN8uZWS4WxxKSJQxbKjo8UYVSQpqaakU4kCeI+I21/dJ757TsiFQ3FrR5HxONoIGhAMdJG6pUrLkd6iBFLLlJXEc2piNW3dpOeXvYOTcqu2hPAv8TJSQXkaPTKH24/xDEnQmOGlOo6dqS9BElNMSNpyY0ViRAeoQHpGioQJ8pLJsekcM8ofRiE0jyh4UT9OZEgrtSY+yaZralmvUz8z+vGOjjxEiqiWBOBpx8FMYM6hFkzsE8lwZqNDUFYUrMrxEMkEdamv5IpwZk9+S9pHVSdo2rtulapn+V1FMEO2AX7wAHHoA6uQAM0AQb34BE8gxfrwXqyXq23abRg5TPb4Bes9y+PWZvv</latexit>
+
+\S
+
+= G3
+
+(c) COMPAS recidivism risk score data set
+
+Fig. 1. The decision trees produced by IE-DT on each of the data sets. The set of data instances in a leaf node is denoted by {G1, G2, . . .}. A leaf node in red means the set of data instances belongs to the discriminated group S. A leaf node in blue means the set of data instances belong to the not-discriminated group D \ S. For each tree, we draw a pie chart to show the proportion of the data instances contained in each leaf node. The red and blue shaded areas within the pie chart shows the proportions of data instances in S and D \ S, respectively, that receive favorable predictions from the model g.
+
+by returning the assignment that satisﬁes the constraints of RUMIE task and achieves maximum discrimination score.
+The last baseline to our method is FairDB [20] that uses Approximate Conditional Functional Dependencies (ACFDs) to detect unfairness. This method also returns list of assignments that are associated with signiﬁcant discrimination. We take the assignment with maximum discrimination value satisfying the constraints of RUMIE task as output of this method.
+Themis, DDD and FairDB are not originally designed to process continuous attributes. We adopt the three bin quantization method used by Themis [21] to quantize the continuous attributes into categorical ones for these methods.
+We use two versions of our method in the experiments. The ﬁrst one named Interpretable Evidence (IE) corresponds to Algorithm 1 and the second one named Interpretable Evidence - Decision Tree (IE-DT) corresponds to Algorithm 2. The continuous optimization formulated in Equation (11) naturally addresses continuous attributes, thus no quantization is required for IE and IE-DT.
+The performance of all the methods is evaluated using two criteria : scalability and solution quality. Scalability is measured by observing how the runtime (i.e., cost of time) to ﬁnd the evidence changes with increase in value of k and total number of sensitive attributes. Solution quality is measured using the second metric is the discrimination score DScore(S). For each method, a higher discrimination score means a more signiﬁcant discrimination on the discriminated group S, which further indicates a better effectiveness in ﬁnding solid evidence to reveal model unfairness.
+The code of Themis [21], DDD [19] and FairDB [20] is published by the respective authors. The code for Enum, IE, and IE-DT is available at [51]. For all of the methods, we carefully tune the parameters and report the best performance
+
+in our experiments.
+B. Data Sets and Task Setup
+We use the following three widely-adopted public data sets in our experiments.
+The Adult Census data set [52] was extracted from the database of year 1994 in the Census Bureau of USA. This data set contains the census information of 48,842 adults. Every adult is represented by a data instance that consists of 94 categorical attributes and 6 continuous attributes. For each adult, a predictive model is used to predict whether they make more than $50,000 a year or not. The favorable prediction is making more than $50,000 a year.
+The German Credit data set [53] contains the information of 1,000 individuals who take credit from a bank. Every individual is represented by a data instance consisting of 17 categorical attributes and 3 continuous attributes. The credit risk of every person is classiﬁed as high or low by a predictive model. The favorable prediction is a low credit risk.
+The COMPAS recidivism risk score data set [5] contains the information of 6,172 individuals from Broward County in Florida of the U.S. Every individual is represented by a data instance that consists of 9 categorical attributes and 1 continuous attribute. For each individual, the risk of recidivism in two years is predicted by the predictive model named COMPAS [54]. The favorable prediction in this data set is low recidivism risk.
+For each of the above data sets, we set up the RUMIE task by regarding the predictive model as the model g, and the entire set of data instances as D. Deciding which attributes among all of the attributes to consider sensitive and include in A often depends on task-related prior knowledge and
+
+ethics code of the concerned organizations. Without loss of generality, we use the entire set of attributes as A.
+The outcome of the RUMIE task on the Adult Census data set is interpretable evidence to demonstrate severe discrimination made by the model when predicting annual incomes of certain group of individuals. On the German Credit data set, the outcome will be solid interpretable evidence revealing the unfairness of the predictive model in predicting credit risks. For the COMPAS data set, we ﬁnd interpretable evidence to demonstrate the unfairness of the COMPAS model in judging the risk of recidivism of prisoners.
+
+Figure 1(c) shows the case study on the COMPAS data set, where IE-DT successfully ﬁnds a discriminated group S with DScore(S) = 0.45. We can see from the decision tree that, when compared with the rest of prisoners, the predictive model is heavily biased to offer much more favorable predictions to prisoners with no more than 3 prior offences and are older than 25. This is solid evidence to reveal the unfairness of the predictive model COMPAS. The interpretable insights from the decision tree on how age and prior offences affect the prediction results are quite consistent with the analysis reported by Propublica [5].
+
+C. Case Studies
+In this section, we present some interesting case studies to
+demonstrate the outstanding interpretability and quality of the evidence found by IE-DT. Figure 1 shows the decision tree P computed by IE-DT on each of the data sets. The parameters in Equation (11) are set to k = 5, α = 0.45, β = 0.55, and λ = 1 for all data sets. The inﬂuence of parameters will be discussed later in Section V-D.
+Figure 1(a) shows the decision tree computed on the Adult
+Census data set, where IE-DT successfully ﬁnds a signiﬁcantly discriminated group S with a large DScore(S) = 0.4.
+Who are the people in S and why are they discriminated? The decision tree P in Figure 1(a) provides a clear explanation. The discriminated group S represented by G1 is the group of unmarried people, and the not-discriminated group D \ S represented by G2 is the group of married people. A married person in G2 has a probability of 0.44 to receive a favorable prediction, however, for an unmarried person in G1, this probability drops signiﬁcantly to 0.04. Now we know the unmarried
+people are signiﬁcantly discriminated by the predictive model,
+which is solid evidence to reveal the unfairness of the model.
+It is also interesting to see in Figure 1(a) that the discriminated group S of unmarried people contains more than half of the people in the data set. Therefore, a large population
+subgroup is being signiﬁcantly discriminated and may be a
+matter of concern.
+Figure 1(b) shows another case study on the German Credit data set. IE-DT successfully ﬁnds a discriminated group S with DScore(S) = 0.22. The decision tree further provides a clear understanding on who the people in S are and why they are discriminated. Take the sub-group G1 as an example, a person who is not male has a probability of 0.67 to receive a low predicted risk. Comparing to the males in G4 who has a probability of 0.87 to receive a low predicted risk, the notmale people in G1 are discriminated by the model based on sex.
+A closer look at the decision tree ﬁnds that the model may also be unfair within the group of males. The males in G4 has a much higher probability to receive a low credit risk than the other males in G2 and G3, who do not own a house or own a house but do not have a short duration of loan. This reveals
+the heavy bias of the model towards producing more favorable
+predictions for the males who own a house and have a shorter
+duration of loan.
+
+D. Performance Evaluation
+In this section, we quantitatively evaluate all the methods based on their scalability and quality of their solution. To achieve this, we rely on the metrics of runtime and discrimination score. For all the methods, the performance in runtime and discrimination score is affected by the thresholds α and β on the size of the discriminated group, and the number of key attributes, denoted by k = |Q|. For the fairness of experiments, we compare the performance of all methods for the same values of α, β, and k, where α ∈ {0.1, 0.25, 0.45}, β = 1 − α, and k ∈ {2, 4, 6, 8}. For IE and IE-DT, we use λ = 1 in Equation (11) for all the experiments.
+For each data set, we produce 10 sampled data sets with the same size as the original data set by sampling data instances with replacement from the original data set. We evaluate the performance of every method on each of the 10 sampled data sets and report the mean and standard deviation of the performance.
+Figure 2 shows the runtime of every method on each of the data sets. We plot runtime of all of the methods on y-axis while k on x-axis. As k increases, there is exponential increase in the number of possible combinations of attribute assignments to be considered for ﬁnding the most discriminated group. Hence, this set-up allows us to comment on the scalability of the considered methods. Due to the high time complexities of Enum, Themis, DDD and FairDB, they are not able to terminate in practical amount of time. Therefore, we set-up a time budget for all methods to be 5,000 seconds. When a method reaches the time budget, we stop it and return the best solution found so far. Since DDD and FairDB rely on available optimized libraries that do not provide intermediate results, we are unable to obtain any solution for such cases when the budget is completely exhausted.
+The runtime of IE and IE-DT remains fairly consistent with increase in k across all of the data sets. This demonstrates the outstanding scalability of IE and IE-DT which is result of continuous optimization proposed in Equation (11).
+Figure 2(c) shows that Themis is typically the slowest of all the baselines because of the repeated sampling from uniform distribution for all of the possible attribute value combinations of size up to k. Thus, the runtime of Themis becomes too high as the value of k increases. Enum’s runtime also increases exponentially with increase in value of k. The only case where Enum costs less runtime than IE and IE-DT is for COMPAS
+
+Runtime (sec)
+
+Runtime (sec)
+
+104
+
+(a) Adult Census(α = 0.1)
+
+103
+
+102
+
+101
+
+100
+
+2
+
+4
+
+6
+
+8
+
+k
+
+104
+
+(d) Adult Census(α = 0.25)
+
+103
+
+102
+
+101
+
+100
+
+2
+
+4
+
+6
+
+8
+
+k
+
+104
+
+(g) Adult Census(α = 0.45)
+
+103
+
+102
+
+101
+
+Runtime (sec)
+
+Runtime (sec)
+
+Runtime (sec)
+
+104
+
+(b) German Credit(α = 0.1)
+
+103
+
+102
+
+101
+
+100
+
+2
+
+4
+
+6
+
+8
+
+k
+
+104
+
+(e) German Credit(α = 0.25)
+
+103
+
+102
+
+101
+
+100
+
+2
+
+4
+
+6
+
+8
+
+k
+
+104
+
+(h) German Credit(α = 0.45)
+
+103
+
+102
+
+101
+
+100
+
+Runtime (sec)
+
+Runtime (sec)
+
+Runtime (sec)
+
+104
+
+(c) COMPAS (α = 0.1)
+
+103
+
+102
+
+101
+
+100
+
+2
+
+4
+
+6
+
+8
+
+k
+
+104
+
+(f) COMPAS(α = 0.25)
+
+103
+
+102
+
+101
+
+100
+
+2
+
+4
+
+6
+
+8
+
+k
+
+104
+
+(i) COMPAS(α = 0.45)
+
+103
+
+102
+
+101
+
+100
+
+100
+
+2
+
+4
+
+6
+
+8
+
+k
+
+2
+
+4
+
+6
+
+8
+
+k
+
+2
+
+4
+
+6
+
+8
+
+k
+
+Ours
+
+Ours-DT
+
+Enum
+
+Themis-1k
+
+Themis-500
+
+Themis-100
+
+DDD
+
+FairDB
+
+Runtime (sec)
+
+Discrimination score
+
+Discrimination score
+
+Fig. 2. The runtime performance of all compared methods on each of the data sets.
+
+(a) Adult Census(α = 0.1)
+
+0.8
+
+0.7
+
+0.6
+
+0.5
+
+0.4
+
+0.3
+
+0.2
+
+0.1
+
+0.0
+
+2
+
+4
+
+6
+
+8
+
+k
+
+(d) Adult Census(α = 0.25)
+
+0.6
+
+0.5
+
+0.4
+
+0.3
+
+0.2
+
+0.1
+
+0.0
+
+2
+
+4
+
+6
+
+8
+
+k
+
+(g) Adult Census(α = 0.45)
+
+0.4
+
+0.3
+
+0.2
+
+0.1
+
+Discrimination score
+
+Discrmination score
+
+(b) German Credit(α = 0.1)
+
+0.9 0.8 0.7 0.6 0.5 0.4 0.3 0.2 0.1 0.0
+
+2
+
+4
+
+6
+
+8
+
+k
+
+(e) German Credit(α = 0.25)
+
+0.6
+
+0.5
+
+0.4
+
+0.3
+
+0.2
+
+0.1
+
+0.0
+
+2
+
+4
+
+6
+
+8
+
+k
+
+(h) German Credit(α = 0.45) 0.4
+
+0.3
+
+0.2
+
+0.1
+
+Discrimination score
+
+Discrimination score
+
+(c) COMPAS (α = 0.1)
+
+0.9
+
+0.8
+
+0.7
+
+0.6
+
+0.5
+
+0.4
+
+0.3
+
+0.2
+
+0.1
+
+0.0
+
+2
+
+4
+
+6
+
+8
+
+k
+
+(f) COMPAS(α = 0.25)
+
+0.9
+
+0.8
+
+0.7
+
+0.6
+
+0.5
+
+0.4
+
+0.3
+
+0.2
+
+0.1
+
+0.0
+
+2
+
+4
+
+6
+
+8
+
+k
+
+(i) COMPAS(α = 0.45) 0.5
+
+0.4
+
+0.3
+
+0.2
+
+0.1
+
+Discrimination score
+
+Discrimination score
+
+0.0
+
+2
+
+4
+
+6
+
+8
+
+k
+
+0.0
+
+2
+
+4
+
+6
+
+8
+
+k
+
+0.0
+
+2
+
+4
+
+6
+
+8
+
+k
+
+Ours
+
+Ours-DT
+
+Enum
+
+Themis-1k
+
+Themis-500
+
+Themis-100
+
+DDD
+
+FairDB
+
+Discrimination score
+
+Fig. 3. The discrimination score of all compared methods on each of the data sets.
+
+(k, θ)
+
+(k, θ)
+
+(a) Adult Census (α = 0.1)
+
+1.25
+
+1.00
+
+0.75
+
+0.50
+
+0.25
+
+0.00
+
+10−3
+
+10−2
+
+10−1
+
+100
+
+101
+
+(λ)
+
+(b) Adult Census (α = 0.25) 1.25
+
+1.00
+
+0.75
+
+0.50
+
+0.25
+
+0.00
+
+10−3
+
+10−2
+
+10−1
+
+100
+
+101
+
+(λ)
+
+(c) Adult Census (α = 0.45) 1.25
+
+1.00
+
+0.75
+
+0.50
+
+0.25
+
+0.00
+
+10−3
+
+10−2
+
+10−1
+
+100
+
+101
+
+(λ)
+
+(k, θ)
+
+(k, θ)
+
+(k, θ)
+
+2.5 2.0 1.5 1.0 0.5 0.0
+10−3
+2.5 2.0 1.5 1.0 0.5 0.0
+10−3
+2.5 2.0 1.5 1.0 0.5 0.0
+10−3
+
+(b) German Credit (α = 0.1)
+
+10−2
+
+10−1
+
+100
+
+101
+
+(λ)
+
+(d) German Credit (α = 0.25)
+
+10−2
+
+10−1
+
+100
+
+101
+
+(λ)
+
+(f) German Credit (α = 0.45)
+
+10−2 k=2
+
+10−1 (λ)
+k=4
+
+100
+
+101
+
+k=8
+
+(k, θ)
+
+(k, θ)
+
+(k, θ)
+
+(c) COMPAS (α = 0.1)
+
+1.5
+
+1.0
+
+0.5
+
+0.0
+
+10−3
+
+10−2
+
+10−1
+
+100
+
+101
+
+(λ)
+
+(f) COMPAS (α = 0.25)
+
+1.5
+
+1.0
+
+0.5
+
+0.0
+
+10−3
+
+10−2
+
+10−1
+
+100
+
+101
+
+(λ)
+
+(i) COMPAS (α = 0.45) 1.5
+
+1.0
+
+0.5
+
+0.0
+
+10−3
+
+10−2
+
+10−1
+
+100
+
+101
+
+(λ)
+
+(k, θ)
+
+Fig. 4. The effect of λ on the term C(k, θ).
+
+data set when k = 2. This is because the COMPAS data set has only 10 attributes per instance thus Enum can efﬁciently search all the combinations of attribute values when k = 2. For the other cases in Figure 2, the runtime of Enum is much larger than IE and IE-DT because the time cost of brute-force search grows exponentially with respect to k. FairDB achieves good runtime on COMPAS data set for all k and on the other two data sets for k = 2. However, as k approaches 8 for German Credit and Adult Census data sets, the runtime of this approach explodes and it becomes impractical. This is due to huge increase in Approximate Conditional Functional Dependencies possible with increase in value of k. Therefore, this approach is also not scalable. Similarly, DDD achieves great runtime for COMPAS and German Credit data sets but as k increases for Adult Census dataset, its runtime also increases exponentially due to large increase in possible itemsets, and therefore making it unscalable.
+Another comparison that we can draw from Figure 2 is that how runtime changes for the methods when they are run on COMPAS data set that has mere 10 attributes versus the runtime for Adult Census data set with 100 attributes. We can clearly observe that runtime for IE and IE-DT increase by a signiﬁcantly lower value as compared to other methods. For instance, all of the methods except IE and IE-DT exhaust their time budget on Adult Census data set for k = 4, 8, where as most of them are quite efﬁcient for COMPAS dataset. This is another solid proof of our method’s excellent scalability.
+Figure 3 shows the discrimination score of the solutions
+
+found by all compared methods and how they change with k. We can see that IE and IE-DT achieve the best discrimination score in most of the cases, which demonstrates their outstanding performance in ﬁnding solid evidence to reveal the unfairness of a model. The discrimination score of IEDT is slightly inferior to that of IE because IE-DT trades some discrimination score for better interpretability. Therefore, enhanced interpretabilty comes at a price of small drop in the discrimination score. The outstanding interpretability of IE-DT has been well demonstrated by the case studies in Section V-C.
+The discrimination scores for the groups found by Enum baseline are signiﬁcantly lower than those found by IE and IEDT in most of the cases. This is because Enum exhausts the set time budget and therefore only returns sub-optimal solution. Also Enum may rely on different decision boundaries than those used by IE, IE-DT to separate S from D \ S. Recall that our method is able to ﬁnd discriminating patterns by using a linear decision boundary induced by fθ. This provides our method with the capability to identify a discriminated group S that may be deﬁned by multiple attribute assignments rather than just a single attribute assignment. Therefore, a discriminated group identiﬁed by the decision boundary of our method may not be exactly identiﬁed by another method.
+The discrimination scores corresponding to the groups identiﬁed by Themis are substantially lower than our method. As discussed in Section II, this is because the results produced by Themis are based on synthetic data instances that are independent from the real data.
+
+Broadly speaking, the performance of DDD is signiﬁcantly worse than our method except for few cases. This is because the frequent itemset mining method cannot handle continuous attributes effectively. It relies on quantization that leads to information loss and inferior performance. Similarly, FairDB relies on mining of ACFDs and suffers from similar limitations. As evident in Figure 3, it is signiﬁcantly worse than our method.
+E. Hyperparameter analysis
+We now discuss the effect of α and λ on our experiments. We see from Figure 3 that as the value of α increases, the corresponding values of discrimination score tend to decrease for all the approaches. This is expected as with the increase in α, the size constraint on groups S and D \ S tightens. Both the groups need to be at least α ∗ |D| in size. Remember that β is set to 1 − α for the experiments.
+From Figure 2, we also see that runtime of some approaches like DDD and FairDB increase slightly with decrease in α. This can be clearly seen for German Credit and COMPAS data sets where the time budget is not fully exhausted for these approaches. This is expected because the search space for DDD and FairDB is adapted to those combinations that meet the minimum support criteria set by α [55], [56]. Themis and Enum do not involve this step but rather ﬁlter out combinations by iterating over them, which makes their runtime insensitive to choice of α. Our method relies on continuous optimization that we solve using ﬁxed number of iterations of backpropagation, and therefore runtime is not expected to be affected by the choice of α.
+We present the Figure 4 to show the effect of λ on the term C(k, θ) which corresponds to the mean of the absolute values of all of the entries in θ except the top-k.
+We see that as the value of λ increases to one, the term C(k, θ) tends to zero for all of the cases. This indicates that all of the entries of θ other than the top-k entries are pushed to zero. This would ensure that the maximum number of sensitive attributes considered for uncovering the discrimination are limited to k. Therefore, we choose λ = 1 for all of our experiments.
+F. Implementation details
+We use SGD optimizer [57] for solving the continuous optimization formulated in Equation (11). We set learning rate to 0.1 and number of iterations to 2500. For stable learning, we clip the gradients if the norm is greater than 5. All of the experiments are conducted on a Linux machine with an Intel i7-8700K processor and a Nvidia GeForce GTX 1080 Ti GPU with 11GB memory. Our code is implemented using python 3.7.9 with Pytorch 1.7.1 that uses CUDA version 10.2. For better reproducibility, we make our code available at [51].
+VI. CONCLUSION
+In this paper, we propose the novel task of revealing unfair models by identifying the most discriminated group that is characterized by a small subset of sensitive attributes and
+
+their corresponding assignments. We present a novel probabilistic framework to model this as a continuous optimization problem, which can be efﬁciently solved by a gradient-based optimization method. Solving the continuous optimization can efﬁciently and effectively ﬁnd solid evidence in data to reveal the unfairness of a target model. To enhance interpretability of the evidence, we propose an additional mechanism to clearly explain the evidence in the form of a compact decision tree. Case studies and extensive experiments presented in the paper verify the effectiveness and the scalability of our approach in generating highly interpretable evidence for revealing the discrimination.
+
+REFERENCES
+
+[1] R. Berk, Criminal justice forecasts of risk: A machine learning ap-
+
+proach. Springer Science & Business Media, 2012.
+
+[2] M. A. Ahmad, C. Eckert, and A. Teredesai, “Interpretable machine
+
+learning in healthcare,” in Proceedings of the 2018 ACM international
+
+conference on bioinformatics, computational biology, and health infor-
+
+matics, 2018, pp. 559–560.
+
+[3] J. Vamathevan, D. Clark, P. Czodrowski, I. Dunham, E. Ferran, G. Lee,
+
+B. Li, A. Madabhushi, P. Shah, M. Spitzer et al., “Applications of
+
+machine learning in drug discovery and development,” Nature reviews
+
+Drug discovery, vol. 18, no. 6, pp. 463–477, 2019.
+
+[4] J. Galindo and P. Tamayo, “Credit risk assessment using statistical and
+
+machine learning: basic methodology and risk modeling applications,”
+
+Computational economics, vol. 15, no. 1, pp. 107–143, 2000.
+
+[5] J. Angwin, J. Larson, S. Mattu, and L. Kirchner, “Machine bias,”
+
+https://www.propublica.org/article/machine-bias-risk-assessments-in-
+
+criminal-sentencing, 2016.
+
+[6] R. Letzter, “Amazon just showed us that ‘unbiased’ algorithms can
+
+be inadvertently racist.” TECH Insider, 2016. [Online]. Available:
+
+http://www.techinsider.io/how-algorithms-can-be-racist-2016-4
+
+[7] F. Kamiran and T. Calders, “Data preprocessing techniques for classi-
+
+ﬁcation without discrimination,” Knowledge and Information Systems,
+
+vol. 33, no. 1, pp. 1–33, 2012.
+
+[8] J. Chakraborty, S. Majumder, and T. Menzies, “Bias in machine learning
+
+software: Why? how? what to do?” arXiv preprint arXiv:2105.12195,
+
+2021.
+
+[9] T. Kamishima, S. Akaho, H. Asoh, and J. Sakuma, “Fairness-aware
+
+classiﬁer with prejudice remover regularizer,” in Joint European Con-
+
+ference on Machine Learning and Knowledge Discovery in Databases.
+
+Springer, 2012, pp. 35–50.
+
+[10] F. Kamiran, S. Mansha, A. Karim, and X. Zhang, “Exploiting reject
+
+option in classiﬁcation for social discrimination control,” Information
+
+Sciences, vol. 425, pp. 18–33, 2018.
+
+[11] C. Lawless and O. Gunluk, “Fair decision rules for binary classiﬁcation,”
+
+2021.
+
+[12] D. V. Carvalho, E. M. Pereira, and J. S. Cardoso, “Machine learning
+
+interpretability: A survey on methods and metrics,” Electronics, vol. 8,
+
+no. 8, p. 832, 2019.
+
+[13] N.-Z. Shi and J. Tao, Statistical hypothesis testing: theory and methods.
+
+World Scientiﬁc Publishing Company, 2008.
+
+[14] C. Dwork, M. Hardt, T. Pitassi, O. Reingold, and R. Zemel, “Fairness
+
+through awareness,” in Proceedings of the 3rd innovations in theoretical
+
+computer science conference, 2012, pp. 214–226.
+
+[15] Propublica.org,
+
+“Machine
+
+bias,”
+
+2016.
+
+[On-
+
+line].
+
+Available:
+
+http://www.propublica.org/article/
+
+machine-bias-risk-assessments-in-criminal-sentencing
+
+[16] A. Romei and S. Ruggieri, “A multidisciplinary survey on discrimination
+
+analysis,” The Knowledge Engineering Review, vol. 29, no. 5, pp. 582–
+
+638, 2014.
+
+[17] B. T. Luong, S. Ruggieri, and F. Turini, “k-nn as an implementation
+
+of situation testing for discrimination discovery and prevention,” in
+
+Proceedings of the 17th ACM SIGKDD international conference on
+
+Knowledge discovery and data mining, 2011, pp. 502–510.
+
+[18] L. Zhang, Y. Wu, and X. Wu, “Situation testing-based discrimination
+
+discovery: A causal inference approach.” in IJCAI, vol. 16, 2016, pp.
+
+2718–2724.
+
+[19] S. Ruggieri, D. Pedreschi, and F. Turini, “Data mining for discrimination discovery,” ACM Transactions on Knowledge Discovery from Data (TKDD), vol. 4, no. 2, pp. 1–40, 2010.
+[20] F. Azzalini, C. Criscuolo, and L. Tanca, “Fair-db: Functional dependencies to discover data bias.” in EDBT/ICDT Workshops, 2021.
+[21] S. Galhotra, Y. Brun, and A. Meliou, “Fairness testing: testing software for discrimination,” in Proceedings of the 2017 11th Joint Meeting on Foundations of Software Engineering, 2017, pp. 498–510.
+[22] T. Calders and S. Verwer, “Three naive bayes approaches for discrimination-free classiﬁcation,” Data mining and knowledge discovery, vol. 21, no. 2, pp. 277–292, 2010.
+[23] G. Goh, A. Cotter, M. Gupta, and M. P. Friedlander, “Satisfying realworld goals with dataset constraints,” Advances in Neural Information Processing Systems, vol. 29, 2016.
+[24] R. Berk, H. Heidari, S. Jabbari, M. Kearns, and A. Roth, “Fairness in criminal justice risk assessments: The state of the art,” Sociological Methods & Research, vol. 50, no. 1, pp. 3–44, 2021.
+[25] C. O’neil, Weapons of math destruction: How big data increases inequality and threatens democracy. Crown, 2016.
+[26] V. Eubanks, Automating inequality: How high-tech tools proﬁle, police, and punish the poor. St. Martin’s Press, 2018.
+[27] A. Chouldechova and A. Roth, “The frontiers of fairness in machine learning,” arXiv preprint arXiv:1810.08810, 2018.
+[28] S. A. Friedler, C. Scheidegger, S. Venkatasubramanian, S. Choudhary, E. P. Hamilton, and D. Roth, “A comparative study of fairness-enhancing interventions in machine learning,” in Proceedings of the conference on fairness, accountability, and transparency, 2019, pp. 329–338.
+[29] S. Verma and J. Rubin, “Fairness deﬁnitions explained,” in 2018 ieee/acm international workshop on software fairness (fairware). IEEE, 2018, pp. 1–7.
+[30] R. Binns, M. Van Kleek, M. Veale, U. Lyngs, J. Zhao, and N. Shadbolt, “’it’s reducing a human being to a percentage’ perceptions of justice in algorithmic decisions,” in Proceedings of the 2018 Chi conference on human factors in computing systems, 2018, pp. 1–14.
+[31] J. Kleinberg, S. Mullainathan, and M. Raghavan, “Inherent trade-offs in the fair determination of risk scores,” arXiv preprint arXiv:1609.05807, 2016.
+[32] M. B. Zafar, I. Valera, M. Gomez Rodriguez, and K. P. Gummadi, “Fairness beyond disparate treatment & disparate impact: Learning classiﬁcation without disparate mistreatment,” in Proceedings of the 26th international conference on world wide web, 2017, pp. 1171–1180.
+[33] M. Hardt, E. Price, and N. Srebro, “Equality of opportunity in supervised learning,” Advances in neural information processing systems, vol. 29, pp. 3315–3323, 2016.
+[34] R. K. Bellamy, K. Dey, M. Hind, S. C. Hoffman, S. Houde, K. Kannan, P. Lohia, J. Martino, S. Mehta, A. Mojsilovic´ et al., “Ai fairness 360: An extensible toolkit for detecting and mitigating algorithmic bias,” IBM Journal of Research and Development, vol. 63, no. 4/5, pp. 4–1, 2019.
+[35] J. Wexler, M. Pushkarna, T. Bolukbasi, M. Wattenberg, F. Vie´gas, and J. Wilson, “The what-if tool: Interactive probing of machine learning models,” IEEE transactions on visualization and computer graphics, vol. 26, no. 1, pp. 56–65, 2019.
+[36] S. Udeshi, P. Arora, and S. Chattopadhyay, “Automated directed fairness testing,” in Proceedings of the 33rd ACM/IEEE International Conference on Automated Software Engineering, 2018, pp. 98–108.
+[37] M. Feldman, S. A. Friedler, J. Moeller, C. Scheidegger, and S. Venkatasubramanian, “Certifying and removing disparate impact,” in proceedings of the 21th ACM SIGKDD international conference on knowledge discovery and data mining, 2015, pp. 259–268.
+[38] T. Calders, F. Kamiran, and M. Pechenizkiy, “Building classiﬁers with independency constraints,” in IEEE International Conference on Data Mining Workshops, 2009, pp. 13–18.
+[39] D. Y. Zhang, Z. Kou, and D. Wang, “FairFL: A fair federated learning approach to reducing demographic bias in privacy-sensitive classiﬁcation models,” in IEEE International Conference on Big Data, 2020, pp. 1051–1060.
+[40] M. Joseph, M. Kearns, J. H. Morgenstern, and A. Roth, “Fairness in learning: Classic and contextual bandits,” Advances in Neural Information Processing Systems, vol. 29, pp. 325–333, 2016.
+[41] M. Donini, L. Oneto, S. Ben-David, J. S. Shawe-Taylor, and M. Pontil, “Empirical risk minimization under fairness constraints,” in Advances in Neural Information Processing Systems, 2018, pp. 2791–2801.
+[42] W. E. Lillo, M. H. Loh, S. Hui, and S. H. Zak, “On solving constrained optimization problems with neural networks: A penalty method
+
+approach,” IEEE Transactions on neural networks, vol. 4, no. 6, pp. 931–940, 1993. [43] T. Zhang, “Analysis of multi-stage convex relaxation for sparse regularization.” Journal of Machine Learning Research, vol. 11, no. 3, 2010. [44] M. Ahn, J.-S. Pang, and J. Xin, “Difference-of-convex learning: directional stationarity, optimality, and sparsity,” SIAM Journal on Optimization, vol. 27, no. 3, pp. 1637–1665, 2017. [45] X.-L. Huang, L. Shi, and M. Yan, “Nonconvex sorted l1 minimization for sparse approximation,” Journal of the Operations Research Society of China, vol. 3, no. 2, pp. 207–229, 2015. [46] T. van Leeuwen and F. J. Herrmann, “A penalty method for pdeconstrained optimization in inverse problems,” Inverse Problems, vol. 32, no. 1, p. 015007, 2015. [47] O¨ . Yeniay, “Penalty function methods for constrained optimization with genetic algorithms,” Mathematical and computational Applications, vol. 10, no. 1, pp. 45–56, 2005. [48] L. Bottou, “Large-scale machine learning with stochastic gradient descent,” in Proceedings of COMPSTAT’2010. Springer, 2010, pp. 177– 186. [49] L. Breiman, J. H. Friedman, R. A. Olshen, and C. J. Stone, Classiﬁcation and regression trees. Routledge, 2017. [50] S. L. Salzberg, “C4. 5: Programs for machine learning by j. ross quinlan. morgan kaufmann publishers, inc., 1993,” 1994. [51] RUMIE, “The source code of rumie,” 2022. [Online]. Available: https: //drive.google.com/ﬁle/d/13L4o9l5wDWO2fIq7czkYGdE7Clnje5JZ/ \view?usp=sharing [52] R. Kohavi et al., “Scaling up the accuracy of naive-bayes classiﬁers: A decision-tree hybrid.” in Kdd, vol. 96, 1996, pp. 202–207. [53] D. Dua and C. Graff, “UCI machine learning repository,” 2017. [Online]. Available: http://archive.ics.uci.edu/ml [54] T. Brennan, W. Dieterich, and B. Ehret, “Evaluating the predictive validity of the compas risk and needs assessment system,” Criminal Justice and behavior, vol. 36, no. 1, pp. 21–40, 2009. [55] J. Han, J. Pei, and Y. Yin, “Mining frequent patterns without candidate generation,” ACM sigmod record, vol. 29, no. 2, pp. 1–12, 2000. [56] L. Caruccio, V. Deufemia, and G. Polese, “Relaxed functional dependencies—a survey of approaches,” IEEE Transactions on Knowledge and Data Engineering, vol. 28, no. 1, pp. 147–165, 2015. [57] H. Robbins and S. Monro, “A stochastic approximation method,” The annals of mathematical statistics, pp. 400–407, 1951.
+

@@ -1,0 +1,894 @@
+arXiv:2112.03806v2 [cs.LG] 14 Dec 2021
+
+OOD-GNN: Out-of-Distribution Generalized Graph Neural Network
+Haoyang Li, Xin Wang, Ziwei Zhang, Wenwu Zhu Tsinghua University
+lihy18@mails.tsinghua.edu.cn, {xin_wang, zwzhang, wwzhu}@tsinghua.edu.cn
+Abstract
+Graph neural networks (GNNs) have achieved impressive performance when testing and training graph data come from identical distribution. However, existing GNNs lack out-of-distribution generalization abilities so that their performance substantially degrades when there exist distribution shifts between testing and training graph data. To solve this problem, in this work, we propose an out-of-distribution generalized graph neural network (OOD-GNN) for achieving satisfactory performance on unseen testing graphs that have different distributions with training graphs. Our proposed OOD-GNN employs a novel nonlinear graph representation decorrelation method utilizing random Fourier features, which encourages the model to eliminate the statistical dependence between relevant and irrelevant graph representations through iteratively optimizing the sample graph weights and graph encoder. We further present a global weight estimator to learn weights for training graphs such that variables in graph representations are forced to be independent. The learned weights help the graph encoder to get rid of spurious correlations and, in turn, concentrate more on the true connection between learned discriminative graph representations and their ground-truth labels. We conduct extensive experiments to validate the out-of-distribution generalization abilities on two synthetic and 12 real-world datasets with distribution shifts. The results demonstrate that our proposed OOD-GNN signiﬁcantly outperforms state-of-the-art baselines.
+1 Introduction
+Graph structured data is ubiquitous in the real world, e.g., biology networks [1], social networks [2], molecular graphs [3], knowledge graphs [4], etc. Recently, deep learning models on graphs, especially graph neural networks (GNNs) [5–7], have increasingly emerged as prominent approaches for representation learning of graphs [8]. Signiﬁcant methodological advances have been made in the ﬁeld of GNNs, which have achieved promising performance in a wide variety of applications [9–12].
+Despite their enormous success, the existing GNN approaches for graph representation learning generally assume that the testing and training graph data are independently sampled from the identical distribution, i.e., the I.I.D. assumption. In many real-world scenarios, however, it is difﬁcult to guarantee this assumption to be valid. In particular, the testing distribution may suffer unobserved or uncontrolled shifts compared with the training distribution. For example, in the ﬁeld of drug discovery, the prediction of biochemical properties of molecules is commonly trained on limited available experimental data, but the model needs to be tested on an extraordinarily diverse and combinatorially large universe of candidate molecules [13, 14]. The model performance of existing methods can be substantially degraded under distribution shifts due to the lack of out-of-distribution (OOD) generalization ability in realistic data splits [15, 3]. Therefore, it is of paramount importance to learn GNNs capable of out-of-distribution generalization and achieve relatively stable performances
+Preprint. Under review.
+
+DDisistrtirbibuutitoionnsshhifitftoonnggrarapphhssizizeess
+
+DistTrTirbrauaintiinon shift on grapThTeesssitz(tel(alsarrggee))
+
+Train
+
+Test(large)
+
+Test(large) DDisistrtirbibuutitoionnsshhifitftoonnnnooddeefefeaatutureress
+TDTrirasatirniinbutionTTeseshsti(tfnt(nooonisisneeo))dTeTefesesta(ttc(ucoroelolsorr))
+Train Test(noise) Test(color)
+
+(a) TRIANGLES
+
+(b) MNIST-75SP: Super-pixel Graphs
+
+Distribution shift on graph structures and node features
+
+Train
+
+Test(molecules from unseen scaffolds)
+
+Scaffold 1
+
+Scaffold 44,930
+
+Scaffold 44,931 Scaffold 90,124
+
+y = active
+
+y = inactive
+
+y = active
+
+y = inactive
+
+(c) OGB Molecule Dataset [27]. For validating OOD generalization, this dataset is split based on the scaffolds (i.e., two-dimensional structural frameworks) of molecules. The testing set consists of structurally distinct molecules with scaffolds that are not in the training set.
+Figure 1: Examples of out-of-distribution testing graphs under complex distribution shifts. Figure 1a denotes the models are trained on small graphs but tested on larger graphs. Figure 1b denotes the models trained with clean node features but tested with noisy features. Figure 1c represents a more realistic and challenging case, i.e., distribution shifts exist on both graph structures and node features.
+
+under distribution shifts, especially for some high-stake applications, e.g., medical diagnosis [16], criminal justice [17], ﬁnancial analysis [18], and molecular prediction [3], etc.
+Some pioneering works [19–21] focus on the size generalization problem by testing on larger graphs than the training graphs. Besides size generalization, the capability of out-of-distribution generalization for GNNs is not explored until recently [22]. In out-of-distribution scenarios, when there exist complex heterogeneous distribution shifts, the performance of current GNN models can degrade substantially, which is mainly induced by the spurious correlations. The spurious correlations intrinsically come from the subtle correlations between irrelevant representations and relevant representations [23, 24]. For example, in the ﬁeld of drug discovery (see Figure 1c), the GNN models trained on molecules with one group of scaffolds (two-dimensional structural frameworks of molecules) may learn the spurious correlations between the scaffolds and labels (i.e., whether some drug can inhibit HIV replication) [3, 15]. When tested on molecules with different scaffolds (out-of-distribution testing molecules), the existing GNN models may make incorrect predictions based on the spurious correlations.
+In this paper, we propose to learn decorrelated graph representations through sample reweighting [25, 26] to eliminate the dependence between irrelevant and relevant representations, which is one of the major causes of degrading model performance under distribution shifts. However, learning decorrelated graph representations to improve out-of-distribution generalization for GNNs is fundamentally different from traditional methods and thus remains largely unexplored and challenging. Speciﬁcally, it poses the following challenges.
+• GNNs fuse heterogeneous information from node features and graph structures such that the complex and unobserved non-linear dependencies among representations are much more difﬁcult to be measured and eliminated than the linear cases for decorrelation of non-graph data.
+• Although sample reweighting is effective on small datasets, for real-world large-scale graphs, it is inefﬁcient or even infeasible to consistently learn a global weight for each graph in the dataset due to the high computational complexity and excessive storage consumption.
+To tackle these challenges, we propose a novel out-of-distribution generalized graph neural network (OOD-GNN) capable of handling graph distribution shifts in complex and heterogeneous situations. In particular, we ﬁrst propose to eliminate the statistical dependence between relevant and irrelevant graph representations of the graph encoder by a novel nonlinear graph representation decorrelation method utilizing random Fourier features [28–30], which scales linearly with the sample size and
+2
+
+can get rid of unexpected spurious correlations. Next, to reduce computational complexity, we present a scalable global-local weight estimator to learn the sample weight for each graph. The local weights for a mini-batch of graphs and global weights for the entire graphs are optimized jointly to effectively maintain the consistency of weights over the whole graph dataset [29, 31, 32]. Finally, the parameters of the graph encoder and sample weights for graph representation decorrelation are optimized iteratively to learn discriminant graph representations for predictions.
+We conduct extensive experiments on both synthetic graph datasets and well-known real-world graph benchmarks. The experimental results demonstrate that the representations learned from OOD-GNN can achieve substantial performance gains on the graph prediction tasks, including graph classiﬁcation and regression, under distribution shifts.
+The contributions of this paper are summarized as follows:
+• We propose a novel out-of-distribution generalized graph neural network (OOD-GNN) capable of learning out-of-distribution (OOD) generalized graph representation under complex distribution shifts.
+• We propose a nonlinear graph representation decorrelation method based on random Fourier features and sample reweighting. The decorrelated graph representations can substantially improve the out-of-distribution generalization ability in various OOD graph prediction benchmarks.
+• We present a scalable global-local weight estimator to learn graph weights for the whole dataset consistently and efﬁciently. Extensive empirical results show that OOD-GNN greatly outperforms baselines on various graph prediction benchmarks under distribution shifts.
+We review related works in Section 2. In Section 3, we describe the problem formulation and the details of our proposed OOD-GNN. Section 4 presents the experimental results including quantitative comparisons on both synthetic and real-world datasets, ablation studies, complexity analysis, hyperparameter sensitivity, etc. Finally, we conclude our work in Section 5.
+2 Related Works
+Graph Neural Network. GNNs [5–7] have been attracting considerable attention in recent years because of their notable success in representing graph-structure data. They generally utilize a messagepassing paradigm, which combines node features and graph topology to update node embeddings. To obtain the representation of the entire graph, graph pooling [7, 33, 34] is adopted to summarize node embeddings. Many GNNs and their variants [35–38] have been proposed, achieving state-of-the-art performance on various graph tasks, including node classiﬁcation [5], link prediction [39], and graph classiﬁcation [7, 40]. Despite their successes, the performance of GNNs drops substantially when there are distribution shifts between training and testing graphs [27, 3, 15]. The existing works largely ignore the out-of-distribution generalization ability of GNNs, which is crucial to realistic applications deployed in the wild [27].
+Size generalization of GNNs. The main goal of size generalization is to make GNNs work well on testing graphs whose size distribution is different from that of training graphs [41, 19, 20, 42, 43]. In these works, GNNs are usually trained on relatively small graphs and then generalize to larger graphs with the help of attention mechanisms [19] and self-supervised learning [20]. Bevilacqua et al. [21] propose to learn invariant graph representations for extrapolations with a predeﬁned structural causal model. However, most existing methods only test on graphs of different sizes and ignore more realistic and challenging settings where the distribution shifts emerge in the graph topologies and node features.
+The expressiveness of GNNs. The Weisfeiler-Lehman graph isomorphism test is most commonly used to measure the expressiveness power of GNNs [7, 36]. Assuming appropriate optimization, a more expressive GNN can achieve smaller error on the training data [44]. Some works [45, 46] also study the generalization capability of GNNs over the training distribution. These works are orthogonal to out-of-distribution generalization, including unseen graph topological structures and features studied in this paper. The ﬁndings in [22] show that encoding task-speciﬁc non-linearities in the GNN architecture or features can improve the out-of-distribution generalization. However, it is largely unknown in practice that how to enhance the generalization ability of GNNs when there are distribution shifts between training and testing graphs.
+3
+
+Representation decorrelation. The spurious correlation between the irrelevant (non-critical) representations and labels is recognized as one major cause of model degradation under distribution shifts [47–50]. Some pioneering works adopt regularizers to penalize high correlation explicitly [51, 52, 47]. However, these methods could introduce a substantial computational overhead, yield marginal improvements, or require extra supervision to control the strength of the penalty. There are also some works learning decorrelated representations with sample reweighting [26, 53–55], which is shown effective in improving the generalization ability theoretically (e.g., SRDO [53]) and empirically (e.g., DWR [54]). However, most of these methods are proposed under linear settings. In contrast, GNNs fuse heterogeneous information from node features and graph topological structures so that there exist complex and unobserved non-linear dependencies among representations. The linear sample reweighting methods can not be applied to eliminate non-linear dependencies for the decorrelation of graph data. We also observe a signiﬁcant performance drop in the experiments if only linear dependencies between representations are eliminated. The effectiveness of non-linear decorrelation methods (e.g, ReBias [56], StableNet [29]) is validated on images recently. However, non-linear decorrelation on graphs remains largely unexplored.
+Disentangled graph representation learning. Disentangled representation learning has gained considerable attention in the last few years, aiming to characterize the various underlying explanatory factors behind the observed data in different parts of the factorized vector representation [57]. The existing efforts about disentangled representation learning are originally designed for computer vision [58, 59]. More recently, some efforts generalizing disentangled representation learning for graph data have been proposed. For example, some works utilize the dynamic routing mechanism to disentangle latent factors for node-level representation learning (e.g., DisenGCN [60]) and for the whole graph representation learning [61]. FactorGCN [61] decomposes the input graph into several interpretable factor graphs for graph-level disentangled representations, which is a state-of-the-art disentangled GNN model. However, these methods force the representations to be factorized vectors and can change the semantic implication of the graph representations. In addition, their results on downstream tasks may be degraded due to the trade-off dilemma [62] between disentanglement and performance. We observe in the experiments that the SOTA graph disentanglement method FactorGCN fails to achieve promising results under complex distribution shifts. In contrast, for achieving out-of-distribution generalization, our method is able to learn graph weights while keeping the semantic implication of the representations unaffected, leading to better OOD generalization.
+
+3 Method
+
+3.1 Notations and Problem Formulation
+
+Let Gtr = {Gn}Nn=tr1 and Gte = {Gn}Nn=te1 be the training and testing graph dataset, which are under distribution shifts, i.e., P(Gtr) = P(Gte). Gte is unobserved in the training stage. A graph encoder
+
+Φ : G → Z is a mapping from the input graph space G to a d-dimensional representation space Z. In
+
+this work, we consider Φ as GNNs. R : Z → Y is a classiﬁer, mapping the representation space Z
+
+to the label space Y. G, Z, Y denote sets of random variables in G, Z, Y, respectively. Denote graph
+
+representations for Gtr as Z ⊂ RNtr×d. Zn∗ denotes the representation of the n-th graph and Z∗i is
+
+the random variable corresponding to the i-th dimension of Z. Graph weights are W = {wn}Nn=tr1,
+
+where wn is the weight for the n-th graph Gn in Gtr and we constrain
+
+N tr n=1
+
+wn
+
+=
+
+N tr.
+
+By
+
+jointly
+
+optimizing the graph encoder Φ, classiﬁer R, and graph weights W, we aim to eliminate the statistical
+
+dependence of all dimensions in representation Z such that the predictor R ◦ Φ : G → Y can achieve
+
+satisfactory generalization performance when testing on out-of-distribution graphs P(Gte).
+
+3.2 Statistical Independence with Graph Reweighting
+The correlation between relevant and irrelevant parts in representations is recognized as the main performance obstacle when P(Gtr) = P(Gte), i.e., OOD testing data [63, 26]. The relevant parts in representations denote the truly discriminant information to predict ground-truth labels, which are invariant under distribution shifts, e.g., the predictive functional blocks of molecules. On the other hand, the irrelevant parts include non-informative features that could change across different domains, e.g., scaffold structure in predicting molecule functions. GNNs fuse available information from node features and graph topologies into a uniﬁed low-dimensional representation for each graph.
+
+4
+
+So it is difﬁcult or even infeasible to distinguish which dimensionality in the representation denotes relevant and irrelevant parts without extra supervision, which is unavailable and expensive to collect. Therefore, we propose to encourage the graph encoder to eliminate the statistical dependence of all dimensions in the graph representation. Formally, we expect
+
+Z∗i ⊥⊥ Z∗j, ∀i, j ∈ [1, d], i = j.
+
+(1)
+
+For measuring the independence between continuous random variables Z∗i and Z∗j in d-dimensional
+
+graph representation space Z, it is inapplicable to resort to histogram-based measures unless d is
+
+small enough. So we introduce Hilbert-Schmidt Independence Criterion (HSIC) [64]. Speciﬁcally,
+
+consider a measurable, positive deﬁnite kernel kZ∗i on the domain of random variable Z∗i. De-
+
+note the corresponding Reproducing Kernel Hilbert Spaces (RKHS) by HZ∗i . HSIC is deﬁned as
+
+HSIC(Z∗i, Z∗j) :=
+
+CZ∗i ,Z∗j
+
+2 HS
+
+,
+
+where
+
+CZ∗i ,Z∗j
+
+is
+
+the
+
+cross-covariance
+
+operator
+
+in
+
+the
+
+RKHS
+
+of
+
+kZ∗i and kZ∗j . The independence can be determined as follows [65].
+
+Proposition 1. Assume E[kZ∗i (Z∗i, Z∗i)] < ∞ and E[kZ∗j (Z∗j , Z∗j )] < ∞, and kZ∗i kZ∗j is a characteristic kernel, then
+
+HSIC(Z∗i, Z∗j ) = 0 ⇔ Z∗i ⊥⊥ Z∗j.
+
+(2)
+
+Although a ﬁnite-sample estimate of HSIC has been used in practice for statistical testing [64], it is infeasible to be utilized for training the graph encoder Φ on large-scale datasets (e.g., the OGBG-MOLHIV dataset in our experiments contains 41,127 graphs). The bottleneck lies in that the computational cost of HSIC grows as the batch size of training data increases. We therefore consider the squared Frobenius norm CZ∗i,Z∗j 2F, an analogue corresponding to the HSIC in Euclidean space1 [56, 29], where CZ∗i,Z∗j is the partial cross-covariance matrix deﬁned as:
+
+C = Z∗i,Z∗j
+
+1 N tr −1
+
+N tr n=1
+
+f (Zni)
+
+−
+
+1 N tr
+
+N tr m=1
+
+f
+
+(Zmi)
+
+(3)
+
+·
+
+g(Znj )
+
+−
+
+1 N tr
+
+N tr m=1
+
+g(Zmj
+
+)
+
+,
+
+where Zni and Znj denote the value of random variables Z∗i and Z∗j given the input graph Gn.
+
+f (Z∗i) := (f1(Z∗i), f2(Z∗i), . . . , fQ(Z∗i)), g(Z∗j) := (g1(Z∗j), g2(Z∗j), . . . , gQ(Z∗j)),
+
+(4)
+
+√ with fq(Z∗i), gq(Z∗j) ∈ HRFF, ∀q ∈ [1, Q]. HRFF = {h : x → 2cos(wx+φ)|w ∼ N (0, 1), φ ∼ Uniform(0, 2π)} denotes the random Fourier features function space, from which we select Q
+
+functions. In a nutshell, random Fourier feature (RFF) is an effective technique to approximate
+
+kernel-based independence test [66, 29, 30]. Note that as Q grows, the accuracy of independence judgement increases. And Q = 5 is solid enough to measure the independence of random variables
+
+in practice [66, 29].
+
+Using the independence criterion above, we elaborate on graph reweighting which encourages the independence of the variables in graph representation. Deﬁne the graph weights W = {wn}Nn=tr1 where wn ∈ R is the learnable weight for the n-th graph Gn in the training set. The graph weights
+can be directly utilized into Eq. (3), so the partial cross-covariance matrix can be calculated as:
+
+C = W
+Z∗i ,Z∗j
+
+1 N tr −1
+
+N tr n=1
+
+wnf (Zni)
+
+−
+
+1 N tr
+
+N tr m=1
+
+wmf
+
+(Zmi)
+
+(5)
+
+·
+
+wng(Znj )
+
+−
+
+1 N tr
+
+N tr m=1
+
+wmg(Zmj
+
+)
+
+.
+
+The learnable graph weight W participates in the optimization process to eliminate the dependence
+
+between representations to the greatest possible extent by minimizing the squared Frobenius norm of
+
+the partial cross-covariance matrix
+
+CW
+Z∗i ,Z∗j
+
+2 F
+
+in
+
+Eq.
+
+(5).
+
+1In a ﬁnite-dimensional Euclidean space, the Hilbert–Schmidt norm · HS is identical to the Frobenius norm.
+
+5
+
+For the optimization, we iteratively optimize the graph weights W, graph encoder Φ, and classiﬁer
+
+R:
+
+N tr
+
+Φ∗, R∗ = argminΦ,R wn (R ◦ Φ (Gn) , Yn) ,
+
+(6)
+
+n=1
+
+W∗ = argminW
+
+CW
+Z∗i ,Z∗j
+
+2F,
+
+(7)
+
+1≤i<j≤d
+
+where denotes the cross-entropy loss for graph classiﬁcation tasks or mean squared error loss for graph regression tasks. The optimization of graph weights W in Eq. (7) encourages the graph encoder to generate the graph representations Z = Φ(G), where each dimension keeps independent with others and thus eliminates the spurious correlations. The optimization of graph encoder Φ and classiﬁer R in Eq. (6) based on the weighted graph datasets will lead to good performance on the speciﬁc prediction tasks.
+
+3.3 Global-Local Graph Weight Estimator
+Note that directly optimizing Eqs. (6)(7) requires all N tr graph weights W and graph representations Z to calculate accurately CZW∗i,Z∗j . Therefore, we need to load the entire dataset simultaneously for optimization, which is infeasible on large-scale datasets due to the high computational cost and excessive storage consumption. A straightforward alternative is to learn only graph representations and corresponding weights over a mini-batch of data. However, the consistency of the weights cannot be maintained since different mini-batches do not share information. Therefore, the dependence between different graph representation dimensions is hard to eliminate over the whole training dataset.
+To tackle this problem, we utilize a novel scalable global-local weight estimator to achieve the balance of optimization efﬁciency and weight consistency, inspired by [31, 29, 32]. In essence, we adopt global weights to keep the consistency of the learnable weights over the whole dataset, and the local weights encourage the independence of different dimensions of the graph representations over a mini-batch. Next, we elaborate on the detailed designs.
+Global weights. We maintain K groups of global representations Z(g) = [Z(g1), · · · , Z(gK)] and the corresponding global weights W(g) = [W(g1), · · · , W(gK)], where the size of each group equals to the mini-batch, i.e., Z(gk) ∈ R|B|×d and W(gk) ∈ R|B|. They serve as the memory of the encoded graph representations and the corresponding weights from historical mini-batches during the training stage. Since these global representations and weights are shared across different mini-matches, they maintain a global summarization of the whole training dataset. The size of global weights only depends on the mini-batch size, which is a hyper-parameter and independent of the training dataset size.
+Local weights. For each mini-batch B of the input graphs {Gn}|nB=|1, we ﬁrst calculate their graph representations Z(l) = {Z(nl∗)}|nB=|1, Z(nl∗) = Φ(Gn) and uniformly initialize the local graph weights, i.e., W(l) = (1, 1, . . . , 1). Then, the local graph representations Z(l) and weights W(l) are concatenated with the K groups of global graph representations Z(g) for optimization. We denote
+Z = Z(g1), · · · , Z(gK ) Z(l) ∈ R(K+1)|B|×d, (8)
+W = W(g1), · · · , W(gK ) W(l) ∈ R(K+1)|B|,
+where [· ·] is concatenation. Then, we calculate the weighted partial cross-covariance matrix in
+Eq. (5) using Z, W and optimize the objective function. Using this estimator, the computational cost for each mini-batch is O((K + 1)|B|), as opposed to O(N tr) in directly optimizing Eqs. (6)(7).
+Weights Update. At the end of each training iteration, we adopt a momentum update to dynamically update the global representations Z(g) and weights W(g) by the optimized local Z(l) and W(l):
+Z(gk) ← γkZ(gk) + (1 − γk)Z(l), (9)
+W(gk) ← γkW(gk) + (1 − γk)W(l).
+Here γk ∈ [0, 1) is a momentum coefﬁcient for each group of global representations Z(gk) and W(gk) weights. The global Z(gk) and W(gk) with a large γk serve as a long-term memory for global
+
+6
+
+information over the whole training dataset, while those with a small γk serve as a short-term memory. Finally the global weights can be progressively updated and ensure the consistency of the whole graph dataset.
+
+3.4 Training Procedure The training procedure of our proposed OOD-GNN is shown in Algorithm 1.
+
+Algorithm 1 The training procedure of OOD-GNN.
+
+Input: A graph dataset G = {Gn}Nn=1 Output: Learned graph encoder Φ∗ and classiﬁer R∗
+
+1: for e ← 1 to Epoch do
+
+2: for sampled minibatch B = {Gn}|nB=|1 do
+
+3:
+
+Calculate Z(l) = {Z(nl∗)}|nB=| 1, Z(nl∗) = Φ(Gn)
+
+4:
+
+Initialize W(l) = (1, 1, . . . , 1)
+
+5:
+
+Concatenate global and local representations/weights as Eq. (8)
+
+6:
+
+for e ← 1 to Epoch_Reweight do
+
+7:
+
+Optimize the graph weights by minimizing Eq. (7)
+
+8:
+
+end for
+
+9:
+
+Back propagate with weighted prediction loss as Eq. (6)
+
+10:
+
+Update global representations and weights as Eq. (9)
+
+11: end for
+
+12: end for
+
+At the training stage, we iteratively optimize the graph weights W, graph encoder Φ, and classiﬁer R. Speciﬁcally, as shown in Algorithm 1, we ﬁrst perform forward propagation for each sampled minibatch B to obtain the local graph representations Z(l) = {Z(nl∗)}|nB=|1, Z(nl∗) = Φ(Gn) (line 3 in Algorithm 1) and uniformly initialize the local graph weights W(l) = (1, 1, . . . , 1) (line 4). To maintain consistency of the weights and improve efﬁciency, we concatenate the global representations
+and weights with local representations and weights to obtain Z and W (line 5). After that, we
+calculate the partial cross-covariance matrix CW and optimize the graph weights by minimizing
+Z∗i ,Z∗j
+the following objective function (line 7):
+
+W(l)∗ = argminW(l)
+
+CW
+Z∗i ,Z∗j
+
+2F,
+
+1≤i<j≤d
+
+(10)
+
+Next, we optimize the graph encoder Φ and classiﬁer R by performing back propagation with weighted prediction loss (line 9):
+
+|B|
+
+Φ∗, R∗ = argminΦ,R wn (R ◦ Φ (Gn) , Yn) ,
+
+(11)
+
+n=1
+
+where wn = Wn(l)∗ is the optimized weight for the n-th graph in the minibatch B. At the end of each iteration, the global representations and weights are updated by the optimized local graph representations and local graph weights (line 10).
+
+At the testing stage, we directly adopt the optimized graph encoder Φ∗ and classiﬁer R∗ to learn graph representations and conduct predictions.
+
+4 Experiments
+In this section, we empirically evaluate the effectiveness of the proposed OOD-GNN on both synthetic and real-world datasets and conduct ablation studies. More experimental results (including hyper-parameter sensitivity, training dynamic, weight distribution, time complexity, etc.) are also present and analyzed in detail.
+
+7
+
+Table 1: The statistics of the datasets. #Graphs is the number of graphs in the dataset. Average #Nodes/#Edges are the average number of nodes and edges in a graph of the dataset, respectively. #Tasks denotes the dimensionality of output required for prediction. Task type includes binary classiﬁcation, multi-classiﬁcation, and regression. The various split methods for training/validation/testing dataset cover complex and realistic distribution shifts.
+
+Category Synthetic Molecule and social datasets
+Open Graph Benchmark OGBG-MOL*
+
+Name
+TRIANGLES MNIST-75SP COLLAB PROTEINS D&D TOX21 BACE BBBP CLINTOX SIDER TOXCAST HIV ESOL FREESOLV
+
+#Graphs
+4,000 7,000 5,000 1,113 1,178 7,831 1,513 2,039 1,477 1,427 8,576 41,127 1,128
+642
+
+Average #Nodes
+15.6 66.8 74.5 39.1 284.3 18.6 34.1 24.1 26.2 33.6 18.8 25.5 13.3 8.7
+
+Average #Edges
+48.9 600.2 2457.8 72.8 715.7 19.3 36.9 26.0 27.9 35.4 19.3 27.5 13.7
+8.4
+
+#Tasks
+1 1 1 1 1 12 1 1 2 27 12 1 1 1
+
+Task Type Regression Multi-class. Multi-class. Binary class. Binary class. Binary class. Binary class. Binary class. Binary class. Binary class. Binary class. Binary class. Regression Regression
+
+Split Method
+Size Feature
+Size Size Size Scaffold Scaffold Scaffold Scaffold Scaffold Scaffold Scaffold Scaffold Scaffold
+
+Metric
+Accuracy Accuracy Accuracy Accuracy Accuracy ROC-AUC ROC-AUC ROC-AUC ROC-AUC ROC-AUC ROC-AUC ROC-AUC
+RMSE RMSE
+
+4.1 Experimental Setup
+4.1.1 Baselines
+We compare our OOD-GNN with several representative state-of-the-art methods:
+• GCN [5]: It is one of the most famous GNNs, following a recursive neighborhood aggregation (or message passing) scheme.
+• GIN [7]: It is shown to be one of the most expressive GNNs in representation learning of graphs. • GCN-virtual and GIN-virtual [15]: We also consider the variants of GCN and GIN augmented
+with virtual node, i.e., adding a node that is connected to all the nodes in the original graphs. • FactorGCN [61]: It decomposes the input graph into several interpretable factor graphs for
+graph-level disentangled representations, which is a state-of-the-art disentangled GNN model for graph classiﬁcation. • PNA [67]: It takes multiple neighborhood aggregation schemes into account and generalizes several GNN models with different neighborhood aggregation schemes. • TopKPool [68]: It propagates only part of the input and this part is not uniformly sampled from the input. It can thus select some local parts of the input graph and ignore the rest to summarize the graph representation. • SAGPool [33]: It is a graph pooling method based on self-attention mechanism, which can be used to calculate attention scores and retain important nodes for graph-level representation.
+4.1.2 Datasets
+To cover more realistic and challenging cases of graph distribution shifts, we compare our method and baselines on both synthetic and real-world datasets:
+• Synthetic Datasets. We use two synthetic datasets to evaluate the effectiveness of our proposed method, and examples of these datasets are shown in Figure 1a and 1b. (1) TRIANGLES. Counting the number of triangles in a graph is a common task that can be solved analytically but is challenging for GNNs. We ﬁrst generate 4,000 random graphs, and train on graphs containing 4 to 25 nodes, and test on graphs with 4 to 100 nodes. The node features are set as one-hot degrees. The dataset is split into 3,000/500/500 graphs used as training/validation/testing sets. The task is to predict the number of triangles in each graph. The number of classes is 10 (i.e., each graph has 1 to 10 triangles). Based on this setting, there exist distribution shifts with regard to graph sizes between training and testing data.
+8
+
+(2) MNIST-75SP. Each graph in MNIST-75SP is converted from an image in MNIST [69] using super-pixels [70]. We randomly sample 7,000 images of MNIST and extract no more than 75 superpixels for each image to generate the graph. The node features are set as the super-pixel coordinates and intensity. The dataset is split into 6,000/500/500 graphs used as training/validation/testing sets. The task is to classify each graph into the corresponding handwritten digit labeled from 0 to 9. To simulate distribution shifts with respect to graph features, we follow [19] and generate two testing graph datasets. For the ﬁrst testing set, Test(noise), we add Gaussian noise, drawn from N (0, 0.4), to node features. For the second testing set, Test(color), we colorize images by adding two more channels and add independent Gaussian noise, drawn from N (0, 0.4), to each channel. The graph structures (adjacency matrices) are not changed for testing graphs.
+• Real-world Datasets. (1) Molecule and social datasets. We consider three commonly used graph classiﬁcation benchmarks: COLLAB [71], PROTEINS [72], and D&D [73]. Following [19], these datasets are split based on the size of each graph. D&D200 and D&D300 denote the two datasets whose maximum graph size in the training set is 200 and 300, respectively. All the methods are trained on smaller graphs and tested on unseen larger graphs. Speciﬁcally, COLLAB is derived from 3 public collaboration datasets, i.e., High Energy Physics, Condensed Matter Physics, and Astro Physics. We train on graphs with 32 to 35 nodes and test on graphs with 32 to 492 nodes. PROTEINS is a protein dataset. We train on graphs with 4 to 25 nodes and test on graphs with 6 to 620 nodes. D&D is also a dataset that consists of proteins. We consider two types of splitting methods, termed D&D200 and D&D300. For D&D200, we train on graphs with 30 to 200 nodes and test on graphs with 201 to 5, 748 nodes. For D&D300, we train on 500 graphs with 30 to 300 nodes and test on other graphs with 30 to 5, 748 nodes. (2) Open Graph Benchmark (OGB) [15]. We consider 9 graph property prediction datasets from a benchmark of distribution shifts OGBG-MOL∗ in Open Graph Benchmark (OGB), i.e., TOX21, BACE, BBBP, CLINTOX, SIDER, TOXCAST, HIV, ESOL, FREESOLV. The task is to predict the target molecular properties as accurately as possible. We adopt the default scaffold splitting procedure, namely splitting the graphs based on their two-dimensional structural frameworks. Note that this scaffold splitting strategy aims to separate structurally different molecules into different subsets, which provides a more realistic and challenging scenario of out-of-distribution generalization. Figure 1c shows some examples of the dataset.
+For the synthetic datasets in the experiments:
+• TRIANGLES: Each graph in this dataset is a random graph.
+• MNIST-75SP: It is generated from MNIST [69]: http://yann.lecun.com/exdb/mnist/ with license unspeciﬁed.
+The real-world datasets are publicly available.
+• COLLAB, PROTEINS, D&D: https://chrsmrrs.github.io/datasets/ with license unspeciﬁed
+• Open Graph Benchmark (OGB): https://ogb.stanford.edu/docs/graphprop/ with MIT License
+4.1.3 Implementation Details
+We implement our method in PyTorch. The number of epochs (i.e., Epoch in Algorithm 1) is set to 100. The batch size is chosen from {64, 128, 256}. The learning rate is chosen from {0.0001, 0.001}. The number of epochs of learning graph weights (i.e., Epoch_Reweight in Algorithm 1) is set to 20. The dimensionality of the representations and hidden layers d is chosen from {128, 300} for Open Graph Benchmark, and {64, 256} for other datasets. We use GIN [7] as the graph encoder Φ : G → Z since it is shown to be one of the most expressive GNNs, and the number of layers is chosen from [2, 6]. We set Q = 1 to sample random Fourier features. The 2-norm is adopted on the weights to prevent degenerated solutions. The number of groups of global representations and weights K = 1 with the momentum coefﬁcient γ = 0.9 in the updating step. The classiﬁer R : Z → Y is realized by a two-layer MLP. These hyper-parameters are tuned on the validation set. We report the mean values with standard deviations of 10 repeated experiments.
+9
+
+Table 2: Graph classiﬁcation accuracy (%) on training and testing sets of two synthetic datasets. Test(large) denotes larger graph sizes in testing set and Test(noise)/Test(color) represent adding Gaussian noises/color noises respectively. In each column, the boldfaced score denotes the best result and the underlined score represents the second-best result. ± denotes standard deviation.
+
+GCN GCN-virtual
+GIN GIN-virtual FactorGCN
+PNA TopKPool SAGPool OOD-GNN
+
+TRIANGLES
+Train Test(large) 28.3±0.6 21.3±1.9 32.4±0.6 17.0±1.8 34.7±0.7 22.2±1.9 34.2±0.6 17.6±1.7 10.6±1.6 4.2±0.9 43.7±3.6 16.8±2.4 28.3±0.3 22.0±0.2 26.7±1.0 23.7±0.7 29.9±0.7 25.1±0.8
+
+Train 51.7±1.0 55.1±2.3 67.6±0.8 66.7±0.9 46.7±1.2 83.0±0.9 61.0±3.7 60.2±1.3 63.2±1.1
+
+MNIST-75SP
+Test(noise) Test(color) 26.5±1.4 27.0±1.3 26.0±1.5 26.1±1.8 27.9±2.5 34.3±4.4 25.7±2.9 33.4±1.2 19.7±1.4 24.8±1.3 22.8±7.3 29.2±6.3 17.0±1.0 16.9±1.5 19.6±3.4 20.1±3.7 31.5±0.9 38.5±1.5
+
+We conduct the experiments with the following hardware and software conﬁgurations:
+• Operating System: Ubuntu 18.04.1 LTS
+• CPU: Intel(R) Xeon(R) CPU E5-2699 v4@2.20GHz
+• GPU: NVIDIA GeForce GTX TITAN X with 12GB of Memory
+• Software: Python 3.6.5; NumPy 1.18.0; PyTorch 1.7.0; PyTorch Geometric 1.6.1.
+4.2 Results on Synthetic Graphs
+The results on TRIANGLES and MNIST-75SP are reported in Table 2. On TRIANGLES, there exist distribution shifts on the graph sizes. OOD-GNN consistently achieves the best testing performance compared with other baselines on the out-of-distribution testing graphs, demonstrating the OOD generalization capability of our method. The accuracy of a strong baseline PNA on training graphs is impressive but drops signiﬁcantly on the OOD testing graphs. FactorGCN, as a disentangled graph representation learning method, decomposes the input graph into several independent factor graphs so that it may change the semantic implication of representations into these implicit factors and affect the performance. In contrast, OOD-GNN learns graph weights so that the semantic of the graph representations will not be affected, leading to better generalization ability.
+On MNIST-75SP, there exist distribution shifts on the graph features, i.e., graphs in the testing datasets have larger noises. OOD-GNN achieves the best performance consistently compared with other methods. For this dataset, each graph consists of super-pixel nodes and edges that are formed based on the spatial distance between super-pixel centers. Therefore, the graph topological structures are relatively more discriminative than node features in making predictions. Traditional GNNs fuse heterogeneous information from both graph topological structures and features into uniﬁed graph representations, so these baselines may learn the spurious correlations, leading to poor generalization performance. As the complex non-linear dependencies between graph structures and features are eliminated, our method is able to learn the true connections between relevant representations (i.e., informative graph topological structures) and labels, and conduct inference according to them only, thus generalize better.
+4.3 Results on Real-world Graphs
+On real-world molecule and social datasets (i.e., COLLAB, PROTEINS, and D&D), the training and testing graphs are split by graph sizes, i.e., our method and baselines are trained on small graphs and tested on larger graphs. The results are presented in Table 3. OOD-GNN consistently yields the best testing performance on all the datasets. In particular, OOD-GNN improves over the strongest baselines by 2.2%, 6.0%, and 1.7% in PROTEINS25, D&D200, D&D300 respectively. Our model achieves the best out-of-distribution generalization performance under size distribution shifts by encouraging independence between relevant and irrelevant representations. The results of baselines degrade due to the spurious correlations between irrelevant representations and labels. For example, each graph in the COLLAB dataset corresponds to an ego-network of different researchers from one
+10
+
+Table 3: Graph classiﬁcation accuracy (%) on the testing set of OOD-GNN and baselines. Our OOD-GNN outperforms the baselines signiﬁcantly on all graph classiﬁcation benchmarks, indicating its superiority against graph size distribution shifts. The best result and the second-best result for each dataset are in bold and underlined, respectively.
+
+# Train/Test graphs #Nodes Train #Nodes Test GCN GCN-virtual GIN GIN-virtual FactorGCN PNA TopKPool SAGPool OOD-GNN
+
+COLLAB35 500/4500 32-35 32-492 65.9±3.4 61.5±1.6 55.5±4.9 54.8±2.7 51.0±1.3 59.6±5.5 52.8±1.0 67.0±1.7 67.2±1.8
+
+PROTEINS25 500/613 4-25 6-620 75.1±2.2 70.4±3.7 74.0±2.7 66.0±7.5 63.5±4.8 71.4±3.4 64.9±3.0 76.2±0.7 78.4±0.9
+
+D&D200 462/716 30-200 201-5748 29.2±8.2 41.6±8.0 43.0±8.3 46.7±4.5 42.3±3.1 47.3±6.8 34.6±5.6 54.3±5.0 60.3±4.5
+
+D&D300 500/678 30-300 30-5748 71.9±3.6 71.6±4.4 67.8±4.3 72.1±4.3 55.9±1.6 70.1±2.1 69.3±3.6 78.4±1.1 80.1±1.0
+
+Table 4: Results on nine Open Graph Benchmark (OGB) datasets. We report the ROC-AUC (%) for classiﬁcation tasks and RMSE for regression tasks with the standard deviation on the test set of all methods. None of the baseline methods is consistently competitive across all datasets, while our proposed method shows impressive performance. (↑) means that higher values indicate better results, and (↓) represents the opposite.
+
+Metric GCN GCN-virtual GIN GIN-virtual FactorGCN PNA TopKPool SAGPool OOD-GNN
+
+TOX21
+75.3±0.7 77.5±0.9 74.9±0.5 77.6±0.6 57.8±2.1 71.5±0.5 75.6±0.9 74.7±3.1 78.4±0.8
+
+BACE
+79.2±1.4 68.9±7.0 73.0±4.0 73.5±5.2 70.0±0.6 77.4±2.1 76.9±2.4 76.6±1.0 81.3±1.2
+
+BBBP
+68.9±1.5 67.8±2.4 68.2±1.5 69.7±1.9 54.1±1.1 66.2±1.2 68.6±1.1 69.3±2.1 70.1±1.0
+
+CLINTOX SIDER ROC-AUC (↑)
+91.3±1.7 59.6±1.8 88.6±2.1 59.8±1.5 88.1±2.5 57.6±1.4 84.1±3.8 57.6±1.6 64.2±2.1 53.3±1.7 81.2±2.0 59.6±1.1 86.9±1.1 60.6±1.5 88.7±1.0 61.3±1.3 91.4±1.3 64.0±1.3
+
+TOXCAST
+63.5±0.4 66.7±0.5 63.4±0.7 66.1±0.5 51.2±0.8 60.6±0.2 64.7±0.1 64.8±0.2 68.7±0.3
+
+HIV
+76.1±1.0 76.0±1.2 75.6±1.4 77.1±1.5 57.1±1.5 79.1±1.3 76.7±1.1 77.7±1.3 79.5±0.9
+
+ESOL FREESOLV RMSE (↓)
+1.11±0.03 2.64±0.24 1.02±0.10 2.19±0.12 1.17±0.06 2.76±0.35 1.00±0.07 2.15±0.30 3.39±0.15 5.69±0.32 0.94±0.02 2.92±0.16 1.17±0.03 2.08±0.10 1.22±0.05 2.28±0.12 0.88±0.05 1.81±0.14
+
+ﬁeld, and the label denotes the corresponding research ﬁeld. The truly predictive representations are from the graph topological structures. If the GNN models learn spurious correlations between graph sizes and labels, they will fail to make correct predictions on larger OOD testing graphs.
+The graph classiﬁcation results on nine Open Graph Benchmark (OGB) datasets are shown in Table 4. The datasets are split based on the scaffold, i.e., the two-dimensional structural framework. So the distribution shifts between training and testing graphs exist on the graph topological structure and features, leading to a more challenging scenario. None of the baselines is consistently competitive across all datasets, as opposed to our proposed method. Notice that adding virtual nodes to GCN and GIN is not a promising improvement for generalization since it can provide performance gains on some datasets but fail on the others. FactorGCN shows poor results on these datasets, possibly because it enforces the decomposition of the input graphs into several independent factor graphs for disentanglement, which is hard to achieve without sufﬁcient supervision. PNA is proposed to address the size generalization problem but still fails under the more complex distribution shifts. TopKPool selects some local parts of the input graph and ignores the others. The strongest baseline on molecule and social datasets, i.e., SAGPool, pools the nodes with the self-attention mechanism. However, the accurate selection for TopKPool and calculation of attention scores for SAGPool are easily affected by the spurious correlations on OOD test graphs and therefore also fail to generalize. In contrast, OOD-GNN shows a strong capability of out-of-distribution generalization when the input graphs have complicated structures, especially for the large-scale real-world graphs.
+4.4 Ablation Studies
+We perform ablation studies over a number of key components of our method to analyze their functionalities more deeply. Speciﬁcally, we compare OOD-GNN with the following two variants: (1) Variant 1: it sets the dimensionality of random Fourier features to different values. (2) Variant 2:
+11
+
+Accuracy (%) Accuracy (%) ROC-AUC (%)
+
+26
+
+TRIANGLES
+
+25
+
+24
+
+OOD-GNN no RFF
+
+23
+
+GIN
+
+22D0i.m2xen0s.4ioxn0o.6f xra0n.8dxom1Fxou2rixer f5eaxtu1re0sx
+
+82
+
+D&D300
+
+78
+
+74
+
+OOD-GNN no RFF
+
+70
+
+GIN
+
+66D0i.m2xen0s.4ioxn0o.6f xra0n.8dxom1Fxou2rixer f5eaxtu1re0sx
+
+84
+
+OGBG-MOLBACE
+
+81
+
+78
+
+OOD-GNN no RFF
+
+75
+
+GIN
+
+72D0i.m2xen0s.4ioxn0o.6f xra0n.8dxom1Fxou2rixer f5eaxtu1re0sx
+
+(a) TRIANGLES
+
+(b) D&D300
+
+(c) OGBG-MOLBACE
+
+Figure 2: Ablation study results of our method. The blue curves with circle markers show that as dimensionality of random Fourier features increases, the generalization performance of OOD-GNN improves. The purple markers show that if we remove random Fourier features and only eliminate linear correlation, the performance drops signiﬁcantly. The orange markers represent the results of GIN, the graph encoder baseline in our method.
+
+it removes all the random Fourier features. For simplicity, we only report the results on one synthetic dataset (i.e., TRIANGLES) and two real-world datasets (i.e., D&D300 and OGBG-MOLBACE), while the results on other datasets show similar patterns.
+Variant 1 exploits the effect of different dimensions of random Fourier features. Note that our method adopts random Fourier features (see Eq. (4)), which sample from Gaussian to learn the graph weights and encourage the independence of representations. It is shown in [66] that if sampling more random Fourier features (i.e., when Q in Eq. (4) increases), the learned graph representations will be more independent. However, there exists a trade-off between independence and computational efﬁciency since the more random Fourier features are sampled, the higher the computational cost becomes. When the computational resources are extremely limited, it is also feasible to randomly select part of the dimensions in graph representations to calculate the dependence. In Figure 2, the x-axis represents the dimensionality of random Fourier features compared to graph representations, e.g., "2x" indicates Q = 2 in Eq. (4), while "0.2x" means we randomly select 20% dimensions of graph representations. We observe from Figure 2 that as the dimensionality of random Fourier features increases, the performance on OOD testing graphs grows consistently, which demonstrates that eliminating the statistical dependence between different dimensions of the graph representations will encourage the independence between relevant and irrelevant representations and lead to better out-of-distribution generalization ability.
+Variant 2 removes all the random Fourier features and the optimization in Eqs. (6)(7) will degenerate to linear cases, i.e., only eliminating linear correlation rather than encouraging independence between different dimensions of graph representations. In Figure 2, this variant is termed as "no RFF". We can observe a clear performance drop for this variant, demonstrating that the complex non-linear dependencies are common in the graph representations. By eliminating non-linear dependence between representations, the GNNs will be encouraged to learn true connections between the input graphs and the corresponding labels.
+4.5 Training Dynamic
+We can observe the convergence of our proposed method empirically, although Eqs. (6)(7) are iteratively optimized. In Figure 3 (a)(b)(c), we show the weighted prediction loss in the training process on TRIANGLES, D&D300, and OGBG-MOLBACE, respectively. The loss converges in no more than 100 epochs to about 0.67, 0.30, and 0.25 on the three datasets, respectively. The results on the other datasets show similar patterns.
+4.6 Weights Distribution
+In Figure 4 (a)(b)(c), to further investigate the effectiveness of the graph reweighting, we show the distribution of the learned graph weights on TRIANGLES, D&D300, and OGBG-MOLBACE when the training is ﬁnished. The results show that our proposed method learns non-trivial weights, and the weights distribution is slightly different across different datasets.
+12
+
+Loss
+
+4.2
+
+TRIANGLES
+
+3.0
+
+1.8
+
+0.6 0 10 20 30 4E0p5o0c6h0 70 80 90100
+
+Loss
+
+0.9
+
+D&D300
+
+0.7
+
+0.5
+
+0.3 0 10 20 30 4E0p5o0c6h0 70 80 90100
+
+Loss
+
+0.9 OGBG-MOLBACE
+0.7 0.5 0.3
+0 10 20 30 4E0p5o0c6h0 70 80 90100
+
+(a) Training loss on TRIANGLES.
+
+(b) Training loss on D&D300.
+
+(c) Training loss on OGBGMOLBACE.
+
+Figure 3: The weighted prediction loss in the training process on three datasets.
+
+0.25
+
+TRIANGLES
+
+0.20
+
+0.15
+
+0.10
+
+0.05
+
+0.000.0 0.5 1.0W1.e5ig2h.0ts2.5 3.0 3.5
+
+Probability
+
+0.25
+
+D&D300
+
+0.20
+
+0.15
+
+0.10
+
+0.05
+
+0.000.0 0.5 1.0W1.e5ig2h.0ts2.5 3.0 3.5
+
+Probability
+
+0.25 OGBG-MOLBACE
+0.20 0.15 0.10 0.05
+0.000.0 0.5 1.0W1.e5ig2h.0ts2.5 3.0 3.5
+
+(a) Weights distribution on TRIAN- (b) Weights distribution on (c) Weights distribution on OGBG-
+
+GLES.
+
+D&D300.
+
+MOLBACE.
+
+Figure 4: The distribution of the learned graph weights after training on three datasets.
+
+Probability
+
+4.7 Time Complexity
+Our method is not only effective but efﬁcient to learn out-of-distribution generalized graph representation under complex distribution shifts. The time complexity of our method is O(|E| d + |V | d2 + K|B|d2), where |V |, |E| denotes the total number of nodes and edges in the graphs, d is the dimensionality of the representation, K is the number of groups of global weights, and |B| is the batch size. Speciﬁcally, the time complexity of the graph encoder GIN is O(|E| d + |V | d2) and the optimization of graph weights in Eq. (7) has O(K|B|d2) complexity. As a comparison, the time complexity of GIN, our backbone GNN, is O(|E| d + |V | d2), i.e., our time complexity is on par since d, K, and |B| are small constants that are unrelated to the dataset size.
+4.8 Number of Parameters
+The parameters of our method consist of two parts, i.e., the graph encoder and graph weights. The former is determined by the graph encoder GNN architecture, which is GIN in our setting. The latter is determined by the number of graphs. Taking the OGBG-MOLBACE dataset for example, the number of parameters of our method is about 0.9M if we set the number of message-passing layers as 5 and the dimensionality of the representations as 300. Notice that our method has comparable or fewer parameters than the baselines. For the OGBG-MOLBACE dataset with the same hyper-parameter settings, GIN and PNA (two baselines in the experiments) have 0.9M and 6.0M parameters, respectively. Nevertheless, our method achieves impressive out-of-distribution generalization performance against the baselines.
+4.9 Hyper-parameter Sensitivity
+We investigate the sensitivity of hyper-parameters of our method, including the number of messagepassing layers in the graph encoder, the dimensionality of the representations d, the size of global weights, and the momentum coefﬁcient γ in updating global weights. For simplicity, we only report the results on TRIANGLES (see Figure 5), D&D300 (see Figure 6), and OGBG-MOLBACE (see Figure 7), while the results on other datasets show similar patterns. From Figures 5–7, we observe that the performance relies on an appropriate choice of the number of message-passing layers of the graph encoder. Since the task of counting triangles is relatively simple, the graph encoder with two message-passing layers is good enough on TRIANGLES, while ﬁve layers are needed to achieve the best performance on OGBG-MOLBACE. When the number of layers of graph encoder is small, the model has limited capacity and may not be able to fuse enough information from neighbors. On the
+13
+
+Accuracy (%)
+
+ROC-AUC (%)
+
+28 TRIANGLES 24 20 16 2 N3umber o4f layers5 6
+(a) Number of layers.
+
+Accuracy (%)
+
+28 24 20 16 32
+
+TRIANGLES D6i4mens1io2n8ality2d56 512
+
+Accuracy (%)
+
+28
+
+TRIANGLES
+
+24
+
+20
+
+16 32 6Si4ze o1f 2gl8oba2l5w6eig5ht12 1024
+
+Accuracy (%)
+
+28
+
+TRIANGLES
+
+24
+
+20
+
+16 0.9Mom0en.9tu9m co0ef.f9ic9ie9nt 0.9999
+
+(b) Dimensionality d. (c) Size of global weights. (d) Momentum coefﬁcient.
+
+Figure 5: The analyses of different hyper-parameters on TRIANGLES dataset.
+
+81
+
+D&D300
+
+80
+
+79
+
+78 2 N3umber o4f layers5 6
+
+(a) Number of layers.
+
+ROC-AUC (%)
+
+81 80 79 78 32
+
+D&D300 D6i4mens1io2n8ality2d56 512
+
+ROC-AUC (%)
+
+81
+
+D&D300
+
+80
+
+79
+
+78 32 6Si4ze o1f 2gl8oba2l5w6eig5ht12 1024
+
+ROC-AUC (%)
+
+81
+
+D&D300
+
+80
+
+79
+
+78 0.9Mom0en.9tu9m co0ef.f9ic9ie9nt 0.9999
+
+(b) Dimensionality d. (c) Size of global weights. (d) Momentum coefﬁcient.
+
+Figure 6: The analyses of different hyper-parameters on D&D300 dataset.
+
+83 OGBG-MOLBACE 80 77 74 2 N3umber o4f layers5 6
+
+ROC-AUC (%)
+
+83 OGBG-MOLBACE 80 77 74 32 D6i4mens1io2n8ality2d56 512
+
+ROC-AUC (%)
+
+83 OGBG-MOLBACE 80 77 74 32 6Si4ze o1f 2gl8oba2l5w6eig5ht12 1024
+
+ROC-AUC (%)
+
+83 OGBG-MOLBACE 80 77 74 0.9Mom0en.9tu9m co0ef.f9ic9ie9nt 0.9999
+
+(a) Number of layers.
+
+(b) Dimensionality d. (c) Size of global weights. (d) Momentum coefﬁcient.
+
+Figure 7: The analyses of different hyper-parameters on OGBG-MOLBACE dataset.
+
+ROC-AUC (%)
+
+other hand, a very large number of layers could lead to the over-smoothing problem [74]. Besides, the optimal dimensionality of the representations d for TRIANGLES is relatively smaller than that for D&D300 and OGBG-MOLBACE. In addition, as the size of global weights increases, the performance is improved. The global representations and weights can help to learn consistent graph sample weights on the whole dataset and therefore improve the generalization ability of the model. Finally, we ﬁnd that the momentum coefﬁcient γ also has a slight inﬂuence on the performance. A large γ will make the update of global representations and weights slower, and a small one will accelerate the update, corresponding to emphasizing long-term and short-term memory, respectively.
+5 Conclusions
+In this paper, we propose a novel out-of-distribution generalized graph neural network (OOD-GNN) to solve the problem of generalization of GNNs under complex and heterogeneous distribution shifts. We propose a nonlinear graph representation decorrelation method by utilizing random Fourier features and sample reweighting, so that the learned representations of OOD-GNN are encouraged to eliminate the statistical dependence between the representations. We further present a scalable global-local weight estimator, which can learn graph weights for the whole dataset consistently and efﬁciently. Extensive experiments on both synthetic and real-world datasets demonstrate the superiority of our method against state-of-the-art baselines for out-of-distribution generalization.
+Acknowledgments
+We would like to thank Xingxuan Zhang for valuable discussions. This work was supported in part by the National Key Research and Development Program of China No. 2020AAA0106300 and National Natural Science Foundation of China (No. 62050110, No. 62102222). All opinions, ﬁndings,
+14
+
+conclusions and recommendations in this paper are those of the authors and do not necessarily reﬂect the views of the funding agencies.
+References
+[1] Albert-Laszlo Barabasi and Zoltan N Oltvai. Network biology: understanding the cell’s functional organization. Nature reviews genetics, 5(2):101–113, 2004.
+[2] David Easley, Jon Kleinberg, et al. Networks, crowds, and markets, volume 8. Cambridge university press Cambridge, 2010.
+[3] Zhenqin Wu, Bharath Ramsundar, Evan N Feinberg, Joseph Gomes, Caleb Geniesse, Aneesh S Pappu, Karl Leswing, and Vijay Pande. Moleculenet: a benchmark for molecular machine learning. Chemical science, 9(2):513–530, 2018.
+[4] Quan Wang, Zhendong Mao, Bin Wang, and Li Guo. Knowledge graph embedding: A survey of approaches and applications. IEEE Transactions on Knowledge and Data Engineering, 29 (12):2724–2743, 2017.
+[5] Thomas N Kipf and Max Welling. Semi-supervised classiﬁcation with graph convolutional networks. In International Conference on Learning Representations, 2017.
+[6] Petar Velicˇkovic´, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Lio, and Yoshua Bengio. Graph attention networks. In International Conference on Learning Representations, 2018.
+[7] Keyulu Xu, Weihua Hu, Jure Leskovec, and Stefanie Jegelka. How powerful are graph neural networks? In International Conference on Learning Representations, 2019.
+[8] William L Hamilton. Graph representation learning. Synthesis Lectures on Artiﬁcal Intelligence and Machine Learning, 14(3):1–159, 2020.
+[9] Junying Li, Deng Cai, and Xiaofei He. Learning graph-level representation for drug discovery. arXiv preprint arXiv:1709.03741, 2017.
+[10] Wenqi Fan, Yao Ma, Qing Li, Jianping Wang, Guoyong Cai, Jiliang Tang, and Dawei Yin. A graph neural network framework for social recommendations. IEEE Transactions on Knowledge and Data Engineering, 2020.
+[11] Haoyang Li, Xin Wang, Ziwei Zhang, Jianxin Ma, Peng Cui, and Wenwu Zhu. Intention-aware sequential recommendation with structured intent transition. IEEE Transactions on Knowledge and Data Engineering, 2021.
+[12] Marinka Zitnik, Monica Agrawal, and Jure Leskovec. Modeling polypharmacy side effects with graph convolutional networks. Bioinformatics, 34(13):i457–i466, 2018.
+[13] Teague Sterling and John J Irwin. Zinc 15–ligand discovery for everyone. Journal of chemical information and modeling, 55(11):2324–2337, 2015.
+[14] Regine S Bohacek, Colin McMartin, and Wayne C Guida. The art and practice of structurebased drug design: a molecular modeling perspective. Medicinal research reviews, 16(1):3–50, 1996.
+[15] Weihua Hu, Matthias Fey, Marinka Zitnik, Yuxiao Dong, Hongyu Ren, Bowen Liu, Michele Catasta, and Jure Leskovec. Open graph benchmark: Datasets for machine learning on graphs. Neural Information Processing Systems (NeurIPS), 2020.
+[16] Yang Li, Buyue Qian, Xianli Zhang, and Hui Liu. Graph neural network-based diagnosis prediction. Big Data, 8(5):379–390, 2020.
+[17] Xinge Han, Xiaofeng Hu, Huanggang Wu, Bing Shen, and Jiansong Wu. Risk prediction of theft crimes in urban communities: An integrated model of lstm and st-gcn. IEEE Access, 8: 217222–217230, 2020.
+15
+
+[18] Yiying Yang, Zhongyu Wei, Qin Chen, and Libo Wu. Using external knowledge for ﬁnancial event prediction based on graph neural networks. In Proceedings of the 28th ACM International Conference on Information and Knowledge Management, pages 2161–2164, 2019.
+[19] Boris Knyazev, Graham W Taylor, and Mohamed R Amer. Understanding attention and generalization in graph neural networks. Advances in Neural Information Processing Systems, 32:4202–4212, 2019.
+[20] Gilad Yehudai, Ethan Fetaya, Eli Meirom, Gal Chechik, and Haggai Maron. From local structures to size generalization in graph neural networks. In ICML, 2021.
+[21] Beatrice Bevilacqua, Yangze Zhou, and Bruno Ribeiro. Size-invariant graph representations for graph classiﬁcation extrapolations. In ICML, 2021.
+[22] Keyulu Xu, Mozhi Zhang, Jingling Li, Simon S Du, Ken-ichi Kawarabayashi, and Stefanie Jegelka. How neural networks extrapolate: From feedforward to graph neural networks. In ICLR, 2021.
+[23] Martin Arjovsky, Léon Bottou, Ishaan Gulrajani, and David Lopez-Paz. Invariant risk minimization. arXiv preprint arXiv:1907.02893, 2019.
+[24] Lifu Tu, Garima Lalwani, Spandana Gella, and He He. An empirical study on robustness to spurious correlations using pre-trained language models. Transactions of the Association for Computational Linguistics, 8:621–633, 2020.
+[25] Mengye Ren, Wenyuan Zeng, Bin Yang, and Raquel Urtasun. Learning to reweight examples for robust deep learning. In International Conference on Machine Learning, pages 4334–4343, 2018.
+[26] Kun Kuang, Peng Cui, Susan Athey, Ruoxuan Xiong, and Bo Li. Stable prediction across unknown environments. In Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, pages 1617–1626, 2018.
+[27] Pang Wei Koh, Shiori Sagawa, Sang Michael Xie, Marvin Zhang, Akshay Balsubramani, Weihua Hu, Michihiro Yasunaga, Richard Lanas Phillips, Irena Gao, Tony Lee, et al. Wilds: A benchmark of in-the-wild distribution shifts. In International Conference on Machine Learning, pages 5637–5664, 2021.
+[28] Ali Rahimi, Benjamin Recht, et al. Random features for large-scale kernel machines. In Advances in Neural Information Processing Systems, volume 3, page 5. Citeseer, 2007.
+[29] Xingxuan Zhang, Peng Cui, Renzhe Xu, Linjun Zhou, Yue He, and Zheyan Shen. Deep stable learning for out-of-distribution generalization. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 5372–5382, 2021.
+[30] Zhu Li, Jean-Francois Ton, Dino Oglic, and Dino Sejdinovic. Towards a uniﬁed analysis of random fourier features. In International Conference on Machine Learning, pages 3905–3914. PMLR, 2019.
+[31] Zhirong Wu, Yuanjun Xiong, Stella X Yu, and Dahua Lin. Unsupervised feature learning via non-parametric instance discrimination. In Proceedings of the IEEE conference on computer vision and pattern recognition, pages 3733–3742, 2018.
+[32] Kaiming He, Haoqi Fan, Yuxin Wu, Saining Xie, and Ross Girshick. Momentum contrast for unsupervised visual representation learning. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 9729–9738, 2020.
+[33] Junhyun Lee, Inyeop Lee, and Jaewoo Kang. Self-attention graph pooling. In International Conference on Machine Learning, pages 3734–3743, 2019.
+[34] Zhen Zhang, Jiajun Bu, Martin Ester, Jianfeng Zhang, Zhao Li, Chengwei Yao, Dai Huifen, Zhi Yu, and Can Wang. Hierarchical multi-view graph pooling with structure learning. IEEE Transactions on Knowledge and Data Engineering, 2021.
+16
+
+[35] William L Hamilton, Rex Ying, and Jure Leskovec. Inductive representation learning on large graphs. In Proceedings of the 31st International Conference on Neural Information Processing Systems, pages 1025–1035, 2017.
+[36] Christopher Morris, Martin Ritzert, Matthias Fey, William L Hamilton, Jan Eric Lenssen, Gaurav Rattan, and Martin Grohe. Weisfeiler and leman go neural: Higher-order graph neural networks. In Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 33, pages 4602–4609, 2019.
+[37] Wenhui Yu, Xiao Lin, Jinfei Liu, Junfeng Ge, Wenwu Ou, and Zheng Qin. Self-propagation graph neural network for recommendation. IEEE Transactions on Knowledge and Data Engineering, 2021.
+[38] Jianxin Li, Hao Peng, Yuwei Cao, Yingtong Dou, Hekai Zhang, Philip Yu, and Lifang He. Higher-order attribute-enhancing heterogeneous graph neural networks. IEEE Transactions on Knowledge and Data Engineering, 2021.
+[39] Michael Schlichtkrull, Thomas N Kipf, Peter Bloem, Rianne Van Den Berg, Ivan Titov, and Max Welling. Modeling relational data with graph convolutional networks. In European semantic web conference, pages 593–607. Springer, 2018.
+[40] Jianliang Gao, Jun Gao, Xiaoting Ying, Mingming Lu, and Jianxin Wang. Higher-order interaction goes neural: A substructure assembling graph attention network for graph classiﬁcation. IEEE Transactions on Knowledge and Data Engineering, 2021.
+[41] Adam Santoro, Felix Hill, David Barrett, Ari Morcos, and Timothy Lillicrap. Measuring abstract reasoning in neural networks. In ICML, 2018.
+[42] David Saxton, Edward Grefenstette, Felix Hill, and Pushmeet Kohli. Analysing mathematical reasoning abilities of neural models. In ICLR, 2019.
+[43] Petar Velicˇkovic´, Rex Ying, Matilde Padovano, Raia Hadsell, and Charles Blundell. Neural execution of graph algorithms. In ICLR, 2020.
+[44] Andreas Loukas. What graph neural networks cannot learn: depth vs width. In International Conference on Learning Representations, 2020.
+[45] Vikas Garg, Stefanie Jegelka, and Tommi Jaakkola. Generalization and representational limits of graph neural networks. In ICML, 2020.
+[46] Saurabh Verma and Zhi-Li Zhang. Stability and generalization of graph convolutional neural networks. In Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, pages 1539–1548, 2019.
+[47] Michael Cogswell, Faruk Ahmed, Ross Girshick, Larry Zitnick, and Dhruv Batra. Reducing overﬁtting in deep networks by decorrelating representations. In ICLR, 2016.
+[48] Shuqin Gu, Yuexian Hou, Lipeng Zhang, and Yazhou Zhang. Regularizing deep neural networks with an ensemble-based decorrelation method. In IJCAI, pages 2177–2183, 2018.
+[49] Devansh Arpit, Caiming Xiong, and Richard Socher. Predicting with high correlation features. arXiv preprint arXiv:1910.00164, 2019.
+[50] Christina J Song, Jason C Vladescu, Kenneth F Reeve, Caio F Miguel, and Samantha L Breeman. The inﬂuence of correlations between noncritical features and reinforcement on stimulus generalization. Journal of Applied Behavior Analysis, 54(1):346–366, 2021.
+[51] Mohamed Hebiri and Johannes Lederer. How correlations inﬂuence lasso prediction. IEEE Transactions on Information Theory, 59(3):1846–1854, 2012.
+[52] Pau Rodríguez, Jordi Gonzalez, Guillem Cucurull, Josep M Gonfaus, and Xavier Roca. Regularizing cnns with locally constrained decorrelations. arXiv preprint arXiv:1611.01967, 2016.
+17
+
+[53] Zheyan Shen, Peng Cui, Tong Zhang, and Kun Kunag. Stable learning via sample reweighting. In Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 34, pages 5692–5699, 2020.
+[54] Kun Kuang, Ruoxuan Xiong, Peng Cui, Susan Athey, and Bo Li. Stable prediction with model misspeciﬁcation and agnostic distribution shift. In Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 34, pages 4485–4492, 2020.
+[55] Zijun Zhang, Yining Zhang, and Zongpeng Li. Removing the feature correlation effect of multiplicative noise. arXiv preprint arXiv:1809.07023, 2018.
+[56] Hyojin Bahng, Sanghyuk Chun, Sangdoo Yun, Jaegul Choo, and Seong Joon Oh. Learning de-biased representations with biased representations. In International Conference on Machine Learning, pages 528–539, 2020.
+[57] Yoshua Bengio, Aaron Courville, and Pascal Vincent. Representation learning: A review and new perspectives. TPAMI, 35(8):1798–1828, 2013.
+[58] Jun-Ting Hsieh, Bingbin Liu, De-An Huang, Li F Fei-Fei, and Juan Carlos Niebles. Learning to decompose and disentangle representations for video prediction. In NeurIPS, pages 517–526, 2018.
+[59] Liqian Ma, Qianru Sun, Stamatios Georgoulis, Luc Van Gool, Bernt Schiele, and Mario Fritz. Disentangled person image generation. In CVPR, pages 99–108, 2018.
+[60] Jianxin Ma, Peng Cui, Kun Kuang, Xin Wang, and Wenwu Zhu. Disentangled graph convolutional networks. In ICML, pages 4212–4221, 2019.
+[61] Yiding Yang, Zunlei Feng, Mingli Song, and Xinchao Wang. Factorizable graph convolutional networks. Advances in Neural Information Processing Systems, 33, 2020.
+[62] Christopher P Burgess, Irina Higgins, Arka Pal, Loic Matthey, Nick Watters, Guillaume Desjardins, and Alexander Lerchner. Understanding disentangling in β-vae. NeurIPS Workshop on Learning Disentangled Representations, 2017.
+[63] Maximilian Ilse, Jakub M Tomczak, Christos Louizos, and Max Welling. Diva: Domain invariant variational autoencoders. In Medical Imaging with Deep Learning, pages 322–348, 2020.
+[64] Arthur Gretton, Olivier Bousquet, Alex Smola, and Bernhard Schölkopf. Measuring statistical dependence with hilbert-schmidt norms. In International conference on algorithmic learning theory, pages 63–77. Springer, 2005.
+[65] Kenji Fukumizu, Arthur Gretton, Xiaohai Sun, and Bernhard Schölkopf. Kernel measures of conditional dependence. In Advances in Neural Information Processing Systems, pages 489–496, 2007.
+[66] Eric V Strobl, Kun Zhang, and Shyam Visweswaran. Approximate kernel-based conditional independence tests for fast non-parametric causal discovery. Journal of Causal Inference, 7(1), 2019.
+[67] Gabriele Corso, Luca Cavalleri, Dominique Beaini, Pietro Liò, and Petar Velicˇkovic´. Principal neighbourhood aggregation for graph nets. Advances in Neural Information Processing Systems, 33, 2020.
+[68] Hongyang Gao and Shuiwang Ji. Graph u-nets. In international conference on machine learning, pages 2083–2092, 2019.
+[69] Yann LeCun, Léon Bottou, Yoshua Bengio, and Patrick Haffner. Gradient-based learning applied to document recognition. Proceedings of the IEEE, 86(11):2278–2324, 1998.
+[70] Radhakrishna Achanta, Appu Shaji, Kevin Smith, Aurelien Lucchi, Pascal Fua, and Sabine Süsstrunk. Slic superpixels compared to state-of-the-art superpixel methods. IEEE transactions on pattern analysis and machine intelligence, 34(11):2274–2282, 2012.
+18
+
+[71] Anshumali Shrivastava and Ping Li. A new space for comparing graphs. In 2014 IEEE/ACM International Conference on Advances in Social Networks Analysis and Mining (ASONAM 2014), pages 62–71. IEEE, 2014.
+[72] Karsten M Borgwardt, Cheng Soon Ong, Stefan Schönauer, SVN Vishwanathan, Alex J Smola, and Hans-Peter Kriegel. Protein function prediction via graph kernels. Bioinformatics, 21 (suppl_1):i47–i56, 2005.
+[73] Paul D Dobson and Andrew J Doig. Distinguishing enzyme structures from non-enzymes without alignments. Journal of molecular biology, 330(4):771–783, 2003.
+[74] Xupeng Miao, Wentao Zhang, Yingxia Shao, Bin Cui, Lei Chen, Ce Zhang, and Jiawei Jiang. Lasagne: A multi-layer graph convolutional network framework via node-aware deep architecture. IEEE Transactions on Knowledge and Data Engineering, 2021.
+19
+

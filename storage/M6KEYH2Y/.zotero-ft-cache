@@ -1,0 +1,92 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2003.13924
+
+Help | Advanced Search
+Search
+Computer Science > Computer Vision and Pattern Recognition
+(cs)
+[Submitted on 31 Mar 2020 ( v1 ), last revised 22 Oct 2020 (this version, v4)]
+Title: EvolveGraph: Multi-Agent Trajectory Prediction with Dynamic Relational Reasoning
+Authors: Jiachen Li , Fan Yang , Masayoshi Tomizuka , Chiho Choi
+Download a PDF of the paper titled EvolveGraph: Multi-Agent Trajectory Prediction with Dynamic Relational Reasoning, by Jiachen Li and Fan Yang and Masayoshi Tomizuka and Chiho Choi
+Download PDF
+
+    Abstract: Multi-agent interacting systems are prevalent in the world, from pure physical systems to complicated social dynamic systems. In many applications, effective understanding of the situation and accurate trajectory prediction of interactive agents play a significant role in downstream tasks, such as decision making and planning. In this paper, we propose a generic trajectory forecasting framework (named EvolveGraph) with explicit relational structure recognition and prediction via latent interaction graphs among multiple heterogeneous, interactive agents. Considering the uncertainty of future behaviors, the model is designed to provide multi-modal prediction hypotheses. Since the underlying interactions may evolve even with abrupt changes, and different modalities of evolution may lead to different outcomes, we address the necessity of dynamic relational reasoning and adaptively evolving the interaction graphs. We also introduce a double-stage training pipeline which not only improves training efficiency and accelerates convergence, but also enhances model performance. The proposed framework is evaluated on both synthetic physics simulations and multiple real-world benchmark datasets in various areas. The experimental results illustrate that our approach achieves state-of-the-art performance in terms of prediction accuracy. 
+
+Comments: 	NeurIPS 2020. Website: this https URL
+Subjects: 	Computer Vision and Pattern Recognition (cs.CV) ; Machine Learning (cs.LG); Multiagent Systems (cs.MA); Robotics (cs.RO)
+Cite as: 	arXiv:2003.13924 [cs.CV]
+  	(or arXiv:2003.13924v4 [cs.CV] for this version)
+  	https://doi.org/10.48550/arXiv.2003.13924
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Jiachen Li [ view email ]
+[v1] Tue, 31 Mar 2020 02:49:23 UTC (2,833 KB)
+[v2] Mon, 13 Apr 2020 07:28:20 UTC (2,803 KB)
+[v3] Thu, 1 Oct 2020 17:42:10 UTC (6,048 KB)
+[v4] Thu, 22 Oct 2020 16:02:44 UTC (6,050 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled EvolveGraph: Multi-Agent Trajectory Prediction with Dynamic Relational Reasoning, by Jiachen Li and Fan Yang and Masayoshi Tomizuka and Chiho Choi
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.CV
+< prev   |   next >
+new | recent | 2003
+Change to browse by:
+cs
+cs.LG
+cs.MA
+cs.RO
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+DBLP - CS Bibliography
+listing | bibtex
+Jiachen Li
+Fan Yang
+Masayoshi Tomizuka
+Chiho Choi
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

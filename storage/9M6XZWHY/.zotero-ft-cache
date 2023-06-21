@@ -1,0 +1,91 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2005.04259
+
+Help | Advanced Search
+Search
+Computer Science > Computer Vision and Pattern Recognition
+(cs)
+[Submitted on 8 May 2020]
+Title: VectorNet: Encoding HD Maps and Agent Dynamics from Vectorized Representation
+Authors: Jiyang Gao , Chen Sun , Hang Zhao , Yi Shen , Dragomir Anguelov , Congcong Li , Cordelia Schmid
+Download a PDF of the paper titled VectorNet: Encoding HD Maps and Agent Dynamics from Vectorized Representation, by Jiyang Gao and 6 other authors
+Download PDF
+
+    Abstract: Behavior prediction in dynamic, multi-agent systems is an important problem in the context of self-driving cars, due to the complex representations and interactions of road components, including moving agents (e.g. pedestrians and vehicles) and road context information (e.g. lanes, traffic lights). This paper introduces VectorNet, a hierarchical graph neural network that first exploits the spatial locality of individual road components represented by vectors and then models the high-order interactions among all components. In contrast to most recent approaches, which render trajectories of moving agents and road context information as bird-eye images and encode them with convolutional neural networks (ConvNets), our approach operates on a vector representation. By operating on the vectorized high definition (HD) maps and agent trajectories, we avoid lossy rendering and computationally intensive ConvNet encoding steps. To further boost VectorNet's capability in learning context features, we propose a novel auxiliary task to recover the randomly masked out map entities and agent trajectories based on their context. We evaluate VectorNet on our in-house behavior prediction benchmark and the recently released Argoverse forecasting dataset. Our method achieves on par or better performance than the competitive rendering approach on both benchmarks while saving over 70% of the model parameters with an order of magnitude reduction in FLOPs. It also outperforms the state of the art on the Argoverse dataset. 
+
+Comments: 	CVPR 2020
+Subjects: 	Computer Vision and Pattern Recognition (cs.CV) ; Machine Learning (cs.LG); Machine Learning (stat.ML)
+Cite as: 	arXiv:2005.04259 [cs.CV]
+  	(or arXiv:2005.04259v1 [cs.CV] for this version)
+  	https://doi.org/10.48550/arXiv.2005.04259
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Jiyang Gao [ view email ]
+[v1] Fri, 8 May 2020 19:07:03 UTC (1,620 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled VectorNet: Encoding HD Maps and Agent Dynamics from Vectorized Representation, by Jiyang Gao and 6 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.CV
+< prev   |   next >
+new | recent | 2005
+Change to browse by:
+cs
+cs.LG
+stat
+stat.ML
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+DBLP - CS Bibliography
+listing | bibtex
+Jiyang Gao
+Chen Sun
+Hang Zhao
+Yi Shen
+Dragomir Anguelov
+…
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

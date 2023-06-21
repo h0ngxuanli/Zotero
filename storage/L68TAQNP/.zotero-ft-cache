@@ -1,0 +1,79 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2208.07530
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 16 Aug 2022]
+Title: Knowledge-Injected Federated Learning
+Authors: Zhenan Fan , Zirui Zhou , Jian Pei , Michael P. Friedlander , Jiajie Hu , Chengliang Li , Yong Zhang
+Download a PDF of the paper titled Knowledge-Injected Federated Learning, by Zhenan Fan and 6 other authors
+Download PDF
+
+    Abstract: Federated learning is an emerging technique for training models from decentralized data sets. In many applications, data owners participating in the federated learning system hold not only the data but also a set of domain knowledge. Such knowledge includes human know-how and craftsmanship that can be extremely helpful to the federated learning task. In this work, we propose a federated learning framework that allows the injection of participants' domain knowledge, where the key idea is to refine the global model with knowledge locally. The scenario we consider is motivated by a real industry-level application, and we demonstrate the effectiveness of our approach to this application. 
+
+Subjects: 	Machine Learning (cs.LG) ; Artificial Intelligence (cs.AI)
+Cite as: 	arXiv:2208.07530 [cs.LG]
+  	(or arXiv:2208.07530v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2208.07530
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Zhenan Fan [ view email ]
+[v1] Tue, 16 Aug 2022 04:23:06 UTC (454 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Knowledge-Injected Federated Learning, by Zhenan Fan and 6 other authors
+    PDF
+    Other formats 
+
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2208
+Change to browse by:
+cs
+cs.AI
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

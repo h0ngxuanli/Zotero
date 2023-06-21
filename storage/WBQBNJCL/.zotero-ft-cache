@@ -1,0 +1,79 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2208.14878
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 31 Aug 2022 ( v1 ), last revised 20 Dec 2022 (this version, v3)]
+Title: Formalising the Robustness of Counterfactual Explanations for Neural Networks
+Authors: Junqi Jiang , Francesco Leofante , Antonio Rago , Francesca Toni
+Download a PDF of the paper titled Formalising the Robustness of Counterfactual Explanations for Neural Networks, by Junqi Jiang and 3 other authors
+Download PDF
+
+    Abstract: The use of counterfactual explanations (CFXs) is an increasingly popular explanation strategy for machine learning models. However, recent studies have shown that these explanations may not be robust to changes in the underlying model (e.g., following retraining), which raises questions about their reliability in real-world applications. Existing attempts towards solving this problem are heuristic, and the robustness to model changes of the resulting CFXs is evaluated with only a small number of retrained models, failing to provide exhaustive guarantees. To remedy this, we propose {\Delta}-robustness, the first notion to formally and deterministically assess the robustness (to model changes) of CFXs for neural networks. We introduce an abstraction framework based on interval neural networks to verify the {\Delta}-robustness of CFXs against a possibly infinite set of changes to the model parameters, i.e., weights and biases. We then demonstrate the utility of this approach in two distinct ways. First, we analyse the {\Delta}-robustness of a number of CFX generation methods from the literature and show that they unanimously host significant deficiencies in this regard. Second, we demonstrate how embedding {\Delta}-robustness within existing methods can provide CFXs which are provably robust. 
+
+Comments: 	Accepted at AAAI 2023, camera-ready version
+Subjects: 	Machine Learning (cs.LG) ; Artificial Intelligence (cs.AI)
+Cite as: 	arXiv:2208.14878 [cs.LG]
+  	(or arXiv:2208.14878v3 [cs.LG] for this version)
+Submission history
+From: Junqi Jiang [ view email ]
+[v1] Wed, 31 Aug 2022 14:11:23 UTC (1,717 KB)
+[v2] Thu, 1 Dec 2022 17:02:22 UTC (1,744 KB)
+[v3] Tue, 20 Dec 2022 16:45:26 UTC (1,719 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Formalising the Robustness of Counterfactual Explanations for Neural Networks, by Junqi Jiang and 3 other authors
+    PDF
+    Other formats 
+
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2208
+Change to browse by:
+cs
+cs.AI
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

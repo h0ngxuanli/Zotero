@@ -1,0 +1,319 @@
+Bridge the Gap between Language models and Tabular Understanding
+Nuo Chen1∗, Linjun Shou2, Ming Gong2, Jian Pei3, Chenyu You4 Jianhui Chang5, Daxin Jiang2, Jia Li1†
+1Hong Kong University of Science and Technology (Guangzhou), Hong Kong University of Science and Technology 2STCA, Microsoft, Beijing, 3Duke University, USA 4Yale University, USA, 5Peking University, China chennuo26@gmail.com, jialee@ust.hk
+
+arXiv:2302.09302v1 [cs.CL] 16 Feb 2023
+
+Abstract
+Table pretrain-then-ﬁnetune paradigm has been proposed and employed at a rapid pace after the success of pre-training in the natural language domain. Despite the promising ﬁndings in tabular pre-trained language models (TPLMs), there is an input gap between pretraining and ﬁne-tuning phases. For instance, TPLMs jointly pre-trained with table and text input could be effective for tasks also with table-text joint input like table question answering, but it may fail for tasks with only tables or text as input such as table retrieval. To this end, we propose UTP, an approach that dynamically supports three types of multi-modal inputs: table-text, table, and text. Speciﬁcally, UTP is pre-trained with two strategies: (1) We ﬁrst utilize a universal mask language modeling objective on each kind of input, enforcing the model to adapt various inputs. (2) We then present Cross-Modal Contrastive Regularization (CMCR), which utilizes contrastive learning to encourage the consistency between table-text cross-modality representations via unsupervised instance-wise training signals during pre-training. By these means, the resulting model not only bridges the input gap between pre-training and ﬁne-tuning but also advances in the alignment of table and text. Extensive results show UTP achieves superior results on uni-modal input tasks (e.g., table retrieval) and cross-modal input tasks (e.g., table question answering).
+1 Introduction
+Large-scale unsupervised pre-trained language models (PLMs) like BERT (Devlin et al., 2019) have been shown to be effective on various NLP tasks (Chen et al., 2022b,a; You et al., 2022). These models capture the syntactic and semantic information of natural language text during pre-training and can be adapted to various downstream tasks
+∗ Work done when interned at Microsoft STCA. † Corresponding Author
+
+Down-stream Task
+Cell-Classiﬁcation Table-Classiﬁcation Table Retrieval Table QA Semantic Parsing
+
+Input
+Table Table Text Table + Text Table + Text
+
+Output
+Label Label Table Text Text
+
+Table 1: The different data formats of downstream tasks.
+
+after ﬁne-tuning. More recently, the pretrain-thenﬁnetune paradigm has been extended to a new modality - Tabular. Various methods on tabular PLMs (TPLMs) have been proposed and successfully improved the performance of various tablerelated understanding tasks such as table/cell classiﬁcation (Deng et al., 2020; Wang et al., 2021; Iida et al., 2021a) and table retrieval (Herzig et al., 2020; Yin et al., 2020; Harari and Katz, 2022).
+However, existing methods have two major limitations: First, they ﬁx input formats to match the speciﬁc downstream task during pre-training. This may make the model sub-optimized in other downstream tasks, as shown in Table 1. For example, TAPAS (Herzig et al., 2020) and TABERT (Yin et al., 2020) require the pre-training with tabletext pairs and formulate the inputs as concatenated table-text sequences, which are suitable for tasks like table QA, but perform unsatisfactorily for tableinput only tasks like table classiﬁcation and table ﬁlling (Zhang and Balog, 2020). In this paper, we call this phenomenon as the input gap in the pretrain-then-ﬁnetune paradigm. Second, their pretraining objectives are usually token-level, such as Masked Language Modeling (MLM) objective, cell-level cloze prediction and corrupt cell detection (Iida et al., 2021b). Such objectives cannot capture the global alignment between table and text, which is critical for downstream tasks like table retrieval.
+To address the above concerns, we propose Universal Table-text Pre-training (UTP), a novel table pre-training approach that can be adapted into
+
+various kinds of downstream tasks while capturing the global alignment between table and text. Speciﬁcally, we enable pre-training UTP to work on three different textual modalities: table, text, and table-text. We also apply mask language modeling (MLM) on each input to optimize the training. Furthermore, we design Cross-Modal Contrastive Regularization (CMCR) to learn the alignment between table and text in a global manner. The core idea of CMCR is to push representations of the same content in table and text to be similar, while pushing it away from other examples via contrastive learning (You et al., 2021). Experimental results show that UTP outperforms the state-of-theart models for various table-related tasks such as table retrieval and table question answering. For instance, ours improves TAPAS from 28.95 to 38.45 in R@1 score on NQ-TABLES dataset.
+2 Related Work
+In recent years, more and more table pre-training methods (Yin et al., 2020; Yang et al., 2022; Cheng et al., 2022; Ye et al., 2022) has been proposed for some particular table-related tasks. TABERT (Yin et al., 2020) jointly learns representations for unstructured texts and structured tables by pre-training on millions of table-text pairs, and is successfully applied into tabular semantic parsing tasks. As a concurrent work, TAPAS (Herzig et al., 2020) also focuses on the semantic parsing task but is trained from weak supervision and predicts denotations by selecting table cells and optionally applying a predicted aggregation operator to the selected cells. Besides, TURL (Deng et al., 2020), TUTA (Wang et al., 2021) and TABBIE (Iida et al., 2021a) are proposed for table understanding tasks like table classiﬁcation and table ﬁlling. Note that all the above models determine a particular input format that is suitable for the downstream tasks they focus on, such as pure table inputs or concatenated table-text inputs, while our UTP dynamically support table, text, and table-text sequences as inputs. For pre-training, all the above models adopt token-level objectives to algin the representations of table and text, such as masked language modeling, cell-level cloze prediction and corrupt cell detection, while we adopt a novel cross-modal contrastive objective to align table and text in a global manner.
+
+3 Methodology
+In this section, we present UTP and describe its detailed pre-training procedure. As illustrated in Figure 1, UTP can operate on three different textual input modalities with a single uniﬁed model. Therefore, UTP can generalize well across various tasks. We ﬁrst illustrate the input formats and universal mask language modeling in Section 3.1. Then we introduce the details of the proposed CMCR in Section 3.2.
+
+3.1 Universal Mask Language Modeling
+Model Architecture. The designed model architecture of UTP: M is the same as TAPAS (Herzig et al., 2020) which is based on BERT (Devlin et al., 2019) with seven additional positional embeddings for encoding tabular structure.
+Input Format. Different from previous work (Herzig et al., 2020; Yin et al., 2020; Iida et al., 2021a), we do not restrict the input format to a particular form but allow for different input modalities, including a pure table input, a pure text input, and a joint table-text input. Formally, the input format of UTP can be summarized as follows:
+
+XW = {[CLS]w[SEP]}
+
+(1)
+
+XT = {[CLS]t[SEP]}
+
+(2)
+
+XWT = {[CLS]w[SEP]t[SEP]}, (3)
+
+where ﬂattened table is t = {t1, · · · , tm} and its corresponding text sequence refers to w = {w1, · · · , wn}. [CLS] and [SEP] denote the start and separate tokens of the input sequence, separately.
+During pre-training, we apply standard Masked Language Modeling (MLM) objective (Devlin et al., 2019) with 15% of all word-piece tokens being masked in both text and tabular data, as well as a combination of the two, expanding the range of forms it may accept. This allows the model to acquire not only a token-level comprehension of text and table, but also an alignment inside the two modals of presentation. Notice that MLM losses of the three types of inputs are summed together as the ﬁnal MLM objective: Lmlm.
+3.2 Cross-Modal Contrastive Regularization
+We design CMCR from the following perspectives: Misalignment between parallel sequences
+
+CMCR
+
+MLM
+Classification Layer
+
+Aggregation Layer 𝒜
+
+𝐫𝐰
+
+𝐫𝐭
+
+𝐫𝐰𝐭
+
+N✖
+ℳ
+
+Transformer Layer Embedding Layer
+
+Encourage to be similar
+
+Encourage to be distant
+
+𝐗𝐖 [CLS] 𝑤$ 𝐗𝐓 [CLS] 𝑡$
+
+…… 𝑤# [SEP] …… 𝑡# [SEP]
+
+𝐗𝐖
+
+𝐗𝐓
+
+𝐗𝐖𝐓
+
+𝐗𝐖𝐓 [CLS] w [SEP] t [SEP]
+
+Figure 1: Overview of our approach. UTP consists of three table-related inputs: XW, XT and XWT.
+
+of table and text representations continues to prevent PLMs from progressing in downstream tabular tasks. Thus, we present Cross-Modal Contrastive Regularization to align and unify the representations of texts and tables into the same semantic space. This method is beneﬁcial for downstream tasks such as table-text retrieval, which need alignment between the two modalities, and developing more robust global sentence-level representations. As a result of the contrastive objective, the table and its surrounding text are located very close to one another in the representation space, as opposed to being located relatively far away in the case of an unpaired table and text.
+Speciﬁcally, we take XW, XT and XWT as inputs of M to get contextualized representations:
+Hw = M(XW), Ht = M(XT), Hwt = M(XWT), (4)
+where Hw ∈ Rl×d, Ht ∈ Rl×d, Hwt ∈ Rl×d, l and d are the max sequence length of each input and hidden size, separately. Intuitively, we apply an extra aggregation layer (e.g., mean-pooling) A on Hw, Ht and Hwt to obtain ﬁnal global semantics:
+rw = A(Hw), rt = A(Ht), rwt = A(Hwt), (5)
+where rw, rt and rwt are in Rd. Therefore, we can get positive threefold: {rw, rt, rˆwt}. Each representation in this set is viewed as positive, which means that we anticipate each two of them to be as similar in the latent space as feasible. The others in the mini-batch are considered as negatives to optimize the M via a standard contrastive objective. For example, the cross-modal contrastive loss of
+
+(rt, rw) can be formulated as:
+
+L(rt, rw) = − log
+
+exp(rt · rw)/τ
+
+N j=1
+
+exp(rt
+
+·
+
+rjw )/τ
+
+,
+
+(6)
+
+where N is the size of each mini-batch. · denotes inner product, and τ is a temperature parameter. In general, the ﬁnal loss of CMCR is as follows:
+
+Lcmcr = L(rt, rw)+L(rt, rwt)+L(rwt, rw) (7)
+
+Experimentally, we optimize our model in a multitask manner:
+
+L = Lcmcr + Lmlm
+
+(8)
+
+4 Experiments
+
+In this section, we ﬁrst describe the pre-training process including pre-training data and experimental setup. Then we introduce the downstream datasets that are used to evaluate our model, as well as the ﬁne-tuning details. Lastly, we report the experimental results on these datasets.
+
+4.1 Pre-training Settings
+Pre-training Data. We collect tables and their surrounding text from English Wikipedia1. The data pre-processing procedure is same as TABERT (Yin et al., 2020). Each example in the pre-training data is a <table, text> pair where the text is the surrounding descriptions of the table. The ﬁnal pre-processed corpus contains 1.5 million parallel examples of tables and texts. The data is then randomly split into the train (90%) and dev (10%) sets.
+1https://dumps.wikimedia.org/enwiki/
+
+Pre-training Details. We use the TAPAS model in HuggingFace’s Transformers library (Wolf et al., 2020) as the base architecture of UTP and initialize UTP from TAPAS-Base. We pre-train UTP with 10 epochs on 8 Tesla V100 GPUs using 15 hours. Refer to Appendix A for more details of pre-training.
+
+Model
+
+R@1 R@10 R@50
+
+BM25 (Robertson and Zaragoza, 2009) TAPAS DTR (Herzig et al., 2021) UTP
+
+16.77 28.95 35.64 38.45
+
+40.06 69.71 76.14 79.03
+
+58.39 86.38 91.43 92.21
+
+TAPAS + hn DTR + hnbm25 DTR + hn UTP + hn
+
+35.69 42.17 44.42 50.54
+
+69.94 81.13 81.92 85.40
+
+84.52 92.56 93.18 94.31
+
+4.2 Fine-tuning settings
+We ﬁne-tune UTP on two categories of downstream tasks: (1) Uni-modal table retrieval task that requires the model to take text as input, aim at retrieving its corresponding table from a collection of tables; (2) Cross-modal table question answering task, which takes unstructured text as query, and generates the answers from a source table. Current works in this task tend to concatenate text and table as input and then output the answer.
+Datasets. We ﬁnetune UTP on NQ-TABLES (Herzig et al., 2021) and WIKISQL dataset. NQ-TABLES (Zhong et al., 2017) is a wellfamous table retrieval dataset that is derived from (Kwiatkowski et al., 2019), which contains around 170k training corpora. WIKISQL is the largest human-annotated text-to-SQL tabular question answering dataset, which includes 80k QA pairs and 24k tables.
+Fine-tuning Details. Fine-tuning details are presented in Appendix A, Table 5.
+4.3 Results
+Table Retrieval Table 2 shows the test results for table retrieval. For each query, we record the recall at K (R@K) statistic as the proportion of the top K tables that match the reference. First, we can observe that all pre-trained dense-based models outperform the BM25 baseline by a large margin. Second, UTP built on TAPAS also signiﬁcantly surpasses its base model. For instance, ours improve TAPAS by almost 10 points in R@1 and R@10. Third, we follow (Herzig et al., 2021) to extract hard negatives. Moreover, the addition of mined negatives yields an additional improvement of each model. Similarly, UTP with hard negatives performs signiﬁcantly better than other baselines, demonstrating the efﬁcacy of our proposed methods once more (50.54 vs. 35.69 in R@1).
+Table QA. We present experimental results for WIKISQL in Table 3. Our UTP consistently achieves better performances than other baselines.
+
+Table 2: Table retrieval results on NQ-TABLES test set, averaged over 5 random runs. hn: hard negatives.
+
+Model
+
+Test
+
+(Wang et al., 2019)
+
+74.8
+
+Hard-EM (Min et al., 2019) 79.3
+
+TAPAS
+
+83.6
+
+UTP
+
+84.5
+
+TAPAS (fully-supervised) 86.4
+
+UTP (fully-supervised)
+
+88.1
+
+Table 3: WIKISQL denotation accuracy.
+
+Speciﬁcally, UTP obtains 88.1 (vs.86.4) when given the gold aggregation operators and cell as supervision (extracted from the reference SQL), which accounts for full supervision (Herzig et al., 2021). The results show that UTP can deal with different input modalities and achieve promising performances.
+4.4 Analysis
+Ablation Study. In this subsection, we further conduct ablation studies to verify the effectiveness of each component in UTP. As seen in Table 4, both the universal MLM and CMCR have a signiﬁcant impact on the UTP performance enhancement, demonstrating the efﬁciency of the approach that we have proposed. For instance, removing MLM and CMCR could make the model performances decrease to 88.51 and 88.90 in R@50, separately. Besides, we also can observe that L(rt, rw) loss plays the most important role in our proposed CMCR as it can directly align the modalities of pure text and table.
+Hyper-parameter Analysis. Intuitively, τ in Eq.7 has the effect on our model’s performances. Therefore, we conduct additional experiments to validate the inﬂuence of temperature τ on WIKISQL dataset. We validate the model performances with τ ∈ {0.01, 0.05, 0.1, 1}. As shown in Figure 2, we show that our UTP obtains the optimal
+
+Model
+
+R@1 R@10 R@50
+
+UTP
+
+38.45 79.03 92.21
+
+w/o MLM w/o CMCR
+w/o L(rt, rw) w/o L(rt, rwt) w/o L(rwt, rw)
+
+32.24 35.41 36.08 37.90 37.64
+
+75.32 74.21 75.06 77.05 77.62
+
+88.51 88.90 89.66 90.09 90.64
+
+Table 4: Ablation study on NQ-TABLES test set, averaged over 5 random runs.
+
+Recall@1 Recall@10 Recall@50
+100
+
+92
+
+92.21
+
+90.1
+
+90.5
+
+90
+
+80
+
+78.4
+
+79.03
+
+76.6
+
+77.3
+
+70
+
+60
+
+50
+
+40
+
+38
+
+38.45
+
+36.83
+
+37
+
+30
+
+0.01
+
+0.05
+
+0.1
+
+1
+
+Temperature
+
+Figure 2: Hyper-parameter analysis of τ in Eq.7 on WIKISQL dataset.
+
+performance when τ = 0.05.
+5 Conclusion
+In this paper, we propose a novel framework (UTP) that can deal with various table-related tasks with a single uniﬁed model. We further propose CMCR to encourage table-text alignment at the sentencelevel via contrastive learning. With the intermediate table-text pre-training, UTP can perform well on both uni-modal (table) tasks and cross-modal (table-text) tasks. Results show that UTP obtains better results compared with the current state-ofthe-art models on several table-related downstream tasks such as Table Retrieval and Table QA. As an extension of our future work, it is interesting to extend UTP to multi-lingual scenarios by pre-training with cross-modal and cross-lingual tabular corpra.
+Limitations
+The main target of this paper is to bridge the gap between pre-training and ﬁne-tune phases for tabular pre-trained language models (TPLMs). We present two straight strategies to address this issue in the hope of boosting the performances of TPLMs. More generally, we expect our core idea can give some insights to other cross-modal tasks
+
+such as vision and text. Admittedly, one limitation of this work is that the proposed methods need high-quality table-text pairs on a relatively largescale. These concerns warrant further research and consideration when utilizing this work to build effective tabular models.
+References
+Nuo Chen, Linjun Shou, Ming Gong, and Jian Pei. 2022a. From good to best: Two-stage training for cross-lingual machine reading comprehension. In Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 36, pages 10501–10508.
+Nuo Chen, Linjun Shou, Ming Gong, Jian Pei, and Daxin Jiang. 2022b. Bridging the gap between language models and cross-lingual sequence labeling. In Proceedings of the 2022 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies, pages 1909–1923, Seattle, United States. Association for Computational Linguistics.
+Zhoujun Cheng, Haoyu Dong, Ran Jia, Pengfei Wu, Shi Han, Fan Cheng, and Dongmei Zhang. 2022. FORTAP: using formulas for numerical-reasoningaware table pretraining. In ACL (1), pages 1150– 1166. Association for Computational Linguistics.
+Xiang Deng, Huan Sun, Alyssa Lees, You Wu, and Cong Yu. 2020. Turl: Table understanding through representation learning. arXiv preprint arXiv:2006.14806.
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. 2019. BERT: Pre-training of deep bidirectional transformers for language understanding. In Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies, Volume 1 (Long and Short Papers), pages 4171–4186, Minneapolis, Minnesota. Association for Computational Linguistics.
+Asaf Harari and Gilad Katz. 2022. Few-shot tabular data enrichment using ﬁne-tuned transformer architectures. In ACL (1), pages 1577–1591. Association for Computational Linguistics.
+Jonathan Herzig, Thomas Müller, Syrine Krichene, and Julian Eisenschlos. 2021. Open domain question answering over tables via dense retrieval. In NAACL-HLT, pages 512–519. Association for Computational Linguistics.
+Jonathan Herzig, Pawel Krzysztof Nowak, Thomas Müller, Francesco Piccinno, and Julian Eisenschlos. 2020. TaPas: Weakly supervised table parsing via pre-training. In Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics, pages 4320–4333, Online. Association for Computational Linguistics.
+
+Hiroshi Iida, Dung Thai, Varun Manjunatha, and Mohit Iyyer. 2021a. TABBIE: Pretrained representations of tabular data. In Proceedings of the 2021 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies, pages 3446–3456, Online. Association for Computational Linguistics.
+Hiroshi Iida, Dung Thai, Varun Manjunatha, and Mohit Iyyer. 2021b. TABBIE: pretrained representations of tabular data. In NAACL-HLT, pages 3446–3456. Association for Computational Linguistics.
+Tom Kwiatkowski, Jennimaria Palomaki, Olivia Redﬁeld, Michael Collins, Ankur P. Parikh, Chris Alberti, Danielle Epstein, Illia Polosukhin, Jacob Devlin, Kenton Lee, Kristina Toutanova, Llion Jones, Matthew Kelcey, Ming-Wei Chang, Andrew M. Dai, Jakob Uszkoreit, Quoc Le, and Slav Petrov. 2019. Natural questions: a benchmark for question answering research. Trans. Assoc. Comput. Linguistics, 7:452–466.
+Sewon Min, Danqi Chen, Hannaneh Hajishirzi, and Luke Zettlemoyer. 2019. A discrete hard EM approach for weakly supervised question answering. In EMNLP/IJCNLP (1), pages 2851–2864. Association for Computational Linguistics.
+Stephen E. Robertson and Hugo Zaragoza. 2009. The probabilistic relevance framework: BM25 and beyond. Found. Trends Inf. Retr., 3(4):333–389.
+Bailin Wang, Ivan Titov, and Mirella Lapata. 2019. Learning semantic parsers from denotations with latent structured alignments and abstract programs. In Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP), pages 3774– 3785, Hong Kong, China. Association for Computational Linguistics.
+Zhiruo Wang, Haoyu Dong, Ran Jia, Jia Li, Zhiyi Fu, Shi Han, and Dongmei Zhang. 2021. Tuta: Treebased transformers for generally structured table pretraining. In Proceedings of the 27th ACM SIGKDD Conference on Knowledge Discovery & Data Mining, pages 1780–1790.
+Thomas Wolf, Lysandre Debut, Victor Sanh, Julien Chaumond, Clement Delangue, Anthony Moi, Pierric Cistac, Tim Rault, Remi Louf, Morgan Funtowicz, Joe Davison, Sam Shleifer, Patrick von Platen, Clara Ma, Yacine Jernite, Julien Plu, Canwen Xu, Teven Le Scao, Sylvain Gugger, Mariama Drame, Quentin Lhoest, and Alexander Rush. 2020. Transformers: State-of-the-art natural language processing. In Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing: System Demonstrations, pages 38–45, Online. Association for Computational Linguistics.
+Jingfeng Yang, Aditya Gupta, Shyam Upadhyay, Luheng He, Rahul Goel, and Shachi Paul. 2022.
+
+Tableformer: Robust transformer modeling for tabletext encoding. In ACL (1), pages 528–537. Association for Computational Linguistics.
+Deming Ye, Yankai Lin, Peng Li, Maosong Sun, and Zhiyuan Liu. 2022. A simple but effective pluggable entity lookup table for pre-trained language models. In ACL (2), pages 523–529. Association for Computational Linguistics.
+Pengcheng Yin, Graham Neubig, Wen-tau Yih, and Sebastian Riedel. 2020. TaBERT: Pretraining for joint understanding of textual and tabular data. In Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics, pages 8413– 8426, Online. Association for Computational Linguistics.
+Chenyu You, Nuo Chen, Fenglin Liu, Shen Ge, Xian Wu, and Yuexian Zou. 2022. End-to-end spoken conversational question answering: Task, dataset and model. In Findings of the Association for Computational Linguistics: NAACL 2022, pages 1219– 1232, Seattle, United States. Association for Computational Linguistics.
+Chenyu You, Nuo Chen, and Yuexian Zou. 2021. Selfsupervised contrastive cross-modality representation learning for spoken question answering. In Findings of the Association for Computational Linguistics: EMNLP 2021, pages 28–39, Punta Cana, Dominican Republic. Association for Computational Linguistics.
+Shuo Zhang and Krisztian Balog. 2020. Web table extraction, retrieval, and augmentation: A survey. ACM Transactions on Intelligent Systems and Technology (TIST), 11(2):1–35.
+Victor Zhong, Caiming Xiong, and Richard Socher. 2017. Seq2sql: Generating structured queries from natural language using reinforcement learning. CoRR, abs/1709.00103.
+
+A Training details
+
+Parameter Pre-training NQ-TABLES WIKISQL
+
+Batch size Learning Rate Epoch Weight Decay Temperature fp16
+
+16 5e−5 10 0.01 35.41 True
+
+32 2e−5 100 0.01
+True
+
+32 6.17e−5
+200 0.01
+True
+
+Table 5: Hyper-parameters setup during pre-training and ﬁne-tuning.
+

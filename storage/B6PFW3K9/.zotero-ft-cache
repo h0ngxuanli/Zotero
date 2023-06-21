@@ -1,0 +1,549 @@
+developers
+
+    Tutorials
+    Go to Sherpa.ai 
+
+    Federated Learning Paradigms Basic Concepts
+    Horizontal Federated Learning
+        #horizontal
+        #images
+        #fedavg
+        #cnn 
+    Vertical Federated Learning
+        #vertical
+        #usecase
+        #tabular
+        #fedsum
+        #nn 
+    Federated Transfer Learning
+        #transfer
+        #usecase
+        #images
+        #cnn 
+    Secure Entity Resolution
+    Private Set Intersection
+        #vertical
+        #usecase
+        #tabular
+        #fedsum
+        #nn 
+    Use Cases
+    Tabular data in HFL
+    Banking - Fraud Detection
+        #horizontal
+        #usecase
+        #tabular
+        #fedavg
+        #nn 
+    Images data in HFL
+    Security - Facemask Detection
+        #horizontal
+        #usecase
+        #images
+        #fedavg
+        #cnn 
+    Health - Lymphoma Diagnosis
+        #horizontal
+        #usecase
+        #images
+        #fedavg
+        #cnn 
+    Tabular data in VFL
+    Banking & Insuring - Subscription Forecast with PSI
+        #vertical
+        #usecase
+        #tabular
+        #fedsum
+        #nn 
+    Insuring & Telco - Purchase Probability with PSI
+        #vertical
+        #usecase
+        #tabular
+        #fedsum
+        #nn 
+    Differential Privacy (DP)
+    Horizontal Federated Learning
+        #horizontal
+        #images
+        #fedavg
+        #dp
+        #cnn 
+    Vertical Federated Learning
+        #vertical
+        #tabular
+        #fedsum
+        #dp
+        #nn 
+    Flexibility / Scalability
+    ML Models
+    Bayesian (Naïve Bayes)
+        #horizontal
+        #tabular
+        #fedavg
+        #nn
+        #bayesian 
+    Bayesian (TAN TM Algorithm)
+        #horizontal
+        #tabular
+        #fedavg
+        #nn
+        #bayesian 
+    Custom Model
+        #horizontal
+        #tabular
+        #fedavg
+        #dp
+        #custom 
+    Deep Learning (Pytorch)
+        #horizontal
+        #tabular
+        #fedavg
+        #dp
+        #nn 
+    Deep Learning (Scikit-learn)
+        #vertical
+        #tabular
+        #fedsum
+        #nn 
+    Deep Learning (Tensorflow)
+        #horizontal
+        #images
+        #fedavg
+        #nn 
+    K-means Clustering
+        #horizontal
+        #tabular
+        #clusterfedavg
+        #dp
+        #k-means 
+    Linear Regression using Neural Networks
+        #horizontal
+        #tabular
+        #fedavg
+        #dp
+        #custom 
+    Linear Regression using Scikit-learn
+        #horizontal
+        #tabular
+        #fedavg
+        #dp
+        #lir 
+    Logistic Regression using Scikit-learn
+        #horizontal
+        #tabular
+        #fedavg
+        #dp
+        #lor 
+    Pretrained Model
+        #horizontal
+        #images
+        #fedavg
+        #custom 
+    Support Vector Machine (SVM)
+        #horizontal
+        #tabular
+        #svmagg
+        #dp
+        #svm 
+    IID & Non-IID (Sampling Methods)
+        #flexibility
+        #horizontal 
+    Evaluation Methodology
+        #flexibility
+        #horizontal
+        #images
+        #fedavg
+        #nn 
+    Aggregators
+    Aggregation Operators
+        #flexibility
+        #fedavg
+        #weightedfedavg
+        #clusterfedavg 
+    Attacks
+    Attack Simulation
+        #flexibility
+        #attack 
+    Average Attack Simulation
+        #flexibility
+        #attack
+        #dp 
+    Differential Privacy
+    DP Basic Concepts
+        #flexibility
+        #dp 
+    DP Laplace Mechanism
+        #flexibility
+        #dp 
+    DP Exponential Mechanism
+        #flexibility
+        #dp 
+    DP Composition Theorems
+        #flexibility
+        #dp 
+    DP Subsampling Methods
+        #flexibility
+        #dp 
+    Random Seed
+        #flexibility 
+
+⚠
+Please note that these tutorials refer to a deprecated version of the platform . The current version of the platform, which is not publicly available, has a more advanced architecture and provides a wider range of functionalities. These tutorials are only for illustrative purposes and showcase a limited number of the platform’s capabilities.
+Federated Transfer Learning case: basic concepts
+
+Federated Learning is a Machine Learning paradigm aimed at learning models from decentralized data , such as data located on users’ smartphones, in hospitals, or banks, and ensuring data privacy . This is achieved by training the model locally in each node (e.g., on each smartphone, at each hospital, or at each bank), sharing the model-updated local parameters (not the data) and securely aggregating them to build a better global model .
+
+Traditional Machine Learning requires all the data to be gathered in one single place . In practice, this is often forbidden by privacy regulations . For this reason, Federated Learning is introduced, the goal being to learn from a large amount of data, while preserving privacy .
+
+Federated Transfer Learning is introduced in those scenarios, where the nodes share some overlapping samples but differ in data features . Feature/variables/attributes makes reference to a single property of the dataset, i.e, the columns. Sample makes reference to the instances/objects/records that contains the same structure as the dataset, i.e., the rows.
+What is Federated Transfer Learning (FTL)?
+
+In this notebook, we provide a simple example of how to perform a Federated Transfer Learning (FTL) experiment with the help of the Sherpa.ai Federated Learning framework. As opposed to the horizontal federated learning paradigm, in a federated transfer learning setting (see e.g. Federated Machine Learning: Concept and Applications ) the different nodes possess the same samples, but different features. A practical example being that of a two data owners possessing images with different definition : both entities might have matching images (samples), but the definition (given by features) of images differ from one data client to the other.
+
+Federated Transfer Learning (FTL) is a learning scheme, where knowledge is transferred from the rich features space of a party to a party without enough features or labels to train a performant model. In other words, a powerful party leverages knowledge to a small party which is not able to train alone, with its features only.
+FTL
+
+In this notebook, we are having 2 parties collaborating, A and B respectively. The main goal here is to train party B, transferring knowledge and labels from A , while ensuring the privacy of both parties . For this purpose, the architecture designed proposes what is it called a “Transfer space”, where knowledge has to be exchanged across the parties.
+FTL_scheme
+
+The collaborating parties must agree the number of features to be securely exchanged and for each of them, the number of components to be securely shared. After that, the collaborating active parties (which do not own the labels) need a transfer function which maps their input spaces into the transfer space . This means that in this case, the lower resolution images should be scaled to the higher ones. Then, this data is classified with the predictor function from the server. The objective here is that the data transformed can be used for the learning process.
+
+To illustrate this in an experiment, we are going to use Emnist dataset and a neural network model to classify the images and leverage knowledge.
+
+The ideal objective here would be that the data owner B B B would able to determine the number represented in a picture of an hand-written digit. This will be accomplished, by enjoying the collaboration with data owner A A A , possessing high definition images endowed with labels.
+
+Let's start the process following this structure:
+Index
+
+    0) Libraries and data
+    1) Prepare the data for the federated transfer learning scenario preserving the privacy
+        1.1) Description of the scenario
+        1.2) Client A's data
+        1.3) Client B's data
+        1.4) Create the federated nodes
+    2) Isolated evaluations for comparison and benchmarking
+        2.1) Client A's training
+        2.2) Client B's training
+    3) Prepare the models for the federated transfer learning scenario
+        3.1) Define the server node
+        3.2) Definition of specifit data access needed for the FTL round
+        3.3) Necessary data transformations
+    4) Run the federated learning experiment
+    5) Comparison between the three models
+        5.1) Accuracy
+        5.2) ROC AUC
+        5.3) F1-Score
+
+0) Libraries and data
+
+We are going to use a popular dataset: the framework provides some functions to load the Emnist digits dataset.
+
+ import matplotlib . pyplot as plt import numpy as np import shfl import torch import torch . nn as nn import torch . optim as optim from shfl . auxiliar_functions_for_notebooks . functionsFL import * from shfl . model . transfer_deep_learning_model_pt import TransferNeuralNetClientModelPyTorch from shfl . model . transfer_deep_learning_model_pt import TransferNeuralNetServerModelPyTorch from shfl . private . data import LabeledData from shfl . private . federated_operation import TransferServerDataNode from shfl . private . federated_operation import federate_list from shfl . private . reproducibility import Reproducibility from sklearn . metrics import roc_curve , auc , accuracy_score , roc_auc_score , f1_score plt . style . use ( 'seaborn' ) # Comment to turn off reproducibility: Reproducibility ( 567 )  
+
+ 2022-04-25 11:59:27.136693: W tensorflow/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory 2022-04-25 11:59:27.136716: I tensorflow/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine. <shfl.private.reproducibility.Reproducibility at 0x7f3a141b5d00> 
+
+ database = shfl . data_base . Emnist ( ) train_data , train_labels , test_data , test_labels = database . load_data ( )  
+
+Let's inspect some properties of the loaded data.
+
+ print ( len ( train_data ) ) print ( len ( test_data ) ) print ( type ( train_data [ 0 ] ) ) train_data [ 0 ] . shape 
+
+ 240000 40000 <class 'numpy.ndarray'> (28, 28) 
+
+So, as we have seen, our dataset is composed of a set of matrices that are 28 by 28. Before starting with the federated scenario, we can take a look at a sample of the training data.
+
+ import matplotlib . pyplot as plt plt . imshow ( train_data [ 0 ] )  
+
+ <matplotlib.image.AxesImage at 0x7f390fa5a7c0> 
+
+png
+1) Prepare the data for the federated transfer learning scenario preserving the privacy
+1.1) Description of the scenario
+
+To simulate a FTL setting,
+
+    client A A A receives the original training and testing dataset;
+    client B B B receives the original training and testing dataset, projected onto the space of matrices 14 14 14 by 14 14 14 , with real coefficients.
+
+We are going to simulate a Federated Transfer Learning (FTL) scenario with a set of two client nodes ( A A A and B B B ) containing private data.
+
+    Client A A A has rich data, i.e. images with full resolution, endowed with labels.
+    Client B B B has poor data, namely has images with low resolution, without labels.
+    A A A and B B B have different samples. However, we assume the intersection between the samples is not empty.
+
+Since the resolution between A A A and B B B is different, the features are different. Hence, following the Categorization in Federated machine learning: Concept and applications , a problem with these data is referred to as a Federated Transfer Learning (FTL) problem.
+
+The goal is that B B B learns enjoying the extra data from A A A . But, first of all, we have to simulate the data contained in every client. In order to do that, we are going to use the previously loaded dataset. We will proceed as follows:
+
+    Separate the training dataset in the samples for A A A and samples for B B B .
+    Remove the labels and lower the resolution for simulating B B B party's data.
+    Assign the data to A A A and to B B B .
+
+We start by shuffling the training data and the labels.
+
+ train_data_shuffled , train_labels_shuffled = shfl . data_base . data_base . shuffle_rows ( train_data , train_labels )  
+
+Let us now take a look of a sample of the shuffled training data and its respective label.
+
+ plt . imshow ( train_data_shuffled [ 0 ] ) print ( train_labels_shuffled [ 0 ] )  
+
+ [0. 0. 1. 0. 0. 0. 0. 0. 0. 0.] 
+
+png
+
+Now we need to split the data onto A A A and B B B , the data is assigned to A A A normally, but B B B 's data needs to be transformed.
+
+Note that the samples are different, but there is an overlap between the samples with index 8000 and 15999 (after shuffling).
+1.2) Client A's data
+
+ train_data_A = train_data_shuffled [ 0 : 15999 , : , : ] train_labels_A = train_labels_shuffled [ 0 : 15999 , : ] train_data_B_prov = train_data_shuffled [ 8000 : 23999 , : , : ] # Next line labels not employed for training; used only at the end for tests. train_labels_B = train_labels_shuffled [ 8000 : 8999 , : ] print ( train_data_A . shape ) print ( train_labels_A . shape ) print ( train_data_B_prov . shape )  
+
+ (15999, 28, 28) (15999, 10) (15999, 28, 28) 
+
+1.3) Client B's data
+
+In order to transform the images to party B B B , we need to perform a projection so that we can reduce the resolution in half. This projection is based on a linear feature transformation map between A A A and B B B .
+
+ train_data_B = np . zeros ( ( 15999 , 14 , 14 ) ) for i in range ( 15999 ) : for j1 in range ( 14 ) : for j2 in range ( 14 ) : train_data_B [ i , j1 , j2 ] = train_data_B_prov [ i , 2 * j1 , 2 * j2 ]  
+
+Now that the transformation is made, let's see the difference between a sample to be assigned to B B B before and after the projection.
+
+This is the image before the projection:
+
+ plt . imshow ( train_data_B_prov [ 0 ] )  
+
+ <matplotlib.image.AxesImage at 0x7f390f934fd0> 
+
+png
+
+And now it looks like this after the transformation:
+
+ plt . imshow ( train_data_B [ 0 ] )  
+
+ <matplotlib.image.AxesImage at 0x7f390f8a4550> 
+
+png
+
+As we can see, the relution is worse. Now the data of the client B have a resolution of 14x14. Bearing in mind that the data of the client A has a resolution of 28x28, Federated Transfer Learning is our unique way of proceduring.
+
+Let's create a version of the test data with half of the resolution.
+
+ test_data_B = np . zeros ( ( test_data . shape [ 0 ] , 14 , 14 ) ) print ( test_data . shape ) print ( test_data_B . shape ) for i in range ( test_data . shape [ 0 ] ) : for j1 in range ( 14 ) : for j2 in range ( 14 ) : test_data_B [ i , j1 , j2 ] = test_data [ i , 2 * j1 , 2 * j2 ] test_labels_B = test_labels 
+
+ (40000, 28, 28) (40000, 14, 14) 
+
+1.4) Create the federated nodes
+
+As we are using 2 nodes, we need to organize the data to feed it to the federation of nodes.
+
+ M = 2 # number of clients train_input_fed = [ train_data_A [ 8000 : 15999 , : , : ] , train_data_B [ 0 : 7999 , : , : ] ] for item in train_input_fed : print ( "Client train data shape: " + str ( item . shape ) )  
+
+ Client train data shape: (7999, 28, 28) Client train data shape: (7999, 14, 14) 
+
+At this point, we assign the data to a federated network of clients. Since the clients actually don't possess the labels (only the server does), we only need to define A A A and B B B as nodes and federate them.
+
+Since we already performed the split of data for each client, we just need convert it to federated data:
+
+ nodes_federation = federate_list ( train_input_fed , fed_data_node_type = "HeterogeneousDataNode" )  
+
+2) Isolated evaluations for comparison and benchmarking
+
+We are going to make some comparisons between the isolated parties computing a model with their own data , and then seeing how the collaborative transfer approach behaves.
+2.1) Client A's training
+
+As the main reference, we will compare the performance of the collaborative model to party A A A 's model.
+
+Let's start by defining the node federation nodes_federation_A_indep , with only the dataset from party A A A .
+
+ nodes_federation_A_indep = federate_list ( [ train_data_A ] , [ train_labels_A ] )  
+
+The model used to solve this problem is a neural network provided by Pytorch. Here is the code to implement it and use it with the platform.
+
+ def model_builder ( ) : model = nn . Sequential ( nn . Conv2d ( 1 , 32 , kernel_size = ( 3 , 3 ) , stride = 1 , padding = 1 ) , nn . ReLU ( ) , nn . MaxPool2d ( kernel_size = 2 , stride = 2 ) , nn . Dropout ( .4 ) , nn . Conv2d ( 32 , 32 , kernel_size = ( 3 , 3 ) , stride = 1 , padding = 1 ) , nn . ReLU ( ) , nn . MaxPool2d ( kernel_size = 2 , stride = 2 ) , nn . Dropout ( .3 ) , Flatten ( ) , nn . Linear ( 1568 , 128 ) , nn . ReLU ( ) , nn . Dropout ( .1 ) , nn . Linear ( 128 , 64 ) , nn . ReLU ( ) , nn . Linear ( 64 , 10 ) , nn . Softmax ( dim = 1 ) ) loss = nn . CrossEntropyLoss ( ) optimizer = optim . RMSprop ( model . parameters ( ) , lr = 0.001 , eps = 1e-07 ) device = torch . device ( "cuda:0" if torch . cuda . is_available ( ) else "cpu" ) return shfl . model . DeepLearningModelPyTorch ( model = model , loss = loss , optimizer = optimizer , device = device , metrics = { 'accuracy' : accuracy , 'f1' : f1 } )  
+
+Before running the algorithm, we want to apply some transformations to the data. A good practice is to define a federated operation that will ensure that the transformation is applied to the federated data in all the client nodes. We want to reshape the data, so we define the following FederatedTransformation.
+
+Moreover, depending on the image type and the model framework, there are sligth adaptations that need to be done. In this case, the image data needs to be reshaped to indicate the model which are the dimensions and the color channels.
+
+Finally, the transforming operations need to be implemented on both trainig data and test data.
+
+ nodes_federation_A_indep . apply_data_transformation ( reshape_data_pt ) mean = np . mean ( train_data_A . data ) std = np . std ( train_data_A . data ) nodes_federation_A_indep . apply_data_transformation ( normalize_data , mean = mean , std = std ) ; mean = np . mean ( test_data . data ) std = np . std ( test_data . data ) test_data = np . reshape ( test_data , ( test_data . shape [ 0 ] , 1 , test_data . shape [ 1 ] , test_data . shape [ 2 ] ) ) test_data = ( test_data - mean ) / std 
+
+In the following piece of code, we define the federated aggregation mechanism as the Federated Average Aggregator. Moreover, we define the federated government based on the PyTorch learning model, the federated data, and the aggregation mechanism.
+
+ aggregator = shfl . federated_aggregator . FedAvgAggregator ( ) horiz_federated_government = shfl . federated_government . FederatedGovernment ( model_builder ( ) , nodes_federation_A_indep , aggregator ) ``` < / md - code - layout > Now that all is set up , we proceed to train party $A$ independently . < md - code - layout type = 'code' > ```python nodes_federation_A_indep [ 0 ] . train_model ( )  
+
+Let us now check if A has learnt well seeing the loss, accuracy and the F1 score of the model.
+
+ result_A = nodes_federation_A_indep [ 0 ] . evaluate ( test_data , test_labels ) print ( "The loss is: {} \n" "The accuracy is: {} \n" "The F1 score is: {} \n" . format ( round ( result_A [ 0 ] , 3 ) , round ( result_A [ 1 ] , 3 ) , round ( result_A [ 2 ] , 3 ) ) )  
+
+ The loss is: 1.532 The accuracy is: 0.932 The F1 score is: 0.932 
+
+2.2) Client B's training
+
+We will continue making some isolated evaluations.
+
+Now, we will calculate the performance of the party B B B 's model.
+
+Let's start by defining the node federation nodes_federation_B_indep , with only the dataset from party B B B . Originally, party B B B does not own any label, so this situation is completely simulated for testing purposes and does not reflect reality .
+
+However, we provide labels on a small part of its dataset, to compare the local training performances with the federated ones.
+
+ nodes_federation_B_indep = federate_list ( [ train_data_B [ 0 : 999 ] ] , [ train_labels_B ] )  
+
+The model used to solve this problem is a neural network provided by Pytorch. Here is the code to implement it and use it with the platform.
+
+ def model_builder ( ) : model = nn . Sequential ( nn . Conv2d ( 1 , 32 , kernel_size = ( 3 , 3 ) , stride = 1 , padding = 1 ) , nn . ReLU ( ) , nn . MaxPool2d ( kernel_size = 2 , stride = 2 ) , nn . Dropout ( .4 ) , nn . Conv2d ( 32 , 32 , kernel_size = ( 3 , 3 ) , stride = 1 , padding = 1 ) , nn . ReLU ( ) , nn . MaxPool2d ( kernel_size = 2 , stride = 2 ) , nn . Dropout ( .3 ) , Flatten ( ) , nn . Linear ( 288 , 128 ) , nn . ReLU ( ) , nn . Dropout ( .1 ) , nn . Linear ( 128 , 64 ) , nn . ReLU ( ) , nn . Linear ( 64 , 10 ) , nn . Softmax ( dim = 1 ) ) loss = nn . CrossEntropyLoss ( ) optimizer = optim . RMSprop ( model . parameters ( ) , lr = 0.001 , eps = 1e-07 ) device = torch . device ( "cuda:0" if torch . cuda . is_available ( ) else "cpu" ) return shfl . model . DeepLearningModelPyTorch ( model = model , loss = loss , optimizer = optimizer , device = device , metrics = { 'accuracy' : accuracy , 'f1' : f1 } )  
+
+As with party A, we replicate the same data transformations in order to boost the performance of the model.
+
+ nodes_federation_B_indep . apply_data_transformation ( reshape_data_pt ) mean = np . mean ( train_data_B . data ) std = np . std ( train_data_B . data ) nodes_federation_B_indep . apply_data_transformation ( normalize_data , mean = mean , std = std ) ;  
+
+ mean = np . mean ( test_data_B . data ) std = np . std ( test_data_B . data ) test_data_B = np . reshape ( test_data_B , ( test_data_B . shape [ 0 ] , 1 , test_data_B . shape [ 1 ] , test_data_B . shape [ 2 ] ) ) test_data_B = ( test_data_B - mean ) / std 
+
+As before, we define the core components in order to perform a training.
+
+ aggregator = shfl . federated_aggregator . FedAvgAggregator ( ) horiz_federated_government = shfl . federated_government . FederatedGovernment ( model_builder ( ) , nodes_federation_B_indep , aggregator ) ``` < / md - code - layout > Now that is all set , we train $B$ independently with it's poor data . < md - code - layout type = 'code' > ```python nodes_federation_B_indep [ 0 ] . train_model ( )  
+
+Let us now check if B B B has learnt well seeing the loss, accuracy and the F1 score of the model.
+
+ result_B = nodes_federation_B_indep [ 0 ] . evaluate ( test_data_B , test_labels ) print ( "The loss is: {} \n" "The accuracy is: {} \n" "The F1 score is: {} \n" . format ( round ( result_B [ 0 ] , 3 ) , round ( result_B [ 1 ] , 3 ) , round ( result_B [ 2 ] , 3 ) ) )  
+
+ The loss is: 2.064 The accuracy is: 0.449 The F1 score is: 0.449 
+
+We can clearly understand that this model has a bad performance, due to its few images and low quality of the images.
+3) Prepare the models for the federated transfer learning scenario
+
+In the design of Transfer Learning (TL) schemes, one of the key point is the choice of the dimension d d d of the transfer space Z Z Z .
+
+There is no sistematic rule to choose this value. However, if both we are using Neural Networks, the composition itself is a Neural Network. Hence, d d d can be seen as a dimension of a hidden representation layer. For this reason, there is large room for choice of d d d . We conjecture that, in most of the cases, the training cannot get worse if d d d is increased.
+
+ d = 128  
+
+3.1) Define the server node
+
+We said that in the Transfer FL, each node, including the server, is allowed to possess a different model and different methods for interacting with the clients. We here define the server model with specific functions needed for the present Transfer FL architecture. The server is assigned a neural network model, along with the data to train on (only labels, in this specific example).
+
+Definition of the model for the prediction function: φ A : Z ⟶ Y . \varphi^A:Z\longrightarrow Y. φ A : Z ⟶ Y .
+
+The representation of this function consists on a neural network with a single hidden layer and the set of outputs of the class. It serves the purpose of transcripting the outputs of the transfer space to the label space.
+
+ # Define type for functions \varphi^A=\varphi^C \in C_C. modelvarphiA = nn . Sequential ( nn . ReLU ( ) , nn . Linear ( 64 , 10 ) , nn . Softmax ( dim = 1 ) )  
+
+We create server node's model with the prediction function.
+
+ lambda_par = 0.001 learn_rate = 0.001 loss_server = torch . nn . CrossEntropyLoss ( ) optimizer_server = torch . optim . RMSprop ( params = modelvarphiA . parameters ( ) , lr = learn_rate , eps = 1e-07 , weight_decay = lambda_par ) # weight_decay is proportional to \lambda gamma = 1e-07 model = TransferNeuralNetServerModelPyTorch ( modelvarphiA , loss_server , optimizer_server , gamma = gamma , metrics = { 'accuracy' : accuracy , 'f1' : f1 } )  
+
+And we construct the server with all it's components and the data.
+
+ # Create the server node: server_node = TransferServerDataNode ( nodes_federation = nodes_federation , model = model , data = LabeledData ( data = None , label = train_labels_A [ 8000 : 15999 , : ] . astype ( np . float32 ) ) )  
+
+We transform labels from one-hot encoding to standard format (real number in { 0 , … , 9 } \left\{0,\dots,9\right\} { 0 , … , 9 } ), because this is needed to employ the loss function. In this case, we are measuring loss with the torch.nn.CrossEntropyLoss value. In order to carry out the transformation on the labels, we are applying this operation in the server node.
+
+ def labels_standard ( labeled_data ) : labeled_data . label = np . argmax ( labeled_data . label , - 1 ) server_node . apply_data_transformation ( labels_standard )  
+
+Now that we are creating all the components, let's begin with the definition of the model for party B B B so as to create the transfer function described in the general Federated Transfer Learning scheme: g B : X B ⟶ Z . g^B:X_B\longrightarrow Z. g B : X B ​ ⟶ Z .
+
+ # Define type for functions g^B \in C_B. modelgB = nn . Sequential ( nn . Conv2d ( 1 , 32 , kernel_size = ( 3 , 3 ) , stride = 1 , padding = 1 ) , nn . ReLU ( ) , nn . MaxPool2d ( kernel_size = 2 , stride = 2 ) , nn . Dropout ( .4 ) , nn . Conv2d ( 32 , 32 , kernel_size = ( 3 , 3 ) , stride = 1 , padding = 1 ) , nn . ReLU ( ) , nn . MaxPool2d ( kernel_size = 2 , stride = 2 ) , nn . Dropout ( .3 ) , Flatten ( ) , nn . Linear ( 288 , d ) , # [CHECK] Why 288? nn . ReLU ( ) , nn . Dropout ( .1 ) , nn . Linear ( d , 64 ) , )  
+
+Let's continue with the other definition of the model for the transfer function in the scheme for party A A A : g A : X A ⟶ Z . g^A:X_A\longrightarrow Z. g A : X A ​ ⟶ Z .
+
+ # Define type for functions g^A \in C_A. modelgA = nn . Sequential ( nn . Conv2d ( 1 , 32 , kernel_size = ( 3 , 3 ) , stride = 1 , padding = 1 ) , nn . ReLU ( ) , nn . MaxPool2d ( kernel_size = 2 , stride = 2 ) , nn . Dropout ( .4 ) , nn . Conv2d ( 32 , 32 , kernel_size = ( 3 , 3 ) , stride = 1 , padding = 1 ) , nn . ReLU ( ) , nn . MaxPool2d ( kernel_size = 2 , stride = 2 ) , nn . Dropout ( .3 ) , Flatten ( ) , nn . Linear ( 1568 , d ) , nn . ReLU ( ) , nn . Dropout ( .1 ) , nn . Linear ( d , 64 ) , )  
+
+With both transfer functions model's already set up, all we need to do is to assign them to a wrapper to use it later.
+
+ optimizer0 = torch . optim . RMSprop ( params = modelgA . parameters ( ) , lr = learn_rate , eps = 1e-07 , weight_decay = lambda_par ) # weight_decay is proportional to \lambda optimizer1 = torch . optim . RMSprop ( params = modelgB . parameters ( ) , lr = learn_rate , eps = 1e-07 , weight_decay = lambda_par ) batch_size = 32 model_nodes = [ TransferNeuralNetClientModelPyTorch ( model = modelgA , loss = None , optimizer = optimizer0 , batch_size = batch_size ) , TransferNeuralNetClientModelPyTorch ( model = modelgB , loss = None , optimizer = optimizer1 , batch_size = batch_size ) ]  
+
+3.2) Definition of specific data access needed for the FTL round
+
+The specific Transfer FL architecture requires the computation of the Loss and the exchange of convergence parameters. Namely, the clients send the computed embeddings to the server, and the server sends the computed gradients to update the clients. Therefore, we define ad-hoc access definitions for these methods, and we assign them to server and clients:
+
+ nodes_federation . configure_model_access ( meta_params_query ) server_node . configure_model_access ( meta_params_query ) server_node . configure_data_access ( train_set_evaluation )  
+
+3.3) Necessary data transformations
+
+Pytorch models expect by default input data to be float , and if they are in double precision it raises an error. We have two options: either convert the node models just created from the default float to double, or convert the input data to float. If we are not concerned about having double precision, but rather we prefer faster computation, we opt for the second strategy. For this purpose, we apply a federated transformation on the data.
+
+ nodes_federation . apply_data_transformation ( cast_to_float ) ;  
+
+Before running the algorithm, we want to apply a transformation to the training data. A good practice is to define a federated operation that will ensure that the transformation is applied to the federated data in all the client nodes. In this case, we want to reshape the data, so we define the following transformation for the training data in order to work with pytorch models.
+
+ nodes_federation . apply_data_transformation ( reshape_data_pt ) mean = np . mean ( train_data . data ) std = np . std ( train_data . data ) nodes_federation . apply_data_transformation ( normalize_data , mean = mean , std = std ) ;  
+
+4) Run the federated learning experiment
+
+First of all, we need to create the federated government with all the components we have been defining along the process, and then run the federated experiment. The test data also needs to be formatted to feed the models and be able to run the Federated Transfer Learning experiment.
+
+ from shfl . federated_government . transfer_federated_government import TransferFederatedGovernment # Create federated government and run training: federated_government = TransferFederatedGovernment ( model_nodes , nodes_federation , server_node = server_node ) test_data_fed = [ test_data , test_data_B ]  
+
+On the one hand, training labels are in standard format (real number in { 0 , … , 9 } \left\{0,\dots,9\right\} { 0 , … , 9 } ), because this is needed to employ the loss function torch.nn.CrossEntropyLoss for the evaluation.
+
+On the other hand, test_labels is in One-Hot encoding, since the output of the model φ A ∘ g B \varphi^A\circ g^B φ A ∘ g B is 10 10 10 dimensional. Indeed, the labels space from the Federated Transfer Learning architecture sheme Y = R 10 Y=\mathbb{R}^{10} Y = R 10 , whence φ A ∘ g B : X B ⟶ R 10 . \varphi^A\circ g^B:X_B\longrightarrow \mathbb{R}^{10}. φ A ∘ g B : X B ​ ⟶ R 10 .
+
+Let's start with the training now that all is set up.
+
+ federated_government . run_rounds ( n_rounds = 1001 , test_data = test_data_fed , test_label = test_labels , eval_freq = 500 )  
+
+ Evaluation in round 0 : Loss: 2.300945997238159 Accuracy: 0.102 Evaluation in round 500 : Loss: 1.57062566280365 Accuracy: 0.902975 Evaluation in round 1000 : Loss: 1.545447587966919 Accuracy: 0.92335 
+
+With the data we have collected before, we are going to make some predictions and obtain the result of the evaluation.
+
+What we want to do now is first obtain the model trained with data from A A A and B B B that needs to perform predictions independently. With the function predict_clients we are obtaining the embeddings, and we are evaluating the second embedding returned (the model with data from A A A and B B B ).
+
+ clients_embeddings = server_node . predict_clients ( test_data_fed ) result_AB = server_node . evaluate ( clients_embeddings [ 1 ] , test_labels )  
+
+Finally, we have all the evaluations to compare these models.
+5) Comparison between the three models
+
+In this section, we are comparing the three different model explained in the sections 2.1, 2.2 and 3. Namely:
+
+    the model trained with data from A A A
+    the model trained with poor data from B B B
+    the model trained with data from A A A and B B B .
+
+5.1) Accuracy
+
+Let's begin comparing the accuracy of the models for each existing case.
+
+ print ( "The accuracy of A is: {} \n" "The accuracy of B is: {} \n" "The accuracy of B collaborating with A is: {}" . format ( round ( result_A [ 1 ] , 3 ) , round ( result_B [ 1 ] , 3 ) , round ( result_AB [ 1 ] , 3 ) ) )  
+
+ The accuracy of A is: 0.932 The accuracy of B is: 0.449 The accuracy of B collaborating with A is: 0.924 
+
+Accuracy could be a misleading metric sometimes, so for further robust evaluations on these models, we are using metrics as the ROC AUC and the F1 score.
+5.2) ROC AUC
+
+To calculate the ROC curve in a multilabel environment , instead of plotting each of the labels, it is visually more appealing to calculate the average of them and show it. There are few strategies to consider when calculating this value and in our case the micro-average is computed, which is the sum of all true positives and divides by the sum of all true positives plus the sum of all false positives. So basically you divide the number of correctly identified predictions by the total number of predictions.
+
+ predictions_A = nodes_federation_A_indep [ 0 ] . predict ( test_data ) predictions_B = nodes_federation_B_indep [ 0 ] . predict ( test_data_B ) predictions_AB = server_node . _model . predict ( clients_embeddings [ 1 ] )  
+
+In order to see it visually, we need to plot the results of these models.
+
+ values = [ predictions_A , predictions_B , predictions_AB ] titles = [ 'Party A' , 'Party B' , 'Party B collaborating with A' ] colors = [ 'blue' , 'red' , 'green' ] linestyle = [ ':' , '-' , '-.' ] plot_all_roc_curves ( test_labels , values , titles , colors , linestyle )  
+
+png
+
+Looking at the final results, it is clear that the performance of the federated transfer model is really good, being the best choice overall as it leverages the knowledge of the already existing and good performing model.
+5.3) F1-Score
+
+Another metric used is the F1 score , which seeks the balance between precision and recall values. This metric will allow us to estimate performance in another way and better compare the results.
+
+ n_classes = np . max ( predictions_A . argmax ( axis = - 1 ) ) + 1 values_f1_A = predictions_A . argmax ( axis = - 1 ) values_f1_A = np . eye ( n_classes ) [ values_f1_A ] values_f1_B = predictions_B . argmax ( axis = - 1 ) values_f1_B = np . eye ( n_classes ) [ values_f1_B ] values_f1_AB = predictions_AB . argmax ( axis = - 1 ) values_f1_AB = np . eye ( n_classes ) [ values_f1_AB ] score_A_f1 = f1_score ( test_labels , values_f1_A , average = 'macro' ) score_B_f1 = f1_score ( test_labels , values_f1_B , average = 'macro' ) score_AB_f1 = f1_score ( test_labels , values_f1_AB , average = 'macro' ) values = [ round ( score_A_f1 , 3 ) , round ( score_B_f1 , 3 ) , round ( score_AB_f1 , 3 ) ] titles = [ 'Party A' , 'Party B' , 'Party B collaborating with A' ] colors = [ 'blue' , 'red' , 'green' ] plot_all_metric ( values , "F1-Score" , titles , colors )  
+
+png
+
+With both evaluations, it is clear that Federated Transfer Learning leverages the knowledge in a proper way and it is very useful, not only for fullfilling the privacy requirements by law, but also due to it's high performance boosts that benefits the nodes with poor data participating in the process.
+
+As we can see, the Party B without the help of the Party A, obtain really bad results. Even thought, when B receives the knowledge of the Party A, its metrics are almost as good as the Party A.
+;
+
+Stay tuned
+
+    Blog 
+
+Stay tuned
+Go to Sherpa.ai
+
+    FAQ
+    Privacy
+    Terms 
+

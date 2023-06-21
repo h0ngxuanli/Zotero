@@ -1,0 +1,81 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2207.05811
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 12 Jul 2022]
+Title: Revealing Unfair Models by Mining Interpretable Evidence
+Authors: Mohit Bajaj , Lingyang Chu , Vittorio Romaniello , Gursimran Singh , Jian Pei , Zirui Zhou , Lanjun Wang , Yong Zhang
+Download a PDF of the paper titled Revealing Unfair Models by Mining Interpretable Evidence, by Mohit Bajaj and 7 other authors
+Download PDF
+
+    Abstract: The popularity of machine learning has increased the risk of unfair models getting deployed in high-stake applications, such as justice system, drug/vaccination design, and medical diagnosis. Although there are effective methods to train fair models from scratch, how to automatically reveal and explain the unfairness of a trained model remains a challenging task. Revealing unfairness of machine learning models in interpretable fashion is a critical step towards fair and trustworthy AI. In this paper, we systematically tackle the novel task of revealing unfair models by mining interpretable evidence (RUMIE). The key idea is to find solid evidence in the form of a group of data instances discriminated most by the model. To make the evidence interpretable, we also find a set of human-understandable key attributes and decision rules that characterize the discriminated data instances and distinguish them from the other non-discriminated data. As demonstrated by extensive experiments on many real-world data sets, our method finds highly interpretable and solid evidence to effectively reveal the unfairness of trained models. Moreover, it is much more scalable than all of the baseline methods. 
+
+Subjects: 	Machine Learning (cs.LG) ; Artificial Intelligence (cs.AI); Computers and Society (cs.CY)
+Cite as: 	arXiv:2207.05811 [cs.LG]
+  	(or arXiv:2207.05811v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2207.05811
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Mohit Bajaj [ view email ]
+[v1] Tue, 12 Jul 2022 20:03:08 UTC (16,414 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Revealing Unfair Models by Mining Interpretable Evidence, by Mohit Bajaj and 7 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2207
+Change to browse by:
+cs
+cs.AI
+cs.CY
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

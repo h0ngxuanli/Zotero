@@ -1,0 +1,86 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2104.03086
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 7 Apr 2021]
+Title: Trajectory Prediction with Latent Belief Energy-Based Model
+Authors: Bo Pang , Tianyang Zhao , Xu Xie , Ying Nian Wu
+Download a PDF of the paper titled Trajectory Prediction with Latent Belief Energy-Based Model, by Bo Pang and 3 other authors
+Download PDF
+
+    Abstract: Human trajectory prediction is critical for autonomous platforms like self-driving cars or social robots. We present a latent belief energy-based model (LB-EBM) for diverse human trajectory forecast. LB-EBM is a probabilistic model with cost function defined in the latent space to account for the movement history and social context. The low-dimensionality of the latent space and the high expressivity of the EBM make it easy for the model to capture the multimodality of pedestrian trajectory distributions. LB-EBM is learned from expert demonstrations (i.e., human trajectories) projected into the latent space. Sampling from or optimizing the learned LB-EBM yields a belief vector which is used to make a path plan, which then in turn helps to predict a long-range trajectory. The effectiveness of LB-EBM and the two-step approach are supported by strong empirical results. Our model is able to make accurate, multi-modal, and social compliant trajectory predictions and improves over prior state-of-the-arts performance on the Stanford Drone trajectory prediction benchmark by 10.9% and on the ETH-UCY benchmark by 27.6%. 
+
+Comments: 	13 pages
+Subjects: 	Machine Learning (cs.LG)
+Cite as: 	arXiv:2104.03086 [cs.LG]
+  	(or arXiv:2104.03086v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2104.03086
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Bo Pang [ view email ]
+[v1] Wed, 7 Apr 2021 12:18:50 UTC (9,074 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Trajectory Prediction with Latent Belief Energy-Based Model, by Bo Pang and 3 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2104
+Change to browse by:
+cs
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+DBLP - CS Bibliography
+listing | bibtex
+Bo Pang
+Tianyang Zhao
+Xu Xie
+Ying Nian Wu
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

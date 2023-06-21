@@ -1,0 +1,1127 @@
+Formalising the Robustness of Counterfactual Explanations for Neural Networks
+Junqi Jiang∗, Francesco Leofante∗, Antonio Rago, Francesca Toni
+Department of Computing, Imperial College London, UK
+{junqi.jiang20, f.leofante, a.rago15, f.toni}@imperial.ac.uk
+
+arXiv:2208.14878v3 [cs.LG] 20 Dec 2022
+
+Abstract
+The use of counterfactual explanations (CFXs) is an increasingly popular explanation strategy for machine learning models. However, recent studies have shown that these explanations may not be robust to changes in the underlying model (e.g., following retraining), which raises questions about their reliability in real-world applications. Existing attempts towards solving this problem are heuristic, and the robustness to model changes of the resulting CFXs is evaluated with only a small number of retrained models, failing to provide exhaustive guarantees. To remedy this, we propose Δrobustness, the rst notion to formally and deterministically assess the robustness (to model changes) of CFXs for neural networks. We introduce an abstraction framework based on interval neural networks to verify the Δ-robustness of CFXs against a possibly in nite set of changes to the model parameters, i.e., weights and biases. We then demonstrate the utility of this approach in two distinct ways. First, we analyse the Δ-robustness of a number of CFX generation methods from the literature and show that they unanimously host signi cant de ciencies in this regard. Second, we demonstrate how embedding Δ-robustness within existing methods can provide CFXs which are provably robust.
+1 Introduction
+Ensuring that machine learning models are explainable has become a dominant goal in recent years, giving rise to the
+eld of explainable AI (XAI). One of the most popular strategies for XAI is the use of counterfactual explanations (CFXs) (see [Stepin et al., 2021] for an overview), favoured for a number of reasons including their intelligibility [Byrne, 2019], appeal to users [Barocas et al., 2020], information capacity [Kenny and Keane, 2021] and alignment with human reasoning [Miller, 2019]. A CFX for a given input to a model is de ned as an altered input for which the model gives a di erent output to that of the original input. Consider the classic illustration of a loan application, with features unemployed
+∗These authors contributed equally.
+
+status, 25 years of age and low credit rating, being classi ed by a bank’s model as rejected. A CFX for the rejection could be an altered input where a medium credit rating (with the other features unchanged) would result in the loan being accepted, thus giving the applicant an idea of what is required to change the output. Such correctness of the modi ed output in attaining an alternative value is the basic property of CFXs, referred to as validity, and is one of a whole host of metrics around which CFXs are designed (e.g., see [Guidotti, 2022]).
+Our main focus in this paper is the metric of robustness. This is most often de ned as robustness to input perturbations, i.e., the validity of CFXs when perturbations are applied to inputs [Sharma et al., 2020]. While this notion is useful, e.g., for protecting against manipulation [Slack et al., 2021], other forms of robustness can be equally important in ensuring that CFXs are safe and can be trusted. Robustness to model changes, i.e., the validity of CFXs when model parameters are altered, has thus far received little attention but is arguably one of the most commonly required forms of robustness, given that model parameters change every time retraining occurs [Rawal et al., 2020]. Indeed, if a CFX is invalidated with just a slight change of the training settings as in, e.g., [Dutta et al., 2022], we may question its quality in terms of real-world meaning. Consider the loan example: if, after retraining, the loan applicant changing their credit rating to medium no longer changes the output to accepted (thus invalidating the CFX), the CFX was not robust to the model changes induced during retraining. In this case, it might be argued that the bank should have a policy to guarantee that this CFX remains valid regardless, but this may have unfavourable consequences for the bank. Therefore, it is desirable that the CFXs account for such robustness.
+Though some have targeted robustness to model changes1, e.g., [Upadhyay et al., 2021; Dutta et al., 2022], these approaches are heuristic, and may fail to provide strong robustness guarantees. Formal methods for assessing CFXs along this metric are lacking. Indeed, there are calls for both formal explanations for non-linear models such as neural networks [Marques-Silva and Ignatiev, 2022] and for standardised benchmarking in evaluating CFXs [Kenny and Keane, 2021], voids we help to ll.
+In this work we propose the novel notion of Δ-robustness
+1Referred to simply as robustness, unless otherwise speci ed.
+
+1
+
+for assessing the robustness of CFXs for neural networks in a formal, deterministic manner. We introduce an abstraction framework based on interval neural networks [Prabhakar and Afzal, 2019] to verify the robustness of CFXs against a possibly in nite set of changes to the model parameters, i.e., weights and biases. This abstraction allows for a set of parameterisable shifts, Δ, in the model parameters, permitting users to tailor the strictness of robustness (depending on the application). For illustration, consider the loan example once more: the bank knows the scale of typical changes in their models and could encode this into Δ. The bank would then be able to provide only Δ-robust CFXs such that they are valid under any expected model shift during retraining (and if a model shift exceeds Δ, they would have been alerted to this fact). It can be seen, even from this simple example, that Δ-robustness can provide priceless guarantees in high-stakes or sensitive situations.
+After covering related work (§2) and the necessary preliminaries (§3), we make the following contributions.
+• We introduce a novel notion of Δ-robustness of CFXs for neural networks and propose an abstraction framework based on interval neural networks to reason about it (§4).
+• We analyse the Δ-robustness of a number of CFX approaches in the literature, demonstrating the utility of the notion and the lack of robustness in these methods (§5.2).
+• We demonstrate how the veri cation of Δ-robustness can be embedded in existing methods to generate CFXs which are provably robust (§5.3).
+We then conclude and look ahead to the various avenues of future work highlighted by our approach (§6). In summary, this work presents the rst approach to formally reason about and deterministically quantify CFXs’ robustness to model changes in neural networks.2
+2 Related Work
+2.1 Approaches to CFX Generation
+The seminal work of [Wachter et al., 2017] casts the problem of nding CFXs for neural networks as gradient-based optimisation against the input vector using a single loss function to address the validity of counterfactual instances, as well as their closeness to the input instances measured by some distance metric (proximity), while that of [Tolomei et al., 2017] de nes CFXs for tree ensembles. Following these works, [Mothilal et al., 2020] include stochastic point processes and novel loss terms to generate a diverse set of CFXs. [Poyiadzi et al., 2020] formulate the problem in graph-theoretic terms and apply shortest path algorithms to nd CFXs that lie in the data manifold of the dataset. [Van Looveren and Klaise, 2021] address the same problem using class prototypes found by variational auto-encoders
+2The code for the implementations and experiments is publicly available at https://github.com/junqi-jiang/robust-ce-inn. This is the full version of the paper of the same title appearing at AAAI 2023. This version includes proofs and additional experimental details.
+
+or k-d trees. [Mohammadi et al., 2021] model the generation of CFXs as a constrained optimisation problem where a neural network is encoded using Mixed-Integer Linear Programming (MILP). Other methods that are able to generate CFXs for neural networks include that of [Karimi et al., 2020], which reduces CFX generation to a satis ability problem, and that of [Dandl et al., 2020], which formulates the search for CFXs as a multi-objective optimisation problem. Orthogonal to these studies, ongoing works try to embed causal constraints when nding CFXs [Mahajan et al., 2019; Karimi et al., 2021; Kanamori et al., 2021]. Finally, there are a number of methods for generating CFXs for linear or Bayesian models, e.g., [Ustun et al., 2019; Albini et al., 2020; Kanamori et al., 2020], but we omit their details here since our focus is on neural networks.
+2.2 Robustness of Models and Explanations
+Robustness has been advocated in a number of ways in AI, including by requiring that outputs of neural networks should be robust to perturbations in inputs [Carlini and Wagner, 2017; Weng et al., 2018] or in model parameters [?]. A number of works have drawn attention to the links between adversarial examples and CFXs, given that they solve a similar optimisation problem [Pawelczyk et al., 2022; Freiesleben, 2022]. The protection which robustness to input perturbations provides against manipulation has been shown to be important also as concerns explanations for models’ outputs [Slack et al., 2021] and a range of methods for producing explanations which are robust to input perturbations have been proposed, e.g., [Alvarez-Melis and Jaakkola, 2018; Sharma et al., 2020; Huai et al., 2022]. Meanwhile, [Qiu et al., 2022] use input perturbations to ensure that explanations are robust to outof-distribution data, applying this technique to a range of XAI methods for producing saliency maps. A causal view is taken by [Hancox-Li, 2020] in discussing the importance of robustness to input perturbations in explanations for models’ outputs. Here, it is argued that explanations should be robust to di erent models, not only changes within the model (as we target), if real patterns in the world are of interest. Ensuring that CFXs fall on the data manifold has been found to increase this robustness to multiplicity of models [Pawelczyk et al., 2022]. However, our focus is on formal approach to robustness when changing the model parameters, rather than the model itself. Notwithstanding the ndings of recent works demonstrating the signi cant e ects of changes to model parameters on the validity of CFXs [Rawal et al., 2020; Dutta et al., 2022], we are aware of only two works which target the same form of robustness we consider. [Upadhyay et al., 2021] design a novel objective for CFXs which incorporates the model shift, i.e., the change in a model’s parameters which may be, for example, weights or gradients. However, their approach is heuristic and may fail to generate valid robust CFXs (we will discuss other limitations of this approach later in §5.2). [Dutta et al., 2022] de ne the metric of counterfactual stability, i.e., robustness to model changes induced during retraining, before introducing an approach which re nes any base method for nding CFXs in tree-based classi ers, rather than the neural networks we target. In addition, both works evaluate CFXs’ robustness by demonstrating CFXs’ validity
+
+2
+
+on a small number of retrained models and cannot exhaustively prove the validity for other model changes.
+
+3 Preliminaries
+
+Notation. Given an integer 𝑘, let [𝑘] denote the set {1, . . . , 𝑘}. Given a set 𝑆, let 𝑆 denote its cardinality. Given a vector 𝑥 ∈ R𝑛 we use 𝑥[𝑖] to denote its 𝑖-th component; similarly, for a matrix 𝑤 ∈ R𝑛 × R𝑚, we use 𝑤[𝑖, 𝑗] to denote element 𝑖, 𝑗. Finally, we use I(R) to denote the set of all closed intervals over R.
+
+Feed-forward neural networks. A feed-forward neural network (FFNN) is a directed acyclic graph whose nodes are structured in layers. Formally, we describe FFNNs and the computations they perform as follows.
+
+De nition 1. A fully-connected feed-forward neural network (FFNN) is a tuple M = (𝑘, 𝑁 , 𝐸, 𝐵, Ω) where:
+
+• 𝑘≥ 0 is the depth of M;
+
+• (𝑁 , 𝐸) is a directed graph;
+
+•
+
+𝑁
+
+=
+
+𝑘 +1
+⊔𝑖=0
+
+𝑁𝑖
+
+is the disjoint union of sets of nodes 𝑁𝑖 ;
+
+we call 𝑁0 the input layer, 𝑁𝑘+1 the output layer and 𝑁𝑖
+
+hidden layers for 𝑖 ∈ [𝑘];
+
+• 𝐸 = ⋃𝑘𝑖=+11(𝑁𝑖−1 × 𝑁𝑖 ) is the set of edges between layers;
+
+• 𝐵∶(𝑁 ∖𝑁0)→R assigns bias to nodes in non-input layers;
+
+• Ω∶𝐸 → R assigns a weight to each edge.
+
+In the following, unless speci ed otherwise, we assume as given an FFNN M = (𝑘, 𝑁 , 𝐸, 𝐵, Ω), and we use 𝐵𝑖 to denote the vector of biases assigned to layer 𝑁𝑖 and 𝑊𝑖 to denote the matrix of weights assigned to edges between nodes in subsequent layers 𝑁𝑖−1, 𝑁𝑖 , for 𝑖 ∈ [𝑘 + 1].
+
+De nition 2. Given an input 𝑥 ∈ R 𝑁0 , an FFNN M computes an output M(𝑥) de ned as follows. Let:
+
+• 𝑉0 = 𝑥;
+
+• 𝑉𝑖 = 𝜎(𝑊𝑖 ⋅ 𝑉𝑖−1 + 𝐵𝑖 ) for 𝑖 ∈ [𝑘], where 𝜎 is an activation function applied element-wise. For 𝑉𝑖 = [𝑣𝑖,1, . . . , 𝑣𝑖, 𝑁𝑖 ], 𝑣𝑖,𝑗 is the value of the 𝑗-th node in layer 𝑁𝑖 .
+
+Then, M(𝑥) = 𝑉𝑘+1 = 𝑊𝑘+1 ⋅ 𝑉𝑘 + 𝐵𝑘+1.
+
+The Recti ed Linear Unit (ReLU) activation, de ned as
+
+𝜎 (𝑥 )
+
+Δ
+=
+
+max(0, 𝑥),
+
+is
+
+perhaps
+
+the
+
+most
+
+common
+
+choice
+
+for
+
+hidden layers. We will therefore focus on FFNNs using ReLU
+
+activations in this paper.
+
+De nition 3. Consider an input 𝑥 ∈ R 𝑁0 and an FFNN M. We say that M classi es 𝑥 as 𝑐, denoted (with an abuse of notation) M(𝑥) = 𝑐, if 𝑐 ∈ arg max𝑖∈[ 𝑁𝑘+1 ] M(𝑥)[𝑖].
+For ease of exposition, §4 will focus on FFNNs used for binary classi cation tasks with 𝑁𝑘+1 = 2. The same ideas also apply to other settings, e.g., multiclass classi cation or binary classi cation using a single output node with sigmoid activation, which we use in our experiments in §5.
+
+Counterfactual explanations. Consider an FFNN M trained to solve a binary classi cation problem. Assume M produces a classi cation outcome M(𝑥) = 𝑐 for input 𝑥. Intuitively, a CFX is a new input 𝑥′ which is similar to 𝑥 and for which M(𝑥′) = 1 − 𝑐. Formally, existing literature characterises CFXs in terms of the solution space of a Constrained Optimisation Problem (COP) as follows.
+
+De nition 4. Consider an input 𝑥 ∈ R 𝑁0 and a binary classi er M s.t. M(𝑥) = 𝑐. Given a distance metric 𝑑 ∶ R 𝑁0 × R 𝑁0 → R, a CFX is any 𝑥′ such that:
+
+arg min 𝑑(𝑥, 𝑥′)
+
+(1a)
+
+𝑥′
+
+subject to M(𝑥′) = 1 − 𝑐, 𝑥′ ∈ R 𝑁0
+
+(1b)
+
+A CFX thus corresponds to the closest input 𝑥′ (Eq. 1a) belonging to the original input space that makes the classi cation ip (Eq. 1b). A common choice for the distance metric 𝑑 is the normalised 𝐿1 distance [Wachter et al., 2017]. Under this choice, CFX generation for FFNNs with ReLU activations can be solved exactly via MILP – see, e.g., [Mohammadi et al., 2021]. Finally, we mention that the optimisation problem can also be extended to account for additional CFX properties mentioned in §2.1.
+We conclude with an example which summarises the main concepts presented in this section.
+Example 1. Consider the FFNN M below where weights are as indicated in the diagram, biases are zero and R denotes ReLU activations. The network receives a two-dimensional input 𝑥 = [𝑥0, 𝑥1] and produces a two-dimensional output 𝑦 = [𝑦0, 𝑦1].
+
+1
+
+1
+
+𝑥0
+
+R
+
+𝑦0
+
+−1
+
+0
+
+−1
+
+0
+
+𝑥1
+
+R
+
+𝑦1
+
+1
+
+1
+
+The symbolic expressions for the output components are 𝑦0 = max(0, 𝑥0 − 𝑥1) and 𝑦1 = max(0, 𝑥1 − 𝑥0). Given a concrete input 𝑥 = [1, 2], we have M(𝑥) = 1. A possible CFX may be 𝑥′ = [2.1, 2], with M(𝑥′) = 0.
+4 Δ-Robustness via Interval Abstraction
+The COP formulation of CFXs presented in De nition 4 focuses on nding CFXs that are as close as possible to the original input. The rationale behind this choice is that changes in input features suggested by minimally distant CFXs likely require less e ort, thus making them more easily attainable by users in real-world settings. However, it has been shown [Rawal et al., 2020; Dutta et al., 2022] that slight changes applied to the classi er, e.g., following retraining, may impact the validity of CFXs, particularly those which are minimally distant from the original input. This fragility of CFXs can have troubling implications, both for the users of explanations, and for those who generate them, as discussed in §1.
+
+3
+
+This state of a airs motivates the primary objective of this work: can we generate useful CFXs for FFNNs that are provably robust to model changes?
+In the following we formalise the notion of robustness we target and introduce an abstraction-based framework to reason about this notion in CFXs for FFNNs. To this end, we begin by de ning a notion of distance between FFNNs.
+
+De nition 5. Consider two FFNNs M = (𝑘, 𝑁 , 𝐸, 𝐵, Ω) and M′ = (𝑘′, 𝑁 ′, 𝐸′, 𝐵′, Ω′). We say that M and M′ have identical topology if 𝑘 = 𝑘′ and (𝑁 , 𝐸) = (𝑁 ′, 𝐸′). De nition 6. Let M = (𝑘, 𝑁 , 𝐸, 𝐵, Ω) and M′ = (𝑘, 𝑁 , 𝐸, 𝐵′, Ω′) be two FFNNs with identical topology. For 0≤𝑝 ≤∞, the 𝑝-distance between M and M′ is:
+
+1
+
+′
+
+⎛𝑘+1 𝑁𝑖 𝑁𝑖−1
+
+𝑝
+
+′
+
+⎞
+𝑝
+
+M−M 𝑝 =
+
+𝑊𝑖
+
+[𝑗,
+
+𝑙]
+
+−
+
+𝑊
+𝑖
+
+[𝑗,
+
+𝑙]
+
+⎝𝑖=1 𝑗=1 𝑙=1
+
+⎠
+
+Intuitively 𝑝-distance compares the weight matrices of M and M′ and computes their distance as the 𝑝-norm of their di erence. Biases have been omitted from De nition 6 for readability; the de nition can be readily extended to include biases too, as is the case in our implementation. Using this notion we can characterise a model shift as follows.
+De nition 7. Given 0 ≤ 𝑝 ≤ ∞, a model shift is a function 𝑆 mapping an FFNN M into another M′ =𝑆(M) such that:
+• M and M′ have identical topology; • M − M′ 𝑝 > 0.
+
+Model shifts are typically observed in real-world appli-
+cations when a model is regularly retrained to incorporate
+new data. In such cases, models are likely to see only small changes at each update. In the same spirit as [Upadhyay et al., 2021], we capture this as follows.
+
+De nition 8. Given an FFNN M, 𝛿 ∈ R>0 and 0 ≤ 𝑝 ≤ ∞, the set of plausible model shifts is Δ = {𝑆 M − 𝑆(M) 𝑝 ≤ 𝛿}.
+
+Plausibility implicitly bounds the magnitude of weight and
+bias changes that can be e ected by a model shift 𝑆, as stated in the following.3.
+
+Lemma 1. Consider an FFNN M and a set of plausible model shifts Δ. Let M′ = 𝑆(M) for 𝑆 ∈ Δ. The magnitude of weight and bias changes in M′ is bounded.
+
+In essence, it is possible to show that each weight (and bias)
+
+can change up to a maximum of ±𝛿 following the application
+
+of a model shift 𝑆 ∈ Δ.
+
+Remark 1.
+
+In
+
+the
+
+following
+
+we
+
+use
+
+𝑊𝑖′[
+
+𝑗
+
+,
+
+𝑙
+
+]
+
+Δ
+=
+
+𝑊𝑖
+
+[
+
+𝑗
+
+,
+
+𝑙
+
+]
+
+−
+
+𝛿
+
+and
+
+𝑊𝑖′[
+
+𝑗
+
+,
+
+𝑙
+
+]
+
+Δ
+=
+
+𝑊𝑖
+
+[
+
+𝑗,
+
+𝑙
+
+maximum value
+
+]+𝛿 each
+
+to denote, respectively, the minimum and weight 𝑊𝑖′[𝑗, 𝑙] can take in M′= 𝑆(M)
+
+for any 𝑆 ∈ Δ and 𝑖 ∈ [𝑘 + 1], 𝑗 ∈ [ 𝑁𝑖 ] and 𝑙 ∈ [ 𝑁𝑖−1] .
+
+(Analogous notation is used for biases.) These bounds are sound,
+
+but also conservative, i.e., they may result in models that exceed
+
+the upper bound on the p-distance for some choice of 𝑝. As an
+
+example,
+
+consider
+
+what
+
+happens
+
+when
+
+𝑊𝑖′ [ 𝑗 ,
+
+𝑙
+
+]
+
+=
+
+𝑊′
+𝑖
+
+[
+
+𝑗,
+
+𝑙]
+
+for
+
+each 𝑖 ∈ [𝑘 + 1], 𝑗 ∈ 𝑁𝑖 , 𝑙 ∈ 𝑁𝑖−1 . These valuations satisfy
+
+De nition 8 when 𝑝 = ∞, but fail to do so for, e.g., 𝑝 = 2.
+
+3Proofs are provided in Appendix A
+
+Despite weight changes being bounded, several di erent model shifts may satisfy the plausibility constraint. To guarantee robustness to model changes, one needs a way to represent and reason about the potentially in nite family of networks originated by applying each 𝑆 ∈ Δ to M compactly. We introduce an abstraction framework that can be used to this end. We begin by recalling the notion of interval neural networks, as introduced in [Prabhakar and Afzal, 2019].
+De nition 9. An interval neural network (INN) is a tuple I = (𝑘, 𝑁 , 𝐸, 𝐵I, ΩI) where:
+• 𝑘, 𝑁 , 𝐸 are as per De nition 1;
+• 𝐵I ∶ (𝑁 ∖ 𝑁0) → I(R) assigns interval-valued biases to nodes in non-input layers;
+• ΩI ∶𝐸 →I(R) assigns interval-valued weights to edges.
+Example 2. The diagram below shows an example of an INN. As we can observe, the INN di ers from a standard FFNN in that weights and biases are intervals.
+
+[0.9.1.1]
+
+[0.9.1.1]
+
+𝑥0
+
+R
+
+𝑦0
+
+[−1.1, −0.9]
+
+[−0.1, 0.1]
+
+[−1.1, −0.9]
+
+[−0.1, 0.1]
+
+𝑥1
+
+R
+
+[0.9, 1.1]
+
+[0.9.1.1]
+
+𝑦1
+
+In the remainder, unless speci ed otherwise, when using an INN we will assume its components are as in De nition 9. We will use boldface notation to denote interval-valued biases B𝑖 and weights W𝑖 . The computation performed by an INN di ers from that of an FFNN as follows.
+
+De nition 10. Given an input 𝑥 ∈ R 𝑁0 , an INN I computes an output I(𝑥) de ned as follows. Let:
+
+• V0 = [𝑥, 𝑥];
+
+• V𝑖 = 𝜎(W𝑖 ⋅V𝑖−1+B𝑖 ) for 𝑖 ∈ [𝑘]. For V𝑖 = [v𝑖,1, . . . , v𝑖, 𝑁𝑖 ],
+
+v𝑖, 𝑗
+
+=
+
+[𝑣𝑖𝑙, 𝑗
+
+,
+
+𝑣𝑢
+𝑖,𝑗
+
+]
+
+is
+
+the
+
+interval
+
+of
+
+values
+
+for
+
+the
+
+𝑗 -th
+
+node
+
+in layer 𝑁𝑖 .
+
+Then, I(𝑥) = V𝑘+1 = W𝑘+1 ⋅ V𝑘 + B𝑘+1.
+
+Thus, an INN computes an interval for each output node.
+These intervals contain all possible values that each output can take under the valuations induced by 𝐵I and ΩI. As a result, the classi cation semantics of an INN is as follows.
+
+De nition 11. Consider an input 𝑥 ∈ R 𝑁0 , a binary label 𝑐 and an INN I. We say that I classi es 𝑥 as 𝑐, written I(𝑥) = 𝑐,
+
+if
+
+𝑙
+𝑣𝑘 +1,𝑐
+
+>
+
+𝑢
+
+𝑣
+𝑘
+
++1,1−𝑐
+
+.
+
+Figure 1 provides a graphical representation of this classi -
+
+cation semantics. Using the INN as a computational backbone,
+
+we can now de ne the interval abstraction of an FFNN which
+
+is central to this work.
+
+De nition 12. Consider an FFNN M and a set of plausi-
+ble model shifts Δ. We de ne the interval abstraction of M
+under Δ as the interval neural network I(M,Δ) such that M and I(M,Δ) have identical topology and the interval-valued biases/weights of I(M,Δ) are:
+
+4
+
+𝑐 1−𝑐
+
+𝑐 1−𝑐
+
+𝑐 1−𝑐
+
+I(𝑥) = 𝑐
+
+I(𝑥) ≠ 𝑐
+
+I(𝑥) ≠ 𝑐
+
+Figure 1: Graphical comparison of output intervals for class 𝑐 and class 1 − 𝑐, for De nition 11. When I(𝑥) = 𝑐, the output range for class 𝑐 is always greater than that of class 1 − 𝑐. Otherwise, we say I(𝑥) ≠ 𝑐.
+
+•
+
+B𝑖
+
+[
+
+𝑗
+
+]
+
+=
+
+[𝐵𝑖′[
+
+𝑗
+
+],
+
+𝐵′
+𝑖
+
+[
+
+𝑗
+
+]]
+
+for
+
+𝑖
+
+∈ [𝑘 + 1] and
+
+𝑗
+
+∈ [ 𝑁𝑖
+
+];
+
+•
+
+W𝑖 [𝑗, 𝑙]
+
+=
+
+[𝑊𝑖′ [ 𝑗 ,
+
+𝑙
+
+],
+
+𝑊′
+𝑖
+
+[
+
+𝑗
+
+,
+
+𝑙 ]]
+
+for
+
+𝑖
+
+∈
+
+[𝑘
+
++ 1],
+
+𝑗
+
+∈
+
+[ 𝑁𝑖
+
+]
+
+and 𝑙 ∈ [ 𝑁𝑖−1 ].
+
+Lemma 2. I(M,Δ) over-approximates the set of models M′ that can be obtained from M via Δ.
+
+Lemma 2 states that I(M,Δ) contains all models that can be obtained from Δ and possibly more, but not fewer (see Appendix A for proofs) . For some values of 𝑝, the interval abstraction may cease to be an over-approximation and encode exactly the models that can be obtained from M via Δ, e.g., when 𝑝 = ∞.
+A model shift 𝑆, although plausible, may result in changes to the classi cation of the original input 𝑥. When this happens, robustness of explanations becomes vacuous. For this reason, we will focus on sound shifts, formulated as follows.
+
+De nition 13. Consider an input 𝑥 ∈ R 𝑁0 and an FFNN M s.t. M(𝑥) = 𝑐. Let I(M,Δ) be the interval abstraction of M under a set of plausible model shifts Δ. We say that Δ is sound if I(M,Δ)(𝑥) = 𝑐.
+We are now ready to formally de ne the CFX robustness property that we target in this work.
+
+De nition 14. Consider an input 𝑥 ∈ R 𝑁0 and an FFNN M s.t. M(𝑥) = 𝑐. Let I(M,Δ) be the interval abstraction of M under a sound set of plausible model shifts Δ. We say that a CFX 𝑥′ is Δ-robust i I(M,Δ)(𝑥′) = 1 − 𝑐.
+We illustrate these concepts in the following example.
+Example 3. We observe that the INN in Example 2 corresponds to the interval abstraction I(M,Δ) of the FFNN M in Example 1, obtained for Δ = {𝑆 M − 𝑆(M) ∞ ≤ 0.1}.
+The symbolic expressions for the outputs of the INN are:
+
+𝑦0 = [0.9, 1.1] ⋅ max(0, [0.9, 1.1] ⋅ 𝑥0 + [−1.1, −0.9] ⋅ 𝑥1)+ [−0.1, 0.1] ⋅ max(0, [−1.1, −0.9] ⋅ 𝑥0 + [0.9, 1.1] ⋅ 𝑥1)
+
+𝑦1 = [0.9, 1.1] ⋅ max(0, [0.9, 1.1] ⋅ 𝑥1 + [−1.1, −0.9] ⋅ 𝑥0)+ [−0.1, 0.1] ⋅ max(0, [−1.1, −0.9] ⋅ 𝑥1 + [0.9, 1.1] ⋅ 𝑥0)
+Given a concrete input 𝑥 = [1, 2], we observe that I(M,Δ)(𝑥) = 1 and thus establish that Δ is sound. We now check if the old CFX 𝑥′ = [2.1, 2] is still valid under the model shifts captured by Δ. The INN outputs 𝑦0 = [−0.031, 0.592] and 𝑦1 = [−0.051, 0.392], indicating that I(M,Δ)(𝑥′) ≃ 0. We thus conclude that 𝑥′ is not Δ-robust.
+
+Assume now a di erent CFX 𝑥′′ = [2.6, 2] is computed.
+
+The outputs of I(M,Δ) for 𝑥′′ are 𝑦0 = [0.126, 1.166] and
+
+𝑦1
+
+=
+
+[−0.106,
+
+0.106].
+
+Since
+
+𝑙
+𝑦0
+
+>
+
+𝑢
+𝑦1
+
+,
+
+we
+
+have
+
+I(M,Δ)(𝑥 ′′)
+
+=
+
+0,
+
+proving that the new CFX is Δ-robust.
+
+As shown in Example 3, the interval abstraction I(M,Δ) can be used to prove whether a given CFX 𝑥′ is Δ-robust. Indeed, when I(M,Δ)(𝑥) = 𝑐, we can conclude that the classi cation of 𝑥′ will remain unchanged for all 𝑆 in Δ. Checking De nition 11 requires the computation of the output reachable intervals for each output of the INN; for ReLU-based FFNNs, we use the MILP formulation of [Prabhakar and Afzal, 2019] (see Appendix B).
+
+5 Δ-Robustness in Action
+In §4 we laid the theoretical foundations of an abstraction framework based on INNs that allows to reason about the robustness of CFXs compactly. In this section we demonstrate the utility thereof by considering two distinct applications:
+• in §5.2, we show how the interval abstraction can be used to analyse the Δ-robustness of di erent CFX algorithms across model shifts of increasing magnitudes;
+• in §5.3, we propose an algorithm that uses interval abstractions to generate provably robust CFXs.
+Our experiments, conducted on both homogeneous (continuous features) and heterogeneous (mixed continuous and discrete features) data types (see §5.1), show that our approach provides a measure for assessing the robustness of CFXs generated by other SOTA methods, but it can also be used to devise algorithms for generating CFXs with provable robustness guarantees, in contrast with existing methods.
+5.1 Experimental Setup
+We consider four datasets with a mixture of heterogeneous and continuous data. We refer to them as credit (heterogeneous) [Dua and Gra , 2017], small business administration (SBA) (using only their continuous features) [Li et al., 2018], diabetes (continuous) [Smith et al., 1988] and no2 (continuous) [Vanschoren et al., 2013].
+The rst two datasets contain known distribution shifts [Upadhyay et al., 2021]. We use D1 (D2) to denote the dataset before (respectively after) the shift. For the other datasets, we randomly shu e the instances and separate them into two halves, again denoted as D1 and D2. For each dataset, we use D1 to train a base model, and use instances in D2 to generate model shifts via incremental retraining. We use 𝑝 = ∞ in all experiments that follow.
+CFXs are generated using the following SOTA algorithms. We consider Wachter et al. [Wachter et al., 2017] (continuous data only), Proto [Van Looveren and Klaise, 2021] and a method inspired by [Mohammadi et al., 2021]. The rst two implement CFX search via gradient descent, while the third uses MILP, and is thus referred to here as MILP. We also include ROAR [Upadhyay et al., 2021], a SOTA framework speci cally designed to generate robust CFXs. More details about our experimental setup can be found in Appendix C.
+
+5
+
+(a) SOTA algorithms, diabetes (b) SOTA algorithms, no2
+
+(c) SOTA algorithms, SBA
+
+(d) SOTA algorithms, credit
+
+(e) robust algorithms, diabetes (f) robust algorithms, no2
+
+(g) robust algorithms, SBA
+
+(h) robust algorithms, credit
+
+Figure 2: Evaluation of Δ-validity. (a-d, see §5.2): SOTA algorithms fail to generate completely robust CFXs as 𝛿 increases. (e-h, see §5.3): Embedding Δ-robustness in the search process of the same algorithms results in more provably robust CFXs.
+
+5.2 Analysing Δ-Robustness of CFXs
+This experiment is designed to show that interval abstractions can provide an e ective tool to analyse CFXs generated by SOTA algorithms. For each dataset, we identify the largest 𝛿𝑚𝑎𝑥 that results in a set Δ that is sound for at least 50 test instances in D1. This is achieved by retraining the base model using increasingly large portions of D2.4 We then use the CFX generation algorithms to produce 50 CFXs. Again, see Appendix C for details of both steps. We evaluate their robustness for model shifts of magnitude up to 𝛿𝑚𝑎𝑥 using Δ-validity, the percentage of test instances whose CFXs are Δ-robust.
+Figures 2(a-d) report the results of our analysis for the four datasets. As we can observe, all methods generate CFXs that tend to be valid counterfactuals for the original model (𝛿 = 0), with ROAR having lower results in most cases. This is because ROAR approximates the local behaviours of FFNNs using LIME [Ribeiro et al., 2016], which may cause a slight decrease in the counterfactual validity [Upadhyay et al., 2021]. However, the picture changes as soon as small model shifts are applied. The Δ-validity values of Wachter et al., Proto and MILP quickly drop to zero even for model shifts of magnitude equal to 10% of 𝛿𝑚𝑎𝑥 , revealing that these algorithms are prone to generating non-robust CFXs when even very small shifts are seen in the model parameters. ROAR exhibits a higher degree of Δ-robustness, as expected. However, its heuristic nature does not allow to reason about all possible shifts in Δ, which clearly a ects the Δ-robustness of CFXs as 𝛿 grows larger.
+All methods considered here (Wachter et al, Proto, MILP
+4In real-world applications, values of 𝛿 could be empirically estimated by model developers by observing retraining histories and calculating the 𝑝-distances between subsequent retraining steps.
+
+and ROAR) return a single CFX for each input. However, Δ-robustness can also be used with methods generating multiple CFXs, e.g., as with the DiCE method of [Mothilal et al., 2020]. In these latter cases, Δ-robustness can be deployed as a lter, with customisable coarseness achieved by varying Δ, to obtain sets of diverse and Δ-robust CFXs. When doing so, experiments show a similar decrease of Δ-validity as in Figure 2(a-d). We demonstrate this application of Δ-robustness in Appendix D and leave further exploration to future work.
+5.3 Generating Provably Robust CFXs
+Our earlier experiments reveal that SOTA algorithms, including those that are designed to be robust, often fail to generate CFXs that satisfy Δ-robustness. Thus, the problem of generating CFXs that are provably robust against model shifts remains largely unsolved. We will now show how Δrobustness can be used to guide CFX generation algorithms toward CFXs with formal robustness guarantees. Our proposed approach, shown in Algorithm 1, can be applied on top of any CFX generation algorithm and proceeds as follows. First, an interval abstraction is constructed for the FFNN M and set Δ; the latter is then checked for soundness (De nition 13). Then, the search for a CFX starts. At each iteration, a CFX is generated using the base method and is tested for Δ-robustness using the interval abstraction (De nition 14). If the CFX is robust, then the algorithm terminates and returns the solution. Otherwise, the search continues, allowing for CFXs of increasing distance to be found. These steps are repeated until a threshold number of iterations 𝑡 is reached. As a result, the algorithm is incomplete, in that it may report that no Δ-robust CFX can be found within 𝑡 steps (while one may exist for larger 𝑡).
+We instantiated Algorithm 1 on the non-robust base methods, i.e., Wachter et al, Proto and MILP. We use Wachter et
+
+6
+
+diabetes, target 𝛿 = 0.11
+
+vm1 vm2 ℓ1 lof
+
+Wachter et al. 100% 0% 0.051 0.96
+
+Wachter et al.-R 100% 100% 0.122 1.00
+
+Proto
+
+100% 18% 0.063 1.00
+
+Proto-R 100% 96% 0.104 1.00
+
+MILP
+
+100% 0% 0.049 0.96
+
+MILP-R 100% 100% 0.212 -0.48
+
+ROAR
+
+82% 14% 0.078 0.95
+
+no2, target 𝛿 = 0.02 vm1 vm2 ℓ1 lof 100% 32% 0.035 1.00 100% 100% 0.084 1.00 100% 32% 0.036 1.00 100% 100% 0.069 1.00 100% 32% 0.032 1.00 100% 100% 0.059 1.00 88% 34% 0.074 1.00
+
+SBA, target 𝛿 = 0.11 vm1 vm2 ℓ1 lof 92% 92% 0.018 -0.57 92% 92% 0.023 -0.78 90% 6% 0.008 0.60 90% 88% 0.011 -0.02 100% 4% 0.007 0.56 100% 100% 0.018 -0.88 82% 78% 0.031 -0.80
+
+credit, target 𝛿 = 0.05 vm1 vm2 ℓ1 lof
+- -- - -- 24% 22% 0.313 -1.00 32% 30% 0.300 -1.00 100% 74% 0.024 1.00 100% 100% 0.031 1.00 62% 60% 0.047 1.00
+
+Table 1: Evaluating the robustness of CFXs for base methods and their Δ-robust variants.
+
+Algorithm 1 Generation of robust CFXs
+Require: FFNN M, input 𝑥 such that M(𝑥) = 𝑐, set of plausible model shifts Δ and threshold 𝑡
+Step 1: build interval abstraction I(M,Δ). Step 2: check soundness of Δ if Δ is sound then
+while iteration number < 𝑡 do Step 3: compute CFX 𝑥′ for 𝑥 and M using base method if I(M,Δ)(𝑥′) = 1 − 𝑐 then return 𝑥′ else Step 4: increase allowed distance of next CFX Step 5: increase iteration number
+return no robust CFX can be found
+al-R, Proto-R and MILP-R, respectively, to denote the resulting algorithms. For each dataset, we use the same 𝛿𝑚𝑎𝑥 identi ed in §5.2 to create sound sets of model shifts Δ. The iterative procedure of Algorithm 1 generates CFXs of increasing distance until the target robustness Δ is satis ed. To increase the distance of CFXs for Wachter et al and Proto we iteratively increase the in uence of the loss term pertaining to CFX validity. For MILP, instead, we require that the probability of the output produced by the classi er to subsequent CFXs increases at each iteration (all test instances are classi ed as class 0, and the desired class is class 1). More details are included in Appendix E. In practice, the number of iterations will depend on the choice of 𝛿 and the magnitude of step changes of the hyper-parameters, which is speci c to each base method (e.g., 25, 6, 35 on average for Wachter et al-R, Proto-R and MILP-R, respectively).
+Figures 2(e-h) show the results obtained. Overall, we can observe that Algorithm 1 successfully increases the Δvalidity of CFXs generated by base methods (compared with Figures 2(a-d)). MILP-R appears to be the best performing algorithm, generating CFXs that always satisfy the given robustness target. The robustness of CFXs computed with Wachter et al and Proto also drastically improves across different datasets. In some cases our algorithm fails to produce robust CFXs for high values of 𝛿, yet a considerable improvement in robustness can be observed overall (compare, e.g., Figures 2a and 2e). Interestingly, simply by altering the hyperparameters of the base methods not speci cally designed for robustness purposes, they produced more Δ-robust results
+
+than ROAR. We also evaluated the extent to which Δ-robustness to
+smaller model shifts can help mitigate the e ect of more signi cant model shifts. To this end, for each base method, we generated Δ-robust CFXs for a model trained on D1. We then generated a new model retrained using both D1 and D2 and evaluated the validity of CFXs for the new model. We highlight that this retraining procedure may result in model shifts that are larger than the Δ targeted for the original model (see Appendix C for a detailed analysis). As such, Δrobustness may not be guaranteed on the new model. For each algorithm and dataset, we analyse the following metrics: vm1, the percentage of CFXs that are valid on the original model; vm2, the percentage of CFXs that remain valid after retraining; ℓ1, the ℓ1 distance from the input; lof, the local outlier factor (+1 for inliers, −1 otherwise), used to test if an instance is within the data manifold. We average ℓ1 and lof over the generated CFXs.
+Table 1 reports the results obtained for this second set of experiments. We observe that enforcing Δ-robustness, even for small 𝛿 values, can considerably improve the validity of CFXs in the presence of larger model shifts. Indeed, Algorithm 1 increases the number of CFXs that remain valid after retraining by 68-100%. This improvement comes at the expense of ℓ1 distance, which often increases. This phenomenon has already been observed in recent work [Dutta et al., 2022], where robust CFXs for tree classi ers were up to seven times more expensive than the non-robust baselines. The lof score tends to remain unchanged in many cases. However, for some combinations of base methods and datasets, the score drops considerably, suggesting that a better strategy to generate CFXs of increased distance may exist. Finally, we can observe that our approach often outperforms ROAR, producing CFXs that retain a higher degree of validity after retraining.
+6 Conclusions
+Despite the great deal of attention which CFXs in XAI have received of late, SOTA approaches fall short of providing formal robustness guarantees on the explanations they generate, as we have demonstrated. In this paper we proposed Δ-robustness, a formal notion for assessing the robustness of CFXs with respect to changes in the underlying model. We then introduced an abstraction-based framework to reason about Δ-robustness and used it to verify the robustness of CFXs and to guide existing methods to nd CFXs with robustness guarantees.
+
+7
+
+This paper opens several avenues for future work. Firstly, while our experiments only considered FFNNs with ReLU activations, there seems to be no reason why interval-based analysis for robustness of CFXs could not be applied to a wider range of AI models. Secondly, it would be interesting to investigate probabilistic extensions of this work, so as to accommodate scenarios where robustness cannot be always guaranteed. Finally, our algorithm for generating Δrobust CFXs is incomplete; we plan to investigate whether our abstraction framework can be used to devise complete algorithms with improved guarantees.
+7 Acknowledgements
+Rago and Toni were partially funded by the European Research Council (ERC) under the European Union’s Horizon 2020 research and innovation programme (grant agreement No. 101020934). Jiang, Rago and Toni were partially funded by J.P. Morgan and by the Royal Academy of Engineering under the Research Chairs and Senior Research Fellowships scheme. The authors acknowledge nancial support from Imperial College London through an Imperial College Research Fellowship grant awarded to Leofante. Any views or opinions expressed herein are solely those of the authors listed.
+References
+[Albini et al., 2020] Emanuele Albini, Antonio Rago, Pietro Baroni, and Francesca Toni. Relation-based counterfactual explanations for bayesian network classi ers. In Proceedings of the Twenty-Ninth International Joint Conference on Arti cial Intelligence, IJCAI 2020, pages 451–457, 2020.
+[Alvarez-Melis and Jaakkola, 2018] David Alvarez-Melis and Tommi S. Jaakkola. Towards robust interpretability with self-explaining neural networks. In Advances in Neural Information Processing Systems 31: Annual Conference on Neural Information Processing Systems 2018, NeurIPS 2018, December 3-8, 2018, Montréal, Canada, pages 7786–7795, 2018.
+[Barocas et al., 2020] Solon Barocas, Andrew D. Selbst, and Manish Raghavan. The hidden assumptions behind counterfactual explanations and principal reasons. In FAT* ’20: Conference on Fairness, Accountability, and Transparency, Barcelona, Spain, January 27-30, 2020, pages 80–89, 2020.
+[Byrne, 2019] Ruth M. J. Byrne. Counterfactuals in explainable arti cial intelligence (XAI): evidence from human reasoning. In Proceedings of the Twenty-Eighth International Joint Conference on Arti cial Intelligence, IJCAI 2019, Macao, China, August 10-16, 2019, pages 6276–6282, 2019.
+[Carlini and Wagner, 2017] Nicholas Carlini and David A. Wagner. Towards evaluating the robustness of neural networks. In 2017 IEEE Symposium on Security and Privacy, SP 2017, San Jose, CA, USA, May 22-26, 2017, pages 39–57, 2017.
+[Dandl et al., 2020] Susanne Dandl, Christoph Molnar, Martin Binder, and Bernd Bischl. Multi-objective counterfactual explanations. In Parallel Problem Solving from Nature
+
+- PPSN XVI - 16th International Conference, PPSN 2020, Leiden, The Netherlands, September 5-9, 2020, Proceedings, Part I, pages 448–469, 2020.
+[Dua and Gra , 2017] Dheeru Dua and Casey Gra . UCI machine learning repository. http://archive.ics.uci.edu/ml, 2017.
+[Dutta et al., 2022] Sanghamitra Dutta, Jason Long, Saumitra Mishra, Cecilia Tilli, and Daniele Magazzeni. Robust counterfactual explanations for tree-based ensembles. In International Conference on Machine Learning, ICML 2022, 17-23 July 2022, Baltimore, Maryland, USA, pages 5742– 5756, 2022.
+[Freiesleben, 2022] Timo Freiesleben. The intriguing relation between counterfactual explanations and adversarial examples. Minds Mach., 32(1):77–109, 2022.
+[Guidotti, 2022] Riccardo Guidotti. Counterfactual explanations and how to nd them: literature review and benchmarking. Data Mining and Knowledge Discovery, pages 1–55, 2022.
+[Hancox-Li, 2020] Leif Hancox-Li. Robustness in machine learning explanations: does it matter? In FAT* ’20: Conference on Fairness, Accountability, and Transparency, Barcelona, Spain, January 27-30, 2020, pages 640–647, 2020.
+[Huai et al., 2022] Mengdi Huai, Jinduo Liu, Chenglin Miao, Liuyi Yao, and Aidong Zhang. Towards automating model explanations with certi ed robustness guarantees. In Thirty-Sixth AAAI Conference on Arti cial Intelligence, AAAI 2022, Thirty-Fourth Conference on Innovative Applications of Arti cial Intelligence, IAAI 2022, The Twelveth Symposium on Educational Advances in Arti cial Intelligence, EAAI 2022 Virtual Event, February 22 - March 1, 2022, pages 6935–6943, 2022.
+[Kanamori et al., 2020] Kentaro Kanamori, Takuya Takagi, Ken Kobayashi, and Hiroki Arimura. DACE: distributionaware counterfactual explanation by mixed-integer linear optimization. In Proceedings of the Twenty-Ninth International Joint Conference on Arti cial Intelligence, IJCAI 2020, pages 2855–2862, 2020.
+[Kanamori et al., 2021] Kentaro Kanamori, Takuya Takagi, Ken Kobayashi, Yuichi Ike, Kento Uemura, and Hiroki Arimura. Ordered counterfactual explanation by mixedinteger linear optimization. In Thirty-Fifth AAAI Conference on Arti cial Intelligence, AAAI 2021, Thirty-Third Conference on Innovative Applications of Arti cial Intelligence, IAAI 2021, The Eleventh Symposium on Educational Advances in Arti cial Intelligence, EAAI 2021, Virtual Event, February 2-9, 2021, pages 11564–11574, 2021.
+[Karimi et al., 2020] Amir-Hossein Karimi, Gilles Barthe, Borja Balle, and Isabel Valera. Model-agnostic counterfactual explanations for consequential decisions. In The 23rd International Conference on Arti cial Intelligence and Statistics, AISTATS 2020, 26-28 August 2020, Online [Palermo, Sicily, Italy], pages 895–905, 2020.
+[Karimi et al., 2021] Amir-Hossein Karimi, Bernhard Schölkopf, and Isabel Valera. Algorithmic recourse: from
+
+8
+
+counterfactual explanations to interventions. In FAccT ’21: 2021 ACM Conference on Fairness, Accountability, and Transparency, Virtual Event / Toronto, Canada, March 3-10, 2021, pages 353–362, 2021.
+[Kenny and Keane, 2021] Eoin M. Kenny and Mark T. Keane. On generating plausible counterfactual and semi-factual explanations for deep learning. In Thirty-Fifth AAAI Conference on Arti cial Intelligence, AAAI 2021, Thirty-Third Conference on Innovative Applications of Arti cial Intelligence, IAAI 2021, The Eleventh Symposium on Educational Advances in Arti cial Intelligence, EAAI 2021, Virtual Event, February 2-9, 2021, pages 11575–11585, 2021.
+[Li et al., 2018] Min Li, Amy Mickel, and Stanley Taylor. “should this loan be approved or denied?”: A large dataset with class assignment guidelines. Journal of Statistics Education, 26(1):55–66, 2018.
+[Lomuscio and Maganti, 2017] Alessio Lomuscio and Lalit Maganti. An approach to reachability analysis for feedforward relu neural networks. CoRR, abs/1706.07351, 2017.
+[Mahajan et al., 2019] Divyat Mahajan, Chenhao Tan, and Amit Sharma. Preserving causal constraints in counterfactual explanations for machine learning classi ers. arXiv preprint arXiv:1912.03277, 2019.
+[Marques-Silva and Ignatiev, 2022] João Marques-Silva and Alexey Ignatiev. Delivering trustworthy AI through formal XAI. In Thirty-Sixth AAAI Conference on Arti cial Intelligence, AAAI 2022, Thirty-Fourth Conference on Innovative Applications of Arti cial Intelligence, IAAI 2022, The Twelveth Symposium on Educational Advances in Arti cial Intelligence, EAAI 2022 Virtual Event, February 22 - March 1, 2022, pages 12342–12350, 2022.
+[Miller, 2019] Tim Miller. Explanation in arti cial intelligence: Insights from the social sciences. Artif. Intell., 267:1–38, 2019.
+[Mohammadi et al., 2021] Kiarash Mohammadi, AmirHossein Karimi, Gilles Barthe, and Isabel Valera. Scaling guarantees for nearest counterfactual explanations. In AIES ’21: AAAI/ACM Conference on AI, Ethics, and Society, Virtual Event, USA, May 19-21, 2021, pages 177–187. ACM, 2021.
+[Mothilal et al., 2020] Ramaravind Kommiya Mothilal, Amit Sharma, and Chenhao Tan. Explaining machine learning classi ers through diverse counterfactual explanations. In FAT* ’20: Conference on Fairness, Accountability, and Transparency, Barcelona, Spain, January 27-30, 2020, pages 607–617, 2020.
+[Pawelczyk et al., 2022] Martin Pawelczyk, Chirag Agarwal, Shalmali Joshi, Sohini Upadhyay, and Himabindu Lakkaraju. Exploring counterfactual explanations through the lens of adversarial examples: A theoretical and empirical analysis. In International Conference on Arti cial Intelligence and Statistics, AISTATS 2022, 28-30 March 2022, Virtual Event, pages 4574–4594, 2022.
+[Poyiadzi et al., 2020] Rafael Poyiadzi, Kacper Sokol, Raúl Santos-Rodríguez, Tijl De Bie, and Peter A. Flach. FACE:
+
+feasible and actionable counterfactual explanations. In AIES ’20: AAAI/ACM Conference on AI, Ethics, and Society, New York, NY, USA, February 7-8, 2020, pages 344–350, 2020.
+[Prabhakar and Afzal, 2019] Pavithra Prabhakar and Zahra Rahimi Afzal. Abstraction based output range analysis for neural networks. In Advances in Neural Information Processing Systems 32: Annual Conference on Neural Information Processing Systems 2019, NeurIPS 2019, December 8-14, 2019, Vancouver, BC, Canada, pages 15762–15772, 2019.
+[Qiu et al., 2022] Luyu Qiu, Yi Yang, Caleb Chen Cao, Yueyuan Zheng, Hilary Hei Ting Ngai, Janet Hui-wen Hsiao, and Lei Chen. Generating perturbation-based explanations with robustness to out-of-distribution data. In WWW ’22: The ACM Web Conference 2022, Virtual Event, Lyon, France, April 25 - 29, 2022, pages 3594–3605, 2022.
+[Rawal et al., 2020] Kaivalya Rawal, Ece Kamar, and Himabindu Lakkaraju. Can I still trust you?: Understanding the impact of distribution shifts on algorithmic recourses. CoRR, abs/2012.11788, 2020.
+[Ribeiro et al., 2016] Marco Tulio Ribeiro, Sameer Singh, and Carlos Guestrin. " why should i trust you?" explaining the predictions of any classi er. In Proceedings of the 22nd ACM SIGKDD international conference on knowledge discovery and data mining, pages 1135–1144, 2016.
+[Sharma et al., 2020] Shubham Sharma, Jette Henderson, and Joydeep Ghosh. CERTIFAI: A common framework to provide explanations and analyse the fairness and robustness of black-box models. In AIES ’20: AAAI/ACM Conference on AI, Ethics, and Society, New York, NY, USA, February 7-8, 2020, pages 166–172, 2020.
+[Slack et al., 2021] Dylan Slack, Anna Hilgard, Himabindu Lakkaraju, and Sameer Singh. Counterfactual explanations can be manipulated. In Advances in Neural Information Processing Systems 34: Annual Conference on Neural Information Processing Systems 2021, NeurIPS 2021, December 6-14, 2021, virtual, pages 62–75, 2021.
+[Smith et al., 1988] Jack W Smith, James E Everhart, WC Dickson, William C Knowler, and Robert Scott Johannes. Using the adap learning algorithm to forecast the onset of diabetes mellitus. In Proceedings of the annual symposium on computer application in medical care, page 261. American Medical Informatics Association, 1988.
+[Stepin et al., 2021] Ilia Stepin, José Maria Alonso, Alejandro Catalá, and Martin Pereira-Fariña. A survey of contrastive and counterfactual explanation generation methods for explainable arti cial intelligence. IEEE Access, 9:11974– 12001, 2021.
+[Tolomei et al., 2017] Gabriele Tolomei, Fabrizio Silvestri, Andrew Haines, and Mounia Lalmas. Interpretable predictions of tree-based ensembles via actionable feature tweaking. In Proceedings of the 23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, Halifax, NS, Canada, August 13 - 17, 2017, pages 465–474, 2017.
+
+9
+
+[Upadhyay et al., 2021] Sohini Upadhyay, Shalmali Joshi, and Himabindu Lakkaraju. Towards robust and reliable algorithmic recourse. In Advances in Neural Information Processing Systems 34: Annual Conference on Neural Information Processing Systems 2021, NeurIPS 2021, December 6-14, 2021, virtual, pages 16926–16937, 2021.
+[Ustun et al., 2019] Berk Ustun, Alexander Spangher, and Yang Liu. Actionable recourse in linear classi cation. In Proceedings of the Conference on Fairness, Accountability, and Transparency, FAT* 2019, Atlanta, GA, USA, January 29-31, 2019, pages 10–19, 2019.
+[Van Looveren and Klaise, 2021] Arnaud Van Looveren and Janis Klaise. Interpretable counterfactual explanations guided by prototypes. In Machine Learning and Knowledge Discovery in Databases. Research Track - European Conference, ECML PKDD 2021, Bilbao, Spain, September 13-17, 2021, Proceedings, Part II, pages 650–665, 2021.
+[Vanschoren et al., 2013] Joaquin Vanschoren, Jan N. van Rijn, Bernd Bischl, and Luís Torgo. Openml: networked science in machine learning. SIGKDD Explor., 15(2):49–60, 2013.
+[Wachter et al., 2017] Sandra Wachter, Brent D. Mittelstadt, and Chris Russell. Counterfactual explanations without opening the black box: Automated decisions and the GDPR. CoRR, abs/1711.00399, 2017.
+[Weng et al., 2018] Tsui-Wei Weng, Huan Zhang, Pin-Yu Chen, Jinfeng Yi, Dong Su, Yupeng Gao, Cho-Jui Hsieh, and Luca Daniel. Evaluating the robustness of neural networks: An extreme value theory approach. In 6th International Conference on Learning Representations, ICLR 2018, Vancouver, BC, Canada, April 30 - May 3, 2018, Conference Track Proceedings, 2018.
+10
+
+Appendices A Proofs
+Proof of Lemma 1
+
+Proof. Combining De nition 8 with De nition 6, we obtain:
+
+1
+
+⎛𝑘+1 𝑁𝑖 𝑁𝑖−1
+
+𝑝
+
+′
+
+𝑝⎞
+
+𝑊𝑖 [𝑗,
+
+𝑙]
+
+−
+
+𝑊
+𝑖
+
+[𝑗,
+
+𝑙
+
+]
+
+≤𝛿
+
+⎝𝑖=1 𝑗=1 𝑙=1
+
+⎠
+
+We raise both sides to the power of 𝑝:
+
+⎛𝑘+1 𝑁𝑖 𝑁𝑖−1
+
+′
+
+⎞
+
+𝑝
+
+𝑝
+
+𝑊𝑖
+
+[
+
+𝑗
+
+,
+
+𝑙
+
+]
+
+−
+
+𝑊
+𝑖
+
+[
+
+𝑗
+
+,
+
+𝑙
+
+]
+
+≤𝛿
+
+⎝𝑖=1 𝑗=1 𝑙=1
+
+⎠
+
+where the inequality is preserved as both sides are always positive. We now observe this inequation bounds each addend from above, i.e.,
+
+𝑊𝑖 [𝑗,
+
+𝑙]
+
+− 𝑊𝑖′[𝑗, 𝑙]
+
+𝑝
+
+≤
+
+𝑝
+𝛿
+
+Solving
+
+the
+
+inequation
+
+for
+
+each
+
+addend
+
+we
+
+obtain
+
+𝑊′
+𝑖
+
+[
+
+𝑗
+
+,
+
+𝑙
+
+]
+
+∈
+
+[𝑊𝑖 [𝑗, 𝑙] − 𝛿,𝑊𝑖 [𝑗, 𝑙] + 𝛿], which gives the result.
+
+The same result applies to bias values, which were omitted from De nition 6 for clarity.
+
+Proof of Lemma 2
+
+Proof. Lemma 1 shows that each 𝑆 ∈ Δ maps each weight
+
+𝑊𝑖 [𝑗, 𝑙] (respectively bias 𝐵𝑖 [𝑗]) in M into a closed bounded
+
+domain
+
+that
+
+we
+
+denoted
+
+as
+
+[𝑊𝑖′
+
+[
+
+𝑗,
+
+𝑙
+
+],
+
+𝑊′
+𝑖
+
+[
+
+𝑗
+
+,
+
+𝑙
+
+]]
+
+(respectively
+
+[𝐵𝑖′[𝑗], 𝐵𝑖′[𝑗]]), for 𝑖 ∈ [𝑘 + 1], 𝑗 ∈ [ 𝑁𝑖 ] and 𝑙 ∈ [ 𝑁𝑖−1 ]. These
+
+domains are used to initialise the corresponding W𝑖 [𝑗, 𝑙] in
+
+I(M,Δ), which therefore captures all models that can be obtained from M via Δ by construction. However, following
+
+Remark 1, I(M,Δ) may also capture additional models for which their 𝑝-distance from M is greater than 𝛿.
+
+B Output Range Estimation for INNs
+We use the approach proposed in [Prabhakar and Afzal, 2019] to compute the output reachable intervals for each output of the INN. The output range estimation problem for (ReLUbased) INNs can be encoded in MILP as follows.
+The encoding introduces:
+• a real variable 𝑥0,𝑗 for 𝑗 ∈ [ 𝑁0 ] used to model the input of the INN;
+• a real variable 𝑥𝑖,𝑗 to model the value of each node in 𝑁𝑖 , for 𝑖 ∈ [𝑘 + 1] and 𝑗 ∈ [ 𝑁𝑖 ],
+• a binary variable 𝛿𝑖,𝑗 to model the activation state of each node in 𝑁𝑖 , for 𝑖 ∈ [𝑘] and 𝑗 ∈ [ 𝑁𝑖 ].
+Then, for each 𝑖 ∈ [𝑘] and 𝑗 ∈ [ 𝑁𝑖 ] the following set of constraints are asserted:
+
+𝐶𝑖,𝑗 = 𝑥𝑖,𝑗 ≥ 0, 𝑥𝑖,𝑗 ≤ 𝑀(1 − 𝛿𝑖,𝑗 ),
+
+𝑁𝑖 −1
+
+𝑥𝑖,𝑗 ≤ 𝑊𝑖 [𝑗, 𝑙 ]𝑥𝑖−1,𝑗 + 𝐵𝑖 [𝑗 ] + 𝑀𝛿𝑖,𝑗 ,
+
+(2)
+
+𝑙 =1
+
+𝑁𝑖 −1
+𝑥𝑖,𝑗 ≥ 𝑊𝑖 [𝑗, 𝑙 ]𝑥𝑖−1,𝑗 + 𝐵𝑖 [𝑗 ]
+𝑙 =1
+
+where 𝑀 is a su ciently large constant. Each 𝐶𝑖,𝑗 uses the standard big-M formulation to encode the ReLU activation [Lomuscio and Maganti, 2017] and estimate the lower and upper bounds of nodes in the INN.
+Then, constraints pertaining to the output layer 𝑘 + 1 are asserted for each class 𝑗 ∈ 𝑁𝑘+1 .
+
+𝑁𝑘
+
+𝐶𝑘+1,𝑗 = 𝑥𝑘+1,𝑗 ≤ 𝑊𝑘+1[𝑗, 𝑙 ]𝑥𝑘,𝑗 + 𝐵𝑘+1[𝑗 ],
+
+𝑙 =1
+
+(3)
+
+𝑁𝑘
+
+𝑥𝑘+1,𝑗 ≥ 𝑊𝑘+1[𝑗, 𝑙 ]𝑥𝑘,𝑗 + 𝐵𝑘+1[𝑗 ]
+𝑙 =1
+
+The output range for a given input 𝑥0 and each class 𝑗 ∈ 𝑁𝑘+1 can be computed by solving two optimisation problems that minimise (respectively maximise) variable 𝑥𝑘+1,𝑗 subject to constraints 2-3. For more details about the encoding and its properties we refer to the original work [Prabhakar and Afzal, 2019].
+
+Multiclass classi cation The method proposed by [Prabhakar and Afzal, 2019] is directly applicable to the multiclass setting and does not require any change wrt to the original formulation. The semantics of an INN for multiclass problems can be obtained by extending De nition 11 as follows.
+
+De nition 15. Consider an input 𝑥 ∈ R 𝑁0 , a label 𝑐 ∈
+
+{1, . . . ,𝑚} and an INN I. We say that I classi es 𝑥 as 𝑐, written
+
+I (𝑥 )
+
+=
+
+𝑐,
+
+if
+
+𝑙
+
+𝑣
+𝑘
+
++1,𝑐
+
+>
+
+𝑢
+
+𝑣
+𝑘
+
++1,
+
+𝑗
+
+,
+
+for
+
+all
+
+𝑗
+
+∈
+
+{1,
+
+.
+
+.
+
+. ,𝑚},
+
+𝑗
+
+≠
+
+𝑐.
+
+The de nition of Δ-robustness transfers to the multiclass semantics straightforwardly; checking whether the robustness property holds simply requires to estimate lower and upper bounds for each output class (> 2) as needed.
+
+Binary classi cation with a single output node As mentioned in the main text, we formalised our results in the context of binary classi cation implemented via FFNNs with 𝑁𝑘+1 = 2. However, the most common way to implement such classi ers is to use FFNNs with a single output node with sigmoid activation. This ensures that the output of FFNNs is always in the range [0, 1] and allows for a probabilistic interpretation of its value. This is indeed the implementation we used in our experimental analysis.
+The interval abstraction can also be applied to this setting, although with two minor modi cation wrt the formalisation of §4:
+
+• sigmoid activations cannot be directly encoded in the MILP framework used to estimate output ranges of the
+
+11
+
+0
+
+𝑦
+
+I(𝑥) = 𝑐
+
+0𝑦 I(𝑥) ≃ 𝑐
+
+0𝑦 I(𝑥) ≠ 𝑐
+
+Figure 3: Graphical representation for the single output node case, assuming that class 𝑐 corresponds to positive output values. When I(𝑥) = 𝑐, the output range is always greater than zero. Otherwise, we say I(𝑥) ≠ 𝑐.
+
+interval abstraction (cf. B). However, the sigmoid function is invertible over its entire domain; as a result, reasoning about Δ-robustness can performed on the preactivation value of the output node without changing its meaning, nor a ecting its validity.
+• As a result, the (pre-activation) output of the interval abstraction is compared to zero instead of the usual 0.5 threshold determining classi cation outcome for binary classi cation using sigmoid (see Figure 3 for a graphical illustration).
+
+C Experimental setup
+Datasets For each dataset, we rst remove not-a-number values. Then, depending on the actual meanings of the input variables, we categorise them into continuous, ordinal, discrete. For continuous features, we perform min-max scaling; for ordinal features with possible values [𝑘], we encode each value 𝑖 into an array of shape (𝑘, ), with the rst 𝑖 values being 1 and the rest being 0; we one-hot encode the discrete variables. We report the details of each dataset after such preprocessing in Table 2. For sba dataset, we only use the continuous features.
+
+dataset diabetes
+no2 sba credit
+
+type continuous continuous continuous heterogeneous
+
+instances 768 500 2102 1800
+
+variables 8 7 9 72
+
+Table 2: Dataset details
+
+Classi ers and training We used the sklearn library (https://scikit-learn.org/stable/index.html) for training neural networks with 1 hidden layer. The hyperparameters include number of nodes in the hidden layer, batch size, initial learning rate. The nal hyperparameters were found using randomised search and 5-fold cross validation on D1 (we report the classi ers’ accuracy and macro-F1 in Table 3). Accuracy score was used as the model selection criterion. The classi-
+ers with the optimal hyperparameters were then trained on 80% (the training set) of D1, and evaluated on the remaining 20% (the test set).
+Baseline implementations
+• Wachter et al: we use the Alibi library implementation for the method (https://github.com/SeldonIO/alibi). For
+
+Dataset diabetes
+no2 sba credit
+
+Accuracy 0.76 ± 0.04 0.61 ± 0.04 0.94 ± 0.01 0.75 ± 0.02
+
+Macro-F1 0.73 ± 0.04 0.61 ± 0.04 0.89 ± 0.02 0.68 ± 0.02
+
+Table 3: Classi er evaluations
+
+§5.2, we change the target_proba hypterparameter to values (0.55 - 0.95) lower than default (1.0) to optimise proximity while maintaining a high validity.
+• Proto: we use the Alibi library implementation. Hyperparameters of this method are the default values.
+• MILP: we implemented De nition 4 for neural networks, which is also a simpli ed version of Algorithm 5, [Mohammadi et al., 2021] satisfying the same plausibility constraints in support of heterogeneous datasets.
+• ROAR: we use their open-sourced implementation: https://github.com/AI4LIFE-GROUP/ROAR. The hyperparameters are set to default values.
+Evaluation metrics Similar to [Dutta et al., 2022], we use the sklearn implementation of local outlier factor: https://scikit-learn.org/stable/modules/generated/sklearn. neighbors.LocalOutlierFactor.html. Parameters are set to default.
+Retraining and 𝛿 values Our retraining procedure follows that of sklearn’s MLPClassi er.partial_ t() function. 𝛿𝑚𝑎𝑥 in §5.2 (also the target 𝛿 in §5.3) is obtained by the following procedures. Consider the base model trained on D1, M, and the dataset to retrain on, D2:
+1. Obtain 𝛿𝑎 by retraining M on 𝑎% (initially 𝑎 = 1) of D2: randomly select 𝑎% instances from D2 and train on them. Repeat this step for 5 times and get 5 di erent retrained classi ers, M𝑖′, 𝑖 ∈ [5]. Then, 𝛿𝑎 = 𝑚𝑎𝑥({ M−M𝑖′ 𝑝, 𝑖 ∈ [5], 𝑝 = ∞}).
+2. Test if model shift Δ built with 𝛿𝑎 is sound for at least 50 test instances in D1.
+3. If the condition in step 2 is satis ed, increase 𝛿𝑎 and repeat step 1 and step 2; if not, 𝛿𝑚𝑎𝑥 = 𝛿𝑎.
+In order to show how 𝛿𝑎 (obtained by step 1 above) changes as 𝑎 increases to 100%, we demonstrate the relationship under our settings in Figure 4. It is shown that 𝛿𝑎 values increase with slight uctuations as 𝑎 increases, and the magnitudes depend on the classi er and the dataset. As can be observed, 𝛿100% values are always greater than 𝛿𝑚𝑎𝑥 , indicating that the model shifts obtained by retraining on 100% of D2 exceeds those included in Δ built with 𝛿𝑚𝑎𝑥 , as stated in §5.3. Indeed, observing the vm2 results of MILP-R from Table 1 again, we
+nd CFXs that are 100% Δ-robust (as per Figures 2(e-h)) with a smaller 𝛿 are likely to also be robust to certain instances of Δ with a larger 𝛿.
+D Applying Δ-Robustness as a Filter
+Similar to evaluating robustness, our approach can also be used as a lter for provably robust CFXs when multiple CFXs
+
+12
+
+(a) diabetes
+
+(b) no2
+
+(c) SBA
+
+(d) credit
+
+Figure 4: Plots of 𝛿 values obtained by retraining on increasing portions of D2 described in Step 1, on each dataset. The points highlighted in red in each sub gure corresponds to the 𝛿𝑚𝑎𝑥 in §5.2 (target 𝛿 in §5.3) and the corresponding retraining percentage of D2. 𝛿𝑚𝑎𝑥 is the largest 𝛿 value that is sound to at least 50 test instances, as also noted in the horizontal axis labels.
+
+are provided for each test instance. To this end, we consider the following setting similar to Appendix C: a neural network is trained on (half of) the HELOC dataset5 to predict whether an applicant can successfully repay the loan given 10 continuous-type credit history information. We consider 5 test instances who failed the loan approval and we generate a diverse set of 20 CFXs for each applicant using DiCE [Mothilal et al., 2020], resulting in a total 100 CFXs. We perform the retraining Step 1 for 𝑎 = 1 100, test and report how many CFXs are Δ-robust for some 𝛿 values. We also include the number of valid CFXs on the base model (𝛿 = 0). Results are presented in Figure 5. The neural network classi er is trained using PyTorch, the training and retraining settings are implemented in the same way as those of sklearn. We reduced DiCE’s hyperparameters proximity_weight to 0.05 and diversity_weight to 1.0 to increase the in uence of the prediction correctness loss term and obtain more valid CFXs.
+Note that in §5.2 and §5.3 we only report 𝛿 values whose
+5FICO Community,Explainable Machine Learning Challenge, https://www.kaggle.com/datasets/ajay1735/hmeq-data, 2019.
+
+Figure 5: Plots of number of Δ-robust CFXs as 𝛿 increases.
+corresponding Δ is sound. However, the fact that Δ is not sound for an instance 𝑥 means that there exist some model shifts in Δ under which the classi cation result of the test
+
+13
+
+instance will change, and in practice there could be only a few such model shifts. Therefore, it could be meaningful to also test such non-sound sets of model shifts, as is the case in this example. We observe that the number of robust CFXs decreases as model changes become larger. Our approach is able to lter out the non-robust CFXs at any given Δ. In reality, as stated in §1, the explanation-providing agent will have an estimate of typical 𝛿 values retrained on certain amount of new data, and the time period to collect such new data. With our approach, the agent could select only the Δ-robust CFXs, and provide a better estimate of how long they are valid for.
+E Hyperparameter Tuning for Base Methods
+Concrete implementations of Step 4 in Algorithm 1 depend on each base methods’ tunable hyperparameters, and are di erent for Wachter et al.-R, Proto-R, and MILP-R. In this section we introduce detail Step 4 for each of these method.
+Wachter et al. In the Alibi library implementation 6, the loss function of [Wachter et al., 2017] is:
+𝑙(𝑥, 𝑥′) = (𝜎(M(𝑥′)), 𝑦𝑡 )2 + 𝜆𝐿1(𝑥, 𝑥′)
+where 𝜎(M(𝑥′)) is the value of the neural network’s output node and 𝜎 is the sigmoid function. 𝜎(M(𝑥′) can be interpreted as the probability of class 1. 𝑦𝑡 is the target probability (of class 1) of the resulting CFX for Wachter et al.-R. In our setting where test instances are of class 0, 𝑦𝑡 could take values [0.5, 1.0], the lower 𝑦𝑡 is, the easier it is to nd a closer (measured by L1 metric) CFX. 𝜆 is the weight term for proximity. We apply two nested outer loops in search of the optimal 𝑦𝑡 and 𝜆 values to nd robust CFXs. For each experiment, we start with the 𝑦𝑡 value taken in the non-robust setting, increase 𝑦𝑡 by 0.1 until it reaches 1.0. For each 𝑦𝑡 to test, we try nding robust CFXs using 𝜆 values of {0.01, 0.05, 0.1, 0.2}, where 0.1 is the default value.
+Proto. In the case of Proto, the loss term pertaining to prediction correctness in the Alibi library implementation is the di erence between the output probability of the desired class and the output probability of the undesired class plus 𝜅 (default 0), a hyperparameter to control the impact of this loss term in the loss function. In Proto-R, we gradually increase 𝜅 by 0.1 until it reaches 1.0 at each iteration.
+MILP. For MILP, referring to De nition 4, the M(𝑥′) = 1 − 𝑐 condition requires that the lower bound of the output interval be greater than zero which, after the sigmoid output activation, corresponds to a probability greater than or equal to 0.5 for class 1. In this case, this method mostly nd CFXs that lie on the decision boundary of the classi er. In MILP-R, to increase the in uence of prediction con dence and relax the cost requirement, we require in the MILP encoding that the lower bound of the output interval be greater than 𝜖, 𝜖 ≥ 0. At each iteration, we raise 𝜖 by 0.2 until it reaches 20.
+Concrete values of each of the parameters can be found in the experiments in the accompanying source codes.
+6https://docs.seldon.io/projects/alibi/en/stable/methods/CF.html
+14
+

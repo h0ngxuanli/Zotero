@@ -1,0 +1,1644 @@
+arXiv:2303.09782v1 [cs.CV] 17 Mar 2023
+
+HIGH ACCURATE AND EXPLAINABLE MULTI-PILL DETECTION FRAMEWORK WITH GRAPH NEURAL NETWORK-ASSISTED MULTIMODAL DATA FUSION
+
+Anh Duy Nguyen VinUni-Illinois Smart Health Center,
+VinUniversity, Vietnam duy.na@vinuni.edu.vn
+
+Huy Hieu Pham College of Engineering & Computer Science, VinUni-Illinois Smart Health Center, VinUniversity, Vietnam
+hieu.ph@vinuni.edu.vn
+
+Huynh Thanh Trung
+École Polytechnique Fédérale de Lausanne, Switzerland
+thanh.huynh@epfl.ch
+
+Quoc Viet Hung Nguyen Grifﬁth University, Australia
+henry.nguyen@griffith.edu.au
+
+Thao Nguyen Truong National Institute of Advanced Industrial Science
+and Technology, Japan nguyen.truong@aist.go.jp
+
+Phi Le Nguyen School of Information and Communication Technology, Hanoi University of Science and Technology, Vietnam
+lenp@soict.hust.edu.vn
+
+March 20, 2023
+ABSTRACT
+
+Due to the signiﬁcant resemblance in visual appearance, pill misuse is prevalent and has become a critical issue, responsible for one-third of all deaths worldwide. Pill identiﬁcation, thus, is a crucial concern needed to be investigated thoroughly. Recently, several attempts have been made to exploit deep learning to tackle the pill identiﬁcation problem. However, most published works consider only single-pill identiﬁcation and fail to distinguish hard samples with identical appearances. Also, most existing pill image datasets only feature single pill images captured in carefully controlled environments under ideal lighting conditions and clean backgrounds. In this work, we are the ﬁrst to tackle the multi-pill detection problem in real-world settings, aiming at localizing and identifying pills captured by users in a pill intake. Moreover, we also introduce a multi-pill image dataset taken in unconstrained conditions. To handle hard samples, we propose a novel method for constructing heterogeneous a priori graphs incorporating three forms of inter-pill relationships, including co-occurrence likelihood, relative size, and visual semantic correlation. We then offer a framework for integrating a priori with pills’ visual features to enhance detection accuracy. Our experimental results have proved the robustness, reliability, and explainability of the proposed framework. Experimentally, it outperforms all detection benchmarks in terms of all evaluation metrics. Speciﬁcally, our proposed framework improves COCO mAP metrics by 9.4% over Faster R-CNN, and 12.0% compared to vanilla YOLOv5. Our study opens up new opportunities for protecting patients from medication errors using an AI-based pill identiﬁcation solution.
+Keywords. Pill Detection, Graph Neural Network, Explainable AI, Multi-modal Information Fusion.
+
+A PREPRINT - MARCH 20, 2023
+
+Enalapril-5mg Alpha-chymotrysin Cardiloping-5mg Mezafen-60mg
+
+(a) Pills with similar shapes, colors, and different sizes
+
+(b) Pills with similar shapes, sizes and colors
+
+Figure 1: Hard samples with high similarity in terms of shape, color and size (examples taken from our handcrafted dataset). The existence of hard examples has rendered the pill identiﬁcation problem complicated and challenging.
+1 Introduction
+
+Background. Oral pill is one of the most popular and commonly used methods in healthcare due to their efﬁcacy and simplicity. Pills usually exhibit various visual features in terms of shape, color, and imprinted text. Despite this, erroneously taking pills is exceptionally prevalent due to the signiﬁcant similarity in pill appearances. According to a WHO report [5], drug misuse rather than illness is responsible for one-third of all deaths. Moreover, according to Yaniv et al. [30], around six to eight thousand people are killed annually by prescription errors. Recently, the US National Centers for Biomedical Computing (NCBCs) stated that taking this country alone, each year, 7, 000 to 9, 000 people die due to a medication error. This circumstance necessitates the invention of solutions to protect users/patients from taking incorrect pills. This need is more stringent than ever, given the aging of the global population and the rising prevalence of chronic diseases requiring continuous medication.
+Image-based pill recognition. In the early stage, pill recognition was handled through a variety of online systems that allow users to identify pills by manually entering multiple attributes, such as shape, color, and imprinted text [4]. However, these methods are time-consuming and may not be reliable, as the predeﬁned features may not encompass all real-world cases. Recently, Artiﬁcial Intelligence (AI) has made tremendous achievements and has emerged as a powerful tool in resolving various problems. Although still in its infancy, AI has been used to recognize pills from images, helping prevent incorrect medication. An early effort to classify pills using a Deep Convolution Network (DCN) was introduced in [26]. In [24], the authors provided ePillID, a large pill image dataset comprising 13K images representing 8, 184 appearance classes. Additionally, they conducted experiments to evaluate various baseline models on the proposed dataset. Even with the best baseline, the experimental ﬁndings demonstrated that it fails to discriminate confusing classes. The problem of few-shot pill recognition was addressed in [13]. The authors also provided a new pill image data named CURE. Recently, there have been a few works considering the multi-pill detection problem [10]. The authors adopted the two-step deep neural networks consisting of an object localization and a classiﬁer.
+Problem statement. Despite several efforts that have been made, existing solutions for pill identiﬁcation reveal the following critical shortcomings.
+• Most existing works have been restricted to the classiﬁcation of single-pill images. This constraint limits the solutions’ application capacity, as in practice, users usually take multiple pills simultaneously, resulting in multi-pill images in most cases.
+• Most of the current pill image datasets (e.g., ePillID, CURE) are limited to single-pill images. Moreover, all of them were collected in tightly-controlled settings under ideal illumination and background conditions, leading to the lack of diversity.
+• No prior work has studied the explainability of the model. This insufﬁciency diminishes the trustworthiness of the solutions, hence restricting their practical applications.
+We are, to the best of our knowledge, the ﬁrst to tackle the multi-pill detection problem in real-world settings. Speciﬁcally, we focus on a practical application that recognizes pills in patients’ pill intake pictures. Our targeted problem can be formulated as follows. Given an image capturing multiple pills in patients’ pill intake, we aim to determine each pill’s location and identity. In addition to developing a novel pill detection framework with high reliability and explainable capacity, we build a dataset of multi-pill images captured under unconstrained real-world conditions.
+Our motivation and key ideas. One of the most signiﬁcant obstacles in the pill detection problem is the existence of numerous pills with similar shapes, colors, and sizes (Fig. 1). We call these hard samples whose occurrence renders the pill identiﬁcation problem complicated and challenging to solve by generic object detection. We argue that relying merely on pills’ appearance is insufﬁcient to improve pill detection accuracy, if not possible. We discovered that besides the challenge (e.g., localizing pills in hard cases such as overlapping pills), the multi-pill detection problem, on the other hand, provides us with an opportunity to improve the pill recognition accuracy. Motivated by the human tendency and ability to integrate different data sources while making decisions, our proposed solution seeks to utilize external
+
+2
+
+A PREPRINT - MARCH 20, 2023
+
+Visual Feature Extractor
+
+Regions of Interest
+Visual Features
+
+External Knowledge
+Graph Modeling
+
+1 2
+Co-occurrence Graph
+1 2
+Relative Size Graph
+
+Visual Semantic Graph
+
+1 2
+
+Results
+Bbox Regressor Classi er
+
+Enhanced Features
+
+Graph Embedding
+
+Context Features
+
+Figure 2: Overview of our proposed solution. We leverage external knowledge from prescriptions and training datasets to build the co-occurrence and relative size graph. The visual features of the pills are exploited to construct the visual semantic graph. Using the graph embedding module, the three graphs are transformed into the vector space, then fused with the visual features to provide enhanced feature vectors, which are then utilized to create the ﬁnal results.
+knowledge to improve detection accuracy. Speciﬁcally, we provide a priori graphs incorporating three kinds of pill relationships: co-occurrence, relative size, and visual semantic correlation. The ﬁrst a priori, or co-occurrence graph, demonstrates the frequency with which medications are prescribed for the same diseases; thus, it reﬂects the likelihood that pills appear in the same image. By utilizing this knowledge, we can enhance the accuracy in dealing with hard samples by leveraging the high accuracy in detecting easy samples in the same image. The second one, i.e., the relative size graph, gives us the relative size information of the pills, thus, improving our model’s capacity to distinguish pills of identical shape and color but differing only in size. Finally, the visual semantic graph learns pills’ latent semantic link embedded in pills’ visual appearance. The overview of our proposed model is illustrated in Fig.2.
+Our contributions. Our main contributions are as follows.
+• We introduce the ﬁrst real-world multi-pill image dataset consisting of 9, 426 images representing 96 pill classes. The images were taken with ordinary smartphones in various settings. The dataset will assist in the advancement of research in the ﬁeld.
+• We propose a novel pill detection framework named PGPNet (which stands for a Priori Graph-assisted Pill detection Network), which leverages three-fold graph-based a priori, including co-occurrence likelihood, relative pill size, and visual semantic correlation to tackle hard pill samples. In addition, we provide a method for constructing these heterogeneous a priori graphs from given prescriptions and the training pill image dataset. Furthermore, we offer a multi-modal fusion method for incorporating graph-based inter-pill relational information with intra-pill visual features to enhance the detection result.
+• We conduct thorough experiments to evaluate the efﬁcacy of the proposed solution and compare it to existing state-of-the-art (SOTA). The experimental ﬁndings demonstrated that our approach enhances the object detection accuracy by at least 9.4% for COCO mAP metric compared to generic SOTA in object detection.
+The remainder of the paper is divided into four sections. We brieﬂy summarize the literature on pill detection and pill image datasets in Section Related Works. In Section Methodology, we describe our methodology in detail. Section Dataset and Experiment Settings evaluates the performance of our proposed PGPNet and compares it with the other methods. Finally, we conclude the paper in Section Conclusion.
+
+Related Works
+Pill Classiﬁcation. Many studies have employed machine learning to tackle the pill recognition challenge [6, 27]. The authors in [27] ﬁrst utilized the Manifold ranking-based method to ﬁlter out the foreground mask from the input pill image and then used an AlexNet-based network for identifying the label. In [23], Ting et al. combined the Enhanced Feature Pyramid Networks and Global Convolution Networks to improve pill localization accuracy. Ling et al. [14] tackled the few-shot pill detection problem with a Multi-Stream (MS) deep learning model. In [20], the authors integrated three handcrafted features, namely shape, color, and imprinted text, to identify pills.
+
+3
+
+A PREPRINT - MARCH 20, 2023
+Recently, a few efforts have leveraged the two-stage object detection approach to solve the multi-pill detection challenge [10, 19]. In the ﬁrst stage, object localization techniques are applied to determine the pills’ bounding boxes. These bounding boxes are then fed into a classiﬁer in the second stage to identify the pills. Speciﬁcally, in [19], an enhanced feature pyramid network based on the ResNet-50 backbone has been built for pill localization. After that, the pill bounding boxes are fed into an Inception-ResNet v2 for classiﬁcation. Authors in [10] exploited the Mask-RCNN framework to solve the problem. Multi-pill detection solutions are still in their infancy. All current works only investigate images acquired in laboratories under optimal lighting and background conditions, with each pill arranged separately. In fact, existing techniques only use speciﬁc object localization models to crop the pills and then treat the issue as a typical single-pill classiﬁcation problem. Pill Image Datasets. One of the most widely used pill image datasets is NIH Pill Image Dataset [1] released by the U.S. National Library of Medicine (NLM). This dataset consists of 4,000 high-quality reference pills and 133,000 pictures captured by digital cameras on mobile phones. In [13], the authors provided the CURE pill dataset consisting of 8,973 single-pill images representing 196 classes. Although taken under various backgrounds and lighting conditions, all of these images are carefully captured from a top-down view and focus on the pills. Authors in [26] contributed a pill dataset capturing about 400 commonly used tablets and capsules. Ten to twenty-ﬁve pictures were taken for each pill, resulting in 5,284 images. Unfortunately, all of these datasets provide only single-pill images. Most images were captured under quite ideal conditions, e.g., pills were put on a clean background, and the images were taken from the top-down view with the camera focused on the pills.
+Methodology
+Figure 3: Workﬂow of PGPNet. First, the A Priori Graph Modeling Module leverages given prescriptions to create a non-directed Medical Co-occurrence Graph Gc and then leverages Gc in conjunction with bounding box annotation information from the pill image dataset to construct a Relative Size Graph Gs. Second, the pill images are passed through the Visual Feature Extractor to determine Regions of Interest and retrieve their visual representations. This information, together with the graphs serve as the input for the Inter-Pill Relational Feature Extractor to generate a heterogeneous relational graph expressing three types of relationships between pills, namely, co-occurrence, relative size, and visual semantic relation. Finally, the heterogeneous graph-based information and visual features are combined by Multi-modal Data Fusion module to form ﬁnal enhanced vectors, which will be used to determine the ﬁnal detection results.. In this section, we propose a novel pill detection framework named PGPNet (i.e., a Priori Graph-assisted Pill Detection Network).
+PGPNet Overview We focus on a practical application that recognizes pills in patient intake pictures. Our model receives a multiple-pill picture as input and generates both the bounding box and the identiﬁcation of each pill. Here, we incur a critical challenge: how to distinguish pills with identical appearances (i.e., shape, color, and size). We believe that relying
+4
+
+A PREPRINT - MARCH 20, 2023
+solely on the visual features of pills is insufﬁcient to address this issue. Moreover, employing the correlation between pills, rather than counting on each pill individually, may enhance recognition accuracy. In light of this, we propose introducing two types of a priori, the ﬁrst indicating the co-occurrence likelihood and the second modeling the relative size of pills. The a-priori is extracted from a given prescription and pill image training dataset and represented as heterogeneous graphs. In summary, the proposed model comprises four components: A priori graph modeling, visual feature extractor, inter-pill relational feature extractor, and multi-modal data fusion, as illustrated in Fig.3. The overall ﬂow is as follows.
+• Step 1 - A Priori Graph Modeling. We construct two generic graphs, namely Prescription-based Medical Co-occurrence Graph (or Co-graph for short) and Relative Size Graph (Size-graph for short) that represent the relationship between all the pills in terms of co- occurrence and relative size, respectively. Concerning the former, we leverage a given set of prescriptions from which we can model the interaction between pills (i.e., which pills are likely to be used to treat the same diseases). Based on this information, we developed the Co-graph, whose nodes represent the pill classes and whose edge weights reﬂect the co-occurrence likelihood between the two vertices. In the meantime, using the coordinates of the bounding boxes from our training dataset for the pill detection task, we determine the area of each box and model the relative size ratios of all the pill classes in the given images. This information is then aggregated to formulate the Size-graph. Section A Priori Graph Modeling covers the details of this algorithm.
+• Step 2 - Visual Feature Extraction. The original image containing multiple pills is passed through a Convolutional Network (ConvNet) for extracting visual features and a Region Proposal Network (RPN) for detecting potential Regions of Interest (RoI). The outputs of the two modules are fed into an RoI pooling layer to ﬁlter out all visual presentations of pills (i.e., RoIs). It is worth noting that the Visual Feature Extractor described here follows the architecture of the two-step object detection architecture (e.g., Faster RCNN [21]). However, PGPNet can also be implemented with one-step detection architecture.
+• Step 3 - Inter-pill Relational Feature Extraction. The two a priori graphs are aggregated with the pills’ visual features to yield condensed versions of the Co-graph and Size-graph that highlight the relationship between only those pills that are likely to appear in the image. Besides, the pills’ visual features are leveraged to construct a so-called Visual semantic graph that captures the pills’ relationships encapsulated under their appearances.
+• Step 4 - Multi-modal Data Fusion. Now, the inter-pill relational and intra-pill visual features are fused to obtain enhanced feature vectors, each of which encapsulates the characteristics of a pill standalone and its relationship with other pills. These enhanced feature vectors are used to offer the ﬁnal results.
+A Priori Graph Modeling
+In this section, we describe our method to construct the two generic graphs, namely the co-occurrence Graph (i.e., Co-graph) and relative size graph (i.e., Size-graph) in Sections Prescription-based Co-occurrence Graph Modeling and Relative Size Graph Modeling, relatively.
+Prescription-based Co-occurrence Graph Modeling
+We propose to leverage an external source, namely prescriptions, to build the co-occurrence graph. The rationale behind our idea is that as most pills are intended to cure or alleviate certain diseases or symptoms, there is a signiﬁcant likelihood that pills meant to treat the same diseases will appear concurrently. Thus, the implicit relationship between the pills can be modeled by assessing the direct interaction between medications and diseases derived through prescriptions. Our Co-graph, Gc = V, E, Wc , is a weighted graph whose vertices V represent pill classes, and whose edges’ weights Wc reﬂect the co-occurrence likelihood of the pills. As the association between pills do not explicitly present in the prescriptions, we model this relationship utilizing the interaction between medications and diseases using the following criteria.
+• There is an edge between two pill classes Ci and Cj if and only if they have been prescribed for at least one shared disease.
+• The greater the weight of an edge Eij connecting pill classes Ci and Cj, the more likely that these two medications will be prescribed simultaneously.
+We ﬁrst deﬁne a so-called Diagnose-Pill impact factor, which reﬂects how important a pill is to a diagnosis. Inspired by the Term Frequency (tf) — Inverse Dense Frequency (idf) often used in the Natural Language Processing domain,
+5
+
+A PREPRINT - MARCH 20, 2023
+
+we deﬁne the impact factor of a pill Pj to a diagnosis Di, denoted as I(Pj, Di), as follows
+
+I(Pj, Di)
+
+=
+
+tf(Dj, Pi)
+
+×
+
+idf(Pi)
+
+=
+
+|S(Dj, Pi)| |S(Dj )|
+
+×
+
+log
+
+|S| , |S(Pi)|
+
+where S represents the set of all prescriptions, S(Dj, Pi) depicts the collection of prescriptions containing both Dj and Pi, and S(Dj) illustrates the set of prescriptions containing Dj. Intuitively, tf(Dj, Pi) measures how often pill Pi is prescribed for diagnosis Dj, thus it reﬂects the signiﬁcance of Pi regarding treating Dj. However, in practice, some pills are more popular among prescriptions (e.g., Sustenance, Dorogyne, Betaserc, etc.), which may cause negative bias
+when applying only the tf term. That effect can be mitigated by the term idf(Pi).
+
+Once ﬁnished formulating the impact factors of the pills and diagnoses, we transform each term I(Pj, Di) into a probabilistic view by a simple normalization over all diagnoses as follows
+
+p(Pj, Di) =
+
+I(Pj, Di) , D∈D I(Pj , D)
+
+where D denotes the set of all diagnoses. Given p(Pj, Di), we deﬁne the weight Wc(Pi, Pj) of the edge Eij connecting vertices Pi and Pj as the probability p(Pi, Pj) that Pi and Pj are prescribed for the same diseases. Wc(Pi, Pj) can be formulated as follows.
+
+Wc(Pi, Pj ) := p(Pi, Pj ) ≈ p(Pi, D) × p(Pj , D).
+
+(1)
+
+D∈D
+
+Relative Size Graph Modeling
+
+The
+
+Size-graph
+
+is represented −→
+
+by
+
+a
+
+directed
+
+graph
+
+Gs
+
+=
+
+V, E, Ws . The edge weight Ws is modeled so that the
+
+weight of an edge Eij connecting from Pi to Pj is proportional to the size ratio of Pi to Pj. The primary source for
+
+constructing the Size-graph is the annotations of the training dataset’s bounding boxes. As the camera locations for
+
+multiple pictures are different, the exact size of each bounding box cannot be utilized directly. Therefore, we instead
+
+deﬁne a so-called size indicator, a normalized representation of pill size, which is determined as follows.
+
+• Step 1: We begin with an arbitrary pill class by initializing its size indicator to 1, while those of other pill classes are initialized to 0.
+
+• Step 2: From the current node Pi, we traverse through all its 1-hop neighbors Pj, and calculate Pj’s size
+
+indicator
+
+sj
+
+as
+
+sj
+
+:=
+
+si
+
+×
+
+|Bj |Bi
+
+| |
+
+,
+
+where
+
+Bi,
+
+Bj
+
+are
+
+the
+
+two
+
+bounding
+
+boxes
+
+of
+
+Pi
+
+and
+
+Pj
+
+in
+
+a
+
+particular
+
+image
+
+in the training set. Step 2 is repeated until all the vertices of Gs are traversed.
+
+−→ Given the size indicators of all vertices, we now deﬁne the weight of edge Eij as the ratio of si to sj.
+
+Visual Feature Extractor
+This block is responsible for localizing and extracting the features of Regions of Interest (RoIs). For this purpose, we adopt components from Faster RCNN [21], a conventional two-step object detector architecture. Nevertheless, our proposed framework is compatible with any alternative object detection architecture. The Visual Feature Extractor consists of three components: a Convolutional Network, a Region Proposal Network, and an RoI Pooling Layer, as depicted in Fig. 3. RPN is a fully convolutional network that takes the visual feature vector from the previous module and generates proposals with various scales and aspect ratios. The RoI Pooling layer works simply by splitting each region proposal into a grid of cells and then applying the max pooling operation to each cell in the grid. The combination of the grids’ values forms the visual feature vectors of the RoIs.
+
+Inter-Pill Relational Feature Extractor
+To enhance the efﬁcacy of this a priori, we observed that rather than the whole graphs representing the interaction between all pills, we should utilize sub-graphs concentrating on the ones most likely to appear in the image. Motivated by this observation, we employ the Inter-Pill Relational Feature Extractor, responsible for extracting condensed subgraphs from generic Co-graph and Size-graph. Moreover, previous studies have pointed out that the appearances of pills convey implications about their efﬁcacy or ingredients [7]. In light of this, utilizing pills’ visual feature vectors, we develop a visual-based graph that models the implicit relationship between medications indicated by their visual appearance.
+Condensed Co-graph and Size-graph. Our main idea is to employ a so-called Pseudo Classiﬁer, which provides approximate classiﬁcation results using solely visual features of RoIs. These temporary identiﬁcation results are then
+
+6
+
+A PREPRINT - MARCH 20, 2023
+
+Figure 4: Node attribute modeling. ωi = [ω1i, . . . , ωHi]T is the classiﬁer weights corresponding to the i-th pill class, capturing
+
+the representative features of this class.
+
+H i=1
+
+pku
+
+×
+
+ωi
+
+is
+
+the
+
+attribute
+
+of
+
+the
+
+i-th
+
+RoI.
+
+utilized as a ﬁlter layer to eliminate redundant information from the original Co-graph and Size-graph, leaving only
+information about pill classes probable to appear in the input image. In current implementation, the pseudo classiﬁer is
+straightforwardly implemented as a fully connected layer. Let N be the number of pill classes and M be the number of
+pill bounding boxes (i.e., RoIs) in the input image. Suppose P = [pij]M×N is the matrix whose row vectors represent the logits produced by the pseudo classiﬁer, and Ac = [ackl]N×N , As = [askl]N×N denote the weighted adjacency matrices of the Co-graph Gc and Size-graph Gs, respectively. The condensed adjacency matrices, denoted as A˜c and A˜s are matrices of size M × M , each row depicts the condensed relational information of a pill, i.e., a speciﬁc RoI, with others in the input image. A˜c and A˜s are obtained by performing a composition of matrix multiplications as follows.
+
+A˜c = σ(P ) · Ac · σ(P )T
+
+(2)
+
+A˜s = σ(P ) · As · σ(P )T ,
+
+(3)
+
+where σ denotes the Softmax activation function. Intuitively, the item in the i-th row and j-th column of A˜c and A˜s highlights the relationship of the i- and j-th RoIs.
+
+Visual Semantic Graph. As mentioned above, the visual semantic graph G˜v = V˜ , E˜v, W˜ v is in charge of capturing
+the visually semantic correlation among pills in the input image. The detailed algorithm to construct this graph is as follows. All visual feature vectors are ﬁrst passed through a non-linear function F: Rh → Rh to transform from the original h-dimensional space into a h -dimensional latent one, where their relationship can be best presented. The latent output vectors are then directly used for calculating the correlations between RoIs. Let Ri, Rj are two RoIs in the input image, and zi, zj are their feature vectors created by the Visual Feature Extractor block, the weight of the edge connecting Ri and Rj is deﬁned as W˜v(Ri, Rj) = zi · zj.
+
+Multi-modal Data Fusion
+After going through the second and third blocks, we get the visual features of the RoIs and three relational graphs representing the relationships between the RoIs. This information is now fed into the Multi-modal Data Fusion to generate the ﬁnal feature vectors, each of which encapsulates both the intra-Pill visual characteristic of an RoI and the inter-Pill interaction of that RoI with the others. The Multi-modal Data Fusion comprises two steps: graph embedding and data concatenation. The former obtains the heterogeneous relational graph G and transforms it into context features in the vector space, while the latter concatenates the context feature vectors with visual features to generate the ﬁnal enhanced features. We utilize the Graph Transformer Network (GTN) [32] for the graph embedding. The reason for choosing the GTN is due to its ability to handle heterogeneous input and adaptive graph structures. Before going into the detail of the GTN, it is crucial to deﬁne the node attribute of graph G˜. As each node of G˜ represents an RoI, the node attribute should be the most representative characteristic of the ROIs. Using the retrieved RoI visual features to depict the relevant ROIs is the most natural solution but is not advantageous due to several factors, including the unreliability in dealing with ambiguous samples or the intra − variance in visual features of one class [29]. To this
+
+7
+
+A PREPRINT - MARCH 20, 2023
+
+Figure 5: Graph Transformer Network (GTN) architecture [32]. GTN softly selects adjacency matrices (edge types) from the set of adjacency matrices A of a heterogeneous graph G˜ and learns new meta-path graphs represented by A˜ via the matrix
+multiplication of two selected adjacency tensors Q1 and Q2. The soft adjacency matrix selection is the weighted sum of candidate adjacency matrices obtained by C channels of 1 × 1 convolution with non-negative weights with softmax activation.
+
+end, classiﬁer weights has been introduced as a simple yet effective alternative. According to [8], the classiﬁer weights
+
+connected to the i-th neuron in the last layer (which is denoted as ωi = [ω1i, ..., ωHi]T in Fig.4) corresponds to the i-th
+
+pill class, encapsulating the representative characteristics of this class. Let pk = [pk1, ..., pkN ] be the logit vector of the
+
+k-th RoI, where pki depicts the likelihood for the k-th RoI to be classiﬁed into the i-th class, we deﬁne
+
+H i=1
+
+pku
+
+×
+
+ωi
+
+the attribute of the k-th RoI. Intuitively, this attribute can be considered as a decomposition of the RoI’s characteristic in
+
+the space of the classes’ features.
+
+Figure 5 depicts the GTN’s architecture, which consists of two phases. The former can be seen as a meta-path generator
+
+that fuses information from multiple input adjacency matrices to generate a composite graph structure. This newly
+
+generated graph serves as the second stage’s input, which comprises a Graph Convolutional Network (GCN) and is
+
+responsible for producing a representation for each node. Speciﬁcally, the GTN consists of l Graph Transformer (GT)
+
+layer; the l-th layer applies the C-channel 1D convolution operation on the input graph G˜ to obtain a stack of new graph
+
+structure
+
+(l)
+Q1
+
+∈
+
+RM ×M ×C
+
+as
+
+follows.
+
+(l)
+Q1
+
+=
+
+F
+
+(G˜;
+
+Wφ(l) )
+
+=
+
+φ(G˜;
+
+σ(Wφ(l))),
+
+(4)
+
+where φ indicates the convolution layer, Wφ(l) ∈ RC×1×1×K represents the parameter of φ, and K implies the number
+
+of
+
+relations
+
+contained
+
+in
+
+the
+
+original
+
+graph
+
+G˜.
+
+The
+
+stacked
+
+graph
+
+(l)
+Q1
+
+serve
+
+as
+
+the
+
+ﬁrst
+
+component
+
+in
+
+creating
+
+length
+
+l
+
+meta-paths,
+
+while
+
+(l)
+Q2
+
+is
+
+taken
+
+as
+
+G˜(l−1),
+
+i.e.,
+
+G˜(l)
+
+=
+
+(l)
+Q2
+
+Q(2l). To balance computational overheads and model
+
+performances, with PGPNet, we ﬁx l = 2.
+
+The resulting graph G˜(2), together with RoIs’ representative features XRoI , are then utilized as the input for the Graph Convolution Network (GCN) to generate the ﬁnal node presentations. These vectors are directly concatenated with their corresponding RoIs’ visual features before getting fed into the Bounding Box Regressor and Classiﬁer to produce the ﬁnal detection results.
+
+PGPNet’s Losses This section presents the details about our model’s objectives and the corresponding losses to achieve those goals. Two-step Object Detectors’ Losses
+
+The Region Proposal Network’s Losses. The loss for Region Proposal Network consists of two components: classiﬁcation loss combined and bounding box regression loss. Let pi, p∗i be the predicted probability of an anchor i being an object and the ground truth label whether anchor i is the object, respectively; ti and t∗i depict the differences of four predicted coordinates, and the ground truth coordinates with the coordinates of the anchor boxes, respectively. The
+8
+
+A PREPRINT - MARCH 20, 2023
+
+classiﬁcation loss Lcls and bounding box regression loss Lbox are deﬁned as follows.
+
+1 LRP N ({pi} , {ti}) = Ncls
+
+Lcls (pi, p∗i )
+i
+
+λ +
+Nbox
+
+i
+
+p∗i · Ls1mooth (ti − t∗i ) ,
+
+(5)
+
+where
+
+Ls1mooth (x) =
+
+0.5x2 |x| − 0.5
+
+if |x| < 1 . otherwise
+
+(6)
+
+Here the Lcls is a binary classiﬁcation log loss, Ncls and Nbox are two normalization terms, where Ncls is set to the mini-batch size, while Nbox is the number of anchor boxes. λ is a hyper-parameter, which is responsible for balancing between Lcls and Lbox.
+
+Output’s Losses. The PGPNet’s ﬁnal results consist of the coordinates of the RoIs’ bounding boxes and predicted
+
+labels for the RoIs. We employ two distinct losses to accomplish this objective. While the loss for a bounding box
+
+regressor is equal to that of the RPN network, the classiﬁcation loss Loclust is instead the cross entropy loss for the
+
+multilabel classiﬁcation task, which is represented as follows Loclust = −
+
+N i=0
+
+p∗i
+
+log(pi
+
+).
+
+Triplet Co-occurrence Enhancement Loss.
+
+In this section, we propose an auxiliary loss named Triplet Co-occurrence Enhancement Loss which leverages the co-occurrence graph to boost the accuracy of the Pseudo Classiﬁer. The idea behind the auxiliary loss is that it encourages the co-occurrence likelihood of pills that are close together on the co-occurrence graph. To this end, we construct our auxiliary loss as a contrastive loss that maximizes the co-occurrence probability of positive pairings (i.e., pills joined by edges with the most signiﬁcant weights in the co-occurrence graphs) while minimizing the co-occurrence probability of negative pairs (i.e., pills that are not connected or connected by edges with smallest weights). In action, for each training mini-batch, PGPNet would treat all the ground truth pills in given images as the set of anchors and build up their corresponding positive as well as negative sets. After that, Triplet Co-occurrence Enhancement Loss would do its job for enhancing the robustness of Pseudo Classiﬁer. The detail of the auxiliary loss is as follows.
+
+Let’s denote the i-th Region of Interest as Ri with its corresponding label of li. Moreover, let Npios and Nni eg be the positive and negative samples of Ri, where Npios comprises of k + 1 nearest neighbors and Nni eg consists of k + 1 furthest neighbors of Ri. We suppose that the groundtruth labels of Npios and Nni eg are Lpos = {lp0os, lp1os, . . . , lpkos}, and Lneg = {ln0eg, ln1eg, . . . , lnkeg}, respectively. The auxiliary loss concerning the i-th RoI is deﬁned by
+
+Liaux = pi(li)p(Npios) − (1 − pi(li))p(Nni eg)
+
+k
+
+M
+
+= pi(li) [1 − (1 − pm(lpjos))]
+
+j=0
+
+m=0
+
+(7)
+
+k
+
+M
+
+− (1 − pi(li)) [1 − (1 − pn(lnq eg))],
+
+q=0
+
+n=0
+
+and those for RoI is Laux =
+
+M i=0
+
+Liaux.
+
+In
+
+Formulas
+
+(7)
+
+M
+
+is
+
+the
+
+total
+
+number
+
+of
+
+RoIs
+
+in
+
+the
+
+image,
+
+p
+
+is
+
+the
+
+output
+
+after going through softmax activation of logits produced by Pseudo Classiﬁer. The objective during the training
+
+process is to maximize Laux, which in turn maximizes each positive term pi(li)p(Npios) while minimizing the negative
+
+opposition (1 − pi(li))p(Nni eg).
+
+Dataset and Experiment Settings
+
+We conduct extensive experiments to validate the effectiveness of the proposed approach. In the following, we ﬁrst introduce our in-house pill identiﬁcation dataset, called VAIPE, which will be used to evaluate the proposed approach, and then explain our evaluation metrics and experimental settings. To assess the effectiveness of the proposed method, we conducted comparative assessments against a number of established models, including the detection backbones we selected, such as Faster R-CNN [21] and YOLOv5 [9], as well as other related frameworks such as SGRN [28] and the Mask RCNN-based approach described in [10]. We also perform ablation studies to investigate the efﬁciency of key components in our framework.
+
+9
+
+A PREPRINT - MARCH 20, 2023
+
+NIH CURE VAIPE
+
+Number of pill images Number of pill categories Number of capture devices Instance per category Illumination conditions Backgrounds Number of prescriptions
+
+7,000 1,000 1 7 1 1 0
+
+8,973 196 1 40-50 3 6 0
+
+9,426 96 > 20 > 30 > 50 > 50 1,527
+
+Training dataset Prescriptions Images 1,527 (100%) 7,514 (78%)
+
+Testing dataset
+
+Prescriptions Images
+
+0 (0%)
+
+1,912 (22%)
+
+Table 1: An overview of existing public datasets for the task of image-based pill detection. To the best of our knowledge, the introduced VAIPE dataset Table 2: Details of training and is currently the largest dataset for pill identiﬁcation, which was collected in testing datasets. real-world settings and came up with prescriptions.
+
+Dataset and Pre-processing
+Motivation. To the best of our knowledge, previous studies on the pill identiﬁcation problem [22], [33], [14], [15] only focus on datasets collected in constrained environments. For instance, existing datasets such as NIH Dataset [1] are constructed under ideal conditions in lighting, backgrounds, and equipment or devices. The CURE dataset [14] provides only one pill per image. Hence, these datasets do not reﬂect the real-world scenarios in which patients take an arbitrary number of drugs, and their environmental conditions (e.g., backgrounds, lighting conditions, mobile devices, etc.) are greatly varied. Additionally, many pills have nearly identical visual appearances. The fact that they appear alone in the images of these datasets will inevitably confuse the detection frameworks. Consequently, none of the existing datasets can be directly applied to the real-world pill detection problem or can only be applied with low reliability. There is no publicly available dataset of these pills images in which the pills follow intakes of actual patients. This limits the development of machine learning algorithms for the detection of pills from images as well as for building real-world medicine inspection applications. To address this challenge, we build and introduce a new, large-scale open dataset of pill images, which we called VAIPE.
+Data Descriptor. The VAIPE is a large-scale and open pill image dataset for visual-based medicine inspection. The dataset contains approximately 10,000 pill images that were manually collected in unconstrained environments. In this study, no hypotheses or new interventional procedures were generated. Also, no investigational products or clinical trials were used for patients. In addition, there were no changes in treatment plans for any patients involved. Pill images were retrospectives collected, and all identiﬁable information of patients was de-identiﬁed. Therefore, there was no requirement for ethics approval [18].
+Pill images are collected in many different contexts (e.g., various backgrounds, lighting conditions, in-hand or outof-hand, etc.) using smartphones. These images are then manually labeled using the information from the relevant prescriptions. In summary, the number of pills per image is about 5 − 10, and the total number of pill images collected was 9, 426 pill images with 96 independent pill labels. To train the proposed deep learning system, the pill images from the VAIPE dataset are resized so that the shortest edges have a size of 800, with a limit of 1, 333 on the longer edge. The ratios are kept the same as the original images if the max size is reached, then downscale so that the longer edge does not exceed 1, 333.
+Data Validation. Patient privacy was controlled and protected. In particular, all images were manually reviewed to ensure that all individually identiﬁable health information of the patients has been removed to meet the General Data Protection Regulation (GDPR) [3]. Annotations of pill images were also carefully examined. Speciﬁcally, all images were manually reviewed case-by-case by a team of 20 human readers to improve the quality of the annotations.
+Comparison with Existing Datasets. Table 7 provides a summary of the aforementioned datasets (including NIH, CURE, and VAIPE) together with other ones of moderate sizes, meta-data, and other properties. Compared to the two previous datasets, the VAIPE dataset is constructed under a much more ﬂexible procedure that reﬂects the characteristic real-world data distributions. Hence, the introduced dataset can serve as a reliable data source for training generic pill detectors.
+10
+
+A PREPRINT - MARCH 20, 2023
+
+Average Precision (AP)
+Accuracy Accuracy Accuracy
+
+100 90 80 70 60 50 40 30 20 10 0
+
+Faster_R.CNN_C4 Faster_R.CNN_FPN Faster_R.CNN_Swin PGPNet_C4
+Framework
+
+PGPNet_FPN
+
+PGPNet_Swin
+
+Figure 6: Comparison of the PGPNet performance with the Faster R-CNN baseline over each individual class.
+
+1.0 PGPNet
+0.8 Faster R-CNN
+
+0.6
+
+0.4
+
+0.2
+
+0.00.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+Confidence
+
+(a) Faster R-CNN
+
+1.0
+
+PGPNet
+
+YOLOv5
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+0.0 0.0 0.2 0.4 0.6 0.8 1.0
+Confidence
+
+(b) YOLOv5
+
+1.0 PGPNet SGRN
+0.8 0.6 0.4 0.2 0.0
+0.0 0.2 0.4 0.6 0.8 1.0
+Confidence
+(c) SGRN
+
+Figure 7: Reliability investigation for PGPNet and different baseline performances.
+
+Evaluation Metrics
+
+We evaluate the proposed method and other related works by the COCO APs metrics [2]. This set of metrics is widely
+
+accepted and used for evaluating state-of-the-art object detectors. Mean Average Precision (mAP), as its name suggests,
+
+is the mean of Average Precision (AP) overall C classes and all the targeted IoU thresholds in the threshold set T
+
+calculated
+
+by
+
+mAP
+
+=
+
+1 C|T |
+
+C i
+
+t∈T APi,t, where Average Precision (APi,t) is the area under the Precision-Recall
+
+curve, calculated for the class i at a given IoU threshold t.
+
+Comparison with state-of-the-art methods
+Comparison Benchmarks. To show the effectiveness of the proposed method, we conducted a comparison with the state-of-the-art object detectors, including our detection backbones: Faster R-CNN [21], YOLOv5 [9], and related works: SGRN [28], Mask RCNN-based approach [10]. Throughout the literature, the baseline with which PGPNet presently integrates is Faster R-CNN [21]; hence, the original framework is utilized for our comparison. We adopt two different CNNs and one Transformer-based module for visual feature extractor, namely ResNet-50-C4, ResNet-50-FPN and Swin Transformer V2 - SwinV2 [16](Fig. 3). Speciﬁcally, for two ConvNets, we use a single feature map produced by convolution block C4 of the ResNet-50 model in ResNet-50-C4. In ResNet-50-FPN, we replace C4’s feature map with multi-scale feature maps produced by Feature Pyramid Network (FPN) [12]. As for the Swin Transformer module, we are currently utilizing the SwinV2-T conﬁguration [16] to ensure that the number of model parameters is comparable to that of ResNet-50. In addition, we also make adaption for PGPNet with YOLOv5 [9] detection backbone. Two conﬁgurations of YOLOv5s and YOLOv5n are currently adopted. Also, the most relevant frameworks compared with our PGPNet are also put into comparison: a representative approach that utilizes an external knowledge graph for Object Detection task [28]; a Mask RCNN-based baseline that also proposed to solve the same task of multi-pill detection [10]. For a fair comparison, a ﬁxed set of hyper-parameters is used for PGPNet throughout all experiments.
+
+Implementation Details
+We conduct all the experiments using the Pytorch (version 1.10.1) on an Intel Xeon Silver 4210 2.20GHz system with 2 × NVIDIA GeForce RTX 3090 GPUs. We train and test all targeted models on the training and testing sub-datasets provided in Table 8. Speciﬁcally, we initialize all the networks with the weights achieved by pre-training them on COCO 2017 dataset [11]. We then train the models in 20, 000 iterations with a batch size of 16. AdamW [17] optimizer is used with the initial learning rate of 0.001. We also augment the training data by using simple techniques such as random horizontal and vertical ﬂips to prevent overﬁtting. For our PGPNet implementation, we set the dimensions of node embeddings at 64. We also design the Graph Transformer Module with only one layer and 10 channel set.
+
+Experimental Results
+This section reports our experimental results. We evaluate the effectiveness of PGPNet in three aspects: robustness, reliability, and explainability. The details are described below.
+Robustness and Reliability of PGPNet
+Comparison with Faster R-CNN and YOLOv5
+Detection Performance. Table ?? shows the experimental results of PGPNet and the state-of-the-art object detectors framework (Vanilla), e.g., Faster R-CNN (two-step detector), and YOLOv5 [9] (one-step detector) on the VAIPE dataset. As shown, PGPNet obtained better results than Faster R-CNN by large performance gaps for all evaluation metrics. Speciﬁcally, when using the ResNet-50-C4 model as the visual feature extractor model, the average precision
+
+11
+
+A PREPRINT - MARCH 20, 2023
+
+Method
+
+mAP AP50 AP75 APs APm APl
+
+Faster R-CNN Vanilla
+
+62.6
+
+87.0 74.4 75.0 58.3 62.9
+
+(ResNet-50-C4) PGPNet 68.3 (+9.2%) 92.5 81.7 80.0 64.3 68.7
+
+Faster R-CNN (ResNet-50-FPN)
+
+Vanilla PGPNet
+
+63.7 69.7 (+9.4%)
+
+86.6 94.4
+
+76.9 71.2 58.1 64.6 83.4 90.0 66.4 70.1
+
+Two-step
+
+Faster R-CNN Vanilla
+
+59.7
+
+84.5 72.3 66.9 54.0 60.1
+
+(SwinV2-T)
+
+PGPNet 62.6 (+4.8%) 87.2 75.5 68.6 56.6 62.9
+
+One-step
+
+YOLOv5n
+
+Vanilla
+
+37.9
+
+50.8 45.4 87.5 49.1 38.3
+
+PGPNet 43.0 (+12.0%) 58.4 51.3 82.5 52.4 43.7
+
+YOLOv5s
+
+Vanilla
+
+57.5
+
+75.8 68.3 85.0 58.3 57.0
+
+PGPNet 63.4 (+10.2%) 85.9 76.4 89.9 58.3 64.1
+
+Table 3: Comparison of detection performance of PGPNET with state-of-the-art object detectors (Vanilla) on VAIPE dataset. Best results are highlighted in bold text.
+
+mAP of Faster R-CNN was 62.6, while that of PGPNet was 68.3. The proposed method improves the performance over the baseline Faster R-CNN by 9.2%. Under strict metrics, e.g., AP75, PGPNet also outperforms Faster R-CNN 8 − 9%. In addition, we observed similar behavior when using the ResNet-50-FPN model. The proposed PGPNet makes an improvement of 9.4% for the mAP metrics. With a Transformer-based backbone, here a Swin Transformer V2 conﬁguration - SwinV2-T [16], the results are slightly worse compared to those produced by ResNet-based counterparts, for both the vanilla or PGPNet alternatives. However, PGPNet still show its superior when being install with this backbone, as the empirical result for AP metrics is improved by 4.8% compared to the vanilla SwinV2-T Faster R-CNN model.
+For YOLOv5, PGPNet outperformed Vanilla by a signiﬁcant margin across all performance metrics in both YOLO instances. Speciﬁcally, the average precision AP of the vanilla model with YOLOv5n was 37.9 while that of PGPNet was 43.0 (12% improvement). In the case of a larger alternative, YOLOv5s, a similar conclusion can be drawn, namely that PGPNet improves overall mAP metrics by 5.9, e.g., 10.2%.
+Figure 17 visualizes the AP for all classes in the dataset when using Faster R-CNN as the backbone. The ﬁrst three bins denote Faster R-CNN alternatives, and the later three are the corresponding PGPNet conﬁgurations. The dots in the ﬁgure represent AP values for classes; the vertical line is the indicator for the mean value, while the rectangle bar is the 95% High-Density Interval (HDI) band. Apart from the fact that the mean AP over all classes of PGPNet variances is better than those produced by Faster R-CNN, we found that PGPNet also has more reliable and stable results over all classes. Speciﬁcally, PGPNet helps to improve the AP of classes that Faster R-CNN frequently confuses (the points with low APs in the blue and pink beans). As a result, the three beans of Faster R-CNN exhibit a large variance, i.e., the AP ranged from 0 to around 90. In contrast, the beans of PGPNet performance are more condensed and have shorter tail, i.e., the AP ranged from 40 (or 50) to around 90.
+Pill Classiﬁcation Accuracy. To further investigate the robustness of the proposed PGPNet, we adopt the visualization techniques presented in [25] to understand the prediction accuracy ( of the pill classiﬁcation task) better. In this technique, all models’ predictions are categorized by their conﬁdence scores into different bins, in which the average accuracy can be calculated. By observing the conﬁdence-accuracy correlation, we can tell whether the models are under or over-conﬁdence with their predictions [25]. Figure 18a visualize those reliability plots of Faster R-CNN and PGPNet. It implies that both models have a propensity toward over-conﬁdence, as the average accuracy of each conﬁdence band is lower than the mean conﬁdence score of that bin. However, that tendency is greatly alleviated in the circumstance of PGPNet, which means that the bins’ heights are much closer to the perfect Conﬁdence-Accuracy balance line (the red dashed diagonal line). Figure 18b compares PGPNet’s conﬁdence-accuracy correlation and that of YOLOv5. With this backbone, we observed that the proposed PGPNet can produce predictions with a high level of reliability. All the heights of bins are much closer to values suggested by the perfectly-balanced line compared to Vanilla’s result.
+
+Comparison with Existing Relavant Frameworks
+Our work is the ﬁrst to leverage an external graph in dealing with the Pill Detection challenge; thus, none of the preceding works are genuinely tight-correlated. Indeed, earlier researches only shared some common ground to our approach: (1) About methodology or (2) about research problem.
+
+12
+
+A PREPRINT - MARCH 20, 2023
+
+Model
+
+mAP AP50 AP75 APs APm APl
+
+Faster RCNN 63.7 86.6 76.9 71.2 58.1 64.6
+
+SGRN
+
+65.9 88.8 79.6 76.3 61.6 66.3
+
+Kwon’s Pipeline 36.2 38.5 37.2 30.3 33.1 36.0
+
+PGPNet
+
+69.7 94.4 83.4 90.0 66.4 70.1
+
+Table 4: Performance comparison of PGPNet with SGRN and Kwon’s Pipeline.
+
+For the ﬁrst group, there are works that utilized external information to solve the Object Detection problem. We adopt one of the most current studies with this direction - [28] to solve our targeted problem and serve as a baseline for PGPNet. Spatial-aware Graph Relation Network (SGRN) [28] is a framework that adaptively discovers and incorporates key semantic and spatial relationships for reasoning over each RoI.
+With respect to research problem, as stated earlier, while there are many works which target single-pill detection problem [13, 24, 26], only a few directly solve the task of detecting multiple pills per image [10, 19]. We attempt to adopt the most recent technique proposed in [10] as another baseline to compare with PGPNet. In the original work, the authors purpose is somewhat different from us, since they attempt to develop a framework which is solely trained on single-pill images, since they argued that the multi-pill dataset would scale up exponentially if the number of pills inscrease. This argument is not held in our intuition, and we believe, in reality, since the pills taken together have to be prescribed by pharmacists. We keep the pipeline as the original work, with some adoption for working with our VAIPE dataset: (1) Change Mask R-CNN to Faster R-CNN; (2) The training single-pill dataset is cropped from our VAIPE dataset with bounding box annonations; (3) The automate data labeling process are skipped. Since the original work did not name the proposed pipeline, we called it as Kwon’s Pipeline for short.
+Detection Performance. Table 9 summarizes the comparison of PGPNet, SGRN and Kwon’s Pipeline when adopting the visual feature extractor architecture from Faster R-CNN with the Resnet-50-FPN model. Clearly, SGRN outperforms the baseline Faster R-CNN in terms of overall performance but could not outperforms our proposed method PGPNet. Speciﬁcally, the mAP metrics achieved by SGRN is 65.9, and PGPNet achieves the better score with a gap of nearly 4. Upon other metrics, AP50, AP75, APs, APm, and APl, PGPNet shows its superior by enhancing the performance from 5.1% (e.g., in AP75 metrics) up to 17.1% (e.g., in APs metrics). This is an expected result because SGRN reveals a major weakness when applying to the challenge of Pill Detection. The spatial relationships between pills in an image are arbitrary and frequently changed. Such noisy and unreliable information leads to the performance of SGRN being unstable and sometimes produce not good enough results. In the case of Kwon’s Pipeline, the situation is even worse, since it cannot even beat the vanilla one-step Faster RCNN trained with mutple-pill VAIPE training set. The result of this pipeline is 43.1% and 48.2% worse than vanilla Faster R-CNN and PGPNet respectively. One reason for this deﬁciency is owing to the quality of its training data. There are many circumstances in which overlap or occlusion occurs, which make the cropped images also contain parts of other pills.
+Pill Classiﬁcation Accuracy. Figure 18c shows the correlation between the conﬁdence and accuracy of PGPNet in the comparison with those of SGRN. Both the frameworks are based on the Faster R-CNN backbone and achieve similar results e.g., an over-conﬁdence trend in every bin. All the predictions with conﬁdence scores smaller than 0.2 are totally unreliable (with 0 accuracy). In addition, PGPNet also shows its superior over SGRN in some bins, in which the over-conﬁdence situation is reduced effectively. We do not plot the Conﬁdence-Accuracy of Kwon’s Pipeline owing to space constraint and the obvious performance gap compared to our PGPNet.
+Ability in Dealing with Hard Samples
+In the following, we investigate the ability of PGPNet in dealing with the occlusion phenomenon caused by overlapping pills, which is one of the most critical issues in dealing with multi-pill detection. To this end, we create a so-call custom occlusion sub-dataset of VAIPE, which contains images with heavy occlusion phenomena, i.e., having at least two RoIs with the IoU beyond 30% (Fig.19). We also create a custom custom non-occlusion sub-dataset which contains samples that are in the same classes that appear in the custom occlusion sub-dataset but with no occlusion. The quantitative result is summarized in Table 10. The (-) mark in the table suggests the disregarded or unavailable metrics. As the numbers suggest, even in cases where heavy occlusion occurs, PGPNet still shows its superior over Faster R-CNN. Speciﬁcally, the mAP over all classes in the custom occlusion sub-dataset suggests a gap of 8.3% between the two approaches. Interestingly, with the aid of classiﬁer weight as the distinguishing characteristic for each class, PGPNet, even when dealing with occlusion cases still enhances the performance of 1.9% compared to Faster R-CNN handling the non-occlusion case (e,g, 67.5 vs. 65.6, respectively). Figure 20 provides more information about the AP for each
+13
+
+A PREPRINT - MARCH 20, 2023
+
+Figure 8: Images with occlusion phenomena in custom occlusion dataset. The rectangles depict examples of tablets with overlapping boundary boxes.
+
+Test dataset
+
+Custom Occlusion
+
+NonOcclusion
+
+Method
+
+Faster R-CNN
+
+PGPNet
+
+Faster R-CNN
+
+PGPNet
+
+mAP 59.2 67.5 65.6 71.7
+
+AP50 76.5 81.1 87.4 92.9
+
+AP75 68.9 76.4 80.8 87.0
+
+APs
+
+-
+
+-
+
+80.0 90.0
+
+APm 61.6 68.3 56.5 64.7
+
+APl
+
+60.7 70.1 65.1 70.6
+
+Table 5: Impact of heavy occlusion images on testing performance of PGPNet and Faster R-CNN.
+
+100
+
+Average Precision (AP)
+
+90
+
+80
+
+70
+
+60
+
+Hexinvon-8mHgexinvoLno-8ramtagdine-L1o0rmatgadine-M10emdrgol-16Mmegdrol-16mg
+
+50
+
+40
+
+30
+
+20
+
+HexinvonH-e8Hxmeinxgivvoonn--88HmLmegLoxgLroiaonrrtavaattodaadnidLnin-ieo8ne--rme11a-0t0g1mLam0gdomirgEnagnetaa-Ldl1aiop0nMrrmiela--e5Atg1amd0ldrgpmoiAhnllgp-aeMh1--aC61e-Cm0hdhmrygyAommgllo-po1trhty6rapym-sMCpingseheMiyndemerdorooltl-r-11y66pmmsginge
+
+10
+
+0
+
+Figure 10: Some sam-
+
+Faster R-CNN
+
+PGPNet
+
+Framework
+
+ple pills with very identi- LoratadinLeo-r1a0tamdgine-L1o0rmAatglapdhian-eC-A1h0lypmmhgao-tCryhpysmAinoleptrhyap-sCinheymotrypsine
+
+cal visual appearance with
+
+Figure 9: Comparison of Hexinvon-8mg
+
+PGPNet performance with
+
+Faster R-CNN over each
+
+individual class in occlu-
+
+sion dataset.
+
+(a) Faster R-CNN (b) PGPNet
+Figure 11: Predictions for a hard sample made by Faster R-CNN and PGPNet given the same image.
+
+(a) Input (b) LIVOLIN- (c) Hapenxin (d) Hexinvon-8mg FORTE
+Figure 12: The saliency maps for each of the groundtruth labels included in the image instance. For simple samples (LIVOLIN-FORTE and Hapenxin), the classiﬁer focuses on the exact location of the tablets to determine their identity. In contrast, for the hard case (Hexivon-8mg), information on both Hexivon and LIVOLIN-FORTE served as evidence.
+
+class in the custom occlusion sub-dataset. PGPNet still outperforms Faster R-CNN in most cases with a large gap, and also produces a more reliable result by introducing a smaller variance over the AP metrics.
+
+PGPNet’s Explainability
+This section is dedicated to analyzing the results produced by PGPNet through a speciﬁc sample. This example demonstrates that the operation of PGPNet is very congruent with our initial motivation and that our designed architecture can materialize this motivation.
+
+Experiment settings.
+In this experiment, we choose a hard sample, namely Hexinvon-8mg, with a relatively common appearance, for investigation. Figure 21 visualizes Hexinvon-8mg together with other pills in our dataset with almost identical visual appearance (round shape, white tint, etc.). As illustrated, these pills are readily confused with Hexinvon-8mg. Indeed, Fig. 22 depicts an example in which Hexinvon-8mg is miscategorized as Alpha-Chymotrypsine by Faster R-CNN. Our PGPNet can, however, successfully distinguish Hexinvon-8mg with a high conﬁdence score. In the following, we applied several Explainable AI techniques to explain the results inferred by our PGPNet. The image of interest consists of three pills: LIVOLIN-FORTE, Hapenxin, and Hexivon as shown in Fig. 22.
+
+Explanation of the Prediction Results
+We adopt the Excitation Backpropagation technique proposed by Zhang [34] to construct the saliency maps (Fig.23), which indicate what the classiﬁer has learned to produce the ﬁnal results. Firstly, for the easy samples, i.e., LIVOLINFORTE and Hapenxin, our model focuses precisely on those pill regions to make the prediction decision. In contrast, in the case of the hard sample, i.e., Hexinvon-8mg, however, two regions are highlighted: one at the position of Hexinvon8mg and the other at the location of LIVOLIN-FORTE. It indicates that the classiﬁer solely requires information about LIVOLIN-FORTE and Hapenxin to identify these pills. Nevertheless, for Hexinvon-8mg, the classiﬁer must additionally incorporate information about its neighbor, i.e., LIVOLIN-FORTE. This hypothesis is also supported by the Probabilistic score matrix shown in Fig. 24. The probabilistic score matrix represents the prediction results generated by our Pseudo Classiﬁer, which relies mainly on the pill’s visual characteristics. As demonstrated, Pseudo Classiﬁer can accurately detect the proper labels of two simple samples, with their prediction scores approaching 1, and boost up their neighbors’ probabilities (label ID 7, 17, etc.). However, with the case of Hexinvon-8mg, the probability scores are relatively low, with all RoIs being investigated achieving scores of only about 0.3.
+
+14
+
+Predicting Probabilities
+
+A PREPRINT - MARCH 20, 2023
+
+RoI
+
+0 10 20 30 40 50 60 70 80 90
+
+(a) Bounding boxes of the (b) Sub-graph identiﬁed by GNNEx-
+
+RoIs.
+
+plainer.
+
+0.2 0.4 0.6 0.8
+
+Figure 14: Interpretation of the prediction result for Hexinvon-8mg using GNNExplainer. (b) indicate the RoIs in (a) most inﬂuential to the
+
+Figure 13: Probabilistic scores produced by PGP- prediction of Hexinvon-8mg.
+
+Net’s Pseudo Classiﬁer.
+
+Original_MCG MCG_ep50
+
+Original_MCG
+
+MCG_ep25
+
+MCG_nn50
+
+MCG_en50 MCG_en25
+
+MCG_nn25
+
+40
+
+60
+
+80
+
+100
+
+AP
+
+40
+
+60
+
+80
+
+100
+
+AP
+
+(a) Distributions of Average Precision recorded over all classes produced by PGPNet with different MCG versions.
+
+(b) Distributions of Average Precision recorded over the classes in NA set produced by PGPNet with different MCG versions.
+
+Figure 15: Empirical result of node set and edge set modiﬁcation.
+
+Now, we utilize another explainable AI technique named GNNExplainer [31] to investigate further the reason for identifying the hard sample, Hexinvon-8mg. GNNExplainer is a model-agnostic architecture that can provide interpretable explanations for predictions of graph-based models. Speciﬁcally, GNNExplainer may identify a subgraph and a subset of node features that have a signiﬁcant role in the prediction outcomes. In our experiment, we treat our Graph Transformer Network as a module that produces regression output, i.e., the context vectors corresponding to all RoIs. For a more comprehensible result, we set the number of RoIs selected from the RPN module to ten, consisting of the ﬁve RoIs with the greatest objectness scores and the other ﬁve with the lowest score. We utilize GNNExplainer to identify the sub-graph that contributes the most in recognizing Hexinvon-8mg. The results are demonstrated in Fig. 25b. In this ﬁgure, the white box depicts the RoI of Hexinvon-8mg, the two orange boxes and blue boxes represent the RoIs of LIVOLIN-FORTE, and Hapenxin, respectively, while the ﬁve gray boxes indicate the RoIs of noise. The black edges represent the vital connections, whose weights are proportionate to the width of the edges. First, there are almost no edges between the nodes representing Hexinvon-8mg and those of the noise RoIs. It implies that the noise RoIs do not cue the prediction of Hexinvon-8mg. In contrast, there are bolded linkages between the RoIs of LIVOLIN-FORTE, Hapenxin, and Hexinvon-8mg. These ﬁndings, along with the saliency map (Fig.23), interpret that PGPNet has learned both the visual characteristic of the pill itself and the relationship between that pill and the others to make the ﬁnal decision.
+Ablation Studies
+In this section, we perform extensive ablation studies to investigate the impacts of the main techniques proposed in our PGPNet and to investigate how each component in the proposed method helps to improve learning performance. Speciﬁcally, we alter the Co-occurrence Graph and observe how it affects the detection results in Section Effect of Co-occurrence Graph’s Quality. We then assess the effects of using the relational graphs, the Graph transformer network, and the proposed auxiliary loss in Sections Effects of the Relational Graphs, Effects of the Multi-modal Data Fusion Block and Auxiliary Loss, respectively.
+15
+
+A PREPRINT - MARCH 20, 2023
+
+Original_MCG
+
+Component
+
+Performance
+
+Gc Gs Gv GTN Laux mAP
+
+AP50
+
+AP75
+
+APs
+
+APm
+
+APl
+
+Faster R-CNN × × × ×
+
+× 63.7 (-8.6) 86.7 (-8.4) 76.9 (-7.9) 71.3 (-20.8) 58.1 (-10.6) 64.6 (-7.8)
+
+MCG_nn50
+
+PGPNet-v1 PGPNet-v2
+
+×× × ×
+
+× 65.9 (-5.5) 91.9 (-2.9) 79.6 (-4.6) 72.5 (-19.4) 62.3 (-4.3) 66.0 (-5.8) 66.9 (-3.9) 92.1 (-2.7) 81.1 (-2.8) 80.0 (-11.1) 61.3 (-5.9) 67.6 (-3.6)
+
+PGPNet-v3
+
+×
+
+67.8 (-2.8) 92.9 (-1.9) 82.3 (-1.5) 82.5 (-8.3) 62.7 (-3.5) 68.1 (-2.8)
+
+MCG_nn25
+
+PGPNet-v4 PGPNet-v5
+
+×
+
+68.4 (-1.9) 92.6 (-2.2) 81.7 (-2.1) 80.0 (-11.1) 64.4 (-1.0) 68.8 (-1.8)
+
+× 67.2 (-3.6) 91.3 (-3.5) 80.9 (-3.1) 90.0 (+0.0) 62.2 (-4.3) 67.3 (-3.9)
+
+40
+
+60
+
+80
+
+100
+
+AP
+
+PGPNet
+
+69.7
+
+94.7
+
+83.5
+
+90.0
+
+65.0
+
+70.0
+
+Table 6: Performance of PGPNet with the diferent combination of its components, i.e.,
+
+Figure 16: Distributions of Average Pre- when removing (marked as ×) / keeping (marked as ) the relational graph, GTN and
+
+cision recorded over the classes in NA set auxiliary loss. Numbers inside the (.) represent the gap in percentage compared to the full
+
+produced by PGPNet with different MCG version of PGPNet.
+
+versions.
+
+Effect of Co-occurrence Graph’s Quality
+In this section, we perform two experiments to observe how the performance is changed when the nodes set and edges set of MCG are modiﬁed respectively.
+Edge Set Modiﬁcation. We ﬁrst observe the behavior of our PGPNet when adding noise edges and removing actual edges. We set up four scenarios which are the combinations of removing 25% and 50% of the edges in the set E1, and adding a number of synthesized edges corresponding to 25% and 50% of the cardinality of E1.
+Figure 26 illustrates the performances of PGPNet with all Medical Co-occurrence Graph variances when being put into comparison with the original one. The performance here is denoted by the general metrics AP. As indicated by AP density, PGPNet with original MCG generates a more concentrated density with a smaller variance and a higher mean than other variances. In addition, when 50% of edges are eliminated, the performance is clearly inferior to when 25% of edges are eliminated. The ﬁgure concludes with the intriguing observation that eliminating edges at random would result in a greater performance decrease than adding noisy edges. This is because, even with the addition of noisy edges, PGPNet could still ﬁlter out unnecessary information through the training process. When excluding edges, the situation is different because the framework cannot learn the external knowledge contained in the eliminated edges.
+Node Set Modiﬁcation. To observe PGPNet’s performance when the Medical Co-occurrence Graph lacks information on some speciﬁc nodes - classes, we design two different scenarios. In the ﬁrst one, 25% nodes are removed in the original graph, this set is denoted as NA. For the latter, 50% of nodes are eliminated, and the corresponding set NB is ensured to be a superset of NA. The performances of PGPNet in two circumstances are compared with itself when having the full MCG, considering only the classes appeared in the set NA.
+Figure 27 depicts the outcome of this experiment. The AP across all NA classes is used to evaluate performance here. As indicated by the graph, node removals also result in a signiﬁcant decrease in model performance. More interestingly, the more nodes being eliminated, the greater drop is captured. Speciﬁcally, the AP density in case MCG contains only 50% of remaining nodes has a great variance, with the mean value only around 60%.
+In the following, we study the effectiveness of the relational graphs, Graph Transformer Network (GTN) block, and auxiliary loss. The detailed conﬁgurations are presented in Table 11. The + sign indicates the presence of a component in a speciﬁc version, while − denotes the opposite.
+
+Effects of the Relational Graphs
+In this section, we study the effectiveness of the Size-graph and visual-based graph. To this end, we implement two simpliﬁed versions of PGPNet, namely PGPNet-v2 and PGPNet-v3, in which we remove the Size-graph and visual-based graph, respectively. As shown in Table 11, eliminating the Size-graph causes a decrease in performance from 3.9% to 11.1%, while omitting the visual-based graph reduces the accuracy from 2.8% to 8.3%. An interesting ﬁnding is that the deterioration gap when removing the size graph is more signiﬁcant than those when eliminating the visual-based graph in terms of all evaluation metrics. These ﬁndings imply the effectiveness of the Size-graph over the visual-based graph. Moreover, it can be observed that mAP is the most impacted when the relational graphs are removed, followed by AP50, when comparing mAP, AP50, and AP75. This can be explained as follows. In AP75, we measure the precision of RoIs with the IoU beyond 75%, which presumably has a high degree of conﬁdence regarding the objective. In contrast, when we reduce the IoU threshold, such as AP50 and mAP, the overlap area of the objective drops, resulting in a model with a signiﬁcant degree of uncertainty. In this case, integrating relational graphs provides additional data that reduces uncertainty, thereby boosting detection accuracy.
+16
+
+A PREPRINT - MARCH 20, 2023
+
+Table 8: Details of training and testing Table 7: An overview of existing public datasets for the task of image- datasets.
+
+based pill detection. To the best of our knowledge, the introduced VAIPE
+
+dataset is currently the largest dataset for pill identiﬁcation, which was collected in real-world settings and came up with prescriptions.
+
+Training dataset
+
+Number of pill images
+
+NIH CURE VAIPE 7,000 8,973 9,426
+
+Prescriptions Images 1,527 (100%) 7,514 (78%)
+
+Number of pill categories 1,000 196 96
+
+Number of capture devices 1
+
+Instance per category
+
+7
+
+1
+
+> 20
+
+40-50 > 30
+
+Testing dataset
+
+Illumination conditions 1
+
+3
+
+Backgrounds
+
+1
+
+6
+
+Number of prescriptions 0
+
+0
+
+> 50 > 50 1,527
+
+Prescriptions Images
+
+0 (0%)
+
+1,912 (22%)
+
+Effects of the Multi-modal Data Fusion Block and Auxiliary Loss
+To investigate the effectiveness of the GTN, we implement PGPNet-v4, omitting the GTN block and relying solely on the GCN to learn the node representation. Results in Table 11 reveal that GTN enhances the model’s accuracy from 1.0% to 11.1%. Comparing mAP, AP50, and AP75, AP50, and AP75 are slightly more inﬂuenced by GTN than mAP, but the gaps are trivial. We employ PGPNet-v5, which eliminates the proposed auxiliary loss and compare its performance with the original PGPNet. As illustrated in Table 11, adopting our auxiliary loss may result in a 3 to 4 percent performance gain for most evaluation metrics. In the ﬁnal ablation study, we implement PGPNet-v1, which retains only the co-occurrence graph and removes all the other components. As depicted in Table 11, the detection accuracy degrades signiﬁcantly, with a gap ranging from 2.9% to 19.4%. However, even with this version, PGPNet is still superior to Faster RCNN, with a performance margin of up to 7.1%.
+In conclusion, the PGPNet version with all components exhibits its superiority in all evaluation metrics. In addition, all versions of PGPNet are superior to the Faster R-CNN backbone, demonstrating the contribution of each component to the overall performance of PGPNet.
+We conduct extensive experiments to validate the effectiveness of the proposed approach. In the following, we ﬁrst introduce our in-house pill identiﬁcation dataset, called VAIPE, which will be used to evaluate the proposed approach, and then explain our evaluation metrics and experimental settings. To assess the effectiveness of the proposed method, we conducted comparative assessments against a number of established models, including the detection backbones we selected, such as Faster R-CNN [21] and YOLOv5 [9], as well as other related frameworks such as SGRN [28] and the Mask RCNN-based approach described in [10]. We also perform ablation studies to investigate the efﬁciency of key components in our framework.
+Dataset and Pre-processing
+Motivation. To the best of our knowledge, previous studies on the pill identiﬁcation problem [22], [33], [14], [15] only focus on datasets collected in constrained environments. For instance, existing datasets such as NIH Dataset [1] are constructed under ideal conditions in lighting, backgrounds, and equipment or devices. The CURE dataset [14] provides only one pill per image. Hence, these datasets do not reﬂect the real-world scenarios in which patients take an arbitrary number of drugs, and their environmental conditions (e.g., backgrounds, lighting conditions, mobile devices, etc.) are greatly varied. Additionally, many pills have nearly identical visual appearances. The fact that they appear alone in the images of these datasets will inevitably confuse the detection frameworks. Consequently, none of the existing datasets can be directly applied to the real-world pill detection problem or can only be applied with low reliability. There is no publicly available dataset of these pills images in which the pills follow intakes of actual patients. This limits the development of machine learning algorithms for the detection of pills from images as well as for building real-world medicine inspection applications. To address this challenge, we build and introduce a new, large-scale open dataset of pill images, which we called VAIPE.
+Data Descriptor. The VAIPE is a large-scale and open pill image dataset for visual-based medicine inspection. The dataset contains approximately 10,000 pill images that were manually collected in unconstrained environments. In this study, no hypotheses or new interventional procedures were generated. Also, no investigational products or clinical trials were used for patients. In addition, there were no changes in treatment plans for any patients involved. Pill images
+17
+
+A PREPRINT - MARCH 20, 2023
+
+were retrospectives collected, and all identiﬁable information of patients was de-identiﬁed. Therefore, there was no requirement for ethics approval [18].
+Pill images are collected in many different contexts (e.g., various backgrounds, lighting conditions, in-hand or outof-hand, etc.) using smartphones. These images are then manually labeled using the information from the relevant prescriptions. In summary, the number of pills per image is about 5 − 10, and the total number of pill images collected was 9, 426 pill images with 96 independent pill labels. To train the proposed deep learning system, the pill images from the VAIPE dataset are resized so that the shortest edges have a size of 800, with a limit of 1, 333 on the longer edge. The ratios are kept the same as the original images if the max size is reached, then downscale so that the longer edge does not exceed 1, 333.
+Data Validation. Patient privacy was controlled and protected. In particular, all images were manually reviewed to ensure that all individually identiﬁable health information of the patients has been removed to meet the General Data Protection Regulation (GDPR) [3]. Annotations of pill images were also carefully examined. Speciﬁcally, all images were manually reviewed case-by-case by a team of 20 human readers to improve the quality of the annotations.
+Comparison with Existing Datasets. Table 7 provides a summary of the aforementioned datasets (including NIH, CURE, and VAIPE) together with other ones of moderate sizes, meta-data, and other properties. Compared to the two previous datasets, the VAIPE dataset is constructed under a much more ﬂexible procedure that reﬂects the characteristic real-world data distributions. Hence, the introduced dataset can serve as a reliable data source for training generic pill detectors.
+
+Evaluation Metrics
+
+We evaluate the proposed method and other related works by the COCO APs metrics [2]. This set of metrics is widely
+
+accepted and used for evaluating state-of-the-art object detectors. Mean Average Precision (mAP), as its name suggests,
+
+is the mean of Average Precision (AP) overall C classes and all the targeted IoU thresholds in the threshold set T
+
+calculated
+
+by
+
+mAP
+
+=
+
+1 C|T |
+
+C i
+
+t∈T APi,t, where Average Precision (APi,t) is the area under the Precision-Recall
+
+curve, calculated for the class i at a given IoU threshold t.
+
+Comparison with state-of-the-art methods
+Comparison Benchmarks. To show the effectiveness of the proposed method, we conducted a comparison with the state-of-the-art object detectors, including our detection backbones: Faster R-CNN [21], YOLOv5 [9], and related works: SGRN [28], Mask RCNN-based approach [10]. Throughout the literature, the baseline with which PGPNet presently integrates is Faster R-CNN [21]; hence, the original framework is utilized for our comparison. We adopt two different CNNs and one Transformer-based module for visual feature extractor, namely ResNet-50-C4, ResNet-50-FPN and Swin Transformer V2 - SwinV2 [16] (Fig. 3). Speciﬁcally, for two ConvNets, we use a single feature map produced by convolution block C4 of the ResNet-50 model in ResNet-50-C4. In ResNet-50-FPN, we replace C4’s feature map with multi-scale feature maps produced by Feature Pyramid Network (FPN) [12]. As for the Swin Transformer module, we are currently utilizing the SwinV2-T conﬁguration [16] to ensure that the number of model parameters is comparable to that of ResNet-50. In addition, we also make adaption for PGPNet with YOLOv5 [9] detection backbone. Two conﬁgurations of YOLOv5s and YOLOv5n are currently adopted. Also, the most relevant frameworks compared with our PGPNet are also put into comparison: a representative approach that utilizes an external knowledge graph for Object Detection task [28]; a Mask RCNN-based baseline that also proposed to solve the same task of multi-pill detection [10]. For a fair comparison, a ﬁxed set of hyper-parameters is used for PGPNet throughout all experiments.
+
+Implementation Details
+We conduct all the experiments using the Pytorch (version 1.10.1) on an Intel Xeon Silver 4210 2.20GHz system with 2 × NVIDIA GeForce RTX 3090 GPUs. We train and test all targeted models on the training and testing sub-datasets provided in Table 8. Speciﬁcally, we initialize all the networks with the weights achieved by pre-training them on COCO 2017 dataset [11]. We then train the models in 20, 000 iterations with a batch size of 16. AdamW [17] optimizer is used with the initial learning rate of 0.001. We also augment the training data by using simple techniques such as random horizontal and vertical ﬂips to prevent overﬁtting. For our PGPNet implementation, we set the dimensions of node embeddings at 64. We also design the Graph Transformer Module with only one layer and 10 channel set.
+18
+
+A PREPRINT - MARCH 20, 2023
+
+Comparing PGPNet’s detection performance with state-of-the-art vanilla object detectors on VAIPE dataset. Best results are highlighted in bold text.
+
+Method
+
+mAP AP50 AP75 APs APm APl
+
+Faster R-CNN Vanilla
+
+62.6
+
+87.0 74.4 75.0 58.3 62.9
+
+(ResNet-50-C4) PGPNet 68.3 (+9.2%) 92.5 81.7 80.0 64.3 68.7
+
+Faster R-CNN (ResNet-50-FPN)
+
+Vanilla PGPNet
+
+63.7 69.7 (+9.4%)
+
+86.6 94.4
+
+76.9 71.2 58.1 64.6 83.4 90.0 66.4 70.1
+
+Two-step
+
+One-step
+
+Faster R-CNN (SwinV2-T) YOLOv5n
+YOLOv5s
+
+Vanilla
+
+59.7
+
+84.5
+
+PGPNet 62.6 (+4.8%) 87.2
+
+Vanilla
+
+37.9
+
+50.8
+
+PGPNet 43.0 (+12.0%) 58.4
+
+Vanilla
+
+57.5
+
+75.8
+
+PGPNet 63.4 (+10.2%) 85.9
+
+72.3 66.9 54.0 60.1 75.5 68.6 56.6 62.9
+45.4 87.5 49.1 38.3 51.3 82.5 52.4 43.7
+68.3 85.0 58.3 57.0 76.4 89.9 58.3 64.1
+
+Average Precision (AP)
+
+100 90 80 70 60 50 40 30 20 10 0
+
+Faster_R.CNN_C4 Faster_R.CNN_FPN Faster_R.CNN_Swin PGPNet_C4
+Framework
+
+PGPNet_FPN
+
+PGPNet_Swin
+
+Figure 17: Comparison of the PGPNet performance with the Faster R-CNN baseline over each individual class.
+
+Experimental Results
+This section reports our experimental results. We evaluate the effectiveness of PGPNet in three aspects: robustness, reliability, and explainability. The details are described below.
+
+Robustness and Reliability of PGPNet Comparison with Faster R-CNN and YOLOv5
+
+1.0 PGPNet
+0.8 Faster R-CNN
+
+1.0
+
+PGPNet
+
+YOLOv5
+
+0.8
+
+1.0
+
+PGPNet
+
+SGRN
+
+0.8
+
+0.6
+
+0.6
+
+0.6
+
+0.4
+
+0.4
+
+0.4
+
+0.2
+
+0.00.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+Confidence
+
+(a) Faster R-CNN
+
+0.2
+0.0 0.0 0.2 0.4 0.6 0.8 1.0
+Confidence (b) YOLOv5
+
+0.2 0.0
+0.0 0.2 0.4 0.6 0.8 1.0
+Confidence (c) SGRN
+
+Figure 18: Reliability investigation for PGPNet and different baseline performances.
+
+19
+
+Accuracy Accuracy Accuracy
+
+A PREPRINT - MARCH 20, 2023
+Detection Performance. Table ?? shows the experimental results of PGPNet and the state-of-the-art object detectors framework (Vanilla), e.g., Faster R-CNN (two-step detector), and YOLOv5 [9] (one-step detector) on the VAIPE dataset. As shown, PGPNet obtained better results than Faster R-CNN by large performance gaps for all evaluation metrics. Speciﬁcally, when using the ResNet-50-C4 model as the visual feature extractor model, the average precision mAP of Faster R-CNN was 62.6, while that of PGPNet was 68.3. The proposed method improves the performance over the baseline Faster R-CNN by 9.2%. Under strict metrics, e.g., AP75, PGPNet also outperforms Faster R-CNN 8 − 9%. In addition, we observed similar behavior when using the ResNet-50-FPN model. The proposed PGPNet makes an improvement of 9.4% for the mAP metrics. With a Transformer-based backbone, here a Swin Transformer V2 conﬁguration - SwinV2-T [16], the results are slightly worse compared to those produced by ResNet-based counterparts, for both the vanilla or PGPNet alternatives. However, PGPNet still show its superior when being install with this backbone, as the empirical result for AP metrics is improved by 4.8% compared to the vanilla SwinV2-T Faster R-CNN model.
+For YOLOv5, PGPNet outperformed Vanilla by a signiﬁcant margin across all performance metrics in both YOLO instances. Speciﬁcally, the average precision AP of the vanilla model with YOLOv5n was 37.9 while that of PGPNet was 43.0 (12% improvement). In the case of a larger alternative, YOLOv5s, a similar conclusion can be drawn, namely that PGPNet improves overall mAP metrics by 5.9, e.g., 10.2%.
+Figure 17 visualizes the AP for all classes in the dataset when using Faster R-CNN as the backbone. The ﬁrst three bins denote Faster R-CNN alternatives, and the later three are the corresponding PGPNet conﬁgurations. The dots in the ﬁgure represent AP values for classes; the vertical line is the indicator for the mean value, while the rectangle bar is the 95% High-Density Interval (HDI) band. Apart from the fact that the mean AP over all classes of PGPNet variances is better than those produced by Faster R-CNN, we found that PGPNet also has more reliable and stable results over all classes. Speciﬁcally, PGPNet helps to improve the AP of classes that Faster R-CNN frequently confuses (the points with low APs in the blue and pink beans). As a result, the three beans of Faster R-CNN exhibit a large variance, i.e., the AP ranged from 0 to around 90. In contrast, the beans of PGPNet performance are more condensed and have shorter tail, i.e., the AP ranged from 40 (or 50) to around 90.
+Pill Classiﬁcation Accuracy. To further investigate the robustness of the proposed PGPNet, we adopt the visualization techniques presented in [25] to understand the prediction accuracy ( of the pill classiﬁcation task) better. In this technique, all models’ predictions are categorized by their conﬁdence scores into different bins, in which the average accuracy can be calculated. By observing the conﬁdence-accuracy correlation, we can tell whether the models are under or over-conﬁdence with their predictions [25]. Figure 18a visualize those reliability plots of Faster R-CNN and PGPNet. It implies that both models have a propensity toward over-conﬁdence, as the average accuracy of each conﬁdence band is lower than the mean conﬁdence score of that bin. However, that tendency is greatly alleviated in the circumstance of PGPNet, which means that the bins’ heights are much closer to the perfect Conﬁdence-Accuracy balance line (the red dashed diagonal line). Figure 18b compares PGPNet’s conﬁdence-accuracy correlation and that of YOLOv5. With this backbone, we observed that the proposed PGPNet can produce predictions with a high level of reliability. All the heights of bins are much closer to values suggested by the perfectly-balanced line compared to Vanilla’s result.
+Comparison with Existing Relavant Frameworks
+Our work is the ﬁrst to leverage an external graph in dealing with the Pill Detection challenge; thus, none of the preceding works are genuinely tight-correlated. Indeed, earlier researches only shared some common ground to our approach: (1) About methodology or (2) about research problem.
+For the ﬁrst group, there are works that utilized external information to solve the Object Detection problem. We adopt one of the most current studies with this direction - [28] to solve our targeted problem and serve as a baseline for PGPNet. Spatial-aware Graph Relation Network (SGRN) [28] is a framework that adaptively discovers and incorporates key semantic and spatial relationships for reasoning over each RoI.
+With respect to research problem, as stated earlier, while there are many works which target single-pill detection problem [13, 24, 26], only a few directly solve the task of detecting multiple pills per image [10, 19]. We attempt to adopt the most recent technique proposed in [10] as another baseline to compare with PGPNet. In the original work, the authors purpose is somewhat different from us, since they attempt to develop a framework which is solely trained on single-pill images, since they argued that the multi-pill dataset would scale up exponentially if the number of pills inscrease. This argument is not held in our intuition, and we believe, in reality, since the pills taken together have to be prescribed by pharmacists. We keep the pipeline as the original work, with some adoption for working with our VAIPE dataset: (1) Change Mask R-CNN to Faster R-CNN; (2) The training single-pill dataset is cropped from our VAIPE dataset with bounding box annonations; (3) The automate data labeling process are skipped. Since the original work did not name the proposed pipeline, we called it as Kwon’s Pipeline for short.
+20
+
+A PREPRINT - MARCH 20, 2023
+
+Table 9: Performance comparison of PGPNet with SGRN and Kwon’s Pipeline.
+
+Model
+
+mAP AP50 AP75 APs APm APl
+
+Faster RCNN 63.7 86.6 76.9 71.2 58.1 64.6
+
+SGRN
+
+65.9 88.8 79.6 76.3 61.6 66.3
+
+Kwon’s Pipeline 36.2 38.5 37.2 30.3 33.1 36.0
+
+PGPNet
+
+69.7 94.4 83.4 90.0 66.4 70.1
+
+Table 10: Impact of heavy occlusion images on testing
+
+100
+
+performance of PGPNet and Faster R-CNN.
+
+90
+
+Average Precision (AP)
+
+80
+
+Test
+
+Custom
+
+Non-
+
+70
+
+60
+
+dataset Occlusion
+
+Occlusion
+
+50
+
+40
+
+Method
+
+Faster R-CNN
+
+PGPNet
+
+Faster R-CNN
+
+PGPNet
+
+30 20
+
+10
+
+Figure 19: Images with occlusion phenomena in custom occlusion dataset. The rectangles depict examples of tablets with overlapping boundary boxes.
+
+mAP AP50 AP75 APs APm APl
+
+59.2 67.5
+
+76.5 81.1
+
+68.9 76.4
+
+-
+
+-
+
+61.6 68.3
+
+60.7 70.1
+
+65.6 87.4 80.8 80.0 56.5 65.1
+
+71.7 92.9 87.0 90.0 64.7 70.6
+
+0
+
+Faster R-CNN
+
+PGPNet
+
+Framework
+
+Figure 20: Comparison of PGPNet performance with Faster RCNN over each individual class in occlusion dataset.
+
+Detection Performance. Table 9 summarizes the comparison of PGPNet, SGRN and Kwon’s Pipeline when adopting the visual feature extractor architecture from Faster R-CNN with the Resnet-50-FPN model. Clearly, SGRN outperforms the baseline Faster R-CNN in terms of overall performance but could not outperforms our proposed method PGPNet. Speciﬁcally, the mAP metrics achieved by SGRN is 65.9, and PGPNet achieves the better score with a gap of nearly 4. Upon other metrics, AP50, AP75, APs, APm, and APl, PGPNet shows its superior by enhancing the performance from 5.1% (e.g., in AP75 metrics) up to 17.1% (e.g., in APs metrics). This is an expected result because SGRN reveals a major weakness when applying to the challenge of Pill Detection. The spatial relationships between pills in an image are arbitrary and frequently changed. Such noisy and unreliable information leads to the performance of SGRN being unstable and sometimes produce not good enough results. In the case of Kwon’s Pipeline, the situation is even worse, since it cannot even beat the vanilla one-step Faster RCNN trained with mutple-pill VAIPE training set. The result of this pipeline is 43.1% and 48.2% worse than vanilla Faster R-CNN and PGPNet respectively. One reason for this deﬁciency is owing to the quality of its training data. There are many circumstances in which overlap or occlusion occurs, which make the cropped images also contain parts of other pills.
+Pill Classiﬁcation Accuracy. Figure 18c shows the correlation between the conﬁdence and accuracy of PGPNet in the comparison with those of SGRN. Both the frameworks are based on the Faster R-CNN backbone and achieve similar results e.g., an over-conﬁdence trend in every bin. All the predictions with conﬁdence scores smaller than 0.2 are totally unreliable (with 0 accuracy). In addition, PGPNet also shows its superior over SGRN in some bins, in which the over-conﬁdence situation is reduced effectively. We do not plot the Conﬁdence-Accuracy of Kwon’s Pipeline owing to space constraint and the obvious performance gap compared to our PGPNet.
+Hexinvon-8mHgexinvoLno-8ramtagdine-L1o0rmatgadine-M10emdrgol-16Mmegdrol-16mg
+
+HexinvonH-e8Hxmeinxgivvoonn--88HmLmegLoxgLroiaonrrtavaattodaadnidLnin-ieo8ne--rme11a-0t0g1mLam0gdomirgEnagnetaa-Ldl1aiop0nMrrmiela--e5Atg1amd0ldrgpmoiAhnllgp-aeMh1--aC61e-Cm0hdhmrygyAommgllo-po1trhty6rapym-sMCpingseheMiyndemerdorooltl-r-11y66pmmsginge
+Figure 21: Some sample pills with very identical visual appearance with Hexinvon-8mg
+21
+
+A PREPRINT - MARCH 20, 2023
+
+(a) Faster R-CNN (b) PGPNet
+Figure 22: Predictions for a hard sample made by Faster R-CNN and PGPNet given the same image.
+
+(a) Input (b) LIVOLIN- (c) Hapenxin (d) Hexinvon-8mg FORTE
+Figure 23: The saliency maps for each of the groundtruth labels included in the image instance. For simple samples (LIVOLIN-FORTE and Hapenxin), the classiﬁer focuses on the exact location of the tablets to determine their identity. In contrast, for the hard case (Hexivon-8mg), information on both Hexivon and LIVOLIN-FORTE served as evidence.
+
+Ability in Dealing with Hard Samples
+
+In the following, we investigate the ability of PGPNet in dealing with the occlusion phenomenon caused by overlapping pills, which is one of the most critical issues in dealing with multi-pill detection. To this end, we create a so-call custom occlusion sub-dataset of VAIPE, which contains images with heavy occlusion phenomena, i.e., having at least two RoIs with the IoU beyond 30% (Fig.19). We also create a custom custom non-occlusion sub-dataset which contains samples that are in the same classes that appear in the custom occlusion sub-dataset but with no occlusion. The quantitative result is summarized in Table 10. The (-) mark in the table suggests the disregarded or unavailable metrics. As the numbers suggest, even in cases where heavy occlusion occurs, PGPNet still shows its superior over Faster R-CNN. Speciﬁcally, the mAP over all classes in the custom occlusion sub-dataset suggests a gap of 8.3% between the two approaches. Interestingly, with the aid of classiﬁer weight as the distinguishing characteristic for each class, PGPNet, even when dealing with occlusion cases still enhances the performance of 1.9% compared to Faster R-CNN handling the non-occlusion case (e,g, 67.5 vs. 65.6, respectively). Figure 20 provides more information about the AP for each class in the custom occlusion sub-dataset. PGPNet still outperforms Faster R-CNN in most cases with a large gap, and also produces a more reliable result by introducing a smaller variance over the AP metrics.
+
+PGPNet’s Explainability
+This section is dedicated to analyzing the results produced by PGPNet through a speciﬁc sample. This example demonstrates that the operation of PGPNet is very congruent with our initial motivation and that our designed architecture can materialize this motivation.
+
+Experiment settings.
+In this experiment, we choose a hard sample, namely Hexinvon-8mg, with a relatively common appearance, for investigation. Figure 21 visualizes Hexinvon-8mg together with other pills in our dataset with almost identical visual appearance (round shape, white tint, etc.). As illustrated, these pills are readily confused with Hexinvon-8mg. Indeed, Fig. 22 depicts an example in which Hexinvon-8mg is miscategorized as Alpha-Chymotrypsine by Faster R-CNN. Our PGPNet can, however, successfully distinguish Hexinvon-8mg with a high conﬁdence score. In the following, we applied several Explainable AI techniques to explain the results inferred by our PGPNet. The image of interest consists of three pills: LIVOLIN-FORTE, Hapenxin, and Hexivon as shown in Fig. 22.
+
+Explanation of the Prediction Results
+We adopt the Excitation Backpropagation technique proposed by Zhang [34] to construct the saliency maps (Fig.23), which indicate what the classiﬁer has learned to produce the ﬁnal results. Firstly, for the easy samples, i.e., LIVOLINFORTE and Hapenxin, our model focuses precisely on those pill regions to make the prediction decision. In contrast, in the case of the hard sample, i.e., Hexinvon-8mg, however, two regions are highlighted: one at the position of Hexinvon8mg and the other at the location of LIVOLIN-FORTE. It indicates that the classiﬁer solely requires information about LIVOLIN-FORTE and Hapenxin to identify these pills. Nevertheless, for Hexinvon-8mg, the classiﬁer must additionally incorporate information about its neighbor, i.e., LIVOLIN-FORTE. This hypothesis is also supported by the Probabilistic score matrix shown in Fig. 24. The probabilistic score matrix represents the prediction results generated by our Pseudo Classiﬁer, which relies mainly on the pill’s visual characteristics. As demonstrated, Pseudo Classiﬁer can accurately detect the proper labels of two simple samples, with their prediction scores approaching 1, and boost up their neighbors’ probabilities (label ID 7, 17, etc.). However, with the case of Hexinvon-8mg, the probability scores are relatively low, with all RoIs being investigated achieving scores of only about 0.3.
+
+22
+
+Predicting Probabilities
+
+A PREPRINT - MARCH 20, 2023
+
+RoI
+
+0 10 20 30 40 50 60 70 80 90
+
+(a) Bounding boxes of the (b) Sub-graph identiﬁed by GNNEx-
+
+RoIs.
+
+plainer.
+
+0.2 0.4 0.6 0.8
+
+Figure 25: Interpretation of the prediction result for using GNNEx-
+
+plainer. Figure 24: Probabilistic scores produced by PGP-
+
+Net’s Pseudo Classiﬁer.
+
+Original_MCG
+
+MCG_ep50
+
+MCG_ep25
+
+MCG_en50
+
+MCG_en25
+
+40
+
+60
+
+80
+
+100
+
+AP
+
+Figure 26: Distributions of Average Precision recorded over all classes produced by PGPNet with different MCG versions.
+
+Now, we utilize another explainable AI technique named GNNExplainer [31] to investigate further the reason for identifying the hard sample, Hexinvon-8mg. GNNExplainer is a model-agnostic architecture that can provide interpretable explanations for predictions of graph-based models. Speciﬁcally, GNNExplainer may identify a subgraph and a subset of node features that have a signiﬁcant role in the prediction outcomes. In our experiment, we treat our Graph Transformer Network as a module that produces regression output, i.e., the context vectors corresponding to all RoIs. For a more comprehensible result, we set the number of RoIs selected from the RPN module to ten, consisting of the ﬁve RoIs with the greatest objectness scores and the other ﬁve with the lowest score. We utilize GNNExplainer to identify the sub-graph that contributes the most in recognizing Hexinvon-8mg. The results are demonstrated in Fig. 14. In this ﬁgure, the white box depicts the RoI of Hexinvon-8mg, the two orange boxes and blue boxes represent the RoIs of LIVOLIN-FORTE, and Hapenxin, respectively, while the ﬁve gray boxes indicate the RoIs of noise. The black edges represent the vital connections, whose weights are proportionate to the width of the edges. First, there are almost no edges between the nodes representing Hexinvon-8mg and those of the noise RoIs. It implies that the noise RoIs do not cue the prediction of Hexinvon-8mg. In contrast, there are bolded linkages between the RoIs of LIVOLIN-FORTE, Hapenxin, and Hexinvon-8mg. These ﬁndings, along with the saliency map (Fig.23), interpret that PGPNet has learned both the visual characteristic of the pill itself and the relationship between that pill and the others to make the ﬁnal decision.
+Ablation Studies
+In this section, we perform extensive ablation studies to investigate the impacts of the main techniques proposed in our PGPNet and to investigate how each component in the proposed method helps to improve learning performance. Speciﬁcally, we alter the Co-occurrence Graph and observe how it affects the detection results in Section Effect of Co-occurrence Graph’s Quality. We then assess the effects of using the relational graphs, the Graph transformer network, and the proposed auxiliary loss in Sections Effects of the Relational Graphs, Effects of the Multi-modal Data Fusion Block and Auxiliary Loss, respectively.
+23
+
+A PREPRINT - MARCH 20, 2023
+
+Original_MCG
+
+MCG_nn50
+
+MCG_nn25
+
+40
+
+60
+
+80
+
+100
+
+AP
+
+Figure 27: Distributions of Average Precision recorded over the classes in NA set produced by PGPNet with different MCG versions.
+
+Table 11: Performance of PGPNet with the diferent combination of its components, i.e., when removing (marked as ×) / keeping (marked as ) the relational graph, GTN and auxiliary loss. Numbers inside the (.) represent the gap in percentage compared to the full version of PGPNet.
+
+Component
+
+Performance
+
+Gc Gs Gv GTN Laux mAP
+
+AP50
+
+AP75
+
+APs
+
+APm
+
+APl
+
+Faster R-CNN × × × ×
+
+PGPNet-v1
+
+×× ×
+
+PGPNet-v2
+
+×
+
+PGPNet-v3
+
+×
+
+PGPNet-v4
+
+×
+
+PGPNet-v5
+
+PGPNet
+
+× 63.7 (-8.6) 86.7 (-8.4) 76.9 (-7.9) 71.3 (-20.8) 58.1 (-10.6) 64.6 (-7.8)
+
+× 65.9 (-5.5) 91.9 (-2.9) 79.6 (-4.6) 72.5 (-19.4) 62.3 (-4.3) 66.0 (-5.8)
+
+66.9 (-3.9) 92.1 (-2.7) 81.1 (-2.8) 80.0 (-11.1) 61.3 (-5.9) 67.6 (-3.6)
+
+67.8 (-2.8) 92.9 (-1.9) 82.3 (-1.5) 82.5 (-8.3) 62.7 (-3.5) 68.1 (-2.8)
+
+68.4 (-1.9) 92.6 (-2.2) 81.7 (-2.1) 80.0 (-11.1) 64.4 (-1.0) 68.8 (-1.8)
+
+× 67.2 (-3.6) 91.3 (-3.5) 80.9 (-3.1) 90.0 (+0.0) 62.2 (-4.3) 67.3 (-3.9)
+
+69.7
+
+94.7
+
+83.5
+
+90.0
+
+65.0
+
+70.0
+
+Effect of Co-occurrence Graph’s Quality
+In this section, we perform two experiments to observe how the performance is changed when the nodes set and edges set of MCG are modiﬁed respectively.
+Edge Set Modiﬁcation. We ﬁrst observe the behavior of our PGPNet when adding noise edges and removing actual edges. We set up four scenarios which are the combinations of removing 25% and 50% of the edges in the set E1, and adding a number of synthesized edges corresponding to 25% and 50% of the cardinality of E1.
+Figure 26 illustrates the performances of PGPNet with all Medical Co-occurrence Graph variances when being put into comparison with the original one. The performance here is denoted by the general metrics AP. As indicated by AP density, PGPNet with original MCG generates a more concentrated density with a smaller variance and a higher mean than other variances. In addition, when 50% of edges are eliminated, the performance is clearly inferior to when 25% of edges are eliminated. The ﬁgure concludes with the intriguing observation that eliminating edges at random would result in a greater performance decrease than adding noisy edges. This is because, even with the addition of noisy edges, PGPNet could still ﬁlter out unnecessary information through the training process. When excluding edges, the situation is different because the framework cannot learn the external knowledge contained in the eliminated edges.
+Node Set Modiﬁcation. To observe PGPNet’s performance when the Medical Co-occurrence Graph lacks information on some speciﬁc nodes - classes, we design two different scenarios. In the ﬁrst one, 25% nodes are removed in the original graph, this set is denoted as NA. For the latter, 50% of nodes are eliminated, and the corresponding set NB is ensured to be a superset of NA. The performances of PGPNet in two circumstances are compared with itself when having the full MCG, considering only the classes appeared in the set NA.
+Figure 27 depicts the outcome of this experiment. The AP across all NA classes is used to evaluate performance here. As indicated by the graph, node removals also result in a signiﬁcant decrease in model performance. More interestingly, the more nodes being eliminated, the greater drop is captured. Speciﬁcally, the AP density in case MCG contains only 50% of remaining nodes has a great variance, with the mean value only around 60%.
+24
+
+A PREPRINT - MARCH 20, 2023
+In the following, we study the effectiveness of the relational graphs, Graph Transformer Network (GTN) block, and auxiliary loss. The detailed conﬁgurations are presented in Table 11. The + sign indicates the presence of a component in a speciﬁc version, while − denotes the opposite.
+Effects of the Relational Graphs
+In this section, we study the effectiveness of the Size-graph and visual-based graph. To this end, we implement two simpliﬁed versions of PGPNet, namely PGPNet-v2 and PGPNet-v3, in which we remove the Size-graph and visual-based graph, respectively. As shown in Table 11, eliminating the Size-graph causes a decrease in performance from 3.9% to 11.1%, while omitting the visual-based graph reduces the accuracy from 2.8% to 8.3%. An interesting ﬁnding is that the deterioration gap when removing the size graph is more signiﬁcant than those when eliminating the visual-based graph in terms of all evaluation metrics. These ﬁndings imply the effectiveness of the Size-graph over the visual-based graph. Moreover, it can be observed that mAP is the most impacted when the relational graphs are removed, followed by AP50, when comparing mAP, AP50, and AP75. This can be explained as follows. In AP75, we measure the precision of RoIs with the IoU beyond 75%, which presumably has a high degree of conﬁdence regarding the objective. In contrast, when we reduce the IoU threshold, such as AP50 and mAP, the overlap area of the objective drops, resulting in a model with a signiﬁcant degree of uncertainty. In this case, integrating relational graphs provides additional data that reduces uncertainty, thereby boosting detection accuracy.
+Effects of the Multi-modal Data Fusion Block and Auxiliary Loss
+To investigate the effectiveness of the GTN, we implement PGPNet-v4, omitting the GTN block and relying solely on the GCN to learn the node representation. Results in Table 11 reveal that GTN enhances the model’s accuracy from 1.0% to 11.1%. Comparing mAP, AP50, and AP75, AP50, and AP75 are slightly more inﬂuenced by GTN than mAP, but the gaps are trivial. We employ PGPNet-v5, which eliminates the proposed auxiliary loss and compare its performance with the original PGPNet. As illustrated in Table 11, adopting our auxiliary loss may result in a 3 to 4 percent performance gain for most evaluation metrics. In the ﬁnal ablation study, we implement PGPNet-v1, which retains only the co-occurrence graph and removes all the other components. As depicted in Table 11, the detection accuracy degrades signiﬁcantly, with a gap ranging from 2.9% to 19.4%. However, even with this version, PGPNet is still superior to Faster RCNN, with a performance margin of up to 7.1%.
+In conclusion, the PGPNet version with all components exhibits its superiority in all evaluation metrics. In addition, all versions of PGPNet are superior to the Faster R-CNN backbone, demonstrating the contribution of each component to the overall performance of PGPNet.
+Conclusion
+Contributions. We proposed PGPNet, a reliable and explainable pill detection framework in real-world settings. To deal with hard samples, PGPNet leveraged external knowledge, including co-occurrence likelihood, relative pill size, and visual semantic correlation during the training process. We implemented PGPNet into two popular object detectors and evaluated the proposed method on a real-world multiple pill detection dataset. The experimental results demonstrated that it could improve these models by considerable margins. Moreover, our comprehensive ablation studies proved the robustness, reliability, and explainability of the proposed framework. Future work will aim to evaluate PGPNet under a federated learning setting as well as other image-text understanding datasets.
+Limitations and Future Works. Although the effectiveness of PGPNet largely relies on external information from a graph, we recognize that this external knowledge may not always be practical or feasible in all hospitals and locations. Additionally, our co-occurrence graph building process currently relies on prescription data tied to the VAIPE dataset. However, in order for PGPNet to be suitable for practical settings, this graph needs to be expanded to include more pills and relationships, which may make it impractical to deploy the framework to actual devices and applications. To address this, we plan to collect more prescriptions and construct more general medical knowledge graphs in our future work. Additionally, we plan to optimize the computational requirements when scaling up our framework.
+Acknowledgments
+This work was funded by Vingroup Joint Stock Company and supported by Vingroup Innovation Foundation (VINIF) under project code V IN IF.2021.DA00128. We thank all our collaborators who participated in the collection and annotation of the VAIPE dataset.
+25
+
+A PREPRINT - MARCH 20, 2023
+References
+[1] C3pi data. https://www.nlm.nih.gov/databases/download/pill_image.html. Accessed: 2020-10-31. [2] Coco - common objects in context. https://cocodataset.org/#detection-eval. Accessed: 2022-09-27. [3] General data protection regulation (gdpr). https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=
+CELEX%3A02016R0679-20160504. Accessed: 2022-10-20. [4] Pill Identiﬁer drugs.com. https://www.drugs.com/imprints.php. Accessed: 23 Oct 2022. [5] World patient safety day 2022. https://www.who.int/news-room/events/detail/2022/09/17/
+default-calendar/world-patient-safety-day-2022. Accessed: 2022-04-14. [6] W.-J. Chang, L.-B. Chen, C.-H. Hsu, J.-H. Chen, T.-C. Yang, and C.-P. Lin. Medglasses: A wearable smart-
+glasses-based drug pill recognition system using deep learning for visually impaired chronic patients. IEEE Access, 8:17013–17024, 2020. [7] d. V. A. de Craen AJ, Roos PJ and K. J. Effect of colour of drugs: systematic review of perceived effect of drugs and of their effectiveness. BMJ, pages 1624–1626, 1996. [8] C. Gong, D. He, X. Tan, T. Qin, L. Wang, and T.-Y. Liu. Frage: Frequency-agnostic word representation. In S. Bengio, H. Wallach, H. Larochelle, K. Grauman, N. Cesa-Bianchi, and R. Garnett, editors, Advances in Neural Information Processing Systems, volume 31. Curran Associates, Inc., 2018. [9] G. Jocher, A. Chaurasia, A. Stoken, J. Borovec, NanoCode012, Y. Kwon, TaoXie, K. Michael, J. Fang, imyhxy, Lorna, C. Wong, Z. Yifu, A. V, D. Montes, Z. Wang, C. Fati, J. Nadar, Laughing, UnglvKitDe, tkianai, yxNONG, P. Skalski, A. Hogan, M. Strobel, M. Jain, L. Mammana, and xylieong. ultralytics/yolov5: v6.2 - YOLOv5 Classiﬁcation Models, Apple M1, Reproducibility, ClearML and Deci.ai integrations, Aug. 2022. [10] H.-J. Kwon, H.-G. Kim, and S.-H. Lee. Pill detection model for medicine inspection based on deep learning. Chemosensors, 10(1):4, 2022. [11] T.-Y. Lin. Microsoft coco: Common objects in context. In European conference on computer vision, pages 740–755. Springer, 2014. [12] T.-Y. Lin, P. Dollár, R. Girshick, K. He, B. Hariharan, and S. Belongie. Feature pyramid networks for object detection. In IEEE CVPR, pages 2117–2125, 2017. [13] S. Ling, A. Pastor, J. Li, Z. Che, J. Wang, J. Kim, and P. L. Callet. Few-shot Pill Recognition. In International Conference on Pattern Recognition, pages 9789–9798, 2020. [14] S. Ling, A. Pastor, J. Li, Z. Che, J. Wang, J. Kim, and P. L. Callet. Few-shot pill recognition. In IEEE CVPR, June 2020. [15] S. Ling, A. Pastor, J. Li, Z. Che, J. Wang, J. Kim, and P. Le Callet. Few-shot pill recognition. In IEEE CVPR, pages 9786–9795, 2020. [16] Z. Liu, H. Hu, Y. Lin, Z. Yao, Z. Xie, Y. Wei, J. Ning, Y. Cao, Z. Zhang, L. Dong, et al. Swin transformer v2: Scaling up capacity and resolution. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages 12009–12019, 2022. [17] I. Loshchilov and F. Hutter. Decoupled weight decay regularization. In International Conference on Learning Representations, ICLR 2019, New Orleans, LA, USA, May 6-9, 2019. OpenReview.net, 2019. [18] N. H. S. D. r. R. . D. . r. A. . National Research Ethics Service (NRES), Health Research Authority. BWorld Robot Control Software. http://www.hra.nhs.uk/documents/2013/09/defining-research.pdf, 2013. [Online; Accessed February 11, 2015.]. [19] Y.-Y. Ou, A.-C. Tsai, X.-P. Zhou, and J.-F. Wang. Automatic Drug Pills Detection Based on Enhanced Feature Pyramid Network and Convolution Neural Networks. IET Computer Vision, 14(1):9–17, 2020. [20] T. P. Proma, M. Z. Hossan, and M. A. Amin. Medicine recognition from colors and text. In Proceedings of the 3rd International Conference on Graphics and Signal Processing, pages 39–43, 2019. [21] S. Ren, K. He, R. Girshick, and J. Sun. Faster r-cnn: Towards real-time object detection with region proposal networks. In C. Cortes, N. Lawrence, D. Lee, M. Sugiyama, and R. Garnett, editors, Advances in Neural Information Processing Systems, volume 28. Curran Associates, Inc., 2015. [22] L. Tan, T. Huangfu, L. Wu, and W. Chen. Comparison of retinanet, ssd, and yolo v3 for real-time pill identiﬁcation. BMC medical informatics and decision making, 21:1–11, 2021. [23] H.-W. Ting, S.-L. Chung, C.-F. Chen, H.-Y. Chiu, and Y.-W. Hsieh. A drug identiﬁcation model developed using deep learning technologies: experience of a medical center in taiwan. BMC Health Services Research, 20, 2020.
+26
+
+A PREPRINT - MARCH 20, 2023
+[24] N. Usuyama, N. L. Delgado, A. K. Hall, and J. Lundin. ePillID Dataset: A Low-shot Fine-grained Benchmark for Pill Identiﬁcation. In International Conference on Pattern Recognition Workshop, pages 910–911, 2020.
+[25] M. Valdenegro-Toro. I ﬁnd your lack of uncertainty in computer vision disturbing. In CVPRW, pages 1263–1272, 2021.
+[26] Y. F. Wong, H. T. Ng, K. Y. Leung, K. Y. Chan, S. Y. Chan, and C. C. Loy. Development of ﬁne-grained pill identiﬁcation algorithm using deep convolutional network. Journal of Biomedical Informatics, 74:130–136, 2017.
+[27] Y. F. Wong, H. T. Ng, K. Y. Leung, K. Y. Chan, S. Y. Chan, and C. C. Loy. Development of ﬁne-grained pill identiﬁcation algorithm using deep convolutional network. Journal of Biomedical Informatics, 74:130–136, 2017.
+[28] H. Xu, C. Jiang, X. Liang, and Z. Li. Spatial-aware graph relation network for large-scale object detection. In CVPR, pages 9290–9299, 2019.
+[29] H. Xu, C. Jiang, X. Liang, L. Lin, and Z. Li. Reasoning-rcnn: Unifying adaptive global reasoning into large-scale object detection. In IEEE CVPR, pages 6412–6421, 2019.
+[30] Z. Yaniv, J. Faruque, S. Howe, K. Dunn, D. Sharlip, A. Bond, P. Perillan, O. Bodenreider, M. J. Ackerman, and T. S. Yoo. The national library of medicine pill image recognition challenge: An initial report. In AIPR, pages 1–9, 2016.
+[31] R. Ying, D. Bourgeois, J. You, M. Zitnik, and J. Leskovec. Gnnexplainer: Generating explanations for graph neural networks. Advances in Neural information Processing Systems, 32:9240–9251, 2019.
+[32] S. Yun, M. Jeong, R. Kim, J. Kang, and H. J. Kim. Graph transformer networks. Advances in Neural Information Processing Systems, 32, 2019.
+[33] G. Zhang, Z. Luo, K. Cui, and S. Lu. Meta-DETR: Few-shot object detection via uniﬁed image-level meta-learning. arXiv preprint arXiv:2103.11731, 2(6), 2021.
+[34] J. Zhang, S. A. Bargal, Z. Lin, J. Brandt, X. Shen, and S. Sclaroff. Top-down neural attention by excitation backprop. Int. J. Comput. Vision, 126(10):1084–1102, oct 2018.
+27
+

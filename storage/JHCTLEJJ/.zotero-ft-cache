@@ -1,0 +1,81 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2108.04740
+
+Help | Advanced Search
+Search
+Computer Science > Computer Vision and Pattern Recognition
+(cs)
+[Submitted on 10 Aug 2021]
+Title: Semantics-STGCNN: A Semantics-guided Spatial-Temporal Graph Convolutional Network for Multi-class Trajectory Prediction
+Authors: Ben A. Rainbow , Qianhui Men , Hubert P. H. Shum
+Download a PDF of the paper titled Semantics-STGCNN: A Semantics-guided Spatial-Temporal Graph Convolutional Network for Multi-class Trajectory Prediction, by Ben A. Rainbow and 2 other authors
+Download PDF
+
+    Abstract: Predicting the movement trajectories of multiple classes of road users in real-world scenarios is a challenging task due to the diverse trajectory patterns. While recent works of pedestrian trajectory prediction successfully modelled the influence of surrounding neighbours based on the relative distances, they are ineffective on multi-class trajectory prediction. This is because they ignore the impact of the implicit correlations between different types of road users on the trajectory to be predicted - for example, a nearby pedestrian has a different level of influence from a nearby car. In this paper, we propose to introduce class information into a graph convolutional neural network to better predict the trajectory of an individual. We embed the class labels of the surrounding objects into the label adjacency matrix (LAM), which is combined with the velocity-based adjacency matrix (VAM) comprised of the objects' velocity, thereby generating a semantics-guided graph adjacency (SAM). SAM effectively models semantic information with trainable parameters to automatically learn the embedded label features that will contribute to the fixed velocity-based trajectory. Such information of spatial and temporal dependencies is passed to a graph convolutional and temporal convolutional network to estimate the predicted trajectory distributions. We further propose new metrics, known as Average2 Displacement Error (aADE) and Average Final Displacement Error (aFDE), that assess network accuracy more accurately. We call our framework Semantics-STGCNN. It consistently shows superior performance to the state-of-the-arts in existing and the newly proposed metrics. 
+
+Subjects: 	Computer Vision and Pattern Recognition (cs.CV)
+Cite as: 	arXiv:2108.04740 [cs.CV]
+  	(or arXiv:2108.04740v1 [cs.CV] for this version)
+  	https://doi.org/10.48550/arXiv.2108.04740
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Hubert P. H. Shum [ view email ]
+[v1] Tue, 10 Aug 2021 15:02:50 UTC (9,596 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Semantics-STGCNN: A Semantics-guided Spatial-Temporal Graph Convolutional Network for Multi-class Trajectory Prediction, by Ben A. Rainbow and 2 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.CV
+< prev   |   next >
+new | recent | 2108
+Change to browse by:
+cs
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+DBLP - CS Bibliography
+listing | bibtex
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

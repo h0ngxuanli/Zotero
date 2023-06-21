@@ -1,0 +1,292 @@
+
+Skip to content
+Toggle navigation
+Sign up
+
+    Product
+        Actions
+        Automate any workflow
+        Packages
+        Host and manage packages
+        Security
+        Find and fix vulnerabilities
+        Codespaces
+        Instant dev environments
+        Copilot
+        Write better code with AI
+        Code review
+        Manage code changes
+        Issues
+        Plan and track work
+        Discussions
+        Collaborate outside of code
+    Explore
+        All features
+        Documentation
+        GitHub Skills
+        Blog
+    Solutions
+    For
+        Enterprise
+        Teams
+        Startups
+        Education
+    By Solution
+        CI/CD & Automation
+        DevOps
+        DevSecOps
+    Case Studies
+        Customer Stories
+        Resources
+    Open Source
+        GitHub Sponsors
+        Fund open source developers
+        The ReadME Project
+        GitHub community articles
+    Repositories
+        Topics
+        Trending
+        Collections
+    Pricing
+
+Sign in
+Sign up
+{{ message }}
+@noahgift noahgift Follow
+Overview Repositories 380 Projects 0 Packages 1 Stars 921
+More
+
+    Overview
+    Repositories
+    Projects
+    Packages
+    Stars
+
+@noahgift
+noahgift
+Follow
+Avatar
+🎯
+#mlops
+Noah Gift noahgift
+Follow
+Sponsor
+Rust Fanatic | MLOPs | Founder Pragmatic AI Labs | Machine Learning & Cloud Lecturer at Duke & Northwestern & UC Berkeley & UC Davis | Author
+2.1k followers · 218 following
+
+    Pragmatic AI Labs
+    Raleigh, NC
+    https://noahgift.com
+
+Achievements
+Achievement: YOLO Achievement: Arctic Code Vault Contributor Achievement: Pull Shark x3 Achievement: Starstruck x2
+Beta Send feedback
+Highlights
+
+    Developer Program Member
+    Pro
+
+Block or Report
+Block or report noahgift
+Block user
+
+Prevent this user from interacting with your repositories and sending you notifications. Learn more about blocking users .
+
+You must be logged in to block users.
+Add an optional note: Note
+Please don't include any personal information such as legal names or email addresses. Maximum 100 characters, markdown supported. This note will be visible to only you.
+Block user
+Report abuse
+
+Contact GitHub support about this user’s behavior. Learn more about reporting abuse .
+Report abuse
+More
+
+    Overview
+    Repositories
+    Projects
+    Packages
+    Stars
+
+noahgift / README .md
+Noah Gift 👋
+
+What currently keeps me busy is working as an Executive in Residence at the Duke MIDS (Data Science) and Duke AI Product Management program and as a consultant and author in Cloud Computing, Big Data, DevOps, and MLOps. The following visual resume is a good idea to show the kinds of things I have worked on in my life. I am a Rust Fanatic.
+
+visual
+
+🔭 I’m currently working on or just finished the following things below.
+📺 Latest YouTube Videos
+
+YouTube Channel Subscribers
+
+    Rust for MLOps with Amazon Sagemaker
+    Using VS Code, Copilot and Codespaces to Level Up to Rust from Python
+    Rust Distroless PyTorch Computer Vision Microservice Walkthrough
+    Assimilate-Go
+    Assimilate-Zig
+    Assimilate-Bash
+    Assimilate-Haskell
+
+MLOps (Specialization: 4 Courses)
+Publisher: Coursera + Duke
+Release Date: 1/1/2023
+
+    MLOps | Machine Learning Operations Specialization
+    DevOps, DataOps, MLOps
+    MLOps Platforms: Amazon SageMaker and Azure ML
+    Open Source Platforms for MLOps
+    Python Essentials for MLOps
+
+Foundations of Data Engineering (Specialization: 4 Courses)
+Publisher: Coursera + Duke
+Release Date: 2/1/2022
+
+de-course
+
+    Python, Bash and SQL Essentials for Data Engineering Specialization
+    Course1: Python and Pandas for Data Engineering
+    Course2: Linux and Bash for Data Engineering
+        Github Repos for Projects in Course
+    Course3: Scripting with Python and SQL for Data Engineering
+    Course4: Web Development and Command-Line Tools in Python for Data Engineering
+
+AWS Certified Solutions Architect Professional exam (SAP-C01)
+Publisher: Linkedin Learning
+Release Date: January, 2021
+
+    AWS Certified Solutions Architect - Professional (SAP-C01) Cert Prep: 1 Design for Organizational Complexity
+    Microsoft Azure Data Engineering (DP-203): 2 Design and Develop Data Processing
+    AWS Certified Solutions Architect - Professional (SAP-C01) Cert Prep: 2 Design for New Solutions
+
+AWS w/ C#
+Publisher: O'Reilly
+Release Date: 2022 (Reinvent 2022 Target)
+
+Working with O'Reilly and AWS to write a book on building solutions on AWS with C#/.NET 6. c#book
+
+    Developing on AWS with C#
+
+Practical MLOps
+Publisher: O'Reilly
+Release Date: 2021
+
+mlops-color
+
+    Purchase Book
+    Read Online
+    Source Code
+
+Cloud Computing (Specialization: 4 Courses)
+Publisher: Coursera + Duke
+Release Date: 4/1/2021
+
+Building Cloud Computing Solutions at Scale Specialization Launch Your Career in Cloud Computing. Master strategies and tools to become proficient in developing data science and machine learning (MLOps) solutions in the Cloud
+What You Will Learn
+
+    Build websites involving serverless technology and virtual machines, using the best practices of DevOps
+    Apply Machine Learning Engineering to build a Flask web application that serves out Machine Learning predictions
+    Create Microservices using technologies like Flask and Kubernetes that are continuously deployed to a Cloud platform: AWS, Azure or GCP
+
+Courses in Specialization
+
+cloud-specialization
+
+    Take the Specialization
+    Cloud Computing Foundations
+    Cloud Virtualization, Containers and APIs
+    Cloud Data Engineering
+    Cloud Machine Learning Engineering and MLOps
+
+📫 How to reach me:
+
+    Linkedin: https://www.linkedin.com/in/noahgift/
+    Web: https://noahgift.com
+    Pragmatic AI Labs: https://paiml.com
+    Subscribe to the Pragmatic AI Labs YouTube Channel (New Content Weekly)
+
+⚡ Fun facts: I was as a bouncer in college with former UFC Champion Chuck Liddell. Early in my career I worked on the movie Avatar while living in New Zealand . I used to play basketball with Adam Sandler at lunch when I worked at Sony Imageworks in Los Angeles, CA.
+Pinned
+
+    paiml / practical-mlops-book Public
+
+    [Book-2021] Practical MLOps O'Reilly Book
+
+    Jupyter Notebook 487 206
+    cloud-data-analysis-at-scale Public
+
+    [Course-2020-2023] taught at Duke MIDS. This is also a Coursera Course that covers MLOps, ML Engineering and the foundations of Cloud Computing for Data Science.
+
+    Jupyter Notebook 114 76
+    paiml / python_devops_book Public
+
+    [Book-2020] Python For DevOps: Learn Ruthlessly Effective Automation
+
+    Jupyter Notebook 404 289
+    pragmaticai Public
+
+    [Book-2019] Pragmatic AI: An Introduction to Cloud-based Machine Learning
+
+    Makefile 116 61
+    functional_intro_to_python Public
+
+    [tutorial]A functional, Data Science focused introduction to Python
+
+    Jupyter Notebook 280 188
+    aws-ml-guide Public
+
+    [Video]AWS Certified Machine Learning-Specialty (ML-S) Guide
+
+    Jupyter Notebook 111 94
+
+1,931 contributions in the last year
+No contributions on Sunday, May 22, 2022 1 contribution on Monday, May 23, 2022 5 contributions on Tuesday, May 24, 2022 No contributions on Wednesday, May 25, 2022 No contributions on Thursday, May 26, 2022 13 contributions on Friday, May 27, 2022 9 contributions on Saturday, May 28, 2022 No contributions on Sunday, May 29, 2022 No contributions on Monday, May 30, 2022 No contributions on Tuesday, May 31, 2022 2 contributions on Wednesday, June 1, 2022 No contributions on Thursday, June 2, 2022 7 contributions on Friday, June 3, 2022 3 contributions on Saturday, June 4, 2022 11 contributions on Sunday, June 5, 2022 1 contribution on Monday, June 6, 2022 No contributions on Tuesday, June 7, 2022 No contributions on Wednesday, June 8, 2022 No contributions on Thursday, June 9, 2022 No contributions on Friday, June 10, 2022 1 contribution on Saturday, June 11, 2022 No contributions on Sunday, June 12, 2022 No contributions on Monday, June 13, 2022 3 contributions on Tuesday, June 14, 2022 3 contributions on Wednesday, June 15, 2022 14 contributions on Thursday, June 16, 2022 10 contributions on Friday, June 17, 2022 1 contribution on Saturday, June 18, 2022 7 contributions on Sunday, June 19, 2022 16 contributions on Monday, June 20, 2022 8 contributions on Tuesday, June 21, 2022 8 contributions on Wednesday, June 22, 2022 7 contributions on Thursday, June 23, 2022 No contributions on Friday, June 24, 2022 No contributions on Saturday, June 25, 2022 No contributions on Sunday, June 26, 2022 No contributions on Monday, June 27, 2022 10 contributions on Tuesday, June 28, 2022 3 contributions on Wednesday, June 29, 2022 No contributions on Thursday, June 30, 2022 No contributions on Friday, July 1, 2022 No contributions on Saturday, July 2, 2022 No contributions on Sunday, July 3, 2022 No contributions on Monday, July 4, 2022 4 contributions on Tuesday, July 5, 2022 4 contributions on Wednesday, July 6, 2022 3 contributions on Thursday, July 7, 2022 No contributions on Friday, July 8, 2022 No contributions on Saturday, July 9, 2022 No contributions on Sunday, July 10, 2022 No contributions on Monday, July 11, 2022 No contributions on Tuesday, July 12, 2022 No contributions on Wednesday, July 13, 2022 No contributions on Thursday, July 14, 2022 1 contribution on Friday, July 15, 2022 No contributions on Saturday, July 16, 2022 No contributions on Sunday, July 17, 2022 No contributions on Monday, July 18, 2022 9 contributions on Tuesday, July 19, 2022 2 contributions on Wednesday, July 20, 2022 1 contribution on Thursday, July 21, 2022 7 contributions on Friday, July 22, 2022 2 contributions on Saturday, July 23, 2022 No contributions on Sunday, July 24, 2022 4 contributions on Monday, July 25, 2022 No contributions on Tuesday, July 26, 2022 No contributions on Wednesday, July 27, 2022 No contributions on Thursday, July 28, 2022 5 contributions on Friday, July 29, 2022 11 contributions on Saturday, July 30, 2022 8 contributions on Sunday, July 31, 2022 2 contributions on Monday, August 1, 2022 12 contributions on Tuesday, August 2, 2022 2 contributions on Wednesday, August 3, 2022 No contributions on Thursday, August 4, 2022 No contributions on Friday, August 5, 2022 No contributions on Saturday, August 6, 2022 No contributions on Sunday, August 7, 2022 11 contributions on Monday, August 8, 2022 19 contributions on Tuesday, August 9, 2022 1 contribution on Wednesday, August 10, 2022 No contributions on Thursday, August 11, 2022 No contributions on Friday, August 12, 2022 1 contribution on Saturday, August 13, 2022 No contributions on Sunday, August 14, 2022 No contributions on Monday, August 15, 2022 4 contributions on Tuesday, August 16, 2022 14 contributions on Wednesday, August 17, 2022 No contributions on Thursday, August 18, 2022 No contributions on Friday, August 19, 2022 1 contribution on Saturday, August 20, 2022 No contributions on Sunday, August 21, 2022 2 contributions on Monday, August 22, 2022 2 contributions on Tuesday, August 23, 2022 No contributions on Wednesday, August 24, 2022 1 contribution on Thursday, August 25, 2022 6 contributions on Friday, August 26, 2022 4 contributions on Saturday, August 27, 2022 1 contribution on Sunday, August 28, 2022 2 contributions on Monday, August 29, 2022 6 contributions on Tuesday, August 30, 2022 8 contributions on Wednesday, August 31, 2022 3 contributions on Thursday, September 1, 2022 No contributions on Friday, September 2, 2022 16 contributions on Saturday, September 3, 2022 16 contributions on Sunday, September 4, 2022 4 contributions on Monday, September 5, 2022 16 contributions on Tuesday, September 6, 2022 14 contributions on Wednesday, September 7, 2022 11 contributions on Thursday, September 8, 2022 3 contributions on Friday, September 9, 2022 No contributions on Saturday, September 10, 2022 No contributions on Sunday, September 11, 2022 32 contributions on Monday, September 12, 2022 12 contributions on Tuesday, September 13, 2022 16 contributions on Wednesday, September 14, 2022 26 contributions on Thursday, September 15, 2022 5 contributions on Friday, September 16, 2022 10 contributions on Saturday, September 17, 2022 20 contributions on Sunday, September 18, 2022 6 contributions on Monday, September 19, 2022 25 contributions on Tuesday, September 20, 2022 10 contributions on Wednesday, September 21, 2022 No contributions on Thursday, September 22, 2022 No contributions on Friday, September 23, 2022 7 contributions on Saturday, September 24, 2022 1 contribution on Sunday, September 25, 2022 19 contributions on Monday, September 26, 2022 13 contributions on Tuesday, September 27, 2022 15 contributions on Wednesday, September 28, 2022 No contributions on Thursday, September 29, 2022 1 contribution on Friday, September 30, 2022 1 contribution on Saturday, October 1, 2022 No contributions on Sunday, October 2, 2022 19 contributions on Monday, October 3, 2022 21 contributions on Tuesday, October 4, 2022 5 contributions on Wednesday, October 5, 2022 24 contributions on Thursday, October 6, 2022 18 contributions on Friday, October 7, 2022 No contributions on Saturday, October 8, 2022 No contributions on Sunday, October 9, 2022 No contributions on Monday, October 10, 2022 3 contributions on Tuesday, October 11, 2022 5 contributions on Wednesday, October 12, 2022 30 contributions on Thursday, October 13, 2022 No contributions on Friday, October 14, 2022 19 contributions on Saturday, October 15, 2022 1 contribution on Sunday, October 16, 2022 8 contributions on Monday, October 17, 2022 2 contributions on Tuesday, October 18, 2022 8 contributions on Wednesday, October 19, 2022 3 contributions on Thursday, October 20, 2022 1 contribution on Friday, October 21, 2022 No contributions on Saturday, October 22, 2022 2 contributions on Sunday, October 23, 2022 5 contributions on Monday, October 24, 2022 1 contribution on Tuesday, October 25, 2022 1 contribution on Wednesday, October 26, 2022 No contributions on Thursday, October 27, 2022 2 contributions on Friday, October 28, 2022 No contributions on Saturday, October 29, 2022 1 contribution on Sunday, October 30, 2022 4 contributions on Monday, October 31, 2022 No contributions on Tuesday, November 1, 2022 1 contribution on Wednesday, November 2, 2022 No contributions on Thursday, November 3, 2022 No contributions on Friday, November 4, 2022 1 contribution on Saturday, November 5, 2022 No contributions on Sunday, November 6, 2022 5 contributions on Monday, November 7, 2022 No contributions on Tuesday, November 8, 2022 No contributions on Wednesday, November 9, 2022 No contributions on Thursday, November 10, 2022 3 contributions on Friday, November 11, 2022 10 contributions on Saturday, November 12, 2022 17 contributions on Sunday, November 13, 2022 60 contributions on Monday, November 14, 2022 28 contributions on Tuesday, November 15, 2022 1 contribution on Wednesday, November 16, 2022 8 contributions on Thursday, November 17, 2022 15 contributions on Friday, November 18, 2022 4 contributions on Saturday, November 19, 2022 2 contributions on Sunday, November 20, 2022 8 contributions on Monday, November 21, 2022 17 contributions on Tuesday, November 22, 2022 No contributions on Wednesday, November 23, 2022 2 contributions on Thursday, November 24, 2022 No contributions on Friday, November 25, 2022 1 contribution on Saturday, November 26, 2022 3 contributions on Sunday, November 27, 2022 12 contributions on Monday, November 28, 2022 11 contributions on Tuesday, November 29, 2022 No contributions on Wednesday, November 30, 2022 17 contributions on Thursday, December 1, 2022 No contributions on Friday, December 2, 2022 No contributions on Saturday, December 3, 2022 2 contributions on Sunday, December 4, 2022 5 contributions on Monday, December 5, 2022 20 contributions on Tuesday, December 6, 2022 No contributions on Wednesday, December 7, 2022 No contributions on Thursday, December 8, 2022 14 contributions on Friday, December 9, 2022 10 contributions on Saturday, December 10, 2022 9 contributions on Sunday, December 11, 2022 18 contributions on Monday, December 12, 2022 31 contributions on Tuesday, December 13, 2022 No contributions on Wednesday, December 14, 2022 3 contributions on Thursday, December 15, 2022 No contributions on Friday, December 16, 2022 No contributions on Saturday, December 17, 2022 No contributions on Sunday, December 18, 2022 1 contribution on Monday, December 19, 2022 No contributions on Tuesday, December 20, 2022 1 contribution on Wednesday, December 21, 2022 47 contributions on Thursday, December 22, 2022 13 contributions on Friday, December 23, 2022 20 contributions on Saturday, December 24, 2022 6 contributions on Sunday, December 25, 2022 30 contributions on Monday, December 26, 2022 22 contributions on Tuesday, December 27, 2022 9 contributions on Wednesday, December 28, 2022 5 contributions on Thursday, December 29, 2022 3 contributions on Friday, December 30, 2022 No contributions on Saturday, December 31, 2022 18 contributions on Sunday, January 1, 2023 15 contributions on Monday, January 2, 2023 5 contributions on Tuesday, January 3, 2023 5 contributions on Wednesday, January 4, 2023 13 contributions on Thursday, January 5, 2023 7 contributions on Friday, January 6, 2023 6 contributions on Saturday, January 7, 2023 4 contributions on Sunday, January 8, 2023 10 contributions on Monday, January 9, 2023 4 contributions on Tuesday, January 10, 2023 5 contributions on Wednesday, January 11, 2023 2 contributions on Thursday, January 12, 2023 1 contribution on Friday, January 13, 2023 1 contribution on Saturday, January 14, 2023 10 contributions on Sunday, January 15, 2023 29 contributions on Monday, January 16, 2023 4 contributions on Tuesday, January 17, 2023 41 contributions on Wednesday, January 18, 2023 3 contributions on Thursday, January 19, 2023 No contributions on Friday, January 20, 2023 4 contributions on Saturday, January 21, 2023 16 contributions on Sunday, January 22, 2023 14 contributions on Monday, January 23, 2023 29 contributions on Tuesday, January 24, 2023 10 contributions on Wednesday, January 25, 2023 9 contributions on Thursday, January 26, 2023 2 contributions on Friday, January 27, 2023 4 contributions on Saturday, January 28, 2023 2 contributions on Sunday, January 29, 2023 21 contributions on Monday, January 30, 2023 12 contributions on Tuesday, January 31, 2023 2 contributions on Wednesday, February 1, 2023 No contributions on Thursday, February 2, 2023 No contributions on Friday, February 3, 2023 8 contributions on Saturday, February 4, 2023 7 contributions on Sunday, February 5, 2023 8 contributions on Monday, February 6, 2023 No contributions on Tuesday, February 7, 2023 15 contributions on Wednesday, February 8, 2023 1 contribution on Thursday, February 9, 2023 14 contributions on Friday, February 10, 2023 3 contributions on Saturday, February 11, 2023 12 contributions on Sunday, February 12, 2023 No contributions on Monday, February 13, 2023 No contributions on Tuesday, February 14, 2023 11 contributions on Wednesday, February 15, 2023 8 contributions on Thursday, February 16, 2023 8 contributions on Friday, February 17, 2023 2 contributions on Saturday, February 18, 2023 1 contribution on Sunday, February 19, 2023 3 contributions on Monday, February 20, 2023 No contributions on Tuesday, February 21, 2023 2 contributions on Wednesday, February 22, 2023 No contributions on Thursday, February 23, 2023 No contributions on Friday, February 24, 2023 No contributions on Saturday, February 25, 2023 12 contributions on Sunday, February 26, 2023 7 contributions on Monday, February 27, 2023 No contributions on Tuesday, February 28, 2023 3 contributions on Wednesday, March 1, 2023 No contributions on Thursday, March 2, 2023 No contributions on Friday, March 3, 2023 1 contribution on Saturday, March 4, 2023 6 contributions on Sunday, March 5, 2023 1 contribution on Monday, March 6, 2023 18 contributions on Tuesday, March 7, 2023 No contributions on Wednesday, March 8, 2023 No contributions on Thursday, March 9, 2023 No contributions on Friday, March 10, 2023 4 contributions on Saturday, March 11, 2023 No contributions on Sunday, March 12, 2023 1 contribution on Monday, March 13, 2023 6 contributions on Tuesday, March 14, 2023 1 contribution on Wednesday, March 15, 2023 No contributions on Thursday, March 16, 2023 2 contributions on Friday, March 17, 2023 No contributions on Saturday, March 18, 2023 No contributions on Sunday, March 19, 2023 3 contributions on Monday, March 20, 2023 No contributions on Tuesday, March 21, 2023 6 contributions on Wednesday, March 22, 2023 No contributions on Thursday, March 23, 2023 No contributions on Friday, March 24, 2023 No contributions on Saturday, March 25, 2023 No contributions on Sunday, March 26, 2023 5 contributions on Monday, March 27, 2023 10 contributions on Tuesday, March 28, 2023 6 contributions on Wednesday, March 29, 2023 19 contributions on Thursday, March 30, 2023 12 contributions on Friday, March 31, 2023 11 contributions on Saturday, April 1, 2023 5 contributions on Sunday, April 2, 2023 10 contributions on Monday, April 3, 2023 1 contribution on Tuesday, April 4, 2023 4 contributions on Wednesday, April 5, 2023 9 contributions on Thursday, April 6, 2023 1 contribution on Friday, April 7, 2023 No contributions on Saturday, April 8, 2023 6 contributions on Sunday, April 9, 2023 5 contributions on Monday, April 10, 2023 4 contributions on Tuesday, April 11, 2023 No contributions on Wednesday, April 12, 2023 No contributions on Thursday, April 13, 2023 No contributions on Friday, April 14, 2023 2 contributions on Saturday, April 15, 2023 3 contributions on Sunday, April 16, 2023 No contributions on Monday, April 17, 2023 5 contributions on Tuesday, April 18, 2023 5 contributions on Wednesday, April 19, 2023 No contributions on Thursday, April 20, 2023 1 contribution on Friday, April 21, 2023 No contributions on Saturday, April 22, 2023 No contributions on Sunday, April 23, 2023 No contributions on Monday, April 24, 2023 No contributions on Tuesday, April 25, 2023 No contributions on Wednesday, April 26, 2023 No contributions on Thursday, April 27, 2023 No contributions on Friday, April 28, 2023 5 contributions on Saturday, April 29, 2023 7 contributions on Sunday, April 30, 2023 No contributions on Monday, May 1, 2023 5 contributions on Tuesday, May 2, 2023 5 contributions on Wednesday, May 3, 2023 No contributions on Thursday, May 4, 2023 No contributions on Friday, May 5, 2023 No contributions on Saturday, May 6, 2023 No contributions on Sunday, May 7, 2023 No contributions on Monday, May 8, 2023 1 contribution on Tuesday, May 9, 2023 3 contributions on Wednesday, May 10, 2023 4 contributions on Thursday, May 11, 2023 2 contributions on Friday, May 12, 2023 No contributions on Saturday, May 13, 2023 No contributions on Sunday, May 14, 2023 No contributions on Monday, May 15, 2023 No contributions on Tuesday, May 16, 2023 No contributions on Wednesday, May 17, 2023 1 contribution on Thursday, May 18, 2023 9 contributions on Friday, May 19, 2023 No contributions on Saturday, May 20, 2023 No contributions on Sunday, May 21, 2023 No contributions on Monday, May 22, 2023 No contributions on Tuesday, May 23, 2023 No contributions on Wednesday, May 24, 2023 No contributions on Thursday, May 25, 2023 No contributions on Friday, May 26, 2023 No contributions on Saturday, May 27, 2023 May Jun Jul Aug Sep Oct Nov Dec Jan Feb Mar Apr May Sun Mon Tue Wed Thu Fri Sat
+Learn how we count contributions
+Less More
+@nogibjj @paiml
+Activity overview
+Contributed to nogibjj/rust-mlops-template , nogibjj/rust-tutorial , nogibjj/mlops-template and 150 other repositories
+  Code review 1% Issues 1% Pull requests 98% Commits
+Contribution activity
+May 2023
+Created 22 commits in 8 repositories
+
+    nogibjj/rust-data-engineering 9 commits
+    nogibjj/rust-github-demo 3 commits
+    noahgift/data-engineering-and-dataops 2 commits
+    noahgift/noahgift 2 commits
+    nogibjj/rust-tutorial 2 commits
+    nogibjj/dotfiles 2 commits
+    noahgift/mlops-duke-aipi 1 commit
+    nogibjj/rust-mlops-template 1 commit
+
+Created 1 repository
+
+    noahgift/dotfiles Shell May 3
+
+Opened 1 issue in 1 repository
+nogibjj/rust-mlops-template 1 open
+
+    Add R + Rust Example May 10
+
+6 contributions in private repositories May 3 – May 18
+Show more activity
+
+Seeing something unexpected? Take a look at the GitHub profile guide .
+Footer
+© 2023 GitHub, Inc.
+Footer navigation
+
+    Terms
+    Privacy
+    Security
+    Status
+    Docs
+    Contact GitHub
+    Pricing
+    API
+    Training
+    Blog
+    About
+
+You can’t perform that action at this time.

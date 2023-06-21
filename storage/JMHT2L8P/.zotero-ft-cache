@@ -1,0 +1,2592 @@
+Data Mining: Concepts and Techniques
+
+— Chapter 6 —
+
+Jiawei Han Department of Computer Science University of Illinois at Urbana-Champaign
+www.cs.uiuc.edu/~hanj
+©2006 Jiawei Han and Micheline Kamber, All rights reserved
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+1
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+2
+
+Chapter 6. Classification and Prediction
+
+ What is classification? What is  Support Vector Machines (SVM)
+
+prediction?
+
+ Associative classification
+
+ Issues regarding classification and prediction
+
+ Lazy learners (or learning from your neighbors)
+
+ Classification by decision tree induction
+ Bayesian classification  Rule-based classification  Classification by back
+propagation
+
+ Other classification methods  Prediction  Accuracy and error measures  Ensemble methods  Model selection  Summary
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+3
+
+Classification vs. Prediction
+
+ Classification  predicts categorical class labels (discrete or nominal)  classifies data (constructs a model) based on the training set and the values (class labels) in a classifying attribute and uses it in classifying new data
+ Prediction  models continuous-valued functions, i.e., predicts unknown or missing values
+ Typical applications  Credit approval  Target marketing  Medical diagnosis  Fraud detection
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+4
+
+Classification—A Two-Step Process
+
+ Model construction: describing a set of predetermined classes
+ Each tuple/sample is assumed to belong to a predefined class, as determined by the class label attribute
+ The set of tuples used for model construction is training set
+ The model is represented as classification rules, decision trees, or mathematical formulae
+ Model usage: for classifying future or unknown objects
+ Estimate accuracy of the model
+ The known label of test sample is compared with the classified result from the model
+ Accuracy rate is the percentage of test set samples that are correctly classified by the model
+ Test set is independent of training set, otherwise over-fitting will occur
+ If the accuracy is acceptable, use the model to classify data tuples whose class labels are not known
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+5
+
+Process (1): Model Construction
+
+Training Data
+
+Classification Algorithms
+
+NAME RANK
+
+YEARS TENURED
+
+M ike A ssistan t P ro f 3
+
+no
+
+M ary A ssistan t P ro f 7
+
+yes
+
+B ill P ro fesso r
+
+2
+
+yes
+
+Jim A sso ciate P ro f 7
+
+yes
+
+D ave A ssistan t P ro f 6
+
+no
+
+A n n e A sso ciate P ro f 3
+
+no
+
+Classifier (Model)
+IF rank = ‘professor’ OR years > 6 THEN tenured = ‘yes’
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+6
+
+Process (2): Using the Model in Prediction
+
+Classifier
+
+Testing Data
+
+Unseen Data
+
+(Jeff, Professor, 4)
+
+NAME RANK
+
+YEARS TENURED
+
+T om A ssistant P rof 2
+
+no
+
+M erlisa A ssociate P rof 7
+
+no
+
+George Professor
+
+5
+
+yes
+
+Joseph A ssistant P rof 7
+
+yes
+
+Tenured?
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+7
+
+Supervised vs. Unsupervised Learning
+
+ Supervised learning (classification)  Supervision: The training data (observations, measurements, etc.) are accompanied by labels indicating the class of the observations  New data is classified based on the training set
+ Unsupervised learning (clustering)  The class labels of training data is unknown  Given a set of measurements, observations, etc. with the aim of establishing the existence of classes or clusters in the data
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+8
+
+Chapter 6. Classification and Prediction
+
+ What is classification? What is  Support Vector Machines (SVM)
+
+prediction?
+
+ Associative classification
+
+ Issues regarding classification and prediction
+
+ Lazy learners (or learning from your neighbors)
+
+ Classification by decision tree induction
+ Bayesian classification  Rule-based classification  Classification by back
+propagation
+
+ Other classification methods  Prediction  Accuracy and error measures  Ensemble methods  Model selection  Summary
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+9
+
+Issues: Data Preparation
+ Data cleaning  Preprocess data in order to reduce noise and handle missing values
+ Relevance analysis (feature selection)  Remove the irrelevant or redundant attributes
+ Data transformation  Generalize and/or normalize data
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+10
+
+Issues: Evaluating Classification Methods
+
+ Accuracy  classifier accuracy: predicting class label  predictor accuracy: guessing value of predicted attributes
+ Speed  time to construct the model (training time)  time to use the model (classification/prediction time)
+ Robustness: handling noise and missing values  Scalability: efficiency in disk-resident databases  Interpretability
+ understanding and insight provided by the model  Other measures, e.g., goodness of rules, such as decision
+tree size or compactness of classification rules
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+11
+
+Chapter 6. Classification and Prediction
+
+ What is classification? What is  Support Vector Machines (SVM)
+
+prediction?
+
+ Associative classification
+
+ Issues regarding classification and prediction
+
+ Lazy learners (or learning from your neighbors)
+
+ Classification by decision tree induction
+ Bayesian classification  Rule-based classification  Classification by back
+propagation
+
+ Other classification methods  Prediction  Accuracy and error measures  Ensemble methods  Model selection  Summary
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+12
+
+Decision Tree Induction: Training Dataset
+
+This follows an example of Quinlan’s ID3 (Playing Tennis)
+
+age income student credit_rating
+
+<=30 high
+
+no fair
+
+<=30 high
+
+no excellent
+
+31…40 high
+
+no fair
+
+>40 medium no fair
+
+>40 low
+
+yes fair
+
+>40 low
+
+yes excellent
+
+31…40 low
+
+yes excellent
+
+<=30 medium no fair
+
+<=30 low
+
+yes fair
+
+>40 medium yes fair
+
+<=30 medium yes excellent
+
+31…40 medium no excellent
+
+31…40 high
+
+yes fair
+
+>40 medium no excellent
+
+buys_computer no no yes yes yes no yes no yes yes yes yes yes no
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+13
+
+Output: A Decision Tree for “buys_computer”
+
+age?
+
+<=30 o3v1e.r.4c0ast
+
+>40
+
+student?
+
+yes
+
+no no
+
+yes yes
+
+credit rating? excellent fair
+yes
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+14
+
+Algorithm for Decision Tree Induction
+
+ Basic algorithm (a greedy algorithm)  Tree is constructed in a top-down recursive divide-and-conquer manner  At start, all the training examples are at the root  Attributes are categorical (if continuous-valued, they are discretized in advance)  Examples are partitioned recursively based on selected attributes  Test attributes are selected on the basis of a heuristic or statistical measure (e.g., information gain)
+ Conditions for stopping partitioning  All samples for a given node belong to the same class  There are no remaining attributes for further partitioning – majority voting is employed for classifying the leaf  There are no samples left
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+15
+
+Attribute Selection Measure: Information Gain (ID3/C4.5)
+
+ Select the attribute with the highest information gain
+
+ Let pi be the probability that an arbitrary tuple in D
+belongs to class Ci, estimated by |Ci, D|/|D|
+
+ Expected information (entropy) needed to classify a tuple
+
+in D:
+
+m
+ Info(D)   pi log2 ( pi )
+
+i 1
+
+ Information needed (after using A to split D into v
+
+partitions) to classify D:
+
+ InfoA(D) 
+
+v j 1
+
+| Dj |D
+
+| |
+
+
+
+I
+
+(
+
+D
+
+j
+
+)
+
+ Information gained by branching on attribute A
+
+Gain(A)  Info(D) InfoA(D)
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+16
+
+Attribute Selection: Information Gain
+
+ Class P: buys_computer = “yes”  Class N: buys_computer = “no”
+
+5
+
+4
+
+Infoage(D)  14 I (2,3)  14 I (4,0)
+
+Info(D)
+
+
+
+I
+
+(9,5)
+
+
+
+
+
+9 14
+
+log
+
+2
+
+(9 14
+
+)
+
+
+
+5 14
+
+log 2
+
+(5 14
+
+)
+
+0.940
+
+ 5 I (3,2)  0.694 14
+
+age <=30
+
+pi ni I(pi, ni) 2 3 0.971
+
+5 I (2,3) means “age <=30” has 5 14 out of 14 samples, with 2 yes’es
+
+31…40 4 0 0
+
+>40
+
+3 2 0.971
+
+and 3 no’s. Hence
+
+age <=30
+
+income student credit_rating buys_computer
+
+high
+
+no fair
+
+no
+
+Gain(age)  Info(D)  Infoage(D)  0.246
+
+<=30 high
+
+31…40 high
+
+>40
+
+medium
+
+no excellent no fair no fair
+
+no
+
+yes
+
+Similarly,
+
+yes
+
+>40
+
+low
+
+yes fair
+
+yes
+
+>40
+
+low
+
+31…40 low
+
+yes excellent yes excellent
+
+no yes
+
+Gain(income)  0.029
+
+<=30 medium no fair
+
+<=30 low
+
+yes fair
+
+no yes
+
+Gain(student)  0.151
+
+>40
+
+medium yes fair
+
+yes
+
+<=30 medium yes excellent
+
+yes
+
+Gain(credit _ rating)  0.048
+
+31…40 medium no excellent
+
+yes
+
+31…40 high
+
+yes fair
+
+yes
+
+>40Octobemr 8e,d2iu0m15 no excellent
+
+Data nMoining: Concepts and Techniques
+
+17
+
+Computing Information-Gain for Continuous-Value Attributes
+
+ Let attribute A be a continuous-valued attribute
+
+ Must determine the best split point for A
+
+ Sort the value A in increasing order
+
+ Typically, the midpoint between each pair of adjacent
+values is considered as a possible split point
+
+ (ai+ai+1)/2 is the midpoint between the values of ai and ai+1
+ The point with the minimum expected information requirement for A is selected as the split-point for A
+
+ Split:
+
+ D1 is the set of tuples in D satisfying A ≤ split-point, and
+
+D2 is the set of tuples in D satisfying A > split-point
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+18
+
+Gain Ratio for Attribute Selection (C4.5)
+
+ Information gain measure is biased towards attributes with a large number of values
+
+ C4.5 (a successor of ID3) uses gain ratio to overcome the problem (normalization to information gain)
+
+ SplitInfo
+
+A
+
+(D)
+
+
+
+
+
+v j 1
+
+| Dj |D
+
+| |
+
+
+
+log
+
+2
+
+(
+
+| Dj |D
+
+| ) |
+
+ GainRatio(A) = Gain(A)/SplitInfo(A)
+
+ Ex.
+
+4
+
+46
+
+64
+
+4
+
+SplitInfo
+
+A
+
+(D)
+
+
+
+
+
+14
+
+
+
+log
+
+2
+
+( 14
+
+)
+
+
+
+14
+
+
+
+log
+
+2
+
+( 14
+
+)
+
+
+
+14
+
+
+
+log
+
+2
+
+( 14
+
+)
+
+
+
+0.926
+
+ gain_ratio(income) = 0.029/0.926 = 0.031
+
+ The attribute with the maximum gain ratio is selected as the splitting attribute
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+19
+
+Gini index (CART, IBM IntelligentMiner)
+
+ If a data set D contains examples from n classes, gini index, gini(D) is
+
+defined as
+
+gini(D) 1
+
+n 
+
+p2j
+
+j 1
+
+where pj is the relative frequency of class j in D
+
+ If a data set D is split on A into two subsets D1 and D2, the gini index
+
+gini(D)
+
+is
+
+defined
+
+as
+giniA
+
+(D)
+
+
+
+|D1| |D|
+
+gini(D1)
+
+
+
+|D2| |D|
+
+gini(D2)
+
+ Reduction in Impurity:
+
+gini(A)  gini(D) giniA(D)
+
+ The attribute provides the smallest ginisplit(D) (or the largest reduction in impurity) is chosen to split the node (need to enumerate all the
+possible splitting points for each attribute)
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+20
+
+Gini index (CART, IBM IntelligentMiner)
+
+ Ex. D has 9 tuples in buys_computer = “yes” and 5 in “no”
+
+gini(D)
+
+ 1 
+
+9
+
+2
+ 
+
+ 
+
+5
+
+2
+ 
+
+
+
+0.459
+
+14  14 
+
+ Suppose the attribute income partitions D into 10 in D1: {low, medium}
+
+and 4 in D2
+
+giniincome{low,medium}
+
+(D)
+
+
+
+ 
+
+10 14
+
+Gini(D1)
+
+
+
+ 
+
+4 14
+
+Gini( 
+
+D1
+
+)
+
+but gini{medium,high} is 0.30 and thus the best since it is the lowest  All attributes are assumed continuous-valued  May need other tools, e.g., clustering, to get the possible split values  Can be modified for categorical attributes
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+21
+
+Comparing Attribute Selection Measures
+
+ The three measures, in general, return good results but  Information gain:  biased towards multivalued attributes  Gain ratio:  tends to prefer unbalanced splits in which one partition is much smaller than the others  Gini index:  biased to multivalued attributes  has difficulty when # of classes is large  tends to favor tests that result in equal-sized partitions and purity in both partitions
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+22
+
+Other Attribute Selection Measures
+
+ CHAID: a popular decision tree algorithm, measure based on χ2 test for independence
+ C-SEP: performs better than info. gain and gini index in certain cases  G-statistics: has a close approximation to χ2 distribution  MDL (Minimal Description Length) principle (i.e., the simplest solution
+is preferred):  The best tree as the one that requires the fewest # of bits to both
+(1) encode the tree, and (2) encode the exceptions to the tree  Multivariate splits (partition based on multiple variable combinations)
+ CART: finds multivariate splits based on a linear comb. of attrs.  Which attribute selection measure is the best?
+ Most give good results, none is significantly superior than others
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+23
+
+Overfitting and Tree Pruning
+
+ Overfitting: An induced tree may overfit the training data
+ Too many branches, some may reflect anomalies due to noise or outliers
+ Poor accuracy for unseen samples
+ Two approaches to avoid overfitting
+ Prepruning: Halt tree construction early—do not split a node if this would result in the goodness measure falling below a threshold  Difficult to choose an appropriate threshold
+ Postpruning: Remove branches from a “fully grown” tree—get a sequence of progressively pruned trees  Use a set of data different from the training data to decide which is the “best pruned tree”
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+24
+
+Enhancements to Basic Decision Tree Induction
+
+ Allow for continuous-valued attributes  Dynamically define new discrete-valued attributes that partition the continuous attribute value into a discrete set of intervals
+ Handle missing attribute values  Assign the most common value of the attribute  Assign probability to each of the possible values
+ Attribute construction  Create new attributes based on existing ones that are sparsely represented  This reduces fragmentation, repetition, and replication
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+25
+
+Classification in Large Databases
+
+ Classification—a classical problem extensively studied by statisticians and machine learning researchers
+ Scalability: Classifying data sets with millions of examples and hundreds of attributes with reasonable speed
+ Why decision tree induction in data mining?
+ relatively faster learning speed (than other classification methods)
+ convertible to simple and easy to understand classification rules
+ can use SQL queries for accessing databases  comparable classification accuracy with other methods
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+26
+
+Scalable Decision Tree Induction Methods
+
+ SLIQ (EDBT’96 — Mehta et al.)
+
+ Builds an index for each attribute and only class list and the current attribute list reside in memory
+
+ SPRINT (VLDB’96 — J. Shafer et al.)
+
+ Constructs an attribute list data structure
+
+ PUBLIC (VLDB’98 — Rastogi & Shim)
+
+ Integrates tree splitting and tree pruning: stop growing the tree earlier
+
+ RainForest (VLDB’98 — Gehrke, Ramakrishnan & Ganti)
+
+ Builds an AVC-list (attribute, value, class label)
+
+ BOAT (PODS’99 — Gehrke, Ganti, Ramakrishnan & Loh)
+
+ Uses bootstrapping to create several small samples
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+27
+
+Scalability Framework for RainForest
+
+ Separates the scalability aspects from the criteria that determine the quality of the tree
+ Builds an AVC-list: AVC (Attribute, Value, Class_label)  AVC-set (of an attribute X )
+ Projection of training dataset onto the attribute X and class label where counts of individual class label are aggregated
+ AVC-group (of a node n )  Set of AVC-sets of all predictor attributes at the node n
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+28
+
+Rainforest: Training Set and Its AVC Sets
+
+Training Examples
+
+AVC-set on Age AVC-set on income
+
+age income studentcredit_rbautiynsg_computerAge
+
+<=30 high
+
+no fair
+
+no
+
+<=30 high
+
+no excellent no
+
+31…40 high
+
+no fair
+
+yes
+
+<=30
+
+>40 medium no fair
+
+yes
+
+31..40
+
+Buy_Computer
+
+yes
+
+no
+
+3
+
+2
+
+4
+
+0
+
+income Buy_Computer
+
+yes
+
+no
+
+high
+
+2
+
+2
+
+medium 4
+
+2
+
+>40 low
+
+yes fair
+
+yes
+
+>40
+
+3
+
+2
+
+low
+
+3
+
+1
+
+>40 low
+
+yes excellent no
+
+31…40 low <=30 medium <=30 low >40 medium <=30 medium
+
+yes excellent yes
+
+no fair
+
+no
+
+yes fair
+
+yes
+
+yes fair
+
+yes
+
+yes excellent yes
+
+AVC-set on Student
+
+student
+
+Buy_Computer
+
+yes
+
+no
+
+AVC-set on
+credit_rating
+
+Credit rating
+
+Buy_Computer
+
+yes
+
+no
+
+31…40 medium no excellent yes
+
+yes
+
+6
+
+1
+
+fair
+
+6
+
+2
+
+31…40 high
+
+yes fair
+
+yes
+
+no
+
+3
+
+4
+
+excellent 3
+
+3
+
+>40 medium no excellent no
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+29
+
+Data Cube-Based Decision-Tree Induction
+
+ Integration of generalization with decision-tree induction (Kamber et al.’97)
+
+ Classification at primitive concept levels
+
+ E.g., precise temperature, humidity, outlook, etc.
+
+ Low-level concepts, scattered classes, bushy classification-trees
+
+ Semantic interpretation problems
+
+ Cube-based multi-level classification
+
+ Relevance analysis at multi-levels
+
+ Information-gain analysis with dimension + level
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+30
+
+BOAT (Bootstrapped Optimistic Algorithm
+for Tree Construction)
+ Use a statistical technique called bootstrapping to create several smaller samples (subsets), each fits in memory
+ Each subset is used to create a tree, resulting in several trees
+ These trees are examined and used to construct a new tree T’  It turns out that T’ is very close to the tree that would be generated using the whole data set together
+ Adv: requires only two scans of DB, an incremental alg.
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+31
+
+Presentation of Classification Results
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+32
+
+Visualization of a Decision Tree in SGI/MineSet 3.0
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+33
+
+Interactive Visual Mining by Perception-Based
+Classification (PBC)
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+34
+
+Chapter 6. Classification and Prediction
+
+ What is classification? What is  Support Vector Machines (SVM)
+
+prediction?
+
+ Associative classification
+
+ Issues regarding classification and prediction
+
+ Lazy learners (or learning from your neighbors)
+
+ Classification by decision tree induction
+ Bayesian classification  Rule-based classification  Classification by back
+propagation
+
+ Other classification methods  Prediction  Accuracy and error measures  Ensemble methods  Model selection  Summary
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+35
+
+Bayesian Classification: Why?
+
+ A statistical classifier: performs probabilistic prediction, i.e., predicts class membership probabilities
+ Foundation: Based on Bayes’ Theorem.
+ Performance: A simple Bayesian classifier, naïve Bayesian classifier, has comparable performance with decision tree
+and selected neural network classifiers
+ Incremental: Each training example can incrementally increase/decrease the probability that a hypothesis is correct — prior knowledge can be combined with observed data
+ Standard: Even when Bayesian methods are computationally intractable, they can provide a standard of optimal decision making against which other methods can be measured
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+36
+
+Bayesian Theorem: Basics
+
+ Let X be a data sample (“evidence”): class label is unknown  Let H be a hypothesis that X belongs to class C
+ Classification is to determine P(H|X), the probability that the hypothesis holds given the observed data sample X
+ P(H) (prior probability), the initial probability
+ E.g., X will buy computer, regardless of age, income, …  P(X): probability that sample data is observed
+ P(X|H) (posteriori probability), the probability of observing
+the sample X, given that the hypothesis holds  E.g., Given that X will buy computer, the prob. that X is
+31..40, medium income
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+37
+
+Bayesian Theorem
+
+ Given training data X, posteriori probability of a hypothesis H, P(H|X), follows the Bayes theorem
+
+P(H
+
+|
+
+X)
+
+
+
+P(X| H )P(H P(X)
+
+)
+
+ Informally, this can be written as
+posteriori = likelihood x prior/evidence
+ Predicts X belongs to C2 iff the probability P(Ci|X) is the
+highest among all the P(Ck|X) for all the k classes
+ Practical difficulty: require initial knowledge of many probabilities, significant computational cost
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+38
+
+Towards Naïve Bayesian Classifier
+
+ Let D be a training set of tuples and their associated class
+
+labels, and each tuple is represented by an n-D attribute
+
+vector X = (x1, x2, …, xn)
+
+ Suppose there are m classes C1, C2, …, Cm.
+
+ Classification is to derive the maximum posteriori, i.e., the
+
+maximal P(Ci|X)
+
+ This can be derived from Bayes’ theorem
+
+P(Ci
+
+|
+
+X)
+
+
+
+P(X|Ci)P(Ci) P(X)
+
+ Since P(X) is constant for all classes, only
+
+needs to be maximized
+
+P(Ci |X)  P(X|Ci)P(Ci)
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+39
+
+Derivation of Naïve Bayes Classifier
+
+ A simplified assumption: attributes are conditionally
+
+independent (i.e., no dependence relation between
+
+attributes):
+
+n
+
+P(X
+
+|
+
+Ci)
+
+
+
+ P(x k 1
+
+k
+
+|
+
+Ci)
+
+
+
+P(x 1
+
+|
+
+Ci) 
+
+P(x
+
+2
+
+|
+
+C i)  ...
+
+P(x
+
+n
+
+|
+
+Ci)
+
+ This greatly reduces the computation cost: Only counts
+
+the class distribution
+
+ If Ak is categorical, P(xk|Ci) is the # of tuples in Ci having value xk for Ak divided by |Ci, D| (# of tuples of Ci in D)
+
+ If Ak is continous-valued, P(xk|Ci) is usually computed based on Gaussian distribution with a mean μ and
+
+standard deviation σ and P(xk|Ci) is
+
+g(x, , ) 
+
+1
+
+e
+
+(
+
+x ) 2 2
+
+2
+
+2 
+
+P(X | Ci)  g(xk , Ci ,Ci )
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+40
+
+Naïve Bayesian Classifier: Training Dataset
+
+Class: C1:buys_computer = ‘yes’ C2:buys_computer = ‘no’
+Data sample X = (age <=30, Income = medium, Student = yes Credit_rating = Fair)
+October 8, 2015
+
+age income studentcredit_rbautiynsg_compu
+
+<=30 high
+
+no fair
+
+no
+
+<=30 high
+
+no excellent no
+
+31…40 high
+
+no fair
+
+yes
+
+>40 medium no fair
+
+yes
+
+>40 low
+
+yes fair
+
+yes
+
+>40 low
+
+yes excellent no
+
+31…40 low
+
+yes excellent yes
+
+<=30 medium no fair
+
+no
+
+<=30 low
+
+yes fair
+
+yes
+
+>40 medium yes fair
+
+yes
+
+<=30 medium yes excellent yes
+
+31…40 medium no excellent yes
+
+31…40 high
+
+yes fair
+
+yes
+
+>40 medium no excellent no
+
+Data Mining: Concepts and Techniques
+
+41
+
+Naïve Bayesian Classifier: An Example
+
+ P(Ci): P(buys_computer = “yes”) = 9/14 = 0.643
+P(buys_computer = “no”) = 5/14= 0.357
+
+ Compute P(X|Ci) for each class
+P(age = “<=30” | buys_computer = “yes”) = 2/9 = 0.222 P(age = “<= 30” | buys_computer = “no”) = 3/5 = 0.6 P(income = “medium” | buys_computer = “yes”) = 4/9 = 0.444 P(income = “medium” | buys_computer = “no”) = 2/5 = 0.4 P(student = “yes” | buys_computer = “yes) = 6/9 = 0.667 P(student = “yes” | buys_computer = “no”) = 1/5 = 0.2 P(credit_rating = “fair” | buys_computer = “yes”) = 6/9 = 0.667 P(credit_rating = “fair” | buys_computer = “no”) = 2/5 = 0.4
+
+ X = (age <= 30 , income = medium, student = yes, credit_rating = fair)
+
+P(X|Ci) : P(X|buys_computer = “yes”) = 0.222 x 0.444 x 0.667 x 0.667 = 0.044 P(X|buys_computer = “no”) = 0.6 x 0.4 x 0.2 x 0.4 = 0.019
+P(X|Ci)*P(Ci) : P(X|buys_computer = “yes”) * P(buys_computer = “yes”) = 0.028 P(X|buys_computer = “no”) * P(buys_computer = “no”) = 0.007
+
+Therefore, X belongs to class (“buys_computer = yes”)
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+42
+
+Avoiding the 0-Probability Problem
+
+ Naïve Bayesian prediction requires each conditional prob. be nonzero. Otherwise, the predicted prob. will be zero
+n P(X | Ci)   P(xk | Ci)
+k 1
+ Ex. Suppose a dataset with 1000 tuples, income=low (0), income= medium (990), and income = high (10),
+ Use Laplacian correction (or Laplacian estimator)  Adding 1 to each case Prob(income = low) = 1/1003 Prob(income = medium) = 991/1003 Prob(income = high) = 11/1003  The “corrected” prob. estimates are close to their “uncorrected” counterparts
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+43
+
+Naïve Bayesian Classifier: Comments
+
+ Advantages
+
+ Easy to implement
+
+ Good results obtained in most of the cases
+
+ Disadvantages
+
+ Assumption: class conditional independence, therefore loss of accuracy
+
+ Practically, dependencies exist among variables
+
+ E.g., hospitals: patients: Profile: age, family history, etc. Symptoms: fever, cough etc., Disease: lung cancer, diabetes, etc.
+
+ Dependencies among these cannot be modeled by Naïve Bayesian Classifier
+
+ How to deal with these dependencies?
+
+ Bayesian Belief Networks
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+44
+
+Bayesian Belief Networks
+
+ Bayesian belief network allows a subset of the variables
+conditionally independent
+
+ A graphical model of causal relationships  Represents dependency among the variables  Gives a specification of joint probability distribution
+
+X
+
+Y
+
+Z P
+
+ Nodes: random variables  Links: dependency  X and Y are the parents of Z, and Y is the parent of P  No dependency between Z and P  Has no loops or cycles
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+45
+
+Bayesian Belief Network: An Example
+
+Family History
+LungCancer
+
+Smoker
+
+The conditional probability table (CPT) for variable LungCancer:
+
+(FH, S) (FH, ~S) (~FH, S) (~FH, ~S)
+LC 0.8 0.5 0.7 0.1
+
+Emphysema
+
+~LC 0.2 0.5 0.3 0.9
+
+CPT shows the conditional probability for each possible combination of its parents
+
+PositiveXRay
+
+Dyspnea
+
+Bayesian Belief Networks
+
+Derivation of the probability of a
+particular combination of values of X,
+from CPT:
+n P(x1,..., xn )   P(xi | Parents (Y i))
+i 1
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+46
+
+Training Bayesian Networks
+
+ Several scenarios:
+ Given both the network structure and all variables
+observable: learn only the CPTs
+ Network structure known, some hidden variables:
+gradient descent (greedy hill-climbing) method,
+analogous to neural network learning
+ Network structure unknown, all variables observable:
+search through the model space to reconstruct network topology
+ Unknown structure, all hidden variables: No good algorithms known for this purpose
+ Ref. D. Heckerman: Bayesian networks for data mining
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+47
+
+Chapter 6. Classification and Prediction
+
+ What is classification? What is  Support Vector Machines (SVM)
+
+prediction?
+
+ Associative classification
+
+ Issues regarding classification and prediction
+
+ Lazy learners (or learning from your neighbors)
+
+ Classification by decision tree induction
+ Bayesian classification  Rule-based classification  Classification by back
+propagation
+
+ Other classification methods  Prediction  Accuracy and error measures  Ensemble methods  Model selection  Summary
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+48
+
+Using IF-THEN Rules for Classification
+
+ Represent the knowledge in the form of IF-THEN rules
+
+R: IF age = youth AND student = yes THEN buys_computer = yes
+
+ Rule antecedent/precondition vs. rule consequent  Assessment of a rule: coverage and accuracy
+
+ ncovers = # of tuples covered by R  ncorrect = # of tuples correctly classified by R coverage(R) = ncovers /|D| /* D: training data set */ accuracy(R) = ncorrect / ncovers  If more than one rule is triggered, need conflict resolution
+
+ Size ordering: assign the highest priority to the triggering rules that has the “toughest” requirement (i.e., with the most attribute test)
+
+ Class-based ordering: decreasing order of prevalence or misclassification cost per class
+
+ Rule-based ordering (decision list): rules are organized into one long priority list, according to some measure of rule quality or by experts
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+49
+
+Rule Extraction from a Decision Tree
+age?
+
+<=30 31..40
+
+>40
+
+ Rules are easier to understand than large trees
+student? yes
+ One rule is created for each path from the root
+
+credit rating?
+
+to a leaf
+
+no
+
+yes
+
+excellent fair
+
+no
+
+yes
+
+yes
+
+ Each attribute-value pair along a path forms a
+
+conjunction: the leaf holds the class prediction
+
+ Rules are mutually exclusive and exhaustive
+
+ Example: Rule extraction from our buys_computer decision-tree
+
+IF age = young AND student = no
+
+THEN buys_computer = no
+
+IF age = young AND student = yes
+
+THEN buys_computer = yes
+
+IF age = mid-age
+
+THEN buys_computer = yes
+
+IF age = old AND credit_rating = excellent THEN buys_computer = yes
+
+IF age = young AND credit_rating = fair THEN buys_computer = no
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+50
+
+Rule Extraction from the Training Data
+
+ Sequential covering algorithm: Extracts rules directly from training data  Typical sequential covering algorithms: FOIL, AQ, CN2, RIPPER
+ Rules are learned sequentially, each for a given class Ci will cover many
+tuples of Ci but none (or few) of the tuples of other classes  Steps:
+ Rules are learned one at a time  Each time a rule is learned, the tuples covered by the rules are
+removed
+ The process repeats on the remaining tuples unless termination condition, e.g., when no more training examples or when the quality
+of a rule returned is below a user-specified threshold
+ Comp. w. decision-tree induction: learning a set of rules simultaneously
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+51
+
+How to Learn-One-Rule?
+
+ Star with the most general rule possible: condition = empty
+
+ Adding new attributes by adopting a greedy depth-first strategy
+
+ Picks the one that most improves the rule quality
+
+ Rule-Quality measures: consider both coverage and accuracy
+
+ Foil-gain (in FOIL & RIPPER): assesses info_gain by extending
+
+condition
+
+FOIL _ Gain 
+
+pos'(log2
+
+pos' pos'neg
+
+'
+
+
+
+log
+
+2
+
+pos ) pos  neg
+
+It favors rules that have high accuracy and cover many positive tuples
+
+ Rule pruning based on an independent set of test tuples
+
+FOIL _ Prune(R)  pos  neg pos  neg
+
+Pos/neg are # of positive/negative tuples covered by R.
+
+If FOIL_Prune is higher for the pruned version of R, prune R
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+52
+
+Chapter 6. Classification and Prediction
+
+ What is classification? What is  Support Vector Machines (SVM)
+
+prediction?
+
+ Associative classification
+
+ Issues regarding classification and prediction
+
+ Lazy learners (or learning from your neighbors)
+
+ Classification by decision tree induction
+ Bayesian classification  Rule-based classification  Classification by back
+propagation
+
+ Other classification methods  Prediction  Accuracy and error measures  Ensemble methods  Model selection  Summary
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+53
+
+Classification: A Mathematical Mapping
+
+ Classification:  predicts categorical class labels
+ E.g., Personal homepage classification  xi = (x1, x2, x3, …), yi = +1 or –1  x1 : # of a word “homepage”  x2 : # of a word “welcome”
+ Mathematically  x  X = n, y  Y = {+1, –1}  We want a function f: X  Y
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+54
+
+Linear Classification
+
+x
+
+xx
+
+x
+
+x xx x
+
+x
+
+o ooo
+
+o oo
+
+x
+o o oo o
+o
+
+ Binary Classification problem
+ The data above the red line belongs to class ‘x’
+ The data below red line belongs to class ‘o’
+ Examples: SVM, Perceptron, Probabilistic Classifiers
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+55
+
+Discriminative Classifiers
+
+ Advantages  prediction accuracy is generally high
+ As compared to Bayesian methods – in general
+ robust, works when training examples contain errors  fast evaluation of the learned target function
+ Bayesian networks are normally slow
+ Criticism  long training time  difficult to understand the learned function (weights)
+ Bayesian networks can be used easily for pattern discovery
+ not easy to incorporate domain knowledge
+ Easy in the form of priors on the data or distributions
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+56
+
+Perceptron & Winnow
+
+x2
+October 8, 2015
+
+• Vector: x, w
+
+• Scalar: x, y, w
+
+Input: {(x1, y1), …} Output: classification function f(x)
+
+f(xi) > 0 for yi = +1 f(xi) < 0 for yi = -1 f(x) => wx + b = 0
+
+or w1x1+w2x2+b = 0
+
+• Perceptron: update W additively
+
+• Winnow: update W
+
+x1
+
+multiplicatively
+
+Data Mining: Concepts and Techniques
+
+57
+
+Classification by Backpropagation
+
+ Backpropagation: A neural network learning algorithm  Started by psychologists and neurobiologists to develop
+and test computational analogues of neurons  A neural network: A set of connected input/output units
+where each connection has a weight associated with it  During the learning phase, the network learns by
+adjusting the weights so as to be able to predict the correct class label of the input tuples  Also referred to as connectionist learning due to the connections between units
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+58
+
+Neural Network as a Classifier
+
+ Weakness
+ Long training time  Require a number of parameters typically best determined
+empirically, e.g., the network topology or ``structure."  Poor interpretability: Difficult to interpret the symbolic meaning
+behind the learned weights and of ``hidden units" in the network
+ Strength
+ High tolerance to noisy data  Ability to classify untrained patterns  Well-suited for continuous-valued inputs and outputs  Successful on a wide array of real-world data  Algorithms are inherently parallel  Techniques have recently been developed for the extraction of
+rules from trained neural networks
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+59
+
+A Neuron (= a perceptron)
+
+x0
+
+w0
+
+x1
+
+w1
+
+xn
+
+wn
+
+Input weight vector x vector w
+
+- k
+
+
+
+f
+
+weighted sum
+
+Activation function
+
+output y
+For Example
+n
+ y  sign( wi xi  k ) i0
+
+ The n-dimensional input vector x is mapped into variable y by
+means of the scalar product and a nonlinear function mapping
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+60
+
+A Multi-Layer Feed-Forward Neural Network
+
+Output vector Output layer
+Hidden layer
+Input layer
+Input vector: X
+October 8, 2015
+
+Errj  Oj (1 Oj ) Errk wjk
+k
+ j   j  (l)Errj
+
+wij  wij  (l)ErrjOi
+
+Errj  Oj (1 Oj )(Tj  Oj )
+
+wij
+
+Oj
+
+
+
+1
+
+
+
+1 e
+
+I
+
+j
+
+I j   wijOi  j
+i
+
+Data Mining: Concepts and Techniques
+
+61
+
+How A Multi-Layer Neural Network Works?
+
+ The inputs to the network correspond to the attributes measured for each training tuple
+
+ Inputs are fed simultaneously into the units making up the input layer
+
+ They are then weighted and fed simultaneously to a hidden layer
+
+ The number of hidden layers is arbitrary, although usually only one
+
+ The weighted outputs of the last hidden layer are input to units making up the output layer, which emits the network's prediction
+
+ The network is feed-forward in that none of the weights cycles back to an input unit or to an output unit of a previous layer
+
+ From a statistical point of view, networks perform nonlinear regression: Given enough hidden units and enough training samples, they can closely approximate any function
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+62
+
+Defining a Network Topology
+
+ First decide the network topology: # of units in the
+input layer, # of hidden layers (if > 1), # of units in each hidden layer, and # of units in the output layer
+ Normalizing the input values for each attribute measured in the training tuples to [0.0—1.0]
+ One input unit per domain value, each initialized to 0
+ Output, if for classification and more than two classes, one output unit per class is used
+ Once a network has been trained and its accuracy is
+unacceptable, repeat the training process with a different network topology or a different set of initial weights
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+63
+
+Backpropagation
+
+ Iteratively process a set of training tuples & compare the network's prediction with the actual known target value
+ For each training tuple, the weights are modified to minimize the mean squared error between the network's prediction and the actual target value
+ Modifications are made in the “backwards” direction: from the output layer, through each hidden layer down to the first hidden layer, hence “backpropagation”
+ Steps  Initialize weights (to small random #s) and biases in the network  Propagate the inputs forward (by applying activation function)  Backpropagate the error (by updating weights and biases)  Terminating condition (when error is very small, etc.)
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+64
+
+Backpropagation and Interpretability
+
+ Efficiency of backpropagation: Each epoch (one interation through the
+training set) takes O(|D| * w), with |D| tuples and w weights, but # of
+epochs can be exponential to n, the number of inputs, in the worst case
+ Rule extraction from networks: network pruning
+ Simplify the network structure by removing weighted links that have the least effect on the trained network
+ Then perform link, unit, or activation value clustering
+ The set of input and activation values are studied to derive rules describing the relationship between the input and hidden unit layers
+ Sensitivity analysis: assess the impact that a given input variable has on a network output. The knowledge gained from this analysis can be represented in rules
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+65
+
+Chapter 6. Classification and Prediction
+
+ What is classification? What is  Support Vector Machines (SVM)
+
+prediction?
+
+ Associative classification
+
+ Issues regarding classification and prediction
+
+ Lazy learners (or learning from your neighbors)
+
+ Classification by decision tree induction
+ Bayesian classification  Rule-based classification  Classification by back
+propagation
+
+ Other classification methods  Prediction  Accuracy and error measures  Ensemble methods  Model selection  Summary
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+66
+
+SVM—Support Vector Machines
+
+ A new classification method for both linear and nonlinear data
+ It uses a nonlinear mapping to transform the original training data into a higher dimension
+ With the new dimension, it searches for the linear optimal separating hyperplane (i.e., “decision boundary”)
+ With an appropriate nonlinear mapping to a sufficiently high dimension, data from two classes can always be separated by a hyperplane
+ SVM finds this hyperplane using support vectors (“essential” training tuples) and margins (defined by the support vectors)
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+67
+
+SVM—History and Applications
+
+ Vapnik and colleagues (1992)—groundwork from Vapnik & Chervonenkis’ statistical learning theory in 1960s
+ Features: training can be slow but accuracy is high owing to their ability to model complex nonlinear decision boundaries (margin maximization)
+ Used both for classification and prediction  Applications:
+ handwritten digit recognition, object recognition, speaker identification, benchmarking time-series prediction tests
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+68
+
+SVM—General Philosophy
+
+Small Margin
+
+Large Margin Support Vectors
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+69
+
+SVM—Margins and Support Vectors
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+70
+
+SVM—When Data Is Linearly Separable
+
+m
+
+Let data D be (X1, y1), …, (X|D|, y|D|), where Xi is the set of training tuples associated with the class labels yi
+There are infinite lines (hyperplanes) separating the two classes but we want to find the best one (the one that minimizes classification error on unseen data)
+SVM searches for the hyperplane with the largest margin, i.e., maximum marginal hyperplane (MMH)
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+71
+
+SVM—Linearly Separable
+
+ A separating hyperplane can be written as
+W●X+b=0
+where W={w1, w2, …, wn} is a weight vector and b a scalar (bias)  For 2-D it can be written as
+w0 + w1 x1 + w2 x2 = 0  The hyperplane defining the sides of the margin:
+H1: w0 + w1 x1 + w2 x2 ≥ 1 for yi = +1, and H2: w0 + w1 x1 + w2 x2 ≤ – 1 for yi = –1  Any training tuples that fall on hyperplanes H1 or H2 (i.e., the sides defining the margin) are support vectors
+ This becomes a constrained (convex) quadratic optimization problem: Quadratic objective function and linear constraints 
+Quadratic Programming (QP)  Lagrangian multipliers
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+72
+
+Why Is SVM Effective on High Dimensional Data?
+
+ The complexity of trained classifier is characterized by the # of support vectors rather than the dimensionality of the data
+ The support vectors are the essential or critical training examples — they lie closest to the decision boundary (MMH)
+ If all other training examples are removed and the training is repeated, the same separating hyperplane would be found
+ The number of support vectors found can be used to compute an (upper) bound on the expected error rate of the SVM classifier, which is independent of the data dimensionality
+ Thus, an SVM with a small number of support vectors can have good generalization, even when the dimensionality of the data is high
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+73
+
+A2
+SVM—Linearly Inseparable
+ Transform the original input data into a higher dimensional A1 space
+
+ Search for a linear separating hyperplane in the new space
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+74
+
+SVM—Kernel functions
+ Instead of computing the dot product on the transformed data tuples, it is mathematically equivalent to instead applying a kernel function K(Xi, Xj) to the original data, i.e., K(Xi, Xj) = Φ(Xi) Φ(Xj)
+ Typical Kernel Functions
+
+ SVM can also be used for classifying multiple (> 2) classes and for regression analysis (with additional user parameters)
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+75
+
+Scaling SVM by Hierarchical Micro-Clustering
+
+ SVM is not scalable to the number of data objects in terms of training time and memory usage
+ “Classifying Large Datasets Using SVMs with Hierarchical Clusters Problem” by Hwanjo Yu, Jiong Yang, Jiawei Han, KDD’03
+ CB-SVM (Clustering-Based SVM)
+ Given limited amount of system resources (e.g., memory), maximize the SVM performance in terms of accuracy and the training speed
+ Use micro-clustering to effectively reduce the number of points to be considered
+ At deriving support vectors, de-cluster micro-clusters near “candidate vector” to ensure high classification accuracy
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+76
+
+CB-SVM: Clustering-Based SVM
+
+ Training data sets may not even fit in memory
+
+ Read the data set once (minimizing disk access)
+
+ Construct a statistical summary of the data (i.e., hierarchical clusters) given a limited amount of memory
+
+ The statistical summary maximizes the benefit of learning SVM
+
+ The summary plays a role in indexing SVMs
+
+ Essence of Micro-clustering (Hierarchical indexing structure)
+
+ Use micro-cluster hierarchical indexing structure
+
+ provide finer samples closer to the boundary and coarser samples farther from the boundary
+
+ Selective de-clustering to ensure high accuracy
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+77
+
+CF-Tree: Hierarchical Micro-cluster
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+78
+
+CB-SVM Algorithm: Outline
+
+ Construct two CF-trees from positive and negative data sets independently
+ Need one scan of the data set
+ Train an SVM from the centroids of the root entries
+ De-cluster the entries near the boundary into the next level
+ The children entries de-clustered from the parent entries are accumulated into the training set with the non-declustered parent entries
+ Train an SVM again from the centroids of the entries in the training set
+ Repeat until nothing is accumulated
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+79
+
+Selective Declustering
+ CF tree is a suitable base structure for selective declustering  De-cluster only the cluster Ei such that
+ Di – Ri < Ds, where Di is the distance from the boundary to the center point of Ei and Ri is the radius of Ei
+ Decluster only the cluster whose subclusters have possibilities to be the support cluster of the boundary  “Support cluster”: The cluster whose centroid is a support vector
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+80
+
+Experiment on Synthetic Dataset
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+81
+
+Experiment on a Large Data Set
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+82
+
+SVM vs. Neural Network
+
+ SVM
+ Relatively new concept
+ Deterministic algorithm
+ Nice Generalization properties
+ Hard to learn – learned in batch mode using quadratic programming techniques
+ Using kernels can learn very complex functions
+
+ Neural Network
+ Relatively old
+ Nondeterministic algorithm
+ Generalizes well but doesn’t have strong mathematical foundation
+ Can easily be learned in incremental fashion
+ To learn complex functions—use multilayer perceptron (not that trivial)
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+83
+
+SVM Related Links
+
+ SVM Website  http://www.kernel-machines.org/
+ Representative implementations  LIBSVM: an efficient implementation of SVM, multi-class classifications, nu-SVM, one-class SVM, including also various interfaces with java, python, etc.  SVM-light: simpler but performance is not better than LIBSVM, support only binary classification and only C language  SVM-torch: another recent implementation also written in C.
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+84
+
+SVM—Introduction Literature
+
+ “Statistical Learning Theory” by Vapnik: extremely hard to understand, containing many errors too.
+
+ C. J. C. Burges. A Tutorial on Support Vector Machines for Pattern
+Recognition. Knowledge Discovery and Data Mining, 2(2), 1998.
+
+ Better than the Vapnik’s book, but still written too hard for introduction, and the examples are so not-intuitive
+
+ The book “An Introduction to Support Vector Machines” by N. Cristianini and J. Shawe-Taylor
+
+ Also written hard for introduction, but the explanation about the mercer’s theorem is better than above literatures
+
+ The neural network book by Haykins
+
+ Contains one nice chapter of SVM introduction
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+85
+
+Chapter 6. Classification and Prediction
+
+ What is classification? What is  Support Vector Machines (SVM)
+
+prediction?
+
+ Associative classification
+
+ Issues regarding classification and prediction
+
+ Lazy learners (or learning from your neighbors)
+
+ Classification by decision tree induction
+ Bayesian classification  Rule-based classification  Classification by back
+propagation
+
+ Other classification methods  Prediction  Accuracy and error measures  Ensemble methods  Model selection  Summary
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+86
+
+Associative Classification
+
+ Associative classification
+
+ Association rules are generated and analyzed for use in classification
+
+ Search for strong associations between frequent patterns (conjunctions of attribute-value pairs) and class labels
+
+ Classification: Based on evaluating a set of rules in the form of
+
+P1 ^ p2 … ^ pl  “Aclass = C” (conf, sup)  Why effective?
+
+ It explores highly confident associations among multiple attributes and may overcome some constraints introduced by decision-tree induction, which considers only one attribute at a time
+
+ In many studies, associative classification has been found to be more accurate than some traditional classification methods, such as C4.5
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+87
+
+Typical Associative Classification Methods
+
+ CBA (Classification By Association: Liu, Hsu & Ma, KDD’98)  Mine association possible rules in the form of  Cond-set (a set of attribute-value pairs)  class label  Build classifier: Organize rules according to decreasing precedence based on confidence and then support
+ CMAR (Classification based on Multiple Association Rules: Li, Han, Pei, ICDM’01)  Classification: Statistical analysis on multiple rules
+ CPAR (Classification based on Predictive Association Rules: Yin & Han, SDM’03)  Generation of predictive rules (FOIL-like analysis)  High efficiency, accuracy similar to CMAR
+ RCBT (Mining top-k covering rule groups for gene expression data, Cong et al. SIGMOD’05)  Explore high-dimensional classification, using top-k rule groups  Achieve high classification accuracy and high run-time efficiency
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+88
+
+A Closer Look at CMAR
+
+ CMAR (Classification based on Multiple Association Rules: Li, Han, Pei, ICDM’01)
+
+ Efficiency: Uses an enhanced FP-tree that maintains the distribution of class labels among tuples satisfying each frequent itemset
+
+ Rule pruning whenever a rule is inserted into the tree
+
+ Given two rules, R1 and R2, if the antecedent of R1 is more general than that of R2 and conf(R1) ≥ conf(R2), then R2 is pruned
+ Prunes rules for which the rule antecedent and class are not positively correlated, based on a χ2 test of statistical significance
+
+ Classification based on generated/pruned rules
+
+ If only one rule satisfies tuple X, assign the class label of the rule
+
+ If a rule set S satisfies X, CMAR
+
+ divides S into groups according to class labels
+
+ uses a weighted χ2 measure to find the strongest group of rules, based on the statistical correlation of rules within a group
+
+ assigns X the class label of the strongest group
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+89
+
+Associative Classification May Achieve High Accuracy and Efficiency (Cong et al. SIGMOD05)
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+90
+
+Chapter 6. Classification and Prediction
+
+ What is classification? What is  Support Vector Machines (SVM)
+
+prediction?
+
+ Associative classification
+
+ Issues regarding classification and prediction
+
+ Lazy learners (or learning from your neighbors)
+
+ Classification by decision tree induction
+ Bayesian classification  Rule-based classification  Classification by back
+propagation
+
+ Other classification methods  Prediction  Accuracy and error measures  Ensemble methods  Model selection  Summary
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+91
+
+Lazy vs. Eager Learning
+
+ Lazy vs. eager learning
+ Lazy learning (e.g., instance-based learning): Simply stores training data (or only minor processing) and waits until it is given a test tuple
+ Eager learning (the above discussed methods): Given a set of training set, constructs a classification model before receiving new (e.g., test) data to classify
+ Lazy: less time in training but more time in predicting
+ Accuracy
+ Lazy method effectively uses a richer hypothesis space since it uses many local linear functions to form its implicit global approximation to the target function
+ Eager: must commit to a single hypothesis that covers the entire instance space
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+92
+
+Lazy Learner: Instance-Based Methods
+
+ Instance-based learning:
+ Store training examples and delay the processing (“lazy evaluation”) until a new instance must be classified
+ Typical approaches
+ k-nearest neighbor approach
+ Instances represented as points in a Euclidean space.
+ Locally weighted regression
+ Constructs local approximation
+ Case-based reasoning
+ Uses symbolic representations and knowledgebased inference
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+93
+
+The k-Nearest Neighbor Algorithm
+
+ All instances correspond to points in the n-D space
+ The nearest neighbor are defined in terms of Euclidean distance, dist(X1, X2)
+ Target function could be discrete- or real- valued
+ For discrete-valued, k-NN returns the most common value among the k training examples nearest to xq
+ Vonoroi diagram: the decision surface induced by 1NN for a typical set of training examples
+
+_
+
++
+
+_ __ +
+
+_
+
+. xq
+
++
+
+_
+
++
+
+.
+
+.
+
+..
+
+.
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+94
+
+Discussion on the k-NN Algorithm
+
+ k-NN for real-valued prediction for a given unknown tuple
+
+ Returns the mean values of the k nearest neighbors
+
+ Distance-weighted nearest neighbor algorithm
+
+ Weight the contribution of each of the k neighbors
+
+according to their distance to the query xq
+ Give greater weight to closer neighbors
+
+w
+
+
+
+1 d ( xq,
+
+xi)2
+
+ Robust to noisy data by averaging k-nearest neighbors
+
+ Curse of dimensionality: distance between neighbors could be dominated by irrelevant attributes
+
+ To overcome it, axes stretch or elimination of the least relevant attributes
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+95
+
+Case-Based Reasoning (CBR)
+
+ CBR: Uses a database of problem solutions to solve new problems
+
+ Store symbolic description (tuples or cases)—not points in a Euclidean space
+
+ Applications: Customer-service (product-related diagnosis), legal ruling
+
+ Methodology
+
+ Instances represented by rich symbolic descriptions (e.g., function graphs)
+
+ Search for similar cases, multiple retrieved cases may be combined
+
+ Tight coupling between case retrieval, knowledge-based reasoning, and problem solving
+
+ Challenges
+
+ Find a good similarity metric
+
+ Indexing based on syntactic similarity measure, and when failure, backtracking, and adapting to additional cases
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+96
+
+Chapter 6. Classification and Prediction
+
+ What is classification? What is  Support Vector Machines (SVM)
+
+prediction?
+
+ Associative classification
+
+ Issues regarding classification and prediction
+
+ Lazy learners (or learning from your neighbors)
+
+ Classification by decision tree induction
+ Bayesian classification  Rule-based classification  Classification by back
+propagation
+
+ Other classification methods  Prediction  Accuracy and error measures  Ensemble methods  Model selection  Summary
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+97
+
+Genetic Algorithms (GA)
+
+ Genetic Algorithm: based on an analogy to biological evolution  An initial population is created consisting of randomly generated rules
+ Each rule is represented by a string of bits  E.g., if A1 and ¬A2 then C2 can be encoded as 100  If an attribute has k > 2 values, k bits can be used  Based on the notion of survival of the fittest, a new population is formed to consist of the fittest rules and their offsprings
+ The fitness of a rule is represented by its classification accuracy on a
+set of training examples
+ Offsprings are generated by crossover and mutation  The process continues until a population P evolves when each rule in P
+satisfies a prespecified threshold
+ Slow but easily parallelizable
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+98
+
+Rough Set Approach
+ Rough sets are used to approximately or “roughly” define equivalent classes
+ A rough set for a given class C is approximated by two sets: a lower approximation (certain to be in C) and an upper approximation (cannot be described as not belonging to C)
+ Finding the minimal subsets (reducts) of attributes for feature reduction is NP-hard but a discernibility matrix (which stores the differences between attribute values for each pair of data tuples) is used to reduce the computation intensity
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+99
+
+Fuzzy Set Approaches
+
+ Fuzzy logic uses truth values between 0.0 and 1.0 to represent the degree of membership (such as using fuzzy membership graph)
+ Attribute values are converted to fuzzy values
+ e.g., income is mapped into the discrete categories {low, medium, high} with fuzzy values calculated
+ For a given new sample, more than one fuzzy value may apply
+ Each applicable rule contributes a vote for membership in the categories
+ Typically, the truth values for each predicted category are summed, and these sums are combined
+
+October 8, 2015
+
+Data Mining: Concepts and Techniques
+
+100
+

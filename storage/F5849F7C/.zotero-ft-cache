@@ -1,0 +1,382 @@
+Multi-agent Trajectory Prediction with Fuzzy Query Attention
+
+arXiv:2010.15891v1 [cs.LG] 29 Oct 2020
+
+Nitin Kamra Department of Computer Science University of Southern California
+Los Angeles, CA, USA nkamra@usc.edu
+
+Hao Zhu Department of Computer Science, School of EECS
+Peking University Beijing, China
+hzhu1998@pku.edu.cn
+
+Dweep Trivedi Department of Computer Science University of Southern California
+Los Angeles, CA, USA dtrivedi@usc.edu
+
+Ming Zhang Department of Computer Science, School of EECS
+Peking University Beijing, China
+mzhang_cs@pku.edu.cn
+
+Yan Liu Department of Computer Science University of Southern California
+Los Angeles, CA, USA yanliu.cs@usc.edu
+
+Abstract
+Trajectory prediction for scenes with multiple agents and entities is a challenging problem in numerous domains such as trafﬁc prediction, pedestrian tracking and path planning. We present a general architecture to address this challenge which models the crucial inductive biases of motion, namely, inertia, relative motion, intents and interactions. Speciﬁcally, we propose a relational model to ﬂexibly model interactions between agents in diverse environments. Since it is well-known that human decision making is fuzzy by nature, at the core of our model lies a novel attention mechanism which models interactions by making continuous-valued (fuzzy) decisions and learning the corresponding responses. Our architecture demonstrates signiﬁcant performance gains over existing state-of-the-art predictive models in diverse domains such as human crowd trajectories, US freeway trafﬁc, NBA sports data and physics datasets. We also present ablations and augmentations to understand the decision-making process and the source of gains in our model.
+1 Introduction
+Multi-agent settings are ubiquitous and predicting trajectories of agents in motion is a key challenge in many domains, e.g., trafﬁc prediction [28, 15], pedestrian tracking [1, 3] and path planning [20]. In order to model multi-agent settings with complex underlying interactions, several recent works based on graphs and graph neural networks have achieved signiﬁcant success in prediction performance [23, 14]. However, modeling interactions between two agents is challenging because it is not a binary true/false variable but is rather fuzzy1 by nature. For instance, a person driving a car on a freeway
+1We use the word fuzzy in this work to represent continuous-valued decisions over their discrete-valued boolean counterparts and not necessarily to fuzzy logic.
+34th Conference on Neural Information Processing Systems (NeurIPS 2020), Vancouver, Canada.
+
+might reason along these lines: “The car in front of me is slowing down so I should also step on the brake lightly to avoid tailing the car closely”, wherein the decisions slowing down, braking lightly and tailing closely are all continuous-valued in nature. Since such fuzzy representations enter routinely into human interactions and decision making, we posit that learning to predict trajectories of interacting agents can beneﬁt from fuzzy (continuous-valued) decision making capabilities.
+Motivated by this observation, we present a novel Fuzzy Query Attention (FQA) mechanism to solve the aforementioned challenges. FQA models pairwise attention to decide about when two agents are interacting by learning keys and queries which are combined with a dot-product structure to make continuous-valued (fuzzy) decisions. It also simultaneously learns how the agent under focus is affected by the inﬂuencing agent given the fuzzy decisions. We demonstrate signiﬁcant performance gains over existing state-of-the-art predictive models in several domains: (a) trajectories of human crowd, (b) US freeway trafﬁc, (c) object motion and collisions governed by Newtonian mechanics, (d) motion of charged particles under electrostatic ﬁelds, and (e) basketball player trajectories, thereby showing that FQA can learn to model very diverse kinds of interactions. Our experiments show that the fuzzy decisions made over time are highly predictive of interactions even when all other input features are ignored. Our architecture also supports adding human knowledge in the form of fuzzy decisions, which can provide further gains in prediction performance.
+2 Related work
+Multi-agent trajectory prediction is a well-studied problem spanning across many domains such as modeling human interactions for navigation, pedestrian trajectory prediction, spatio-temporal prediction, multi-robot path planning, trafﬁc prediction, etc. Early work on predicting trajectories of multiple interacting agents dates back to more than two decades starting from Helbing and Molnar’s social force model [10] and its later extensions [19, 28] aimed at modeling behavior of humans in crowds, pedestrians on highways and vehicles on highways and freeways. Since a comprehensive review of all domains is out of scope of this work, we only survey some of the most recent literature.
+Due to the growing success being enjoyed by deep recurrent models like RNNs and LSTMs in sequence prediction, recurrent models with LSTM-based interaction modeling have recently become predominant for multi-agent trajectory prediction [17]. To aggregate inﬂuence of multiple interactions, various pooling mechanisms have been proposed for both human crowds modeling [1, 8] and for predicting future motion paths of vehicles from their past trajectories [6]. Many state-of-the-art models have also incorporated attention mechanisms to predict motion of human pedestrians in crowds [24, 27, 7]. For a review and benchmark of different approaches in this domain, we refer the interested reader to [3]. Many recent works have also studied trajectory prediction for particles in mechanical and dynamical systems [4, 14, 18], for predicting trajectories of soccer and basketball players [30, 11, 22, 29] and for predicting trajectories in multi-robot path planning [20].
+A recurring theme in the above works is to view the agents/entities as nodes in a graph while capturing their interactions via the graph edges. Since graph neural networks can be employed to learn patterns from graph-structured data [2], the problem reduces to learning an appropriate variant of graph neural networks to learn the interactions and predict the trajectories of all agents [23]. Recent works have devised different variants of graph networks, e.g. with direct edge-feature aggregation [9, 2, 21], edge-type inference [14], modeling spatio-temporal relations [12], and attention on edges between agents [26] to predict multi-agent trajectories in diverse settings.
+Our work assumes a graph-based representation for agents but differs from above literature in its novel attention mechanism to capture interactions between agents. Our attention mechanism learns to make continuous-valued decisions which are highly predictive of when and how two agents are interacting. It further models the effects of the interactions on agents by learning appropriate responses for these decisions and outperforms state-of-the-art methods in modeling multi-agent interactions.
+3 Fuzzy Query Attention model
+Problem formulation: Following previous work [1, 14], we assume a given scene which has been pre-processed to obtain the spatial coordinates pti = (xti, yit) of all agents i ∈ 1 : N at a sequence of time-steps t ∈ 1 : T . The task is to observe all agents from time 1 to Tobs, infer their motion characteristics and ongoing interactions and predict their positions for time-steps Tobs + 1 to T . In all
+2
+
+(a) Overall prediction architecture
+
+(b) Interaction module
+
+Figure 1: Multi-agent prediction architecture using Fuzzy Query Attention at time t: (a) Overall architecture takes positions (p) of all agents, computes a ﬁrst-order estimate of velocity (v˜) and incorporates effects of interactions between agents via a correction term (∆v) thereby predicting the positions at the next time-step (pˆt+1); (b) the Interaction module generates pairwise edges between agents (E) and uses the FQA module to account for interactions and generate the aggregate effect (a) for each agent which is used to update their LSTM state (h) and predict the velocity correction (∆v).
+
+subsequent text, pt = {pt1, pt2, . . . , ptN } represents the set of positions of all agents at time t, while pi = [p1i , p2i , . . . , pTi ] represents the sequence of positions of a single agent i at all time-steps. v is used to denote velocity, tilde symbol (˜·) on the top to denote intermediate variables and hat symbol (ˆ·) on the top for predicted quantities or unit vectors (will be clear from context).
+Design principles: We present our architecture which incorporates the following crucial inductive biases required for motion prediction:
+• Inertia: Most inanimate entities move with constant velocity until acted upon by external forces. This also acts as a good ﬁrst-order approximation for animate agents for short time-intervals, e.g., pedestrians walk with nearly constant velocities unless they need to turn or slow down to avoid collisions.
+• Motion is relative: Since motion between two agents is relative, one should use agents’ relative positions and velocities while predicting future trajectories (relative observations) and should further make predictions as offsets relative to the agents’ current positions (relative predictions).
+• Intent: Unlike inanimate entities, animate agents have their own intentions which can cause deviations from inertia and need to be accounted for in a predictive model.
+• Interactions: Both inanimate and animate agents can deviate from their intended motion due to inﬂuence by other agents around them and such interaction needs to be explicitly modeled.
+Prediction architecture: The overall prediction architecture (Figure 1a) takes the spatial positions of all agents i.e. pti=1:N as input at time t. We use the observed positions for t ≤ Tobs and the architecture’s own predictions from the previous time-step for t > Tobs. We predict each agent’s position at the next time-step pˆti+1 as an offset from its current position pti to capture the relative prediction inductive bias. We further break each offset into a ﬁrst-order constant velocity estimate v˜it which accounts for the inertia inductive bias and a velocity correction term ∆vit which captures agents’ intents and inter-agent interactions (see eq 1). The ﬁrst-order estimate of velocity (v˜it) is made by a direct difference of agents’ positions from consecutive time steps (eq 2). To capture agents’ intents, an LSTM module is used to maintain the hidden state (hti−1) containing the past trajectory information for the ith agent. The learnable weights of the LSTM are shared by all agents. To compute the correction term (∆vit), a preliminary update is ﬁrst made to the LSTM’s hidden state using the incoming observation for each agent. This preliminary update captures the deviations from inertia due to an agent’s own intentional acceleration or retardation (eq 3). The intermediate hidden states h˜ti and the current positions of all agents are further used to infer the ongoing interactions between agents, aggregate their effects and update the hidden state of each agent to hti while also
+3
+
+computing the correction term for the agent’s velocity via an interaction module (eq 4).
+
+pˆti+1 = pti + v˜it + ∆vit, ∀i ∈ 1 : N
+
+(1)
+
+(Inertia): v˜it = pti − pit−1, ∀i ∈ 1 : N
+
+(2)
+
+(Agent’s Intents): h˜ti = LSTM(pti, hti−1), ∀i ∈ 1 : N
+
+(3)
+
+(Interactions): ht, ∆vt = InteractionModule(pt, h˜t)
+
+(4)
+
+Since computation in all sub-modules happens at time t, we drop the superscript t from here on.
+
+Interaction module: The interaction module (Figure 1b) ﬁrst creates a graph by generating directed edges between all pairs of agents (ignoring self-edges)2. The edge set E, the positions and the states of all agents are used to compute an attention vector ai for each agent aggregating all its interactions with other agents via the Fuzzy Query Attention (FQA) module (eq 5). This aggregated attention
+along with each agent’s current position and intermediate hidden state is processed by subsequent fully-connected layers to generate the updated state hi (which is fed back into the LSTM) and the velocity correction ∆vi for each agent (eqs 6 and 7).
+
+a = FQA(p, h˜, E)
+
+(5)
+
+hi = F C2(ReLU (F C1(pi, hi, ai))), ∀i ∈ 1 : N
+
+(6)
+
+∆vi = F C4(ReLU (F C3(hi))),
+
+∀i ∈ 1 : N
+
+(7)
+
+Figure 2: FQA module generates keys (Ksr), queries (Qsr) and responses (Vy,sr, Vn,sr) from senderreceiver features between agent pairs, combines the responses according to the fuzzy decisions (Dsr), and aggregates the concatenated responses into a vector (a) per agent.
+
+Fuzzy Query Attention: The FQA module views the graph edges as sender-receiver (s − r) pairs
+
+of agents. At a high level, it models the aggregate effect of the inﬂuence from all sender agents
+
+onto a speciﬁc receiver agent (Figure 2). To do so, we build upon the key-query-value based self-
+
+attention networks introduced by Vaswani et al. [25]. FQA ﬁrst generates independent features:
+ps, pr, hs and hr for the senders and receivers by replicating p and h along each edge. It also
+generates relative features: psr = ps − pr (relative displacement), hsr = hs − hr (relative state), pˆsr = psr/ psr (unit-vector along psr) and hˆsr = hsr/ hsr (unit-vector along hsr) to capture the relative observations inductive bias. These features fsr = {ps, pr, psr, pˆsr, hs, hr, hsr, hˆsr} are combined by single fully-connected layers to generate n keys Ksr ∈ Rn×d and queries Qsr ∈ Rn×d
+of dimension d each for every s − r pair (eqs 8 and 9), which are then combined via a variant of dot-product attention to generate fuzzy3 decisions Dsr ∈ Rn (eq 10):
+
+Ksr = F C5(fs⊥r),
+
+∀(s, r) ∈ 1 : N, s = r (8)
+
+Qsr = F C6(fs⊥r),
+
+∀(s, r) ∈ 1 : N, s = r (9)
+
+Dsr = σ(Ksr Qsr + B) = σ
+
+Ksr Qsr + B , ∀(s, r) ∈ 1 : N, s = r (10)
+
+dim=1
+
+2We also show experiments with edges based on distance-based cutoffs as previous work [4] has found this heuristic useful for trajectory prediction.
+3Note that the word fuzzy represents continuous-valued decisions over their discrete-valued boolean counterparts and not fuzzy logic.
+
+4
+
+where represents element-wise product, B ∈ Rn is a learnable bias parameter, σ stands for the sigmoid activation function and ⊥ stands for the detach operator4. As a consequence of this formulation, Dsr ∈ [0, 1]n can be interpreted as a set of n continuous-valued decisions capturing the interaction between agents s and r. These can now be used to select the receiving agent’s response to
+the current state of the sending agent. For this, the sender-receiver features are parsed in parallel by
+two-layer neural networks (with the ﬁrst layer having a ReLU activation) to generate yes-no responses Vy,sr, Vn,sr ∈ Rn×dv corresponding to Dsr being 1 (yes) or 0 (no) respectively (eqs 11 and 12). Though all the s − r features can be used here, our preliminary experiments showed that including
+only a subset of features (hs and psr) gave comparable results and led to considerable saving in the number of parameters, so we only use this subset of features to generate the yes-no responses. These
+responses are then combined using a fuzzy if-else according to decisions Dsr and their complements D¯ sr = 1 − Dsr to generate the ﬁnal responses Vsr ∈ Rn×dv (eq 13):
+
+Vy,sr = F C8(ReLU (F C7(psr, hs))), ∀(s, r) ∈ 1 : N, s = r
+
+(11)
+
+Vn,sr = F C10(ReLU (F C9(psr, hs))), ∀(s, r) ∈ 1 : N, s = r
+
+(12)
+
+(Fuzzy if-else): Vsr = DsrVy,sr + D¯ srVn,sr,
+
+∀(s, r) ∈ 1 : N, s = r
+
+(13)
+
+The n ﬁnal responses generated per agent pair (∈ Rn×dv ) are then concatenated (∈ Rndv ) and ﬁnal responses from all senders are aggregated on the respected receivers by dimension-wise max-pooling to accumulate effect of all interactions on the receiver agents (eqs 14 and 15). Since max-pooling loses information while aggregating, we pre-process the ﬁnal responses to increase the dimensions and retain more information followed by subsequent post-processing after aggregation to reduce the number of dimensions again (eqs 14 and 16):
+
+Vproc,sr = F C11(concat(Vsr))
+
+(14)
+
+Vproc,r = maxpools:(s−r)∈E Vproc,sr
+
+(15)
+
+ar = F C12(Vproc,r),
+
+∀r ∈ 1 : N.
+
+(16)
+
+Strengths of FQA: While originally motivated from multi-head self-attention [25], FQA differs signiﬁcantly in many respects. Firstly, FQA generalizes self-attention to pairwise-attention which attends to an ordered pair (sender-receiver) of entities and captures the interaction effects of the sender on the receiver. FQA has a learnable bias B to improve modeling power (explained below). Further, though the original matrix-dot-product structure of self-attention requires a large memory to ﬁt even for regular batch sizes e.g. 32, our simpler row-wise dot-product structure ﬁts easily on a single GPU (12GB) for all datasets, while still retaining the strong performance of the dot-product attention structure. Moreover, we learn the sender-receiver features by backpropagating only through the responses (Vsr) while features are detached to generate the keys and queries. This additionally allows us to inject human knowledge into the model via handcrafted non-learnable decisions, if such decisions are available (see experiments in section 4.3).
+What kinds of decisions can FQA learn?: Since keys and queries are linear in the senders’ and receivers’ states and positions, the decision space of FQA contains many intuitive decisions important for trajectory prediction, e.g.:
+1. Proximity: FQA can potentially learn a key-query pair to be psr each and the corresponding bias as −d2th, then the decision D = σ(pTsrpsr − d2th) going to zero reﬂects if agents s and r are closer than distance dth. Note that such decisions would not be possible without the learnable bias parameter B, hence having the bias makes FQA more ﬂexible.
+2. Approach: Since a part of the state hi can learn to model velocity of agents vi internally, FQA can potentially learn a key-query pair of the form Ksr = vsr, Qsr = pˆsr, B = 0 to model D = σ(vsTrpˆsr + 0) which tends to 0 when the agents are directly approaching each other. While we do not force FQA to learn such human-interpretable decisions, our experiments show that the fuzzy decisions learnt by FQA are highly predictive of interactions between agents (section 4.3).
+Training: FQA and all our other baselines are trained to minimize the mean-square error in predicting next time-step positions of all agents. Since some datasets involve agents entering and exiting the scene freely between frames, we input binary masks to all models for each agent to determine the
+4The detach operator acts as identity for the forward-pass but prevents any gradients from propagating back through its operand. This allows us to learn feature representations only using responses while the keys and queries make useful decisions from the learnt features.
+
+5
+
+presence of agents in the current frame and control updates for agents accordingly (masks not shown
+
+in ﬁgures to avoid clutter). All models are trained with the Adam optimizer [13] with batch size 32
+
+and an initial learning rate of 0.001 decaying multiplicatively by a factor γ = 0.8 every 5 epochs.
+
+All models train for at least 50 epochs after which early stopping is enabled with a max patience
+
+of 10 epochs on validation set mean-square error and training is terminated at a maximum of 100
+
+epochs.
+
+Since we test the
+
+models by observing Tobs
+
+(kept at
+
+2T 5
+
+for
+
+all datasets) time-steps and
+
+make predictions until the remaining time T , we followed a dynamic schedule allowing all models
+
+to see the real observations for Ttemp time-steps followed by T − Ttemp of its own last time-step predictions. During training, Ttemp is initialized to T and linearly decayed by 1 every epoch until it
+
+becomes equal to Tobs. We found this dynamic burn-in schedule employed during training to improve
+
+the prediction performance for all models.
+
+4 Experiments
+We perform multi-agent trajectory prediction on different datasets used previously in the literature with a diverse variety of interaction characteristics5. For datasets with no provided splits, we follow a 70 : 15 : 15 split for training, validation and test set scenes.
+1. ETH-UCY [3]: A human crowds dataset with medium interaction density. We sampled about 3400 scenes at random from the dataset and set T = 20 following prior work [1, 8].
+2. Collisions: Synthetic physics data with balls moving on a friction-less 2D plane, ﬁxed circular landmarks and boundary walls. The collisions between balls preserve momentum and energy, while collisions of agents with walls or immobile landmarks only preserve energy but not momentum of moving agents. Contains about 9500 scenes with T = 25.
+3. NGsim [5]: US-101 and i-80 freeway trafﬁc data with fast moving vehicles. Since this dataset features very high agent density per scene (ranging in several thousands), we chunked the freeways with horizontal and vertical lines into sub-sections to restrict the number of vehicles in a sub-scene to less than 15. We sampled about 3500 sub-scenes from the resulting chunks and set T = 20.
+4. Charges [14]: Physics data with positive and negative charges moving under other charges’ electric ﬁelds and colliding with bounding walls. Contains 3600 scenes with T = 25 involving dense attractive and repulsive interactions.
+5. NBA [30]: Sports dataset with basketball player trajectories. We sampled about 7500 scenes with T = 30. This dataset features complex goal-oriented motion heavily dictated by agents’ intentions. It has been included to highlight limitations of interaction modeling approaches.
+We compare our FQA architecture with state-of-the-art baselines (see appendix for architecture details and unique hyperparameters of all methods):
+1. Vanilla LSTM [VLSTM]: An LSTM preceeded and followed by fully-connected neural network layers is used to predict the offset without considering interactions.
+2. Social LSTM [SLSTM] [1]: Recurrent architecture which models interactions by discretizing space around each agent and aggregating neighbors’ latent states via a social pooling mechanism.
+3. GraphSAGE [GSAGE] [9]: Graph neural networks with node features to model interactions between agents. We use feature-wise max-pooling for aggregating the messages along the edges.
+4. Graph Networks [GN] [2, 23]: Graph neural networks with node features, edge features and global features to model interactions between agents. We adapt the Encoder→RecurrentGN→ Decoder architecture from [23].
+5. Neural Relational Inference [NRI] [14]: Uses graph neural networks to model interactions between agents and additionally infers edges between agents using variational inference.
+6. Graph Attention Networks [GAT] [26]: Follows an aggregation style similar to GraphSAGE, but weighs messages passed from all sender agents via a learnt attention mechanism.
+4.1 Prediction results
+For all models, we report the Root Mean Square Error (RMSE) between ground truth and our predictions over all predicted time steps for all agents on the test set of every dataset in Table 1. The standard deviation is computed on the test set RMSE over ﬁve independent training runs differing only in their initial random seed. Our model with n = 8 decisions outperforms all the state-of-the-art
+5Code for implementing FQA can be found at https://github.com/nitinkamra1992/FQA.git
+
+6
+
+Table 1: Prediction error metrics for all methods on all datasets
+
+Model
+VLSTM SLSTM NRI GN GSAGE GAT FQA (ours)
+
+ETH-UCY
+0.576 ± 0.002 0.690 ± 0.013 0.778 ± 0.027 0.577 ± 0.014 0.590 ± 0.011 0.575 ± 0.007 0.540 ± 0.006
+
+Collisions
+0.245 ± 0.001 0.211 ± 0.002 0.254 ± 0.002 0.234 ± 0.001 0.238 ± 0.001 0.237 ± 0.001 0.176 ± 0.004
+
+NGsim
+5.972 ± 0.065 6.453 ± 0.153 7.491 ± 0.737 5.901 ± 0.238 5.582 ± 0.082 6.100 ± 0.063 5.071 ± 0.186
+
+Charges
+0.533 ± 0.001 0.485 ± 0.005 0.557 ± 0.008 0.508 ± 0.006 0.522 ± 0.002 0.524 ± 0.004 0.409 ± 0.019
+
+NBA
+6.377 ± 0.053 6.246 ± 0.048 5.919 ± 0.022 5.568 ± 0.032 5.657 ± 0.018 6.166 ± 0.052 5.449 ± 0.039
+
+baselines on all benchmark datasets (on many by signiﬁcant margins). This shows that FQA can accurately model diverse kinds of interactions. Speciﬁcally, we observe that all models ﬁnd it difﬁcult to model sparse interactions on the Collisions data, while FQA performs signiﬁcantly better with lower errors presumably due to its fuzzy decisions being strongly predictive of when two agents are interacting (more detail in section 4.3). Further, though GAT also uses an attention mechanism at the receiver agents to aggregate messages, FQA outperforms GAT on all datasets showing a stronger inductive bias towards modeling multi-agent interactions for trajectory prediction.
+As a side note, we point out that SLSTM [1] and NRI [14] both of which model interactions are often outperformed by VLSTM which does not model interactions. While surprising at ﬁrst, we found that this has also been conﬁrmed for SLSTM by prior works, namely, Social GAN [8] which has common co-authors with SLSTM, and also independently by the TrajNet Benchmark paper [3]. We believe that this is because both methods introduce signiﬁcant noise in the neighborhood of agents: (a) SLSTM does this by aggregating agents’ hidden states within discretized bins which can potentially lose signiﬁcant motion speciﬁc information, and (b) NRI infers many spurious edges during variational edge-type inference (also shown by [16]).
+4.2 Ablations
+Modeling only inertia: We ﬁrst remove the velocity correction term (∆vit) and only retain the constant velocity estimate (inertia) to show that both intention and interaction modeling are indeed required for accurate prediction. We call this model FQAinert and Table 2 shows the stark deterioration in performance after the removal of velocity correction term.
+Modeling only inertia and agent intention: We next drop only the interaction module by setting all attention vectors ai=1:N to 0, while keeping the constant velocity estimate and the intentional motion LSTM (eqs 2,3) intact. The resulting RMSEs shown as FQANoIntr in Table 2 capture the severe drop in performance on all datasets, thereby showing that a major chunk of improvement indeed comes from modeling the interactions.
+Removing decision making of FQA: To demonstrate that the strength of the interaction module comes from FQA’s decision making process, we next replaced all sub-modules between the inputs of the FQA module uptil Vsr in ﬁgure 2 with fully-connected layers with equivalent number of learnable parameters so that responses Vsr are directly produced from input features without any fuzzy decisions. We call this variant FQANoDec and show the deterioration in performance from loss of decision making in Table 2. It is clear that while FQANoDec outperforms FQAinert and FQANoIntr because it models interactions with at least a simple neural network, substituting the decision making mechanism has reduced FQA to the same or worse level of performance as other baselines on most benchmark datasets.
+4.3 Understanding fuzzy decisions of FQA
+Distance-based cutoff for edges: To check if FQA can learn decisions to reﬂect proximity between agents, we replaced our edge generator to produce edges with a distance-based cutoff so it outputs a directed edge between agents s and r only if pts − ptr 2 ≤ dthresh. The threshold dthresh was found by a crude hyperparameter search and was set to dthresh = 0.5 in the normalized coordinates provided to all models. We show prediction errors for FQA and other baselines namely GN, GSAGE
+7
+
+Table 2: Prediction error metrics with ablations and augmentations
+
+Model
+FQAinert FQAN oI ntr FQAN oDec
+GNdce GSAGEdce GATdce FQAdce
+FQAhk
+
+ETH-UCY
+0.576 ± 0.000 0.549 ± 0.006 0.539 ± 0.006
+0.572 ± 0.020 0.579 ± 0.011 0.571 ± 0.006 0.532 ± 0.002
+0.541 ± 0.002
+
+Collisions
+0.519 ± 0.000 0.236 ± 0.0003 0.234 ± 0.001
+0.227 ± 0.002 0.231 ± 0.001 0.232 ± 0.001 0.175 ± 0.004
+0.177 ± 0.006
+
+NGsim
+6.159 ± 0.000 5.756 ± 0.152 5.616 ± 0.163
+5.714 ± 0.155 5.901 ± 0.099 5.936 ± 0.124 5.814 ± 0.170
+4.801 ± 0.215
+
+Charges
+0.778 ± 0.000 0.523 ± 0.001 0.505 ± 0.007
+0.451 ± 0.004 0.456 ± 0.005 0.460 ± 0.008 0.416 ± 0.001
+0.396 ± 0.007
+
+NBA
+13.60 ± 0.000 6.038 ± 0.044 5.518 ± 0.049
+5.553 ± 0.010 5.898 ± 0.048 5.938 ± 0.021 5.733 ± 0.033
+5.457 ± 0.084
+
+and GAT6 by providing them distance-constrained edges instead of all edges (dce variants) in Table 2. While dce variants of baselines show improvement in prediction errors on most datasets, FQA only shows minor improvements on Collisions which has sparse density of interactions, while the performance degrades on the other datasets with dense interactions. This suggests that FQA is indeed able to model proximity between agents even from a fully-connected graph, if the dataset is sufﬁciently dense in the number of interactions per time-step and does not require aiding heuristics, while other baselines do not necessarily extract this information and hence beneﬁt from the heuristic.
+
+Table 3: Predict collisions from FQA decisions
+
+τ
+
+1
+
+2
+
+3 Recurrent
+
+Accuracy 95.55% 95.48% 95.35% 95.75% AUROC 0.854 0.866 0.870 0.907
+
+(a) Collisions data: FQA models sparse interactions like inter-agent collisions well.
+(b) Collsions data: FQA models stationary ﬁxed landmarks well (blue) and predicts sharp collisions with walls.
+(c) Charges data: Complex swirling in opposite charges (see pink and orange trajectories) accompanied by high accelerations; No model except FQA is able to predict such complex motion. Figure 3: Predicted trajectories from all models shown with circles of radii increasing with time. The lighter shades show the observed part uptil Tobs while the darker shades show the predictions till T . Predicting interactions from decisions: To investigate if the decisions capture inter-agent interactions well, we present an experiment to predict when a collision happens between two agents on the
+6SLSTM already uses a neighborhood size of 0.5 for discretization, while NRI infers edges internally via variational inference.
+8
+
+Collisions dataset7 from only the 8 agent-pair decisions Dstr. Since collisions are sparse, we present the prediction accuracy and the area under the ROC curve on a held-out test set in Table 3 for various classiﬁers trained to predict collisions between agents using different horizon of time-steps (τ ) of the input decisions. Note that we do not even use the agents’ positions, velocities or the FQA responses (Vsr) as inputs to the predictors. Yet, the decision-trajectories alone are sufﬁcient to predict collisions with a surprisingly high accuracy and AUROC, which strongly indicates that FQA’s decisions are accurately capturing inter-agent interactions.
+Including human-knowledge in FQA: Next we show that one can also add fuzzy decisions to FQA, which are intuitive for humans but might be hard to infer from data. To this end, we add an additional ﬁxed decision D = σ(v˜sTrpˆsr) to FQA which should tend to 0 (no) when two agents are directly approaching each other, while leaving the corresponding yes-no responses learnable (we call this FQAhk). While Table 2 shows no signiﬁcant improvement on most datasets, presumably since the information captured by this decision is already being captured by the model, we do observe a signiﬁcant decrease in RMSE on the NGsim dataset compared to Table 1. This is because our chunking procedure on NGsim eliminates a few neighbors of the agents at sub-scene boundaries and consequently certain interaction effects become harder to capture from data. So adding this human-knowledge directly as a decision improves performance. Hence, FQA allows the designer to augment the model with human-knowledge decisions as hints, which can improve performance and are ignored if not useful.
+Visualization: Next we visualize the trajectories predicted by FQA and other baselines. Figures 3a and 3b show inter-agent collisions and those between agents and boundaries respectively. Due to agents’ small sizes, inter-agent collisions are sparse events and only FQA learns to model them appropriately while the other baselines ignore them. Further FQA models the trajectories of agents faithfully and all collisions sharply while other baselines sometimes predict curved trajectories and premature soft collisions in empty space without any real interaction. We further observe from the pink and orange charges in Figure 3c, that it is hard to model chaotic swirling of nearby opposite charges due to high accelerations resulting from coulombic forces and that FQA comes closest to being an accurate model. More visualization examples are shown in the appendix.
+Limitations: Finally, we point out that FQA (and all baselines) have a high RMSE on the NBA dataset (w.r.t. the relative scale of values in the dataset), which comprises of many sudden intent dependent events or otherwise motions with many valid alternatives that cannot be predicted in the long term8. For such datasets, we recommend making shorter length predictions or including visual observations in the input instead of just trajectory data to account better for strong intent-dependencies. Alternatively, FQA being primarily designed to target interactions, can be combined with stronger models for modeling intents, e.g., hierarchical policy networks [30] to improve performance on intent-driven prediction setups. Please see the appendix for a more detailed analysis on the NBA dataset.
+5 Conclusion
+We have presented a general architecture designed to predict trajectories in multi-agent systems while modeling the crucial inductive biases of motion, namely, inertia, relative motion, intents and interactions. Our novel Fuzzy Query Attention (FQA) mechanism models pairwise interactions between agents by learning to make fuzzy (continuous-valued) decisions. We demonstrate signiﬁcant performance gains over existing state-of-the-art models in diverse domains thereby demonstrating the potential of FQA. We further provide ablations and empirical analysis to understand the strengths and limitations of our approach. FQA additionally allows including human-knowledge in the model by manually inserting known decisions (when available) and learning their corresponding responses. This could be useful for debugging models in practical settings and at times aligning the model’s decisions to human expectations.
+7This is the only synthetic dataset for which the ground truth of interactions is available. 8Note that FQA is still the most accurate trajectory predictor amongst our baselines on the NBA dataset.
+9
+
+Broader Impact
+We have presented a general architecture for multi-agent trajectory prediction which includes the crucial inductive biases of motion. Our FQA attention mechanism models interactions in multi-agent trajectory prediction and outperforms existing state-of-the-art models in many diverse settings. Our architecture relies only on trajectory data and hence can be employed in conjunction to or alternatively as part of visual processing pipelines for trajectory prediction. It can be successfully incorporated in deep learning pipelines for predicting trafﬁc trajectories around self-driving autonomous vehicles, predicting motion of pedestrians on roads etc. Note that while FQA is primarily designed to target interactions, it can be combined with stronger models for modeling intents, e.g., hierarchical policy networks [30] to improve performance on intent-driven prediction setups e.g. in sports analytics for predicting valid or alternative strategies for basketball players.
+Acknowledgments and Disclosure of Funding
+This research was supported in part by NSF Research Grant IIS-1254206 and MURI Grant W911NF11-1-0332. Hao Zhu and Ming Zhang were supported by National Key Research and Development Program of China with Grant No. 2018AAA0101900 / 2018AAA0101902 as well as the National Natural Science Foundation of China (NSFC Grant No. 61772039 and No. 91646202).
+References
+[1] Alexandre Alahi, Kratarth Goel, Vignesh Ramanathan, Alexandre Robicquet, Li Fei-Fei, and Silvio Savarese. Social lstm: Human trajectory prediction in crowded spaces. In IEEE Conference on Computer Vision and Pattern Recognition, pages 961–971, 2016.
+[2] Peter W Battaglia, Jessica B Hamrick, Victor Bapst, Alvaro Sanchez-Gonzalez, Vinicius Zambaldi, Mateusz Malinowski, Andrea Tacchetti, David Raposo, Adam Santoro, Ryan Faulkner, et al. Relational inductive biases, deep learning, and graph networks. arXiv preprint arXiv:1806.01261, 2018.
+[3] Stefan Becker, Ronny Hug, Wolfgang Hübner, and Michael Arens. An evaluation of trajectory prediction approaches and notes on the trajnet benchmark. arXiv preprint arXiv:1805.07663, 2018.
+[4] Michael B Chang, Tomer Ullman, Antonio Torralba, and Joshua B Tenenbaum. A compositional object-based approach to learning physical dynamics. In International Conference on Learning Representations, 2017.
+[5] Benjamin Coifman and Lizhe Li. A critical evaluation of the next generation simulation (ngsim) vehicle trajectory dataset. Transportation Research Part B: Methodological, 105(C):362–377, 2017.
+[6] Nachiket Deo and Mohan M Trivedi. Convolutional social pooling for vehicle trajectory prediction. In IEEE Conference on Computer Vision and Pattern Recognition Workshops, pages 1468–1476, 2018.
+[7] Tharindu Fernando, Simon Denman, Sridha Sridharan, and Clinton Fookes. Soft + hardwired attention: An lstm framework for human trajectory prediction and abnormal event detection. Neural networks, 108:466–478, 2018.
+[8] Agrim Gupta, Justin Johnson, Li Fei-Fei, Silvio Savarese, and Alexandre Alahi. Social gan: Socially acceptable trajectories with generative adversarial networks. In IEEE Conference on Computer Vision and Pattern Recognition, pages 2255–2264, 2018.
+[9] Will Hamilton, Zhitao Ying, and Jure Leskovec. Inductive representation learning on large graphs. In Advances in Neural Information Processing Systems, pages 1024–1034, 2017.
+[10] Dirk Helbing and Peter Molnar. Social force model for pedestrian dynamics. Physical review E, 51(5):4282, 1995.
+[11] Yedid Hoshen. Vain: Attentional multi-agent predictive modeling. In Advances in Neural Information Processing Systems, pages 2701–2711, 2017.
+10
+
+[12] Ashesh Jain, Amir R Zamir, Silvio Savarese, and Ashutosh Saxena. Structural-rnn: Deep learning on spatio-temporal graphs. In IEEE Conference on Computer Vision and Pattern Recognition, pages 5308–5317, 2016.
+[13] Diederik P Kingma and Jimmy Ba. Adam: A method for stochastic optimization. arXiv preprint arXiv:1412.6980, 2014.
+[14] Thomas Kipf, Ethan Fetaya, Kuan-Chieh Wang, Max Welling, and Richard Zemel. Neural relational inference for interacting systems. In International Conference on Machine Learning, pages 2693–2702, 2018.
+[15] Namhoon Lee, Wongun Choi, Paul Vernaza, Christopher B Choy, Philip HS Torr, and Manmohan Chandraker. Desire: Distant future prediction in dynamic scenes with interacting agents. In IEEE Conference on Computer Vision and Pattern Recognition, pages 336–345, 2017.
+[16] Yaguang Li, Chuizheng Meng, Cyrus Shahabi, and Yan Liu. Structure-informed graph autoencoder for relational inference and simulation. In ICML Workshop on Learning and Reasoning with Graph-Structured Representations, 2019.
+[17] Yuexin Ma, Xinge Zhu, Sibo Zhang, Ruigang Yang, Wenping Wang, and Dinesh Manocha. Trafﬁcpredict: Trajectory prediction for heterogeneous trafﬁc-agents. arXiv preprint arXiv:1811.02146, 2018.
+[18] Christoforos I Mavrogiannis and Ross A Knepper. Multi-agent trajectory prediction and generation with topological invariants enforced by hamiltonian dynamics. In Proceedings of the International Workshop on the Algorithmic Foundations of Robotics, 2018.
+[19] Stefano Pellegrini, Andreas Ess, Konrad Schindler, and Luc Van Gool. You’ll never walk alone: Modeling social behavior for multi-target tracking. In IEEE 12th International Conference on Computer Vision, pages 261–268. IEEE, 2009.
+[20] Christoph Rösmann, Malte Oeljeklaus, Frank Hoffmann, and Torsten Bertram. Online trajectory prediction and planning for social robot navigation. In 2017 IEEE International Conference on Advanced Intelligent Mechatronics, pages 1255–1260. IEEE, 2017.
+[21] Alvaro Sanchez-Gonzalez, Jonathan Godwin, Tobias Pfaff, Rex Ying, Jure Leskovec, and Peter W Battaglia. Learning to simulate complex physics with graph networks. In International Conference on Machine Learning, 2020.
+[22] Chen Sun, Per Karlsson, Jiajun Wu, Joshua B Tenenbaum, and Kevin Murphy. Stochastic prediction of multi-agent interactions from partial observations. In International Conference on Learning Representations, 2019.
+[23] Andrea Tacchetti, H Francis Song, Pedro AM Mediano, Vinicius Zambaldi, Neil C Rabinowitz, Thore Graepel, Matthew Botvinick, and Peter W Battaglia. Relational forward models for multi-agent learning. In International Conference on Learning Representations, 2019.
+[24] Daksh Varshneya and G Srinivasaraghavan. Human trajectory prediction using spatially aware deep attention models. arXiv preprint arXiv:1705.09436, 2017.
+[25] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez, Łukasz Kaiser, and Illia Polosukhin. Attention is all you need. In Advances in Neural Information Processing Systems, pages 5998–6008, 2017.
+[26] Petar Velicˇkovic´, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Lio, and Yoshua Bengio. Graph attention networks. In International Conference on Learning Representations, 2018.
+[27] Anirudh Vemula, Katharina Muelling, and Jean Oh. Social attention: Modeling attention in human crowds. In IEEE International Conference on Robotics and Automation, pages 1–7, 2018.
+[28] Kota Yamaguchi, Alexander C Berg, Luis E Ortiz, and Tamara L Berg. Who are you with and where are you going? In IEEE Conference on Computer Vision and Pattern Recognition, pages 1345–1352. IEEE, 2011.
+[29] Eric Zhan, Stephan Zheng, Yisong Yue, Long Sha, and Patrick Lucey. Generating multi-agent trajectories using programmatic weak supervision. In International Conference on Learning Representations, 2019.
+11
+
+[30] Stephan Zheng, Yisong Yue, and Jennifer Hobbs. Generating long-term trajectories using deep hierarchical networks. In Advances in Neural Information Processing Systems, pages 1543–1551, 2016.
+12
+
+A Appendix
+A.1 Model architectures and hyperparameters
+We provide the hyperparameters of our baselines and those of FQA in this section. All our experiments were done on systems with Ubuntu 16.04 and all models trained using either Nvidia Titan X or Nvidia GeForce GTX 1080 Ti GPUs. All code was written in Python 3.6 with neural network architectures deﬁned and trained using PyTorch v1.0.0. The code for implementing FQA can be found at https://github.com/nitinkamra1992/FQA.git.
+A.1.1 Vanilla LSTM
+The Vanilla LSTM model embeds each pti to a 32-dimensional embedding vector using a fullyconnected layer with ReLU activation. This vector is fed along with the previous hidden states to an LSTM with state size 64, whose output is again processed by a fully-connected layer to generate the 2-dimensional offset for next-step prediction.
+A.1.2 Social LSTM
+We adapted the code from https://github.com/quancore/social-lstm which directly reproduces the original authors’ model from [1]. We kept the initial embedding size as 20, the LSTM’s hiddden size as 40, the size of the discretization grid as 4 and the discretization neighborhood size as 0.59.
+A.1.3 Neural Relational Inference
+We adapted the authors’ ofﬁcial repository from https://github.com/ethanfetaya/NRI. The input dimension was kept as 2 for positional coordinates and the number of edge types as 3 (since setting it to 2 gave worse results). The encoder employed the MLP architecture with hidden layers of sizes 32 and no dropout, while the GRU-based RNN architecture was used for the decoder with hidden state of size 32 and no dropout. The variance of the output distribution was set to 5 × 10−5.
+A.1.4 Graph Networks
+While the original repository for Graph Networks is written in TensorFlow (https://github.com/ deepmind/graph_nets), we translated the repository into PyTorch and adapted models similar to those employed by [23, 2]. We employed a vertex-level encoder followed by a recurrent Graph Network based on GRU-style recurrence followed by a Graph Net decoder. The vertex-level encoder transforms 2-dimensional positional input at each time step to a 10-dimensional node embedding. An input graph is constructed from these node embeddings having all pairwise edges and dimensions 10, 1 and 1 respectively for the node, edge and global attributes. This input graph along with a previous state graph (with dimensions 45, 8 and 8 for node, edge and global state attributes) was processed using a GRU-style recurrent Graph Network to output the updated state graph of the same dimensions (45, 8 and 8 for node, edge and global state attributes respectively). This new state graph was processed by a feedforward graph-network as prescribed in [2] to output another graph whose node features of dimensions 2 were treated as offsets for the next time step prediction. All update networks both in the encoder and the decoder (for node, edge and global features) used two feedforward layers with the intermediate layer having latent dimension 32 and a ReLU activation. While the original work proposes to use sum as the aggregation operator, we found summing to often cause the training to divergence since different agents have neighborhoods of very diverse sizes ranging from 0 to about 40 at different times in many of our datasets. Hence we used feature-wise mean-pooling for all aggregation operators.
+A.1.5 GraphSAGE, Graph Attention Networks and Fuzzy Query Attention
+Since GraphSAGE (GSAGE) [9] and Graph Attention Networks (GAT) [26] were not originally prescribed for a multi-agent trajectory prediction application, we used their update and aggregation styles in our own FQA framework to replace the FQA sub-module in our Interaction module described
+9This neighborhood size is also the same as the distance cutoff used in section 4.3.
+13
+
+in Section 3. For all three methods the input size and the output size was 2, while the hidden state dimension of the LSTM shared by all agents was 32. The dimension of the aggregated attention for each agent ati was also set to 32 for all three methods. All the three methods involved the F C1, F C2, F C3 and F C4 layers described in section 3 and had the output sizes 48, 32, 16 and 2 respectively. GSAGE: GraphSAGE [9] directly embeds all sender latent vectors hs into 32-dimensional embeddings via two fully-connected layers each with a RELU activation and with the intermediate layer of dimensions 32. The output embeddings were aggregated into the receiver nodes via feature-wise max-pooling to generate ati. GAT: GAT performs a similar embedding of sender hidden states using a similar embedding network as GSAGE but aggregates them via feature-wise max-pooling after weighing the embeddings with 8 attention head coefﬁcients generated as proposed in [26] and ﬁnally averages over the 8 aggregations. We used 8 attention heads to match the number of FQA’s decisions. FQA: FQA used 8 query-key pairs for all datasets leading to 8 decisions. The dimension for keys and queries was set to 4, while the dimension for yes-no responses was kept as 6. Consequently the dimension of learnt bias vector B was also 8 and the sizes of the fullyconnected layers F C5, F C6, F C7, F C8, F C9, F C10, F C11 and F C12 described in the main text were 32, 32, 33, 48, 33, 48, 32 and 32 respectively.
+A.2 Limitations
+With visualizations on the NBA dataset we highlight when our setup and most interaction modeling approaches may not be useful for trajectory prediction. Figure 4 shows a scene from the NBA dataset with the ball trajectory being green and the team players being blue and red trajectories. A blue player carries the ball and passes it to a teammate at the corner of the ﬁeld after the observation period (2T /5) ends, which turns all the red player trajectories towards that corner (ground truth). Such passes and consequent player motions are heavily intent dependent and quite unpredictable. Most methods e.g. FQA instead predicate an equally valid alternative in which the original blue player carries the ball towards the basket. NBA dataset comprises of many such intent dependent sudden events or otherwise motions with many valid alternatives which cannot be predicted in the long term (3T /5). For such datasets, we recommend making shorter length predictions or including visual observations for making predictions instead of just trajectory data. Note that FQA is still the most accurate trajectory predictor even on this dataset. Figure 5 shows three other cases where a player chooses to counter-intuitively pass (or not pass) the ball after the observation period ends. Most methods, especially FQA, predict an equally valid and often more likely alternative of not passing the ball or passing it in a direction more logically deducible from only trajectory data.
+Figure 4: NBA data: Green agent is the ball, while the 5 players in each team are colored blue and red. The pass between blue team players is unpredictable and heavily intention dependent.
+A.3 Additional visualizations
+Next we show additional visualization from all models on all datasets (other than NBA). The visualizations clearly demonstrate the strong inductive bias of FQA for multi-agent trajectory prediction.
+14
+
+Figure 5: Predicted trajectory visualization from various models on the NBA dataset. Figure 6: Predicted trajectory visualization from various models on Charges dataset.
+Figure 7: Predicted trajectory visualization from various models on ETH-UCY dataset. 15
+
+Figure 8: Predicted trajectory visualization from various models on Collisions dataset.
+Figure 9: Predicted trajectory visualization from various models on NGsim dataset. 16
+

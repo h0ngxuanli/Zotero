@@ -1,0 +1,84 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2003.00688
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 2 Mar 2020 ( v1 ), last revised 25 Feb 2021 (this version, v5)]
+Title: Out-of-Distribution Generalization via Risk Extrapolation (REx)
+Authors: David Krueger , Ethan Caballero , Joern-Henrik Jacobsen , Amy Zhang , Jonathan Binas , Dinghuai Zhang , Remi Le Priol , Aaron Courville
+Download a PDF of the paper titled Out-of-Distribution Generalization via Risk Extrapolation (REx), by David Krueger and 7 other authors
+Download PDF
+
+    Abstract: Distributional shift is one of the major obstacles when transferring machine learning prediction systems from the lab to the real world. To tackle this problem, we assume that variation across training domains is representative of the variation we might encounter at test time, but also that shifts at test time may be more extreme in magnitude. In particular, we show that reducing differences in risk across training domains can reduce a model's sensitivity to a wide range of extreme distributional shifts, including the challenging setting where the input contains both causal and anti-causal elements. We motivate this approach, Risk Extrapolation (REx), as a form of robust optimization over a perturbation set of extrapolated domains (MM-REx), and propose a penalty on the variance of training risks (V-REx) as a simpler variant. We prove that variants of REx can recover the causal mechanisms of the targets, while also providing some robustness to changes in the input distribution ("covariate shift"). By appropriately trading-off robustness to causally induced distributional shifts and covariate shift, REx is able to outperform alternative methods such as Invariant Risk Minimization in situations where these types of shift co-occur. 
+
+Subjects: 	Machine Learning (cs.LG) ; Artificial Intelligence (cs.AI); Neural and Evolutionary Computing (cs.NE); Machine Learning (stat.ML)
+Cite as: 	arXiv:2003.00688 [cs.LG]
+  	(or arXiv:2003.00688v5 [cs.LG] for this version)
+Submission history
+From: David Krueger [ view email ]
+[v1] Mon, 2 Mar 2020 06:29:50 UTC (1,131 KB)
+[v2] Tue, 3 Mar 2020 04:15:23 UTC (1,131 KB)
+[v3] Fri, 13 Mar 2020 22:57:37 UTC (1,131 KB)
+[v4] Thu, 10 Dec 2020 21:46:28 UTC (1,131 KB)
+[v5] Thu, 25 Feb 2021 17:53:07 UTC (1,488 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Out-of-Distribution Generalization via Risk Extrapolation (REx), by David Krueger and 7 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2003
+Change to browse by:
+cs
+cs.AI
+cs.NE
+stat
+stat.ML
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

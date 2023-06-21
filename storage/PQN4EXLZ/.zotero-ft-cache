@@ -1,0 +1,2101 @@
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+arXiv:2201.12987v1 [cs.LG] 31 Jan 2022
+
+Siqi Miao 1 Miaoyuan Liu 2 Pan Li 1
+
+Abstract
+Interpretable graph learning is in need as many scientiﬁc applications depend on learning models to collect insights from graph-structured data. Previous works mostly focused on using post-hoc approaches to interpret a pre-trained model (graph neural network models in particular). They argue against inherently interpretable models because good interpretation of these models is often at the cost of their prediction accuracy. And, the widely used attention mechanism for inherent interpretation often fails to provide faithful interpretation in graph learning tasks. In this work, we address both issues by proposing Graph Stochastic Attention (GSAT), an attention mechanism derived from the information bottleneck principle. GSAT leverages stochastic attention to block the information from the task-irrelevant graph components while learning stochasticity-reduced attention to select the task-relevant subgraphs for interpretation. GSAT can also apply to ﬁne-tuning and interpreting pre-trained models via stochastic attention mechanism. Extensive experiments on eight datasets show that GSAT outperforms the state-of-the-art methods by up to 20%↑ in interpretation AUC and 5%↑ in prediction accuracy.
+1. Introduction
+Graph learning models are widely used in science, such as physics (Bapst et al., 2020) and biochemistry (Jumper et al., 2021). In many such disciplines, building more accurate predictive models is typically not the only goal. It is often more crucial for scientists to discover the patterns from the data that induce certain predictions (Cranmer et al., 2020). For example, identifying the functional groups in a molecule that yield its certain properties may provide insights to guide sci-
+1Department of Computer Science, Purdue University, West Lafayette, USA 2Department of Physics and Astronomy, Purdue University, West Lafayette, USA. Correspondence to: Siqi Miao <miao61@purdue.edu>, Pan Li <panli@purdue.edu>.
+Preprint. Under review.
+
+entists to conduct their further experiments (Wencel-Delord & Glorius, 2013).
+Recently, graph neural networks (GNN) have become almost the de fato graph learning models due to their great expressive power (Kipf & Welling, 2017; Xu et al., 2019). However, their expressivity is often built upon a highly nonlinear entanglement of irregular graph features. So, it is often quite challenging to ﬁgure out the patterns from the data that GNNs use to make predictions.
+Many works have been recently proposed to extract critical data patterns for the prediction by interpreting GNNs in post-hoc ways (Ying et al., 2019; Yuan et al., 2020a; Vu & Thai, 2020; Luo et al., 2020; Schlichtkrull et al., 2021; Yuan et al., 2021; Lin et al., 2021; Henderson et al., 2021). They work on a pre-trained model and propose different types of combinatorial search to detect the subgraphs of the input data that affect the model predictions the most.
+In contrast to the above post-hoc methods, inherently interpretable models have been rarely investigated for graph learning tasks. There are two main concerns regarding such models. First, the prediction accuracy and inherent interpretability of a model often forms a trade-off (Du et al., 2019). Practitioners may not allow sacriﬁcing prediction accuracy for better interpretability. Second, attention mechanism, a widely-used technique to provide inherent interpretability, often cannot provide faithful interpretation (Lipton, 2018). The rationale of the attention mechanism is to learn weights for different features during the model training, and the rank of the learned weights can be interpreted as the importance of certain features (Bahdanau et al., 2014; Xu et al., 2015). However, recent extensive evaluations in NLP tasks (Serrano & Smith, 2019; Jain & Wallace, 2019; Mohankumar et al., 2020) have shown that the attention may not weigh the features that dominate the model output more than other features. In particular, for graph learning tasks, the widely-used graph attention models (Velicˇkovic´ et al., 2018; Li et al., 2015) seem unable to provide any reliable interpretation of the data (Ying et al., 2019; Yu et al., 2020).
+In this work, we are to address the above concerns by proposing Graph Stochastic Attention (GSAT), a novel attention mechanism to build inherently interpretable GNNs. The rationale of GSAT roots in the notion of information bottle-
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+Extractor GNN
+
+Edge Emb
+
+MLP
+
+Share Param.
+
+MLP Predictor
+
+Graph Emb
+
+GNN
+
+Figure 1. The architecture of GSAT. gφ encodes the input graph G and learns stochastic attention α (from Bernoulli distributions) that randomly drop the edges and obtain a perturbed graph GS. fθ encodes GS to make predictions. GSAT does not constrain the size of GS but injects stochasticity to constrain information. The subgraph of GS with learnt reduced-stochasticity (edges with pe → 1) provides interpretation. GSAT is a uniﬁed model by adopting just one GNN for both gφ and fθ. GSAT can be either trained from scratch or start from a pre-trained GNN predictor fθ.
+
+Figure 2. Visualizing attention (normalized to [0, 1]) of GSAT (second row) v.s. masks of GraphMask (Schlichtkrull et al., 2021) (third row) on MNIST-75sp. The ﬁrst row shows the ground-truth. Different digit samples contain interpretable subgraphs of different sizes, while GSAT is not sensitive to such varied sizes.
+
+neck (IB) (Tishby et al., 2000; Tishby & Zaslavsky, 2015). We formulate the attention as an IB by injecting stochasiticity into the attention to constrain the information ﬂow from the input graph to the prediction (Shannon, 1948). Such stochasticity over the label-irrelevant graph components will be kept during the training while that over the label-relevant ones can automatically get reduced. Such difference eventually provides model interpretation.
+Our study achieves the following observations and contributions. First, the IB principle frees GSAT from any potentially biased assumptions adopted in previous methods such as the size or the connectivity constraints on the detected graph patterns. Even when those assumptions are satisﬁed, GSAT still works the best without using such assumptions. See the sampled interpretation result visualizations in Fig. 2 and Fig. 3. Second, from the perspective of IB, all post-hoc interpretation methods are sub-optimal. They essentially optimize a model without any information control and then perform a single-step projection to an information-controlled space, which suffers from an initialization issue. Third, by just blocking the task-irrelevant information, GSAT almost does not degenerate the prediction performance and may even achieve better generalization capability. Fourth, if a pre-trained model is provided, GSAT may further improve both of its interpretation and prediction accuracy.
+We evaluate GSAT in terms of both interpretability and label-prediction performance. Experiments over 8 datasets show that GSAT outperforms the state-of-the-art (SOTA) methods by up to 20%↑ in interpretation AUC and 5%↑ in prediction accuracy. Notably, GSAT achieves the SOTA performance on molhiv on OGB (Hu et al., 2020) among the models that do not use manually-designed expert features.
+2. Preliminaries
+As preliminaries, we deﬁne a few notations and concepts.
+Graph. An attributed graph can be denoted as G = (A, X)
+
+Figure 3. Visualizing attention (normalized to [0, 1]) of GSAT (ﬁrst row) and masks of GraphMask (Schlichtkrull et al., 2021) (second row) on a motif example, where graphs with three house motifs and graphs with two house motifs represent two classes. Samples may contain disconnected interpretable subgraphs, while GSAT detects them accurately. More details can be found in Appendix D.4.
+where A is the adjacency matrix and X includes node attributes. Let V and E denote the node set and the edge set, respectively. We focus on graph-level tasks: A training set of graphs with their labels (G(i), Y (i)), i = 1, ..., n are given, where each sample (G(i), Y (i)) is assumed to be IID sampled from some unknown distribution PY×G = PY|GPG.
+Label-relevant Subgraphs. A label-relevant subgraph refers to the subgraph GS of the input graph G that mostly indicates the label Y . For example, to determine the solubility of a molecule, the hydroxy group -OH is a positivelabel-relevent subgraph, as if it exists, the molecule is often soluble to the water. Finding label-relevant subgraphs is a common goal of interpretable graph learning.
+Attention Mechanism. Attention mechanism has been widely used in inherently interpretable neural network models for NLP and CV tasks (Bahdanau et al., 2014; Xu et al., 2015; Vaswani et al., 2017). However, GNNs with attention (Velicˇkovic´ et al., 2018) often generate low-ﬁdelity attention weights. As it learns multiple weights for every edge, it is far from trivial to combine those weights with the irregular graph structure to perform graph label-relevant feature selection.
+There are two types of attention models: One normalizes the attention weights to sum to one (Bahdanau et al., 2014), while the other learns weights between [0, 1] without normalization (Xu et al., 2015). As the counterparts in GNN models, GAT adopts the normalized one (Velicˇkovic´ et al.,
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+2018) while GGNN adopts the unnormalized one (Li et al., 2015). Our method belongs to the second category.
+
+Graph Neural Networks. GNNs are neural network models that encode graph-structured data into node representations or graph representations. They initialize each node feature representation with its attributes h(v0) = Xv and then gradually update it by aggregating representations from its neighbors, i.e., h(vl+1) ← q(h(vl), {h(ul)|u : (u, v) ∈ E}) where q(·) denotes a function implemented by NNs (Gilmer et al., 2017). Graph representations are often obtained via an aggregation (sum/mean) of node representations.
+
+Learning to Explain (L2X). L2X (Chen et al., 2018) stud-
+
+ies the feature selection problem in the regular feature space
+
+and proposed a mutual information (MI) maximization
+
+rule to select a ﬁxed number of features. Speciﬁcally, let
+
+I(a; b)
+
+a,b
+
+P(a,
+
+b)
+
+log
+
+P(a,b) P(a)P(b)
+
+denote
+
+the
+
+MI
+
+between
+
+two random variables a and b. Large MI indicates certain
+
+high correlation between two random variables. Hence, with
+
+input features X ∈ RF , L2X is to search a k-sized set of
+
+indices S ⊆ {1, 2, ..., F }, where k = |S| < F , such that
+
+the features in the subspace indexed by S (denoted by XS) maximizes the mutual information with the labels Y , i.e.,
+
+max I(XS; Y ), s.t. |S| ≤ k.
+
+(1)
+
+S⊆{1,2,...,F }
+
+Our model is inspired by L2X. However, as graph features and their interpretable counterparts are in an irregular space without a ﬁxed dimension, directly applying L2X may achieve subpar performance in graph learning tasks. We propose to use information constraint instead in Sec. 3.1.
+
+Later, we will also use the entropy deﬁned as H(a)
+
+− a P(a) log P(a) and the KL-divergence deﬁned as
+
+KL(P(a)||Q(a))
+
+a
+
+P(a) log
+
+P(a) Q(a)
+
+(Cover,
+
+1999).
+
+3. Graph Learning Interpretation via GIB
+In this section, we will ﬁrst propose the GIB-based objective for interpretable graph learning and point out the issues of post-hoc GNN interpretation methods.
+
+3.1. GIB-based Objective for Interpretation
+Finding label-relevant subgraphs in graph learning tasks has unique challenges. As for the irregularity of graph structures, graph learning models often have to deal with the input graphs of various sizes. The critical subgraph patterns may be also of different sizes and be highly irregular. Consider the example of molecular solubility again, although the functional groups for positive solubility such as -OH, -NH2 are of similar sizes, those for negative solubility range from small groups (e.g., -Cl) to extremely large ones (e.g. -C10H9). And, a molecule may contain multiple functional groups that determine its properties scattered in the
+
+
+
+
+optimal solution 
+
+initial predictor
+one-step proj.
+
+Maximizing
+
+Figure 4. Post-hoc methods just perform one-step projection to the information-constrained space, which is always suboptimal and the interpretation performance is sensitive to the pre-trained model.
+
+graph. Given this observation, it is not proper to just mimick the cardinality constraint used for a regular dimension space (Eq. (1)) and select subgraphs of certain size as done in (Ying et al., 2019). Inspired by the graph information bottleneck (GIB) principle (Wu et al., 2020; Yu et al., 2020), we propose to use information constraint instead to select label-relevant subgraphs, i.e., solving
+max I(GS; Y ), s.t. I(GS; G) ≤ γ, GS ∈ Gsub(G) (2)
+GS
+where Gsub(G) denotes the set of the subgraphs of G. Note that GIB does not impose any potentially biased constraints such as the size or the connectivity of the selected subgraphs. Instead, GIB uses the information constraint I(GS; G) ≤ γ to select GS that inherits only the most indicative information from G to predict the label Y by maximizing I(GS; Y ). As thus, GS provides model interpretation.
+Yu et al. (2020) also considered using GIB to select subgraphs. However, we adopt a fundamentally different mechanism that we will provide a detailed comparison in Sec. 4.3.
+
+3.2. Issues of Post-hoc GNN Interpretation Methods
+
+Almost all previous GNN interpretation methods are post-
+
+hoc, such as GNNExplainer (Ying et al., 2019), PGEx-
+
+plainer (Luo et al., 2020) and GraphMask (Schlichtkrull
+
+et al., 2021). Given a pre-trained predictor fθ(·) : G → Y, they try to ﬁnd out the subgraph GS that impacts the model
+
+predictions the most, while keeping the pre-trained model
+
+unchanged. This procedure essentially ﬁrst maximizes the
+
+MI between fθ(G) and Y and obtains a model parameter
+
+θ˜ arg max I(fθ(G); Y ),
+
+(3)
+
+θ
+
+and then optimizes a subgraph extractor gφ via
+
+φ˜
+
+arg
+
+max
+φ
+
+I
+
+(fθ˜(GS
+
+);
+
+Y
+
+),
+
+s.t.
+
+GS
+
+=
+
+gφ(G)
+
+∈
+
+Ω.
+
+(4)
+
+where Ω implies a subset of the subgraphs Gsub(G) that satisfy some constraints, e.g., the cardinality constraint adopted by GNNExplainer and PGExplainer. Let us temporarily ignore the difference between different constraints and just focus on the optimization objective. The post-hoc objective Eq. (4) and GIB (Eq. (2)) share some similar spirits. However, the post-hoc methods may not give or even approximate the optimal solution to Eq. (2) because fθ ◦ gφ
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+Interpretation ROC AUC Cross-Entropy Loss
+Interpretation ROC AUC Cross-Entropy Loss
+
+1.0
+
+6
+
+GSAT
+
+0.8
+
+5
+
+GNNExplainer PGExplainer
+
+GraphMask
+
+4
+
+0.6
+
+3
+
+0.4
+
+GSAT
+
+2
+
+0.2
+
+GNNExplainer PGExplainer
+
+1
+
+GraphMask
+
+0.0 0
+
+20
+
+40Epoch60
+
+80 100
+
+00
+
+20
+
+40Epoch60
+
+80 100
+
+(a) Ba-2Motifs
+
+1.0
+
+GSAT
+
+6
+
+0.9
+
+GNNExplainer PGExplainer
+
+5
+
+GraphMask
+
+4
+
+0.8
+
+3
+
+0.7 2
+
+0.6
+
+1
+
+GSAT GNNExplainer PGExplainer GraphMask
+
+0.5 0
+
+20
+
+40Epoch60
+
+80 100
+
+00
+
+20
+
+40Epoch60
+
+80 100
+
+(b) Mutag
+
+Figure 5. Issues of post-hoc interpretation methods. GSAT is trained with 10 different random seeds. And for post-hoc methods, we pre-train 10 models with different random seeds and run these methods on each model. Interpretation performance and the training losses of Eq. 2 for GSAT and Eq. 4 for others are shown. Note that we guarantee that all the pre-trained models achieve good performance in their pre-training stage (Acc.∼100% Ba-2Motif, ∼90% Mutag).
+
+is not jointly trained. From the optimization perspective, post-hoc methods just perform one-single step projection (see Fig. 4) from the model fθ˜ in an unconstrained space to fθ˜ ◦ gφ˜ in the information-constrained space Ω where the projection rule follows that the induced MI decrease I(fθ˜(G); Y ) − I(fθ˜(gφ˜(G)); Y ) gets minimized.
+In practice, such a suboptimal behavior will yield two undesired concequences. First, fθ˜ may not fully extract the information from GS = gφ(G) to predict Y during the optimization of Eq. (4) because fθ˜ is originally trained to make I(fθ˜(G); Y ) approximate I(G, Y ) while (GS, Y ) = (gφ(G), Y ) follows a distribution different from (G, Y ). Therefore, I(fθ˜(GS); Y ) may not well approximate I(GS; Y ), and thus may mislead the optimization of gφ and disable gφ to select GS that indeed indicates Y . GNNExplainer suffers from this issue over Ba-2Motif as shown in Fig. 5: The training loss, −I(fθ˜(GS); Y ) keeps high and the interpretation performance is subpar. It is possible to further decrease the training loss via a more aggressive optimization of gφ. However, the models may risk overﬁtting the data, which yields the second issue.
+An aggressive optimization of gφ may give a large empirical MI Iˆ fθ˜(gφ(G)); Y (or a small training loss equivalently) by selecting features that help to distinguish labels for training but are essentially label-irrelevant in the population level. Previous works have shown that label-irrelevant features are known to be discriminative enough to even identify each graph in the training dataset let alone the labels (Suresh et al., 2021). Empirically, we indeed observe such overﬁtting problems of all post-hoc methods over Mutag as shown in Fig. 5, especially PGExplainer and GraphMask. In the ﬁrst 5 to 10 epochs, these two models succeed in selecting good explanations while having a large training loss. Further training successfully decreases the loss (after 10 epochs) but degenerates the interpretation performance substantially. This might also be the reason why in the original literatures of these post-hoc methods, training over only a small number of epochs is suggested. However, in practical tasks, it is hard to have the ground truth interpretation labels to verify
+
+the results and decide a trusty stopping criterion.
+Another observation of Fig. 5 also matches our expectation: From the optimization perspective, post-hoc methods suffer from an initialization issue. Their interpretation performance can be highly sensitive to the pre-trained model fθ˜, as empirically demonstrated by the large variances in Fig. 5. Only if the pre-trained fθ˜ approximates the optimal fθ∗ , the performance can be roughly guaranteed. Therefore, a joint training of fθ ◦ gφ according to the GIB principle Eq. (2) is typically needed.
+4. Stochastic Attention Mechanism for GIB
+In this section, we will ﬁrst give a tractable variational bound of the GIB objective (Eq. (2)), and then introduce our model GSAT with the stochastic attention mechanism. We will further discuss how the stochastic attention mechanism improves both model interpretation and generalization.
+4.1. A Tractable Objective for GIB
+GSAT is to learn an extractor gφ with parameter φ to extract GS ∈ Gsub(G). gφ blocks the label-irrelevant information in the data G via injected stochasticity while allowing the label-relevant information kept in GS to make predictions. In GSAT, gφ(G) essentially gives a distribution over Gsub(G). We also denote this distribution as Pφ(GS|G). Later, gφ(G) and Pφ(GS|G) are used interchangeably.
+Putting the constraint into the objective (Eq.(2)), we obtain the optimization of gφ via GIB, i.e., for some β > 0,
+min −I(GS; Y ) + βI(GS; G), s.t. GS ∼ gφ(G). (5)
+φ
+Next, we follow Alemi et al. (2016); Poole et al. (2019); Wu et al. (2020) to derive a tractable variational upper bound of the two terms in Eq. (5). Detailed derivation is given in Appendix B. For the term I (GS; Y ), we introduce a parameterized variational approximation Pθ(Y |GS) for P(Y |GS). We obtain a lower bound:
+I (GS; Y ) ≥ EGS,Y [log Pθ(Y |GS)] + H(Y ). (6)
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+Note that Pθ(Y |GS) essentially works as the predictor fθ : G → Y with parameter θ in our model. For the term I(GS; G), we introduce a variational approximation Q(GS) for the marginal distribution P(GS) =
+G Pφ(GS|G)PG(G). And, we obtain an upper bound:
+I (Gs; G) ≤ EG [KL(Pφ(GS|G)||Q(GS))] (7)
+Plugging in the above two inequalities, we obtain a variational upper bound of Eq. (5) as the objective of GSAT:
+
+min −E [log Pθ(Y |GS)] + βE [KL(Pφ(GS|G)||Q(GS))] ,
+θ,φ
+
+s.t. GS ∼ Pφ(GS|G).
+
+(8)
+
+Next, we specify Pθ (aka fθ), Pφ (aka gφ) and Q in GSAT.
+
+4.2. GSAT and Stochastic Attention Mechanism
+
+For clarity, we introduced the predictor fθ and the extractor gφ separately. Actually, GSAT is a uniﬁed model as fθ, gφ share the same GNN encoder except their last layers.
+
+Stochastic Attention via Pφ. The extractor gφ ﬁrst encodes the input graph G via the GNN into a set of node representations {hv|v ∈ V }. For each edge (u, v) ∈ E, gφ contains an MLP layer plus sigmoid that maps the concatenation (hu, hv) into puv ∈ [0, 1]. Then, for each forward pass of the training, we sample stochastic attention from Bernoulli distributions αuv ∼ Bern(puv). To make sure the gradient w.r.t. puv is computable, we apply the gumbelsoftmax reparameterization trick (Jang et al., 2017). The extracted graph GS will have an attention-selected subgraphs as AS = α A. Here α is the matrix with entries αuv for (u, v) ∈ E or zeros for the non-edge entries. A is the adjacency matrix of G and is entry-wise product. The distribution of GS given G through the above procedure characterizes Pφ(GS|G), so Pφ(GS|G) = u,v∈E P(αuv|puv), where puv is a function of G.
+
+Prediction via Pθ. The predictor fθ adopts the same GNN to encode the extracted graph GS to a graph representation, and ﬁnally passes such representation through an MLP layer plus softmax to model the distribution of Y . This procedure gives the variational distribution Pθ(Y |GS).
+
+Marginal Distribution Control via Q. The bound Eq.(7)
+
+is always true for any Q(GS). We deﬁne Q(GS) as follows.
+
+For every graph G ∼ PG and every two directed node pair
+
+(u, v) in G, we sample αuv ∼ Bern(r) where r ∈ [0, 1] is a hyperparameter. We remove all edges in G and add
+
+all edges (u, v) if αuv = 1. Suppose the obtained graph is GS. This procedure deﬁnes the distribution Q(GS) =
+
+G P(α |G)PG(G). As α is independent from the graph
+
+PG(ng)ivennu,ivts=1siPze(αnu,vQ).(TGhSe)p=robabnilPity(αof|na)nPnG-(sGize=d
+
+n) = graph
+
+P(n) is a constant and thus will not affect the model.
+
+Using the above Pθ, the ﬁrst term in Eq.(8) reduces to a standard cross entropy loss. Using Pφ and Q, the KL-divergence term becomes, for every G ∼ PG, n as the size of G,
+
+KL(Pφ(GS|G)||Q(GS)) =
+
+(9)
+
+puv
+
+log
+
+puv r
+
++ (1
+
+− puv) log
+
+1 − puv 1−r
+
++
+
+c(n, r).
+
+(u,v)∈E
+
+where c(n, r) is a constant without any trainable parameters.
+
+Note that GSAT is substantially different from the previous methods, as we do not use any sparisity constraints such as 1-norm (Ying et al., 2019; Luo et al., 2020), 0-norm (Schlichtkrull et al., 2021) or 2-regression to {0, 1} (Yu et al., 2020) to select size-constrained (or connectivity-constrained) subgraphs. We actually observe that setting r away from 0 in the marginal regularization (Eq. (9)), i.e., pushing GS away from being sparse often provides more robust interpretation. This matches our intuition that GIB by deﬁnition does not make any assumptions on the selected subgraphs but just constrains the information from the original graphs. Our experiments show that GSAT outperform baselines signiﬁcantly without leveraging those assumptions in the optimization even if the label-relevant subgraphs satisfy these assumptions. If the label-relevant subgraphs are indeed disconnected or vary in sizes, the improvement of GSAT is expected to be even more.
+
+Our interpretation essentially comes from the information control: GSAT decreases the information from the input graphs by injecting stochasticity via attention into GS. In the training, driven by the term max I(GS, Y ), GSAT can learn to automatically reduce such stochasticity of the attention on the task-relevant subgraphs. So, it is not the entire GS but the part of GS with the stochasticity-reduced attention, aka puv → 1, that provide model interpretation. Therefore, when GSAT provides interpretation, we rank all edges according to puv and use those top ranked ones (given a certain budget) as the detected subgraph for interpretation. The contribution of injecting stochasticity to the performance is so signiﬁcant as shown in experiments (Table 4), so is the contribution of our regularization term (Eq. (9)) when we compare it with the sparsity-driven 1-norm (Fig. 7).
+
+4.3. Further Comparison on Interpretation Mechanism
+PGExplainer and GraphMask also have stochasticity in their models (Luo et al., 2020; Schlichtkrull et al., 2021). However, their main goal is to enable a gradient-based search over a discrete subgraph-selection space rather than control the information as GSAT does. Hence, they did not in principle derive the informatic regularization as ours (Eq. (9)) but adopt sparsity constraints.
+IB-subgraph (Yu et al., 2020) considers using GIB as the objective but does not inject any stochasticity, so its se-
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+lected subgraph GS is a deterministic function of G. In this case I(GS; G)(= H(GS) − H(GS|G)) reduces to the entropy H(GS). Therefore, IB-subgraph is actually to control H(GS), which tends to give a small-sized GS, because the space of small graphs is small and has a lower upper bound of the entropy. In contrast, GSAT implements GIB mainly by increasing H(GS|G) via injecting stochasticity.
+4.4. Better Generalization Performance via GSAT
+Although our main goal is for model interpretation, GSAT is also possible to achieve better generalization, by capturing only label-relevant information. We may prove that if there exists a correspondence between a subgraph pattern G∗S and the label Y , the optimal solution of the GIB objective (Eq. (2)) will detect that subgraph pattern (Thm. 4.1).
+Theorem 4.1. Suppose each G contains a subgraph G∗S such that Y is determined by G∗S in the sense that Y = f (G∗S) + for some deterministic invertible function f with randomness that is independent from G. Then, GS = G∗S maximizes GIB I (GS; Y ) − βI (GS; G) for all β ∈ [0, 1].
+This indicates that GSAT by optimizing the GIB objective also has the capability to address the correlation shift issue (Pearl et al., 2016; Arjovsky et al., 2019; Chang et al., 2020): Although G∗S uniquely determines Y , in the training dataset the data G and Y may have some spurious correlation caused by the environment, i.e., G\G∗S (illustrated in Fig. 6). Training a model over G to predict Y via just MI maximization may capture such spurious correlation. In the testing dataset, if such correlation is changed, the obtained model suffers from performance decay. However, GSAT may avoid that by only extracting G∗S.
+4.5. Fine-tuning and Interpreting a Pre-trained Model
+GSAT can also ﬁne-tune and interpret a pre-trained GNN. Given a GNN fθ˜ pre-trained by maxθ I(fθ(G); Y ), GSAT can ﬁne-tune it via maxθ,φ I(fθ(GS); Y ) − βI(GS; G), GS ∼ gφ(G) by initializing the GNN used in gφ and fθ as the one in the pre-trained model fθ˜.
+We observe that this framework almost never hurts the original prediction performance (and sometimes even boosts it). Moreover, this framework often achieves better interpretation results compared with training the GNN from scratch.
+5. Other Related Works
+Besides the models (Ying et al., 2019; Luo et al., 2020; Schlichtkrull et al., 2021; Yu et al., 2020) that we have compared with in detail in Sec. 3.2 and Sec. 4.3, we review some other interpretation methods here.
+Most previous works on GNN interpretation are postdoc (Ribeiro et al., 2016). Some works strongly rely on
+
+HO
+
+Spurious Correlation
+
+The environment
+
+may contain spurious correlation with
+
+HO
+
+Figure 6. G∗S determines Y . However, the environment features in G\G∗S may contain spurious (backdoor) correlation with Y .
+
+the connectivity assumption and only search over the space of connected subgraphs for interpretation. They adopt either reinforcement learning (Yuan et al., 2020a) or Monte Carlo tree search (Yuan et al., 2021). Other methods including PGM-Explainer (Vu & Thai, 2020) leveraging graphical models, Gem (Lin et al., 2021) checking Granger causality and Graphlime (Huang et al., 2020) using HSIC Lasso are only applied to node-level task interpretation.
+Much fewer works have considered intrinsic interpretation. Pope et al. (2019) and Baldassarre & Azizpour (2019) check the gradients w.r.t. the input features to determine important features. Recently, Wu et al. (2022) has proposed DIR to make the model avoid overﬁtting spurious correlations and only capture invariant rationales to provide interpretability. However, DIR needs to iteratively break graphs into subgraphs and assemble subgraphs into graphs during the model training, which is far more complicated than GSAT.
+6. Experiments
+We evaluate our method from both interpretability and prediction performance1. We will compare our method with both state-of-the-art (SOTA) post-hoc interpretation methods and inherently interpretable models. We brieﬂy introduce the datasets, the baselines and the experiment settings here, and more details can be found in Appendix D.
+6.1. Datasets
+Mutag (Debnath et al., 1991) is a molecular property prediction dataset. Following (Luo et al., 2020), -NO2 and -NH2 in mutagen graphs are labeled as ground-truth explanations.
+BA-2Motifs (Luo et al., 2020) is a synthetic dataset with binary graph labels. House motifs and cycle motifs give class labels and thus are regarded as ground-truth explanations for the two classes respectively.
+Spurious-Motif (Wu et al., 2022) is a synthetic dataset with three graph classes. Each class contains a particular motif that can be regarded as the ground-truth explanation. Some spurious correlation between the rest graph components (other than the motifs) and the labels also exists in the training data. The degree of such correlation is controlled by b, and we include datasets with b = 0.5, 0.7 and 0.9.
+MNIST-75sp (Knyazev et al., 2019) is a image classiﬁca-
+1Code available at https://github.com/Graph-COM/GSAT
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+Table 1. Interpretation Performance (AUC). The underlined results highlight the best baselines. The bold font and bold† font highlight when GSAT outperform the means of the best baselines based on the mean of GSAT and the mean-2*std of GSAT, respectively.
+
+BA-2MOTIFS
+
+MUTAG
+
+MNIST-75SP
+
+b = 0.5
+
+SPURIOUS-MOTIF b = 0.7
+
+b = 0.9
+
+GNNEXPLAINER PGEXPLAINER GRAPHMASK IB-SUBGRAPH DIR
+
+67.35 ± 3.29 84.59 ± 9.09 92.54 ± 8.07 86.06 ± 28.37 82.78 ± 10.97
+
+61.98 ± 5.45 60.91 ± 17.10 62.23 ± 9.01 91.04 ± 6.59 64.44 ± 28.81
+
+59.01 ± 2.04 69.34 ± 4.32 73.10 ± 6.41 51.20 ± 5.12 32.35 ± 9.39
+
+62.62 ± 1.35 69.54 ± 5.64 72.06 ± 5.58 57.29 ± 14.35 78.15 ± 1.32
+
+62.25 ± 3.61 72.33 ± 9.18 73.06 ± 4.91 62.89 ± 15.59 77.68 ± 1.22
+
+58.86 ± 1.93 72.34 ± 2.91 66.68 ± 6.96 47.29 ± 13.39 49.08 ± 3.66
+
+GIN+GSAT GIN+GSAT∗
+
+98.74† ± 0.55 99.60† ± 0.51 83.36† ± 1.02 78.45† ± 3.12 74.07 ± 5.28 71.97 ± 4.41 97.43† ± 1.77 97.75† ± 0.92 83.70† ± 1.46 85.55† ± 2.57 85.56† ± 1.93 83.59† ± 2.56
+
+PNA+GSAT PNA+GSAT∗
+
+93.77 ± 3.90 99.07† ± 0.50 84.68† ± 1.06 83.34† ± 2.17 86.94† ± 4.05 88.66† ± 2.44 89.04 ± 4.92 96.22† ± 2.08 88.54† ± 0.72 90.55† ± 1.48 89.79† ± 1.91 89.54† ± 1.78
+
+Table 2. Prediction Performance (Acc.). The bold font highlights the inherently interpretable methods that signiﬁcantly outperform the corresponding backbone model, GIN or PNA, when the mean-1*std of a method > the mean of its corresponding backbone model.
+
+MOLHIV (AUC) GRAPH-SST2 MNIST-75SP
+
+SPURIOUS-MOTIF
+
+b = 0.5
+
+b = 0.7
+
+b = 0.9
+
+GIN
+IB-SUBGRAPH
+DIR
+GIN+GSAT GIN+GSAT∗
+
+76.69 ± 1.25 76.43 ± 2.65 76.34 ± 1.01 76.47 ± 1.53 76.16 ± 1.39
+
+82.73 ± 0.77 82.99 ± 0.67 82.32 ± 0.85 82.95 ± 0.58 82.57 ± 0.71
+
+95.74 ± 0.36 93.10 ± 1.32 88.51 ± 2.57 96.24 ± 0.17 96.21 ± 0.14
+
+39.87 ± 1.30 54.36 ± 7.09 45.49 ± 3.81 52.74 ± 4.08 46.62 ± 2.95
+
+39.04 ± 1.62 48.51 ± 5.76 41.13 ± 2.62 49.12 ± 3.29 41.26 ± 3.01
+
+38.57 ± 2.31 46.19 ± 5.63 37.61 ± 2.02 44.22 ± 5.57 39.74 ± 2.20
+
+PNA (NO SCALARS)
+PNA+GSAT PNA+GSAT∗
+
+78.91 ± 1.04 80.24 ± 0.73 80.67 ± 0.95
+
+79.87 ± 1.02 87.20 ± 5.61 68.15 ± 2.39 66.35 ± 3.34 61.40 ± 3.56 80.92 ± 0.66 93.96 ± 0.92 68.74 ± 2.24 64.38 ± 3.20 57.01 ± 2.95 82.81 ± 0.56 92.38 ± 1.44 69.72 ± 1.93 67.31 ± 1.86 61.49 ± 3.46
+
+tion dataset, where each image in MNIST is converted to a superpixel graph. Nodes with nonzero pixel values provide ground-truth explanations. Note that the subgraphs that provide explanations are of different sizes in this dataset.
+Graph-SST2 (Socher et al., 2013; Yuan et al., 2020b) is a sentiment analysis dataset, where each text sequence in SST2 is converted to a graph. Following the splits in (Wu et al., 2022), this dataset contains degree shifts and no ground-truth explanation labels. So, we only evaluate prediction performance and provide interpretation visualizations.
+OGBG-Molhiv (Wu et al., 2018; Hu et al., 2020) is a molecular property prediction datasets. We also evaluate GSAT on molbace, molbbbp, molclintox, moltox21 and molsider datasets from OGBG. As there are no ground truth explanation labels for these datasets, we only evaluate the prediction performance of GSAT.
+6.2. Baselines and Setup
+Interpretability Baselines. We compare interpretability with post-hoc methods GNNExplainer (Ying et al., 2019), PGExplainer (Luo et al., 2020), GraphMask (Schlichtkrull et al., 2021), and inherently interpretable models DIR (Wu et al., 2022) and IB-subgraph (Yu et al., 2020).
+Prediction Baselines. We compare prediction performance with the backbone models GIN (Xu et al., 2019) and PNA
+
+(Corso et al., 2020), and inherently interpretable models DIR (Wu et al., 2022) and IB-subgraph (Yu et al., 2020).
+Metrics. For interpretation evaluation, we report explanation ROC AUC following (Ying et al., 2019; Luo et al., 2020). For prediction performance, we report classiﬁcation ROC AUC for all OGBG datasets and report accuracy for all other datasets. All the results are averaged over 10 times tests with different random seeds. For the post-hoc methods, we do not cherry pick a pre-trained model. Instead, in each test, we interpret a model pre-trained independently that achieves the best validation performance.
+Setup. Since we focus on graph classiﬁcation tasks, GIN (Xu et al., 2019) is used as the backbone model for both baselines and GSAT. We also apply PNA (Corso et al., 2020) to further test the wide applicability of GSAT, for which we adopt the no-scalars version since the scalars used in PNA are essentially a type of attention, which may conﬂict with our method. In addition, we apply GSAT to ﬁne-tune and interpret pre-trained models as described in Sec. 4.5, which is highlighted as GSAT∗. As some baselines adopted other backbone models in their original literature, we also evaluate GSAT on those backbone models in Appendix. D.4. In all the experiments, we use r = 0.7 in Eq. (9) by default or otherwise speciﬁed. Our studies have shown that GSAT is generally robust when r ∈ [0.5, 0.9] (see Fig. 7 later).
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+Table 3. Generalization ROC AUC on other OGBG-Mol datasets. The bold font highlights when GSAT outperforms PNA.
+
+PNA
+GSAT GSAT∗
+
+MOLBACE
+73.52 ± 3.02 77.41 ± 2.42 73.61 ± 1.59
+
+MOLBBBP
+67.21 ± 1.34 69.17 ± 1.12 66.30 ± 0.79
+
+MOLCLINTOX
+86.72 ± 2.33 87.80 ± 2.36 89.26 ± 1.66
+
+MOLTOX21
+75.08 ± 0.64 74.96 ± 0.66 75.71 ± 0.48
+
+MOLSIDER
+56.51 ± 1.90 57.58 ± 1.23 59.19 ± 1.03
+
+6.3. Result Comparison and Analysis
+Interpretability Results. As shown in Table 1, our methods signiﬁcantly outperform the baselines by 9%↑ on average and up to 20%↑. If we just compare among inherently interpretable models, the boost is even more signiﬁcant. Moreover, GSAT also provides much stabler interpretation than the baselines as for the much smaller variance. GSAT∗ via ﬁne-tuning a pre-trained model can often further boost the interpretation performance. Also, when the more expressive model PNA is used as the backbone, we ﬁnd the posthoc methods are likely to suffer from the overﬁtting issue as explained in Sec. 3.2. However, GSAT does not suffer from that and can yield even better interpretation results. Over Ba-2Motifs and Mutag, GNNExplainer and PGExplainer work worse than what reported in (Luo et al., 2020) as we do not cherry pick the pre-trained model. However, GSAT still signiﬁcantly outperforms their reported performance in the Appendix D.4. We also provide visualizations of the subgraphs discovered by GSAT in Appendix E.
+Prediction Results. As explained in Sec. 4.4, being trained via the GIB principle, GSAT is more generalizable and thus may achieve even better prediction performance. As shown in Table 2, GIN+GSAT signiﬁcantly outperforms the backbone GIN over the Spurious-Motif datasets, where spurious correlation exists in the training data. For other datasets, GIN+GSAT can achieve comparable results, which matches our claim that GSAT provides interpretation without hurting the prediction. IB-subgraph, trained via the GIB principle, also achieves good prediction performance though its interpretability is poor (Table 1). When PNA is used, GSAT improves it by about 1 − 5% on the datasets in the ﬁrst three columns. Notably, GSAT∗ achieves the SOTA performance on molhiv among all models that do not incorporate expert knowledge according to the leaderboard. Unexpectedly, PNA achieves very good performance on Spurious-Motif and GSAT∗ just slightly improves it. Our results on the other 5 molecular datasets from OGBG are showed in Table 3, where GSAT and GSAT∗ mostly outperform PNA.
+We note that DIR achieves a bit lower performance than what reported in (Wu et al., 2022) even after we extensively tune its parameters, which is probably due to the different backbone models used. Hence, we also compare with DIR by using their backbone model. Results are shown in Table 6 on interpretation and Table 7 on prediction in the appendix. GSAT still signiﬁcantly outperforms DIR.
+Ablation Studies. We conduct ablation studies from three
+
+Table 4. Ablation study on β and stochasticity in GSAT (GIN as the backbone model) on Spurious-Motif. We report both interpretation ROC AUC (top) and prediction accuracy (bottom).
+
+SPURIOUS-MOTIF
+GSAT GSAT-β = 0 GSAT-NOSTOCH GSAT-NOSTOCH-β = 0
+GIN GSAT GSAT-β = 0 GSAT-NOSTOCH GSAT-NOSTOCH-β = 0
+
+b = 0.5
+79.81 ± 3.98 66.00 ± 11.04 59.64 ± 5.33 63.37 ± 12.33
+39.87 ± 1.30 51.86 ± 5.51 45.97 ± 8.37 40.34 ± 2.77 43.41 ± 8.05
+
+b = 0.7
+74.07 ± 5.28 65.92 ± 3.28 55.78 ± 2.84 60.61 ± 10.08
+39.04 ± 1.62 49.12 ± 3.29 49.67 ± 7.01 41.90 ± 3.70 45.88 ± 9.54
+
+b = 0.9
+71.97 ± 4.41 66.31 ± 6.82 55.27 ± 7.49 66.19 ± 7.76
+38.57 ± 2.31 44.22 ± 5.57 49.84 ± 5.45 37.98 ± 2.64 42.25 ± 9.77
+
+Intrepretation ROC AUC Classiﬁcation Accuracy (%)
+
+80
+
+70
+
+60
+
+50
+
+40
+
+Info. Constraint (Eq.9)
+
+1 Norm Regularization
+
+30
+0.9/1e-5 0.8/1e-4 0.7/5e-4 0.6/1e-3 0.5/5e-3 0.4/1e-2 0.3/5e-2 0.2/1e-1 0.1/1
+
+r/λ1
+
+60
+
+55
+
+50
+
+45
+
+40
+
+35
+
+Info. Constraint (Eq.9)
+
+1 Norm Regularization
+
+30
+0.9/1e-5 0.8/1e-4 0.7/5e-4 0.6/1e-3 0.5/5e-3 0.4/1e-2 0.3/5e-2 0.2/1e-1 0.1/1
+
+r/λ1
+
+Figure 7. Comparison between (a) using the information constraint
+
+in Eq. (9) and (b) replacing it with 1-norm. Results are shown for Spurious-Motif b = 0.5, where r is tuned from 0.9 to 0.1 and the coefﬁcient of the 1-norm λ1 is tuned from 1e-5 to 1.
+
+aspects: First, the importance of stochasticity in GSAT, where we replace the Bernoulli sampling procedure with setting attention αuv = puv without stochasticity; Second, the importance of the information regularization term (Eq. (9)), where we set its coefﬁcient β = 0 in Eq. (8); Third, the superiority of the information regularization term over the sparsity-driven term 1-norm. As shown in Table 4, the performance drops signiﬁcantly when there is either no stochasticity or β = 0. No stochasticity yields the biggest drop, which well matches our theory. This also implies that directly using the deterministic attention mechanisms such as GAT (Velicˇkovic´ et al., 2018) or GGNN (Li et al., 2015) may not yield good model interpretation.
+Fig. 7 shows that our information regularization term can achieve consistently better performance than the sparsitydriven 1-norm regularization even when the grid search is used to tune hyperparameters. We also observe that when r is close to 0, the results often get decreased or have higher variance. The best performance is often achieved when r ∈ [0.5, 0.9], which matches our theory. More results on other datasets can be found in Fig. 8 in the appendix.
+
+7. Conclusion
+Graph Stochastic Attention (GSAT) is a novel attention mechanism to build interpretable graph learning models. GSAT injects stochasticity to block label-irrelevant information and leverages stochasticity reduction to select labelrelevant subgraphs. Such rationale is grounded by the information bottleneck principle. GSAT provides tons of disruptive contributions. For example, it removes the sparsity,
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+continuity or other potentially biased assumptions in graph learning interpretation without performance decay. It can also remove spurious correlation to better the model generalization. As a by-product, we also disclose a potentially severe issue behind post-doc interpretation methods from the optimization perspective of information bottleneck.
+References
+Alemi, A. A., Fischer, I., Dillon, J. V., and Murphy, K. Deep variational information bottleneck. In International Conference on Learning Representations, 2016.
+Arjovsky, M., Bottou, L., Gulrajani, I., and LopezPaz, D. Invariant risk minimization. arXiv preprint arXiv:1907.02893, 2019.
+Bahdanau, D., Cho, K., and Bengio, Y. Neural machine translation by jointly learning to align and translate. In International Conference on Learning Representations, 2014.
+Baldassarre, F. and Azizpour, H. Explainability techniques for graph convolutional networks. In International Conference on Machine Learning Workshops, 2019 Workshop on Learning and Reasoning with Graph-Structured Representations, 2019.
+Bapst, V., Keck, T., Grabska-Barwin´ska, A., Donner, C., Cubuk, E. D., Schoenholz, S. S., Obika, A., Nelson, A. W., Back, T., Hassabis, D., et al. Unveiling the predictive power of static structure in glassy systems. Nature Physics, 16(4):448–454, 2020.
+Bengio, Y., Louradour, J., Collobert, R., and Weston, J. Curriculum learning. In Proceedings of the 26th annual international conference on machine learning, pp. 41–48, 2009.
+Chang, S., Zhang, Y., Yu, M., and Jaakkola, T. Invariant rationalization. In Proceedings of the 37th International Conference on Machine Learning, volume 119, pp. 1448– 1458. PMLR, 2020.
+Chen, J., Song, L., Wainwright, M., and Jordan, M. Learning to explain: An information-theoretic perspective on model interpretation. In Proceedings of the 35th International Conference on Machine Learning, volume 80, pp. 883–892. PMLR, 2018.
+Corso, G., Cavalleri, L., Beaini, D., Lio`, P., and Velicˇkovic´, P. Principal neighbourhood aggregation for graph nets. In Advances in Neural Information Processing Systems, volume 33, pp. 13260–13271, 2020.
+Cover, T. M. Elements of information theory. John Wiley & Sons, 1999.
+
+Cranmer, M., Sanchez Gonzalez, A., Battaglia, P., Xu, R., Cranmer, K., Spergel, D., and Ho, S. Discovering symbolic models from deep learning with inductive biases. In Advances in Neural Information Processing Systems, volume 33, pp. 17429–17442, 2020.
+Debnath, A. K., Lopez de Compadre, R. L., Debnath, G., Shusterman, A. J., and Hansch, C. Structure-activity relationship of mutagenic aromatic and heteroaromatic nitro compounds. correlation with molecular orbital energies and hydrophobicity. Journal of medicinal chemistry, 34 (2):786–797, 1991.
+Du, M., Liu, N., and Hu, X. Techniques for interpretable machine learning. Communications of the ACM, 63(1): 68–77, 2019.
+Gilmer, J., Schoenholz, S. S., Riley, P. F., Vinyals, O., and Dahl, G. E. Neural message passing for quantum chemistry. In Proceedings of the 34th International Conference on Machine Learning, volume 70, pp. 1263–1272. PMLR, 2017.
+Henderson, R., Clevert, D.-A., and Montanari, F. Improving molecular graph neural network explainability with orthonormalization and induced sparsity. In Proceedings of the 38th International Conference on Machine Learning, volume 139, pp. 4203–4213. PMLR, 2021.
+Hu, W., Fey, M., Zitnik, M., Dong, Y., Ren, H., Liu, B., Catasta, M., and Leskovec, J. Open graph benchmark: Datasets for machine learning on graphs. In Advances in Neural Information Processing Systems, volume 33, pp. 22118–22133, 2020.
+Huang, Q., Yamada, M., Tian, Y., Singh, D., Yin, D., and Chang, Y. Graphlime: Local interpretable model explanations for graph neural networks. arXiv preprint arXiv:2001.06216, 2020.
+Jain, S. and Wallace, B. C. Attention is not explanation. In Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies, Volume 1 (Long and Short Papers), pp. 3543–3556, 2019.
+Jang, E., Gu, S., and Poole, B. Categorical reparameterization with gumbel-softmax. In International Conference on Learning Representations, 2017.
+Jumper, J., Evans, R., Pritzel, A., Green, T., Figurnov, M., Ronneberger, O., Tunyasuvunakool, K., Bates, R., Zˇ ´ıdek, A., Potapenko, A., et al. Highly accurate protein structure prediction with alphafold. Nature, 596(7873):583–589, 2021.
+Kipf, T. N. and Welling, M. Semi-supervised classiﬁcation with graph convolutional networks. In International Conference on Learning Representations, 2017.
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+Knyazev, B., Taylor, G. W., and Amer, M. Understanding attention and generalization in graph neural networks. In Advances in Neural Information Processing Systems, volume 32, 2019.
+Li, Y., Zemel, R., Brockschmidt, M., and Tarlow, D. Gated graph sequence neural networks. In International Conference on Learning Representations, 2015.
+Lin, W., Lan, H., and Li, B. Generative causal explanations for graph neural networks. In Proceedings of the 38th International Conference on Machine Learning, volume 139, pp. 6666–6679. PMLR, 2021.
+Lipton, Z. C. The mythos of model interpretability: In machine learning, the concept of interpretability is both important and slippery. Queue, 16(3):31–57, 2018.
+Luo, D., Cheng, W., Xu, D., Yu, W., Zong, B., Chen, H., and Zhang, X. Parameterized explainer for graph neural network. In Advances in Neural Information Processing Systems, volume 33, 2020.
+Mohankumar, A. K., Nema, P., Narasimhan, S., Khapra, M. M., Srinivasan, B. V., and Ravindran, B. Towards transparent and explainable attention models. In Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics, pp. 4206–4216, 2020.
+Pearl, J., Glymour, M., and Jewell, N. P. Causal Inference in Statistics: A Primer. John Wiley & Sons, 2016.
+Poole, B., Ozair, S., Van Den Oord, A., Alemi, A., and Tucker, G. On variational bounds of mutual information. In Proceedings of the 36th International Conference on Machine Learning, volume 97, pp. 5171–5180. PMLR, 2019.
+Pope, P. E., Kolouri, S., Rostami, M., Martin, C. E., and Hoffmann, H. Explainability methods for graph convolutional neural networks. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pp. 10772–10781, 2019.
+Ribeiro, M. T., Singh, S., and Guestrin, C. Model-agnostic interpretability of machine learning. In International Conference on Machine Learning Workshops, 2016 Workshop on Human Interpretability in Machine Learning, 2016.
+Schlichtkrull, M. S., Cao, N. D., and Titov, I. Interpreting graph neural networks for {nlp} with differentiable edge masking. In International Conference on Learning Representations, 2021.
+Serrano, S. and Smith, N. A. Is attention interpretable? In Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics, pp. 2931–2951, 2019.
+
+Shannon, C. E. A mathematical theory of communication. The Bell system technical journal, 27(3):379–423, 1948.
+Socher, R., Perelygin, A., Wu, J., Chuang, J., Manning, C. D., Ng, A. Y., and Potts, C. Recursive deep models for semantic compositionality over a sentiment treebank. In Proceedings of the 2013 conference on empirical methods in natural language processing, pp. 1631–1642, 2013.
+Suresh, S., Li, P., Hao, C., and Neville, J. Adversarial graph augmentation to improve graph contrastive learning. In Advances in Neural Information Processing Systems, 2021.
+Tishby, N. and Zaslavsky, N. Deep learning and the information bottleneck principle. In 2015 IEEE Information Theory Workshop (ITW), pp. 1–5. IEEE, 2015.
+Tishby, N., Pereira, F. C., and Bialek, W. The information bottleneck method. arXiv preprint physics/0004057, 2000.
+Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., and Polosukhin, I. Attention is all you need. In Advances in neural information processing systems, pp. 5998–6008, 2017.
+Velicˇkovic´, P., Cucurull, G., Casanova, A., Romero, A., Lio`, P., and Bengio, Y. Graph attention networks. In International Conference on Learning Representations, 2018.
+Vu, M. and Thai, M. T. Pgm-explainer: Probabilistic graphical model explanations for graph neural networks. In Advances in Neural Information Processing Systems, volume 33, pp. 12225–12235, 2020.
+Wencel-Delord, J. and Glorius, F. C–h bond activation enables the rapid construction and late-stage diversiﬁcation of functional molecules. Nature chemistry, 5(5):369–375, 2013.
+Wu, T., Ren, H., Li, P., and Leskovec, J. Graph information bottleneck. In Advances in Neural Information Processing Systems, volume 33, pp. 20437–20448, 2020.
+Wu, Y., Wang, X., Zhang, A., He, X., and Chua, T.-S. Discovering invariant rationales for graph neural networks. In International Conference on Learning Representations, 2022.
+Wu, Z., Ramsundar, B., Feinberg, E. N., Gomes, J., Geniesse, C., Pappu, A. S., Leswing, K., and Pande, V. Moleculenet: a benchmark for molecular machine learning. Chemical science, 9(2):513–530, 2018.
+Xu, K., Ba, J., Kiros, R., Cho, K., Courville, A., Salakhudinov, R., Zemel, R., and Bengio, Y. Show, attend and tell:
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+Neural image caption generation with visual attention. In Proceedings of the 32nd International Conference on Machine Learning, volume 37, pp. 2048–2057. PMLR, 2015.
+Xu, K., Hu, W., Leskovec, J., and Jegelka, S. How powerful are graph neural networks? In International Conference on Learning Representations, 2019.
+Ying, Z., Bourgeois, D., You, J., Zitnik, M., and Leskovec, J. Gnnexplainer: Generating explanations for graph neural networks. In Advances in Neural Information Processing Systems, volume 32, 2019.
+Yu, J., Xu, T., Rong, Y., Bian, Y., Huang, J., and He, R. Graph information bottleneck for subgraph recognition. In International Conference on Learning Representations, 2020.
+Yuan, H., Tang, J., Hu, X., and Ji, S. Xgnn: Towards model-level explanations of graph neural networks. In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, pp. 430–438, 2020a.
+Yuan, H., Yu, H., Gui, S., and Ji, S. Explainability in graph neural networks: A taxonomic survey. arXiv preprint arXiv:2012.15445, 2020b.
+Yuan, H., Yu, H., Wang, J., Li, K., and Ji, S. On explainability of graph neural networks via subgraph explorations. In Proceedings of the 38th International Conference on Machine Learning, volume 139, pp. 12241–12252. PMLR, 2021.
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+A. Supplementary Notations for Information Theory and Graph Neural Networks
+
+Entropy. Given a discrete random variable a, its entropy is deﬁned as H(a) − a P(a) log P(a). If a is a continuous random variable, its differential entropy is deﬁned as H(a) − a P(a) log P(a)da.
+
+KL-Divergence. Given two distributions P(x) and Q(x), KL-Divergence is used to measure the difference between P and
+
+Q, and it is deﬁned as KL(P(x)||Q(x))
+
+x
+
+P(x)
+
+log
+
+P(x) Q(x)
+
+.
+
+Mutual Information. Given two random variables a and b, the mutual information (MI) I(a; b) is a measure of the mutual
+
+dependence between them. MI quantiﬁes the amount of information regarding one random variable if another random
+
+variable is known. Formally, I(a; b)
+
+a,b
+
+P(a,
+
+b)
+
+log
+
+P(a,b) P(a)P(b)
+
+,
+
+where
+
+P(a,
+
+b)
+
+is
+
+the
+
+joint
+
+distribution
+
+and
+
+P(a),
+
+P(b)
+
+are
+
+the marginal distributions. By deﬁnition, I(a, b) = KL(P(a, b)||P(a)P(b)) = a,b P(a, b) log P(a|b)− b P(b) log P(b) =
+
+−H(a|b) + H(b).
+
+Graph Neural Networks (GNNs). Given an L-layer GNN, let h(vl) denote the node representation for node v in the ith layer and N (v) denote a set of nodes adjacent to node v. Let h(v0) be the node feature Xv. Most GNNs follow a message passing scheme, where there are two main steps in each layer: (1) neighbourhood aggregation, m(vl) = AGG({h(ul−1)|u ∈ N (v)}); (2) node representation update, h(vl) = UPDATE(m(vl), h(vl−1)). For graph classiﬁcation tasks, after obtaining h(vL) for each node, the graph representation is given by hG = POOL({h(vL)|v ∈ V }) and hG will be used to make predictions. The
+above AGG, UPDATE, POOL are three functions. AGG and POOL are typically implemented via SUM, MEAN and
+MAX while UPDATE is a fully connected (typically shallow) neural network. In some cases, edge representations may be in need, and they are often given by h(ul,)v = CONCAT(h(ul), h(vl)).
+
+B. Variational Bounds for The GIB Objective — Eq. (6) and Eq. (7)
+
+From Eq. (5), the IB objective is:
+
+min −I(GS; Y ) + βI(GS; G), s.t. GS ∼ gφ(G).
+
+(10)
+
+φ
+
+To optimize it, we introduce two variational bounds on the two terms, respectively.
+
+For the ﬁrst term I (GS; Y ), by deﬁnition:
+
+I (GS ; Y ) = EGS,Y
+
+log P(Y |GS) P(Y )
+
+.
+
+(11)
+
+Since P(Y |GS) is intractable, we introduce a variational approximation Pθ(Y |GS) for it. Then, we obtain a lower bound for Eq. (6):
+
+I (GS ; Y ) = EGS,Y
+
+log Pθ(Y |GS) P(Y )
+
++ EGS [KL(P(Y |GS)||Pθ(Y |GS))]
+
+≥ EGS,Y
+
+log Pθ(Y |GS) P(Y )
+
+= EGS,Y [log Pθ(Y |GS)] + H(Y ).
+
+(12)
+
+For the second term I (G; GS), by deﬁnition:
+
+I (G; GS ) = EGS,G
+
+log P(GS|G) P(GS )
+
+.
+
+(13)
+
+Since P(GS) is intractable, we introduce a variational approximation Q(GS) for the marginal distribution P(GS) = G Pφ(GS|G)PG(G). Then, we obtain an upper bound for Eq. (7):
+
+I (G; GS ) = EGS,G
+
+log Pφ(GS|G) Q(GS )
+
+− KL (P(GS)||Q(GS))
+
+≤ EG [KL (Pφ(GS|G)||Q(GS))] .
+
+(14)
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+C. Proof of Theorem 4.1
+Theorem C.1. Suppose each G contains a subgraph G∗S such that Y is determined by G∗S in the sense that Y = f (G∗S) + for some deterministic invertible function f with randomness that is independent from G. Then, for any β ∈ [0, 1], GS = G∗S maximizes the GIB I (GS; Y ) − βI (GS; G), where GS ∈ Gsub(G).
+Proof. Let GS ∈ Gsub(G). Consider the following derivation,
+I(GS; Y ) − βI(GS; G) = I(Y ; G, GS) − I(G; Y |GS) − βI(GS; G) = I(Y ; G, GS) − (1 − β)I(G; Y |GS) − βI(G; GS, Y ) = I(Y ; G) − (1 − β)I(G; Y |GS) − βI(G; GS, Y ) = I(Y ; G) − (1 − β)I(G; Y |GS) − βI(Y ; G) − βI(G; GS|Y ) = (1 − β)I(Y ; G) − (1 − β)I(G; Y |GS) − βI(G; GS|Y )
+where the third equality is because GS ∈ Gsub(G) so (GS, G) holds no more information than G.
+If β ∈ [0, 1], GS that maximizes I(GS, Y ) − βI(GS; G) also minimizes (1 − β)I(G; Y |GS) + βI(G; GS|Y ). As I(G; Y |GS) ≥ 0, I(G; GS|Y ) ≥ 0, so the lower bound of (1 − β)I(G; Y |GS) + βI(G; GS|Y ) is 0. G∗S is the subgraph that makes (1 − β)I(G; Y |G∗S) + βI(G; G∗S|Y ) = 0. This is because (a) Y = f (G∗S) + where is independent of G so I(G; Y |G∗S) = 0 and (b) G∗S = f −1(Y − ) where is independent of G so I(G; G∗S|Y ) = 0. Therefore, GS = G∗S maximizes GIB I (GS; Y ) − βI (GS; G), where GS ∈ Gsub(G).
+D. Supplementary Experiments
+D.1. Details of the Datasets
+Mutag (Debnath et al., 1991) is a molecular property prediction dataset, where nodes are atoms and edges are chemical bonds. Each graph is associated with a binary label based on its mutagenic effect. Following (Luo et al., 2020), -NO2 and -NH2 in mutagen graphs are labeled as ground-truth explanations.
+BA-2Motifs (Luo et al., 2020) is a synthetic dataset, where the base graph is generated by Baraba´si-Albert (BA) model. Each base graph is attached with a house-like motif or a ﬁve-node cycle motif. House motifs and cycle motifs give class labels and thus are regarded as ground-truth explanations for the two classes respectively.
+Spurious-Motif (Wu et al., 2022) is a synthetic dataset with three graph classes. Following the notations in (Wu et al., 2022), each graph consists of a base graph (tree/ladder/wheel denoted by G¯S = 0, 1, 2 respectively, with some abuse of notations) and a motif (cycle/house/crane denoted by GS = 0, 1, 2, respectively, with some abuse of notations). The label is determined only by GS, while there also exists spurious correlation between the label and G¯S. Speciﬁcally, to construct a graph in the training set, GS will be sampled uniformly, while G¯S will be sampled with probability P(G¯S), where P(G¯S) = b if G¯S = GS; otherwise P(G¯S) = (1 − b)/2. So, b is a parameter used to control the degree of such spurious correlation. When b = 1/3, there is no spurious correlation. We include datasets with b = 0.5, b = 0.7 and b = 0.9. Note that for testing data, the motifs and bases are randomly attached to each other, which can test if the model overﬁts the spurious correlation.
+MNIST-75sp (Knyazev et al., 2019) is a image classiﬁcation dataset, where each image in MNIST is converted to a superpixel graph. Each node in the graph represents a superpixel and edges are formed based on spatial distance between superpixel centers. Node features are the coordinates of their centers of masses. Nodes with nonzero pixel values provide ground-truth explanations. Note that the subgraphs that provide explanations are of different sizes in this dataset.
+Graph-SST2 (Socher et al., 2013; Yuan et al., 2020b) is a sentiment analysis dataset, where each text sequence in SST2 is converted to a graph. Each node in the graph represents a word and edges are formed based on relationships between different words. We follow the dataset splits in (Wu et al., 2022) to create degree shifts in the training set, which can better test generalizability of models. Speciﬁcally, graphs with higher average node degree will be used to train and validate models, while graphs with fewer nodes will be used to test models. And this dataset contains no ground-truth explanation labels, so we only evaluate prediction performance here and provide interpretation visualizations in Appendix E.
+OGBG-Molhiv (Wu et al., 2018; Hu et al., 2020) is a molecular property prediction datasets, where nodes are atoms and edges are chemical bonds. A binary label is assigned to each graph according to whether a molecule inhibits HIV virus
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+Table 5. Direct comparison with the interpretation ROC AUC of GNNExplainer and PGExplainer reported in (Luo et al., 2020) (given a selected pre-trained model).
+
+GNNEXPLAINER PGEXPLAINER
+GSAT GSAT∗
+
+BA-2MOTIFS
+74.2 92.6 98.74† ± 0.55 97.43† ± 0.02
+
+MUTAG
+72.7 87.3 99.60† ± 0.51 97.75† ± 0.92
+
+Table 6. Direct comparison with the interpretation precision@5 of DIR reported in (Wu et al., 2022) based on the backbone model in (Wu et al., 2022).
+
+GNNEXPLAINER DIR
+GSAT GSAT∗
+
+b = 0.5
+
+SPURIOUS-MOTIF b = 0.7
+
+b = 0.9
+
+0.203 ± 0.019
+0.255 ± 0.016 0.519† ± 0.022 0.532† ± 0.019
+
+0.167 ± 0.039
+0.247 ± 0.012 0.503† ± 0.034 0.512† ± 0.011
+
+0.066 ± 0.007
+0.192 ± 0.044 0.416† ± 0.081 0.520† ± 0.022
+
+replication or not. We also evaluate GSAT on molbace, molbbbp, molclintox, moltox21 and molsider datasets from OGBG. As there are no ground truth explanation labels for these datasets, we only evaluate the prediction performance of GSAT.
+D.2. Details on Hyperparameter Tuning
+D.2.1. BACKBONE MODELS
+Backbone Architecture. We use a two-layer GIN (Xu et al., 2019) with 64 hidden dimensions and 0.3 dropout ratio. We use the setting from (Corso et al., 2020) for PNA, which has 4 layers with 80 hidden dimensions, 0.3 dropout ratio, and no scalars are used. For OGBG-Mol datasets, we directly follow (Corso et al., 2020) using (mean, min, max, std) aggregators for PNA; yet we ﬁnd PNA has convergence issues on other datasets when sum aggregator is not used. Hence, PNA uses (mean, min, max, std, sum) aggregators for all other datasets.
+Dataset Splits. For Ba-2Motifs, we split it randomly into three sets (80%/10%/10%). For Mutag, we split it randomly into 80%/20% to train and validate models, and following (Luo et al., 2020) we use mutagen molecules with -NO2 or -NH2 as test data (because only these samples have explanation labels). For MNIST-75sp, we use the default splits given by (Knyazev et al., 2019); due to its large size in the graph setting, we also reduce the number of training samples following (Wu et al., 2022) to speed up training. For Graph-SST2, Spurious-Motifs and OGBG-Mol, we use the default splits given by (Yuan et al., 2020b) and (Wu et al., 2022). Following (Corso et al., 2020), edge features are not used for all OGBG-Mol datasets.
+Epoch. We tune the number of epochs to make sure the convergence of all models. When GIN is used as the backbone model, MNIST-75sp and OGBG-Molhiv are trained for 200 epochs, and all other datasets are trained for 100 epochs. When PNA is used, Mutag and Ba-2Motifs are trained for 50 epochs and all other datasets are trained for 200 epochs. We report the performance of the epoch that achieves the best validation prediction performance and use the models that achieve such best validation performance as the pre-trained models. When multiple epochs achieve the same best performance, we report the one with the lowest validation prediction loss.
+Batch Size. All datasets use a batch size of 128; except for MNIST-75sp we use a batch size of 256 to speed up training due to its large size in the graph setting.
+Learning Rate. GIN uses 0.003 learning rate for Spurious-Motifs and 0.001 for all other datasets. PNA uses 0.01 learning rate with scheduler following (Corso et al., 2020), 0.003 learning rate for Graph-SST2 and Spurious-Motifs, and 0.001
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+Table 7. Direct comparison with the prediction accuracy of DIR reported in (Wu et al., 2022) based on the backbone model in (Wu et al., 2022).
+
+ERM DIR
+GSAT GSAT∗
+
+b = 0.5
+
+SPURIOUS-MOTIF b = 0.7
+
+b = 0.9
+
+39.69 ± 1.73 45.50 ± 2.15 53.27† ± 5.12
+43.27 ± 4.58
+
+38.93 ± 1.74 43.36 ± 1.64 56.50† ± 3.96
+42.51 ± 5.32
+
+33.61 ± 1.02
+39.87 ± 0.56 53.11† ± 4.64 45.76† ± 5.32
+
+Table 8. Ablation study on β and stochasticity in GSAT (PNA as the backbone model) on Spurious-Motif. We report both interpretation ROC AUC (top) and prediction accuracy (bottom).
+
+SPURIOUS-MOTIF
+PNA+GSAT PNA+GSAT-β = 0 PNA+GSAT-NOSTOCH PNA+GSAT-NOSTOCH-β = 0
+PNA PNA+GSAT PNA+GSAT-β = 0 PNA+GSAT-NOSTOCH. PNA+GSAT-NOSTOCH.-β = 0
+
+b = 0.5
+83.34 ± 2.17 82.01 ± 6.43 79.72 ± 3.86 78.69 ± 10.77
+68.15 ± 2.39 68.74 ± 2.24 59.68 ± 7.28 51.92 ± 11.17 56.54 ± 6.88
+
+b = 0.7
+86.94 ± 4.05 78.88 ± 6.74 76.36 ± 2.57 78.97 ± 13.95
+66.35 ± 3.34 64.38 ± 3.20 58.03 ± 11.84 41.22 ± 7.72 48.93 ± 10.33
+
+b = 0.9
+88.66 ± 2.44 80.53 ± 5.03 80.21 ± 3.76 79.91 ± 13.11
+61.40 ± 3.56 57.01 ± 2.95 53.94 ± 8.11 39.56 ± 2.74 45.82 ± 9.60
+
+learning rate for all other datasets.
+
+D.2.2. GSAT
+
+Basic Setting. If not speciﬁed, GSAT uses the same settings mentioned for the backbone models.
+
+Learning Rate. When PNA is used, GSAT uses 0.001 learning rate for all OGBG-Mol datasets; otherwise it uses the same learning rate as mentioned above.
+
+r in Equation (9). Ba-2Motif and Mutag use r = 0.5, and all other datasets use r = 0.7. We ﬁnd r = 0.7 can generally provide great performance for all datasets. Inspired by curriculum learning (Bengio et al., 2009), r will initially set to 0.9 and gradually decay to the tuned value. We adopt a step decay, where r will decay 0.1 for every 10 epochs.
+
+β
+
+in
+
+Equation
+
+(8).
+
+β
+
+is
+
+not
+
+tuned
+
+and
+
+is
+
+set
+
+to
+
+1 |E|
+
+for
+
+all
+
+datasets.
+
+Temperature. Temperature used in the Gumbel-softmax trick (Jang et al., 2017) is not tuned, and we use 1 for all datasets.
+
+D.2.3. BASELINE INTERPRETABLE METHODS/MODELS
+Basic Setting. If not speciﬁed, baselines use the same settings mentioned for the backbone models.
+GNNExplainer. We tune the learning rate from (1, 0.1, 0.01, 0.001) and the coefﬁcient of the 1-norm from (0.1, 0.01, 0.001), based on validation interpretation ROC AUC. The coefﬁcient of the entropy regularization term is set to the recommended value 1. Again, in a real-world setting, post-hoc methods have no clear metric to tune hyper-parameters.
+PGExplainer. We use the tuned recommended settings from (Luo et al., 2020), including the temperature, the coefﬁcient of 1-norm regularization and the coefﬁcient of entropy regularization.
+GraphMask. We use the recommended settings from (Schlichtkrull et al., 2021), including the temperature, gamma, zeta
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+Intrepretation ROC AUC Classiﬁcation Accuracy (%)
+Intrepretation ROC AUC Classiﬁcation Accuracy (%)
+
+60 80
+55 70
+50
+60 45
+
+50
+
+40
+
+40
+
+Info. Constraint (Eq.9)
+
+1 Norm Regularization
+
+35
+
+Info. Constraint (Eq.9)
+
+1 Norm Regularization
+
+30
+0.9/1e-5 0.8/1e-4 0.7/5e-4 0.6/1e-3 0.5/5e-3 0.4/1e-2 0.3/5e-2 0.2/1e-1 0.1/1
+
+30
+0.9/1e-5 0.8/1e-4 0.7/5e-4 0.6/1e-3 0.5/5e-3 0.4/1e-2 0.3/5e-2 0.2/1e-1 0.1/1
+
+r/λ1
+
+r/λ1
+
+(a) Spurious-Motif, b = 0.7
+
+60 80
+55 70
+50
+60 45
+
+50
+
+40
+
+40
+
+Info. Constraint (Eq.9)
+
+1 Norm Regularization
+
+35
+
+Info. Constraint (Eq.9)
+
+1 Norm Regularization
+
+30
+0.9/1e-5 0.8/1e-4 0.7/5e-4 0.6/1e-3 0.5/5e-3 0.4/1e-2 0.3/5e-2 0.2/1e-1 0.1/1
+
+30
+0.9/1e-5 0.8/1e-4 0.7/5e-4 0.6/1e-3 0.5/5e-3 0.4/1e-2 0.3/5e-2 0.2/1e-1 0.1/1
+
+r/λ1
+
+r/λ1
+
+(b) Spurious-Motif, b = 0.9
+
+Figure 8. Ablation study on (1) using the info. constraint in Eq. (9) and (2) replacing it with 1-norm, where r is tuned from 0.9 to 0.1 and the coefﬁcient of the 1-norm λ1 is tuned from 1e-5 to 1.
+
+and the coefﬁcient of 0-norm regularization.
+DIR. Causal ratio is tuned for Ba-2Motif and Mutag. Since the other datasets we use are the same, we use the recommended settings from (Wu et al., 2022). However, even though datasets are the same, we ﬁnd the same α speciﬁed in their source code do not work well in our setting. Hence, we tune α from (10, 1, 0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001).
+IB-subgraph. Due to the extreme inefﬁciency of IB-subgraph, we are only able to tune its mi-weight around the recommended value from (2, 0.2, 0.02). And we use the default inner loop iterations and con-weight as speciﬁed in their source code. IB-subgraph needs ∼40 hours to train 100 epochs for 1 seed on Spurious-Motif and ∼150 hours for OGBG-Molhiv on a Quadro RTX 6000.
+Random Seed. All methods are trained with 10 different random seeds; except for IB-subgraph we train it for 5 different random seeds due to its inefﬁciency. For post-hoc methods, the pre-trained models are also trained with 10 different random seeds instead of a ﬁxed pre-trained model in (Luo et al., 2020). For inherently interpretable models, GSAT, IB-subgraph and DIR, we average the best epoch’s performance according to their validation prediction performance. For post-hoc baselines, we average their last epoch’s performance. For IB-subgraph, we stop training when there is no improvement over 20 epochs to make the training possible on large datasets.
+D.3. Node/Edge Attention
+We also explore node-level attention, and we ﬁnd it is especially useful for molecular datasets and datasets with large graph sizes. Hence, we use node-level attention for on Mutag, MNIST-75sp and OGBG-Mol datasets, and for all other datasets we use edge attention. Speciﬁcally, when node attention is used, the MLP layers in Pφ will take as input the node embeddings and output pv for each v ∈ V . Then, the stochastic node attention is sampled for each node αv ∼ Bern(pv). After that, αuv is obtained by αuv = αuαv.
+D.4. Further Supplementary Experiments
+Fig. 3 shows an experiment with disconnected critical subgraphs, where the dataset is generated in a similar way used to generate Ba-2Motifs. Speciﬁcally, each base graph is generated using the BA model and will be attached with two house motifs or three house motifs randomly. The number of house motifs represents the graph class. Both GSAT and GraphMask are trained with the same settings used on Ba-2Motifs.
+Table 5 shows a direct comparison with PGExplainer and GNNExplainer between the interpretation ROC AUC reported in (Luo et al., 2020) and the performance of GSAT. And GSAT still outperforms their methods signiﬁcantly.
+Table 6 and table 7 show direct comparisons with DIR, where we apply GSAT with the backbone model used in DIR. And GSAT still greatly outperforms their method.
+Table 8 shows the ablation study on β and stochasticity in GSAT, where PNA is the backbone model. Figure 8 shows the ablation study of the information constraint introduced in Eq. (9) on Spurious-Motif b = 0.7 and b = 0.9. We observe the same trends from these ablation studies as discussed in Sec. 6.3.
+
+E. Interpretation Visualization
+We provide visualizations of the label-relevant subgraphs discovered by GSAT on eight datasets, as shown from Fig. 9 to Fig. 16. The transparency of the edges shown in the ﬁgures represents the normalized attention weights learned by
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+Figure 9. Visualizing label-relevant subgraphs discovered by GSAT for Ba-2Motifs. Nodes colored pink are ground-truth explanations, and each row represents a graph class.
+
+Cl H
+
+H
+
+C
+
+C
+
+C
+
+C
+
+H
+
+Cl
+
+H
+
+C
+
+C
+
+O
+
+C
+
+C
+
+N
+
+C
+
+H
+
+C
+O H
+
+C
+
+O
+
+N
+
+O
+
+C
+
+C
+
+H
+
+H
+
+H
+
+H C
+
+C
+
+H
+
+C
+
+C
+
+H
+
+OO
+
+H
+
+N
+
+C
+
+C
+
+C
+
+N
+
+C
+
+C
+
+C
+
+C
+
+H
+
+C
+
+C
+
+O
+
+H
+
+C
+
+H
+
+H
+
+HN
+
+HHC
+
+HH
+
+C C
+
+HH
+
+N
+
+C
+
+HH
+
+H
+
+H
+
+C
+
+H
+
+H
+
+O
+
+O
+
+N
+
+H C
+
+C C
+
+C
+
+H
+
+C
+
+C C
+
+C
+
+C
+
+H
+
+C
+
+C
+
+C
+
+C
+
+H
+
+H
+
+C
+
+C H
+
+C
+
+C
+
+H
+
+H
+
+H C
+
+C
+
+H
+
+C H
+
+O
+
+O
+
+N
+
+H
+
+O
+
+O
+
+C
+
+N
+
+C C
+
+C
+
+H
+
+C C
+
+H C
+
+C
+N O
+O
+
+C C
+H
+
+N
+
+O
+
+O
+
+O
+O N
+O
+
+O
+
+N
+
+H
+
+C C
+
+C H
+C
+
+C C
+
+H H
+
+O
+
+O
+
+N
+
+H
+
+C
+
+C
+
+C
+
+H
+
+H
+
+C
+
+C
+
+H
+
+C
+
+C
+
+O
+
+H
+
+C C
+
+H
+
+H
+
+C
+
+H
+
+C
+
+C C
+C
+
+H
+
+C
+
+H
+
+H
+
+H
+
+H
+
+N H
+
+C
+
+S
+
+C
+
+C
+
+N
+
+C
+
+C
+
+H
+
+C
+
+H
+
+C
+
+O
+
+H
+
+C
+
+H H
+
+O O
+
+N
+
+H
+
+H
+
+H
+
+C
+
+H
+
+C
+
+C
+
+N N
+
+C
+
+H
+
+C
+
+O
+
+H
+
+N H
+
+C
+
+H
+
+C
+
+C
+
+O
+
+H
+
+H
+
+C
+
+O
+
+H
+
+H H
+
+H
+
+H
+
+H C
+
+C
+
+H
+
+C
+
+C
+
+H
+
+O O
+N
+
+H
+
+H
+
+CC
+
+C
+
+C
+
+N
+
+C
+
+C
+
+C
+
+C
+
+C
+
+O
+
+C
+
+O
+
+HN
+
+H HC
+
+C HH
+C
+
+HH
+
+N
+
+C
+
+H H
+
+H
+
+C
+
+H H
+
+H
+
+H
+H C
+H
+
+H O
+C
+
+H
+
+C
+
+C
+
+H
+
+H
+
+H
+
+C
+
+C
+
+C C
+
+C C
+C
+
+C C
+C
+
+H C
+C
+C
+
+C H
+C
+H
+
+C H
+C
+H
+
+H
+O N
+O
+
+Figure 10. Visualizing label-relevant subgraphs discovered by GSAT for Mutag. -NO2 and -NH2 are ground-truth explanations. We only present mutagen graphs as only these graphs are with ground-truth explanation labels.
+
+GSAT. The normalized attention weights are to rescale the learnt weights {puv|(u, v) ∈ E} to [0, 1]: For each graph, denote pmin = min{puv|(u, v) ∈ E} and pmax = max{puv|(u, v) ∈ E}. We rescale the weights according to
+
+pˆuv
+
+=
+
+puv − pmin pmax − pmin
+
+(15)
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+Figure 11. Visualizing label-relevant subgraphs discovered by GSAT for Spurious-Motif b = 0.5. Nodes colored pink are ground-truth explanations, and each row represents a graph class.
+Figure 12. Visualizing label-relevant subgraphs discovered by GSAT for Spurious-Motif b = 0.7. Nodes colored pink are ground-truth explanations, and each row represents a graph class.
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+Figure 13. Visualizing label-relevant subgraphs discovered by GSAT for Spurious-Motif b = 0.9. Nodes colored pink are ground-truth explanations, and each row represents a graph class.
+
+C
+
+C
+
+O C
+
+C
+
+C
+
+C
+
+O
+
+C
+
+C
+
+O
+
+N
+
+N
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+O
+
+O
+
+C
+
+N C
+N
+
+O
+
+O
+
+C
+
+S N
+
+C C
+
+C C
+C
+
+C
+
+C
+
+C
+
+O
+
+N
+
+C C
+C C
+
+C C
+C
+
+N C
+C
+
+C C
+C C
+
+N
+
+C
+
+C C
+N
+
+C C
+C
+
+N C
+N
+
+C C
+C
+
+C N
+C
+
+O
+
+CC
+
+C
+
+C
+
+C
+
+C
+
+C C
+
+C C
+
+CC C
+
+C
+
+N
+
+C
+
+C C
+
+C CCC
+
+CC
+
+N
+
+CC
+
+C
+
+O
+
+SO O
+O
+
+CC
+
+S OO O
+
+O
+
+O
+
+O
+
+S C
+
+C C
+
+C C
+
+C N
+
+C O
+
+C C
+
+O C
+
+N C
+
+C C
+
+C C
+
+C S
+
+O
+
+O
+
+O
+
+O C C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C C
+
+C C
+
+C C
+
+C
+
+C
+
+O
+
+C
+
+C C
+C
+
+C
+C C
+
+C O
+
+N
+
+C N
+
+C
+
+C
+
+C
+
+N
+
+N
+
+C O
+C C
+
+C
+
+C
+
+C
+
+C
+
+O
+
+N
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+N
+
+C
+
+C
+
+O
+
+C
+
+C
+
+O
+
+N C
+
+C C
+
+C
+
+C
+
+C
+
+O C
+C
+
+C
+C N
+
+C
+
+C
+
+C
+
+O
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+S
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+C
+
+O
+
+C
+
+C
+
+C
+
+C
+
+N
+
+C
+
+C
+
+C
+
+C
+
+N
+
+NN
+
+C
+
+C
+
+C
+
+C
+
+C
+
+O O
+
+C
+
+C
+
+C
+
+Cl
+
+Figure 14. Visualizing label-relevant subgraphs discovered by GSAT for OGBG-Molhiv. Each row represents a graph class.
+
+Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism
+
+mocking them now
+
+is
+
+an exercise in pointlessness .
+
+characters who
+
+are
+
+nearly impossible to
+
+care
+
+about
+
+comes
+
+across
+
+as
+
+lame
+
+and
+
+sophomoric
+
+the
+
+acting
+
+is
+
+robotically
+
+italicized
+
+,
+
+will
+
+leave you wanting to abandon the theater
+
+.
+
+the
+
+director
+
+'s
+
+many
+
+dodges
+
+and
+
+turns
+
+adds
+
+an
+
+almost
+
+constant mindset
+
+of
+
+suspense
+
+the
+
+personal
+
+touch
+
+of
+
+manual
+
+animation
+
+smarter
+
+than
+
+any
+
+50
+
+other filmmakers
+
+still
+
+funny
+
+in
+
+a
+
+sick
+
+,
+
+twisted sort
+
+of
+
+way
+
+a delightful coming
+
+-
+
+of
+
+-
+
+age story
+
+.
+
+grace
+
+this
+
+deeply
+
+touching
+
+melodrama
+
+.
+
+Figure 15. Visualizing label-relevant subgraphs discovered by GSAT for Graph-SST2. The top two rows show sentences with negative sentiment, and the bottom two rows show sentences with positive sentiment.
+
+Figure 16. Visualizing label-relevant subgraphs discovered by GSAT for MNIST-75sp. The ﬁrst row shows the raw images and the second row shows the normalized attention weights learned by GSAT.
+

@@ -1,0 +1,1310 @@
+Eigen-GNN: A Graph Structure Preserving Plug-in for GNNs
+
+arXiv:2006.04330v1 [cs.LG] 8 Jun 2020
+
+Ziwei Zhang Tsinghua University zw-zhang16@mails.tsinghua.edu.cn
+
+Peng Cui Tsinghua University cuip@tsinghua.edu.cn
+
+Jian Pei Simon Fraser University
+jpei@cs.sfu.ca
+
+Xin Wang Tsinghua University xin_wang@tsinghua.edu.cn
+
+Wenwu Zhu Tsinghua University wwzhu@tsinghua.edu.cn
+
+Abstract
+
+Graph Neural Networks (GNNs) are emerging machine learning models on graphs. Although sufﬁciently deep GNNs are shown theoretically capable of fully preserving graph structures, most existing GNN models in practice are shallow and essentially feature-centric. We show empirically and analytically that the existing shallow GNNs cannot preserve graph structures well. To overcome this fundamental challenge, we propose Eigen-GNN, a simple yet effective and general plug-in module to boost GNNs ability in preserving graph structures. Speciﬁcally, we integrate the eigenspace of graph structures with GNNs by treating GNNs as a type of dimensionality reduction and expanding the initial dimensionality reduction bases. Without needing to increase depths, Eigen-GNN possesses more ﬂexibilities in handling both feature-driven and structure-driven tasks since the initial bases contain both node features and graph structures. We present extensive experimental results to demonstrate the effectiveness of Eigen-GNN for tasks including node classiﬁcation, link prediction, and graph isomorphism tests.
+1 Introduction
+
+Graphs are natural representations for complex data such as social networks, biomedical graphs, and trafﬁc networks. Besides carrying relation information through graph structures, graphs are often associated with rich content information such as attributes of nodes. Content (features) and structures often provide information complementary to each other. Some analytics tasks focus on the content information, e.g., in document topic classiﬁcations, the content of documents usually provides dominant information. We call such tasks feature-driven. In some other analytics tasks, structures are the major player. A great example of such structure-driven tasks is inﬂuence analysis in social networks. Of course, there are always some analytics tasks where both content and structure information are needed. For example, in social recommendations, both user proﬁles (content) and user interactions (structure) are indispensable in understanding user preferences.
+Recently, Graph Neural Networks (GNNs)are emerging machine learning models on graphs, and are expected to provide a uniﬁed framework to deal with features and structures simultaneously. For example, in the message-passing framework [11], nodes exchange information with their neighbors in each message-passing step to update their feature information. In this way, GNNs model node attributes and graph structures in an end-to-end learning architecture.
+It has been proven theoretically that GNNs with a sufﬁciently large number of layers can fully preserve many important graph structures such as the limiting distribution of a random walk on graphs [38, 15] and graph moments of any order [8]. However, training deep GNNs suffers from many practical challenges, such as over-smoothing [18, 36]. In practice most successful GNNs are shallow, having no more than three or four layers [14, 42].
+
+Preprint. Under review.
+
+However, shallow GNNs are distant from ideal GNNs that have a large number of layers. Recent analysis shows that the existing shallow GNNs essentially are feature-centric, i.e., node attributes play major roles, and graph structures only provide auxiliary information. For example, Li et al. [18] analyzed GNNs as a special form of Laplacian smoothing of node attributes. Maehara [20] and Wu et al. [35] showed that GNNs are equivalent to a low-pass ﬁlter by treating node features as graph signals. Given these discussions showing the strength of GCNs in preserving features, a critical next question is whether the shallow GNNs in practice can sufﬁciently preserve graph structures, which motivates this study.
+To answer this question, we ﬁrst report experimental analysis on a series of synthetic datasets (please refer to Section 3.1 for details). We observe consistent results with the aforementioned analysis: in the structure-driven tasks, the existing shallow GNNs have poor performance. We further examine this observation by treating GNNs as a type of dimensionality reduction process. We show that the features of nodes provide the initial bases for the dimensionality reduction, making the resulted predictions of the existing shallow GNNs tend to be feature-centric. Therefore, the existing shallow GNNs are incapable of sufﬁciently preserving graph structures in practice.
+Can we have a simple and general mechanism to empower the practical shallow GNNs to preserve graph structures well? To tackle this fundamental challenge, we propose Eigen-GNN1, a simple yet effective and general plug-in module to boost GNNs ability in preserving graph structures. Speciﬁcally, we integrate the eigenspace of graph structures with GNNs by concatenating the eigenvectors of a graph structure matrix to the node attributes. In this way, since the initial bases are expanded to contain both node features and graph structures, Eigen-GNN has dramatically enhanced capabilities in exploring node features and graph structures simultaneously. We also demonstrate that EigenGNN has several desirable theoretical properties such as permutation-equivariance and generality in plugging into many existing GNNs.
+We conduct extensive experiments for tasks including node classiﬁcation, link prediction, and graph isomorphism tests. The experimental results clearly show that our proposed method consistently and signiﬁcantly outperforms the baselines when the tasks and datasets are more structure-driven, and retains comparable performance with existing GNNs in feature-driven scenarios.
+Our contributions in this paper are summarized as follows:
+• We demonstrate that most existing GNNs are shallow and cannot preserve graph structures well in practice through both empirical analysis and analytical exploration.
+• We propose Eigen-GNN, a simple yet effective and general plug-in module to boost GNNs ability in preserving graph structures. Eigen-GNN has several desirable theoretical properties and can be applied to many existing GNN architectures.
+• Our extensive experimental results demonstrate that the proposed Eigen-GNN can preserve both features and graph structures more effectively and ﬂexibly.
+2 Related Work
+We brieﬂy review related works in GNNs and refer readers to [36, 42, 44] for comprehensive surveys.
+Bruna et al. [4] ﬁrst deﬁned graph convolutions using graph signal processing [31]. Kipf and Welling [14] simpliﬁed the graph convolution using the ﬁrst-order polynomial, i.e., only considering the immediate neighbors of nodes. MPNNs [11] and GraphSAGE [12] unify these methods using a “message-passing” framework, i.e., nodes aggregate information from their neighborhoods as messages. Later studies usually follow these frameworks by proposing different variants.
+To understand the effectiveness of GNNs, Li et al. [18] showed that GNNs are a special form of Laplacian smoothing. Hou et al. [13] further proposed a metric to measure the smoothness of node features and node labels. Wu et al. [35] showed that the existing GNNs are equivalent to a ﬁxed low-pass ﬁlter of graph signals and proposed an extremely simpliﬁed GNN by removing all the non-linearities. Maehara [20] took a similar idea and showed that adding an extra Multi-Layer Perceptron (MLP) layer can further increase the non-linear manifold learning capability of GNNs. Kipf and Welling [14], Zhang et al. [40], and Xu et al. [37] considered the connection between
+1We will release the source code once the paper is accepted for publication.
+2
+
+GNNs and the Weisfeiler-Lehman (WL) kernel for graph isomorphism tests. Dehmamy et al. [8] showed that GNNs with an inﬁnite number of layers can preserve graph moments of any order, the statistics that characterize the random process of graph generation. However, whether shallow GNNs can preserve graph structures well in practice remains an open problem.
+There are also recent attempts in increasing the depth of GNNs [17, 28, 43], which is orthogonal to the study of this paper.
+3 How Well Can Shallow GNNs Preserve Graph Structures?
+3.1 An Empirical Study
+To manifest the capability of shallow GNNs in structure-driven and feature-driven tasks, we ﬁrst conduct some experiments on synthetic datasets.
+Datasets Generation and Methods in Comparison We generate synthetic datasets that contain two components: graph structures and node features. For graph structures, we partition nodes into l (l > 0) balanced communities and construct edges using the Stochastic Blockmodel [1]. The nodes within the same community have a high probability of forming edges and those in different communities have a low probability of forming edges. We use the id of the community (a positive integer between 1 and l) that a node belongs to as the structure-driven label cstruc of the node.
+For node features, we randomly divide nodes into l balanced groups. We generate a random vector for each group, called the group vector. The features of a node are generated following a Gaussian distribution with the mean being the group vector of the group that the node belongs to. The group id (also a positive integer between 1 and l) is used as the feature-driven label cfeat of the node.
+The ﬁnal node label follows a Bernoulli distribution: c = cstruc with probability γ and c = cfeat with probability 1 − γ, where 0 ≤ γ ≤ 1 is a parameter controlling the degree to which the node label prediction task is structure- or feature-driven. We call all the nodes carrying the same label as a class. Among all the nodes in class i (1 ≤ i ≤ l), some are assigned the label due to the structure and the others are assigned the label due to and are manifested by the features. As two extremes, when γ = 1, the node label prediction task is completely structure-driven and, when γ = 0, the task is completely feature-driven. More details about the synthetic datasets can be found in Appendix B.1. We compare three different methods:
+• GCNXfeature: this is the original GCN in [14] taking features as inputs, where parameter X indicates the number of hidden layers in the GCN. We test GCNs with 1, 2, 3, and 5 layers.
+• MLPfeature: we use a two-layer Multi-Layer Perceptron on node features [14], i.e., a neural network with two fully connected layers. MLPfeature does not learn any graph structure.
+• DeepWalk [26]: a network embedding method to learn node representations and preserve graph structures. No node feature is used. We add a fully connected layer and a softmax layer on the learned embedding vectors for classiﬁcation.
+More experimental settings are provided in Appendix B.1. In this section, please ignore the curves of Eigen-GCN in Figures 1a and 1b, which will be discussed later in Section 5.2.
+Observations. First, we consider the extreme case where only graph structures are useful in the label prediction, i.e., γ = 1. In this case, to perform well, a model has to learn sufﬁcient information about graph structures. Figure 1a shows the results. We have the following ﬁndings.
+• The accuracy of MLPfeature is about 10%. Since there are 10 balanced classes, this accuracy is roughly the same as random guessing. This veriﬁes that node features indeed are not useful here.
+• GCNs outperform MLPfeature, indicating that the existing GCNs can extract and exploit some information from the graph structures. These ﬁndings are consistent with the literature [14].
+• Increasing the number of hidden layers in GCNs from 1 to 3 improves the accuracy. This veriﬁes that deeper GCNs have a better capability in preserving graph structures. However, when GCNs have more layers, e.g., GCN5feature, the performance tends to saturate or even drop (though residual connections are added), showing that training deep GCNs has unsolved practical challenges.
+3
+
+Accuracy (%) Accuracy (%)
+
+100
+
+85
+
+70
+
+q
+
+q
+
+q
+
+55
+
+q 40 q
+
+q
+
+q
+
+q
+
+qq 25
+
+10
+
+5 10
+
+20
+
+30
+
+40
+
+Number of training samples per class
+
+Eigen−GCN DeepWalk q GCN2feature GCN3feature GCN5feature q GCN1feature MLPfeature
+
+100 q
+75 q 50 25
+0.00
+
+q q
+0.25
+
+qq 0.50
+γ
+
+q q
+0.75
+
+Eigen−GCN
+
+q
+
+DeepWalk
+
+q GCN2feature
+
+q
+
+GCN3feature
+
+GCN5feature
+
+q GCN1feature
+
+MLPfeature
+
+1.00
+
+(a)
+
+(b)
+
+Figure 1: The experimental results on synthetic datasets (a) in a completely structure-driven task, i.e., γ = 1, (b) when varying γ between 0 and 1. Best viewed in color.
+
+• DeepWalk outperforms all the existing GCNs. This illustrates the weakness of GCNs in preserving graph structures. DeepWalk conducts random walks and takes the skip-gram model [22] to explicitly preserve graph structures. GCNs only utilize graph structures in aggregating node neighborhoods. The insufﬁciency of learning and preserving graph structures in GCNs explains the inferior performance of GCNs in structure-driven tasks.
+Next, we vary γ to mimic different kinds of tasks. Recall that the larger γ, the more structure-driven a task, and vice versa. The results are shown in Figure 1b. We have the following observations.
+• When γ approaches 1, the results are consistent with those in Figure 1a. DeepWalk preserves graph structures better than GCNs. MLPfeature gets the worst results since it does not use any graph structural information.
+• When γ approaches 0, i.e., the task is heavily feature-driven, MLPfeature achieves the best results. GCNs achieve inferior performance as they are misled to some extent by graph structures. DeepWalk performs poorly, the performance being similar to random guess, since it does not utilize any feature information.
+• No existing method can perform well with respect to various γ values. This clearly indicates that the existing models cannot preserve features and structure information well simultaneously.
+In summary, the experimental results on synthetic datasets clearly show that the existing shallow GNNs cannot preserve graph structures well in practice. Indeed, no existing method can be consistently competent in both structure- and feature-driven tasks. Next, to better understand this phenomenon, we provide an analytical investigation using dimensionality reduction.
+
+3.2 GNNs as Dimensionality Reduction
+
+Consider a graph G = (V, E, X), where V = {v1, ..., vN } is a set of N nodes, E ⊆ V × V is a set of M edges, and X ∈ RN×f is an optional node feature matrix where f is the number of features. Denote by A ∈ RN×N the adjacency matrix, and by Ai,:, A:,j, and Ai,j, respectively, the ith row, the jth column and an element in the matrix. We assume connected and undirected graphs, i.e.,
+Ai,j = Aj,i, 1 ≤ i, j ≤ N . We use bold uppercases (e.g., Z) and bold lowercases (e.g., z) to denote matrices and vectors, respectively. Functions are marked by curlicue, e.g., F(·). We denote
+a non-linear activation function such as sigmoid or ReLU as σ(·).
+
+Our analysis starts with the observation that many existing GNNs can be uniﬁed into the following
+
+framework. Denote by H(l) ∈ RN×dl the representations of the nodes in the lth hidden layer, where
+
+dl is the dimensionality of layer l and H(0) = X are the input features, by W(l) ∈ Rdl×dl+1 the parameters, and by F (A) ∈ RN×N a function on the graph structure. The (l + 1)th layer in a GNN
+
+can be formulated as:
+
+H(l+1) = σ F (A) H(l)W(l) .
+
+(1)
+
+For example, a well-known GNN variant by Kipf and Welling [14] adopts the following function:
+
+F
+
+(A)
+
+=
+
+D˜ −
+
+1 2
+
+A˜ D˜ −
+
+1 2
+
+,
+
+(2)
+
+where A˜ = A + IN , IN is the identity matrix, and D˜ i,i = j A˜ i,j is the diagonal degree matrix. We list several other GNNs and their corresponding F (A) in Table 2 in the Appendix.
+
+4
+
+Denote by F = F (A). F actually encodes the raw structure information of the graph. For example,
+
+using Eq. (2), we have
+
+Fi,j
+
+=
+
+(D˜ i,i
+
+D˜ j,j
+
+)−
+
+1 2
+
+A˜ i,j
+
+.
+
+(3)
+
+That is, Fi,: is a normalized adjacent vector of node vi, encoding the second-order proximity between nodes [34]. In DCNN [2] and PPNP [15], F encodes the transition probability between nodes.
+
+Eq. (1) can be interpreted as a three-step dimensionality reduction process by executing the calcula-
+
+tion from left to right:
+
+• Step 1: F = FH(l), i.e., projecting F into a subspace spanned by H(l) to obtain F .
+• Step 2: F is further transformed by a linear mapping W(l) followed by a non-linear function σ(·), i.e., H(l+1) = σ F W(l) as reﬁned low-dimensional representations.
+• Step 3: repeat the above two steps using H(l+1) as the new base in Step 1.
+Remark 1. GNNs can be regarded as a (non-linear) dimensionality reduction procedure with each GNN layer performing one dimensionality reduction process. The node features provide the initial bases for the dimensionality reduction.
+
+Since most of the existing GNNs in practice are shallow and the number of iterations in the dimensionality reduction is determined by the number of layers, the initial bases for dimensionality reduction play crucial roles and provide important inductive biases for the GNNs. If the initial bases are solely determined by node features as in the existing shallow GNNs, the resulted models are inevitably feature-centric and cannot well preserve graph structures.
+In addition, the existing GNNs are struggling to handle the situations when no node feature is available. A commonly used trick is to use a one-hot encoding of node IDs [14, 23], i.e., setting X = IN . However, using a one-hot encoding will dramatically increase the number of parameters and make the model unable to retain permutation-equivariance [23]. Another heuristic method is to use node degrees as node features [37], but it can only encode limited graph structure information.
+
+4 Eigen-GNN
+
+The Model As analyzed in Section 3.2, the main reason that the existing shallow GNNs fail to preserve graph structures well is that the initial dimensionality reduction bases, H(0) = X, are completely biased to features only and do not contain any structure information. To ﬁx the problem, we need to ﬁnd a suitable subspace where useful graph structure information can be preserved. It is well known in spectral graph theory [7] that the eigenspace of a graph provides informative lowdimensional spaces regarding graph structures. For example, spectral clustering [25] adopts the topd smallest eigenvectors of the Laplacian matrix for node clustering, and network embedding adopts the top-d largest eigenvectors of a polynomial function of the adjacency matrix for unsupervised node representation learning [41]. Inspired by those successes, our idea is to integrate the eigenspace of graph structures with GNNs by expanding the initial dimensionality reduction bases.
+
+To keep it simple and general, we expand the initial dimensionality reduction bases by directly concatenating the top-d eigenvectors of a graph structure matrix with node features, i.e., we set
+
+H(0) = [X, f (Q)] ,
+
+(4)
+
+where X is the feature matrix, Q ∈ RN×d are the top-d eigenvectors corresponding to the largest
+
+absolute eigenvalues of a speciﬁed matrix G(A) of the graph structure, f (·) is a simple function
+
+such as identity mapping or a normalization operator, and [·, ·] is the concatenation operator. In this
+
+paper, we reuse the symmetrically normalized adjacency matrix in Eq. (2) as the graph structure
+
+matrix,
+
+i.e.,
+
+set
+
+G(A)
+
+=
+
+D˜ −
+
+1 2
+
+A˜ D˜ −
+
+1 2
+
+,
+
+but
+
+our
+
+method
+
+can
+
+be
+
+easily
+
+generalized
+
+to
+
+other
+
+matrices,
+
+such as the Laplacian matrix or the transition matrix.
+
+Rather than being a new GNN architecture, our proposed Eigen-GNN can be used as a plug-in module to enhance the capability of many existing GNNs in preserving graph structures. As both node features and graph structure information are captured in the initial dimensionality reduction bases, Eigen-GNN is ﬂexible and adaptive in handling both structure-driven and feature-driven tasks. Moreover, as the eigenspace is independent of node attributes, Eigen-GNN can easily handle featureless graphs by only using the eigenbasis, which is in contrast with the existing GNNs that can only use heuristics such as a one-hot encoding or degrees.
+
+5
+
+As Eigen-GNN only provides the initial dimensionality reduction bases, it can work jointly with different GNNs, including those designed for signed or multi-relational graphs, like propagating between positive/negative edges [9] and learning different weights for different edge types [29].
+
+Several Desirable Properties of Eigen-GNN Firstly, we prove that a speciﬁc Eigen-GNN variant is permutation-equivariant, i.e., the model is equivariant under graph isomorphisms (permutation of node IDs), as long as the top-d eigenvalues of G(A) are unique.
+Theorem 1. For two graphs G = (V, E, X) and G = (V , E , X ), denote by H(l), U(l), 0 ≤ l ≤ L, respectively, the representations of V and V in the lth hidden layer of an Eigen-GNN. We assume the top-d eigenvalues of G(A) are unique for G and G and use f (x) = |x|. Then, if there exists a bijective mapping B : V → V so that E(i, j) = E (B(i), B(j)) , Xi,: = XB(i),:, ∀1 ≤ i, j ≤ N , then, H(i,l:) = U(Bl()i),:, ∀1 ≤ i ≤ N, ∀0 ≤ l ≤ L.
+The proof is given in Appendix C. Permutation-equivariance is a necessary condition for intermediate layers of a permutation-invariant GNN [21] targeting graph-level tasks such as graph classiﬁcation. By satisfying permutation-equivariance, Eigen-GNN can be applied to graph-level tasks. We further analyze this property empirically in Section 5.3.
+In addition, Eigen-GNN is scalable to large graphs since we only calculate the eigenvectors corresponding to the largest absolute eigenvalues. Speciﬁcally, we have the following result.
+Theorem 2. The time complexity of calculating the eigenbasis of Eigen-GNN in Eq. (4) is O T MGd + N d2 , where MG is the number of non-zero elements in G(A), N is the number of nodes, d is the preset dimensionality, and T is the number of iterations (a constant).
+
+Proof. The theorem is due to the iterative algorithms such as [16].
+
+The theorem shows that the time complexity mainly depends on the number of non-zero elements in
+
+the graph structure matrix G(A). By setting G(A) as a sparse matrix, e.g., the normalized adjacency
+
+matrix
+
+G(A)
+
+=
+
+D˜ −
+
+1 2
+
+A˜ D˜ −
+
+1 2
+
+,
+
+we
+
+have
+
+MG
+
+≈
+
+M.
+
+In
+
+such
+
+a
+
+case,
+
+the
+
+time
+
+complexity
+
+of
+
+calculating
+
+the eigenbasis is linear with respect to the number of nodes and that of edges in the graph. Since this
+
+time complexity is on the same scale as the existing GNNs, Eigen-GNN does not incur any extra
+
+cost in scalability. We empirically verify this result in Appendix A.3.
+
+Finally, we show an interesting connection between Eigen-GNN and Simple Graph Convolution (SGC) [35], a simpliﬁed GNN variant without non-linearities.
+Theorem 3. For a graph that is not bipartite, an SGC with an inﬁnite number of layers converges to Eigen-GNN with no hidden layer and the eigenspace dimensionality d = 1.
+
+The proof is given in Appendix D. The theorem implies that, instead of integrating graph structures gradually in each layer as SGC, Eigen-GNN can directly provide the ﬁnal graph structure information used by SGC using a “short-cut” by the eigenspace.
+
+5 Experimental Results
+Since Eigen-GNN is a general plug-in to enhance existing GNNs rather than a new architecture, we conduct a series of experiments to answer the following three questions. Q1: Can Eigen-GNN improve GNNs in structure-driven tasks? Does Eigen-GNN impair feature-driven tasks? Q2: Can Eigen-GNN be easily plugged into various GNN models? Q3: Can we empirically verify the desirable properties of Eigen-GNN in applications?
+5.1 Baselines and Experimental Settings
+We compare the following three methods:
+• GNNfeat: we report the original results of the GNN model with node features as inputs. • GNNfeat+DW: we run DeepWalk [26] on graph structures and concatenate the generated embed-
+ding vectors with node features as inputs to GNNs. This is a heuristic approach to enhance the capability of GNNs in preserving graph structures [27].
+
+6
+
+Table 1: The results of node classiﬁcation accuracy (%) on 7 social networks using GCN as the base
+
+model. The best results with and without feature information, respectively, are in bold. A, X, Y
+
+stands for graph structures, node features, and node labels, respectively.
+
+Data 5A8,.Y6± 1.5
+A,X,Y
+
+Method
+GCNrandom GCNdegree GCNDW
+
+Harvard 74.6±0.5 74.4±2.0 82.5±1.0
+
+Columbia 63.6±1.6 63.8±2.3 76.0 ± 1.3
+
+Stanford 68.2±1.5 67.8±1.6 76.6±1.3
+
+Yale 73.6±1.2 76.5±2.0 82.6±1.0
+
+Cornell 54.5±1.7 56.3±1.6 71.0±2.0
+
+Dartmouth 73.1±1.6 73.3±1.4 79.3±1.7
+
+UPenn 63.0±1.2 65.4±1.8 77.1±1.4
+
+Eigen-GCNstruc 82.7 ± 1.2
+
+GCNfeat
+
+70.6±1.3
+
+GCNfeat+DW
+
+83.1±0.7
+
+Eigen-GCNfeat+struc 84.6 ± 1.4
+
+76.0 ± 1.9 74.8±1.7 77.6±1.3 78.6 ± 1.1
+
+78.9 ± 1.3 71.3±1.6 78.3±1.4 79.7 ± 1.2
+
+84.2 ± 1.4 71.2±1.9 83.5±1.5 85.1 ± 1.3
+
+71.9 ± 1.7 67.0±1.9 73.2±2.2 74.8 ± 1.8
+
+82.1 ± 1.2 73.1±1.6 80.8±1.3 83.6 ± 1.3
+
+78.5 ± 1.4 71.2±2.0 78.5±1.2 81.3 ± 0.9
+
+• Eigen-GNNfeat+struc: our proposed method, i.e., we concatenate the eigenbasis with node features as inputs to GNNs.
+We further include ﬁve methods without using node features.
+• GNNone-hot: we use a one-hot encoding of node ID as inputs to GNNs [23]. • GNNdegree: we use a one-hot encoding of node degrees as inputs to GNNs, which is proven
+useful in chemistry graphs [37]. • GNNrandom: we generate random features following a Gaussian distribution as inputs to GNNs. • GNNDW: we use the embedding vectors of DeepWalk as inputs to GNNs. • Eigen-GNNstruc: we adopt the eigenbasis as the inputs to GNNs.
+Although Eigen-GNN can be generally plugged into many different GNNs, it is infeasible to compare every possible GNN architecture due to the vast literature. Instead, we adopt the most prominent GNNs for the tasks as showcases (the exact model will be given in each subsection). We further clarify the adopted architecture by replacing the “GNN” in method names with the exact model, e.g., Eigen-GCN if we use GCN and Eigen-GAT if we use GAT. For hyper-parameters, we search the dimensionality d of the eigenspace from {32, 64, 128, 256}. We repeat all experiments 10 times. Additional hyper-parameters and details for reproducibility can be found in Appendix B.
+5.2 Node Classiﬁcation
+Revisiting the Empirical Study in Section 3.1 Now let us examine the performance of EigenGCN (we use GCN the base GNN architecture) in Figures 1a and 1b.
+• When the task is structure-driven (i.e., γ approaches 1), Eigen-GCN achieves the best performance. This shows that our plugged-in module can empower GCNs to better capture graph structure information.
+• Eigen-GCN achieves the most stable performance with respect to γ varying between 0 and 1. This demonstrates that Eigen-GCN can handle both feature-driven and structure-driven tasks. Eigen-GCN consistently outperforms the existing GCNs when γ ≥ 0.5 and retains comparable results when γ < 0.5, showing that Eigen-GCN is robust and thus a reliable choice even when the type of the tasks is unknown.
+• When the task is feature-driven (i.e., γ approaches 0), although Eigen-GCN performs better than the existing GCNs, MLPfeature reports better results, showing that a graph-based algorithm may not be preferred in those cases after all.
+Results on Real-world Datasets We further experiment on 7 real-world social networks [32]. The details of the datasets are provided in Appendix B.2. For the base GNN model, we adopt three widely used architectures: GCN by Kipf and Welling [14], GAT [33], and GraphSAGE [12]. We report the results of using GCN in Table 1. The results of using GAT and GraphSAGE show a similar trend and are provided in Appendix A.1 due to the page limit. We also omit the results of GNNone-hot since it runs out of memory on most of the datasets. We make the following observations.
+• Eigen-GCNfeat+struc reports the best results on all the datasets and the improvements of Eigen-GCNfeat+struc compared to Eigen-GCNfeat are more than 10% in terms of the classiﬁcation accuracy on Harvard, Yale, Dartmouth, and UPenn. The results clearly demonstrate that
+
+7
+
+graph structures are crucial in this task and our proposed method can greatly enhance the existing GCNs in preserving graph structures.
+• When node features are unavailable, Eigen-GCNstruc also consistently outperforms the other methods. This demonstrates that Eigen-GCN can extract fruitful information from the graph structures and well handle featureless graphs.
+• GCNDW and GCNfeat+DW achieve the second-best results. The heuristic method works reasonably well in node classiﬁcation task, but is still inferior to Eigen-GCN.
+We also experiment on four benchmark datasets, namely Cora, Citeseer, Pubmed, and Reddit. We report the results in Appendix A.1. The results show that our proposed method achieves comparable performance with the existing GCNs (please see Appendix A.1 for a detailed discussion). The experimental results demonstrate that Eigen-GNN achieves superior performance on structure-driven tasks and does not affect the performance when node features are dominant.
+
+5.3 Graph Isomorphism Tests
+
+We further conduct experiments on Circulant Skip Links (CSL) graphs [23], a well-known dataset for graph isomorphism tests, i.e., distinguishing whether two graphs are structurally equivalent. Appendix B.3 provides more details of CSL graphs and our experimental settings. We adopt GIN [37] as the baseline GNN model, which is proven to be one of the most powerful message-passing GNN models in graph isomorphism tests2. Since this dataset does not contain node features, we only report in Fig 2 the results of the ﬁve methods that do not use node features. We make the following observations.
+
+Accuracy (%)
+
+GINrandom
+
+85
+
+GINdegree
+
+70
+
+GINone−hot
+
+55
+
+GINDW
+
+40
+
+Eigen−GIN
+
+25
+
+10 GINrandom GINdegree GINone−hot GINDW Eigen−GIN
+Method
+
+Figure 2: The results of graph isomorphism tests on circulant skip link graphs.
+
+All the methods except for Eigen-GIN report an accuracy of about 10%, roughly the same as that of random guessing since the dataset has 10 balanced classes. These results are consistent with the theoretical ﬁndings that the original GIN (as well as other message-passing GNNs) cannot distinguish CSL graphs [23]. The major reason is that GINrandom, GINone-hot, and GINDW do not satisfy permutation-equivariance, a necessary requirement for graph isomorphism tests, and GINdegree cannot distinguish graph structures in this case as all nodes have the same degree.
+
+Eigen-GIN reports a remarkably high accuracy. It can recognize CSL graphs well due to two major reasons. First, Eigen-GIN satisﬁes permutation-equivariance, as proven in Theorem 1. Second, the eigenspace provides more useful graph structure information than simple heuristics such as degrees.
+
+More experimental results and summary We also conduct experiments on link prediction and analyze the scalability and parameter sensitivity of Eigen-GNN. Due to the page limit, we have to provide the results in Appendix A.2 and Appendix A.3, respectively.
+In summary, the experimental results show that Eigen-GNN works well with a number of GNN models for different tasks and thus demonstrate its general applicability in enhancing various GNNs in preserving graph structures.
+
+6 Conclusion
+In this paper, we observe that many GNNs in practice are shallow in nature and do not have a sufﬁcient capability to well preserve graph structure. We propose Eigen-GNN, a simple yet general and effective plug-in module that enhances the capabilities of GNNs in preserving graph structures. Our extensive experiments demonstrate the effectiveness of Eigen-GNN in a wide spectrum of tasks.
+2We do not adopt a more recent approach RP-GIN [23] because of its high time complexity.
+
+8
+
+Broader Impact
+GNNs can be widely applied to various domains when graph data is available. Some typical examples include social networks, recommendation systems, biological networks, the World Wide Web, and technology networks. Our proposed Eigen-GNN, as a general plug-in to enhance GNNs, could be applied to all these scenarios as long as GNNs are adopted. We expect Eigen-GNN to perform more favorably than the existing GNNs when the tasks are more structure-driven and retain comparable performance when the tasks are feature-driven. Speciﬁcally, we ﬁnd in experiments that social network tasks are more likely to be structure-driven and thus beneﬁt more from our proposed method. As for ethical aspects, we do not foresee that Eigen-GNN should produce any other biased or offensive content than the existing GNNs.
+References
+[1] Edoardo M Airoldi, David M Blei, Stephen E Fienberg, and Eric P Xing. Mixed membership stochastic blockmodels. JMLR, 2008.
+[2] James Atwood and Don Towsley. Diffusion-convolutional neural networks. In NIPS, 2016.
+[3] László Babai, D Yu Grigoryev, and David M Mount. Isomorphism of graphs with bounded eigenvalue multiplicity. In STOC, 1982.
+[4] Joan Bruna, Wojciech Zaremba, Arthur Szlam, and Yann Lecun. Spectral networks and locally connected networks on graphs. In ICLR, 2014.
+[5] Jianfei Chen, Jun Zhu, and Le Song. Stochastic training of graph convolutional networks with variance reduction. In ICML, 2018.
+[6] Zhengdao Chen, Soledad Villar, Lei Chen, and Joan Bruna. On the equivalence between graph isomorphism testing and function approximation with gnns. In NeurIPS, 2019.
+[7] Fan RK Chung and Fan Chung Graham. Spectral graph theory. 1997.
+[8] Nima Dehmamy, Albert-László Barabási, and Rose Yu. Understanding the representation power of graph neural networks in learning graph topology. In NeurIPS, 2019.
+[9] Tyler Derr, Yao Ma, and Jiliang Tang. Signed graph convolutional networks. In ICDM, 2018.
+[10] Paul Erdo˝s and Alfréd Rényi. On the evolution of random graphs. Publ. Math. Inst. Hung. Acad. Sci, 1960.
+[11] Justin Gilmer, Samuel S Schoenholz, Patrick F Riley, Oriol Vinyals, and George E Dahl. Neural message passing for quantum chemistry. In ICML, 2017.
+[12] Will Hamilton, Zhitao Ying, and Jure Leskovec. Inductive representation learning on large graphs. In NIPS, 2017.
+[13] Yifan Hou, Jian Zhang, James Cheng, Kaili Ma, Richard TB Ma, Hongzhi Chen, and M Yang. Measuring and improving the use of graph information in graph neural networks. In ICLR, 2020.
+[14] Thomas N Kipf and Max Welling. Semi-supervised classiﬁcation with graph convolutional networks. In ICLR, 2017.
+[15] Johannes Klicpera, Aleksandar Bojchevski, and Stephan Günnemann. Predict then propagate: Graph neural networks meet personalized pagerank. In ICLR, 2019.
+[16] Richard B Lehoucq and Danny C Sorensen. Deﬂation techniques for an implicitly restarted arnoldi iteration. SIAM Journal on Matrix Analysis and Applications, 1996.
+[17] Guohao Li, Matthias Muller, Ali Thabet, and Bernard Ghanem. Deepgcns: Can gcns go as deep as cnns? In ICCV, 2019.
+9
+
+[18] Qimai Li, Zhichao Han, and Xiao-Ming Wu. Deeper insights into graph convolutional networks for semi-supervised learning. In AAAI, 2018.
+[19] David Liben-Nowell and Jon Kleinberg. The link-prediction problem for social networks. Journal of the American society for information science and technology, 2007.
+[20] Takanori Maehara. Revisiting graph neural networks: All we have is low-pass ﬁlters. arXiv preprint arXiv:1905.09550, 2019.
+[21] Haggai Maron, Heli Ben-Hamu, Nadav Shamir, and Yaron Lipman. Invariant and equivariant graph networks. In ICLR, 2019.
+[22] Tomas Mikolov, Ilya Sutskever, Kai Chen, Greg S Corrado, and Jeff Dean. Distributed representations of words and phrases and their compositionality. In NIPS, 2013.
+[23] Ryan Murphy, Balasubramaniam Srinivasan, Vinayak Rao, and Bruno Ribeiro. Relational pooling for graph representations. In ICML, 2019.
+[24] Mikhail Muzychuk. A solution of the isomorphism problem for circulant graphs. Proceedings of the London Mathematical Society, 2004.
+[25] Andrew Y Ng, Michael I Jordan, and Yair Weiss. On spectral clustering: Analysis and an algorithm. In NIPS, 2002.
+[26] Bryan Perozzi, Rami Al-Rfou, and Steven Skiena. Deepwalk: Online learning of social representations. In KDD, 2014.
+[27] Jiezhong Qiu, Jian Tang, Hao Ma, Yuxiao Dong, Kuansan Wang, and Jie Tang. Deepinf: Modeling inﬂuence locality in large social networks. In KDD, 2018.
+[28] Yu Rong, Wenbing Huang, Tingyang Xu, and Junzhou Huang. Dropedge: Towards deep graph convolutional networks on node classiﬁcation. In ICLR, 2020.
+[29] Michael Schlichtkrull, Thomas N Kipf, Peter Bloem, Rianne Van Den Berg, Ivan Titov, and Max Welling. Modeling relational data with graph convolutional networks. In ESWC, 2018.
+[30] Prithviraj Sen, Galileo Namata, Mustafa Bilgic, Lise Getoor, Brian Galligher, and Tina EliassiRad. Collective classiﬁcation in network data. AI magazine, 2008.
+[31] David I Shuman, Sunil K Narang, Pascal Frossard, Antonio Ortega, and Pierre Vandergheynst. The emerging ﬁeld of signal processing on graphs: Extending high-dimensional data analysis to networks and other irregular domains. IEEE Signal Processing Magazine, 2013.
+[32] Amanda L Traud, Peter J Mucha, and Mason A Porter. Social structure of facebook networks. Physica A: Statistical Mechanics and its Applications, 2012.
+[33] Petar Velickovic, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Lio, and Yoshua Bengio. Graph attention networks. In ICLR, 2018.
+[34] Daixin Wang, Peng Cui, and Wenwu Zhu. Structural deep network embedding. In KDD, 2016.
+[35] Felix Wu, Amauri Souza, Tianyi Zhang, Christopher Fifty, Tao Yu, and Kilian Weinberger. Simplifying graph convolutional networks. In ICML, 2019.
+[36] Zonghan Wu, Shirui Pan, Fengwen Chen, Guodong Long, Chengqi Zhang, and Philip S Yu. A comprehensive survey on graph neural networks. TNNLS, 2020.
+[37] Keyulu Xu, Weihua Hu, Jure Leskovec, and Stefanie Jegelka. How powerful are graph neural networks? In ICLR, 2019.
+[38] Keyulu Xu, Chengtao Li, Yonglong Tian, Tomohiro Sonobe, Ken-ichi Kawarabayashi, and Stefanie Jegelka. Representation learning on graphs with jumping knowledge networks. In ICML, 2018.
+[39] Muhan Zhang and Yixin Chen. Link prediction based on graph neural networks. In NeurIPS. 2018.
+10
+
+[40] Muhan Zhang, Zhicheng Cui, Marion Neumann, and Yixin Chen. An end-to-end deep learning architecture for graph classiﬁcation. In AAAI, 2018.
+[41] Ziwei Zhang, Peng Cui, Xiao Wang, Jian Pei, Xuanrong Yao, and Wenwu Zhu. Arbitrary-order proximity preserved network embedding. In KDD, 2018.
+[42] Ziwei Zhang, Peng Cui, and Wenwu Zhu. Deep learning on graphs: A survey. TKDE, 2020. [43] Lingxiao Zhao and Leman Akoglu. Pairnorm: Tackling oversmoothing in gnns. In ICLR,
+2020. [44] Jie Zhou, Ganqu Cui, Zhengyan Zhang, Cheng Yang, Zhiyuan Liu, Lifeng Wang, Changcheng
+Li, and Maosong Sun. Graph neural networks: A review of methods and applications. arXiv preprint arXiv:1812.08434, 2018. [45] Chenyi Zhuang and Qiang Ma. Dual graph convolutional networks for graph-based semisupervised classiﬁcation. In WWW, 2018.
+11
+
+Table 2: GNN methods following Eq. (1) and their corresponding graph structure functions. AP is
+
+the Positive Pointwise Mutual Information (PPMI) matrix [45].
+
+Method
+
+F (A)
+
+GCN [14], SGC [35]
+
+D˜ −
+
+1 2
+
+A˜ D˜ −
+
+1 2
+
+DCNN [2]
+
+D−1A K
+
+DGCN [45] PPNP [15]
+
+D−P
+
+1 2
+
+AP
+
+D−P
+
+1 2
+
+α
+
+IN
+
+−
+
+(1
+
+−
+
+α)
+
+D˜ −
+
+1 2
+
+A˜ D˜ −
+
+1 2
+
+−1
+
+A Additional Experimental Results
+A.1 Node Classiﬁcation
+The results of node classiﬁcation on 7 real-world social networks using GAT and GraphSAGE as the base GNN model are reported in Table 3 and Table 4, respectively. In general, the results show similar trends as using GCN, i.e., Table 1 in Section 5.2. One exception in Table 4 using GraphSAGE as the base GNN is that SAGEDW slightly outperforms Eigen-SAGEstruc on two datasets (Columbia and Cornell). However, when combining with features, Eigen-SAGEfeat+struc still outperforms SAGEfeat+DW on these two datasets.
+
+Table 3: The results of node classiﬁcation accuracy (%) on 7 social networks using GAT as the base
+
+model. The best results with and without feature information, respectively, are in bold. A, X, Y
+
+stands for graph structures, node features, and node labels, respectively.
+
+Data
+
+Method
+
+Harvard
+
+Columbia
+
+Stanford
+
+Yale
+
+Cornell
+
+Dartmouth
+
+UPenn
+
+A,Y A,X,Y
+
+GATrandom
+
+81.5 ± 0.7
+
+GATdegree
+
+67.5±6.1
+
+GATDW
+
+81.5 ± 1.3
+
+Eigen-GATstruc 81.5 ± 1.8
+
+GATfeat
+
+73.7±1.6
+
+GATfeat+DW
+
+84.3±0.6
+
+Eigen-GATfeat+struc 85.5 ± 1.3
+
+74.4±1.2 63.7±4.1 75.4±1.7 77.1 ± 1.4 73.9±2.2 78.4±1.7 78.9 ± 1.1
+
+74.8±1.6 63.2±2.8 76.3±2.2 78.1 ± 1.5 71.5±2.0 76.0±3.4 79.7 ± 1.4
+
+80.7±1.8 70.5±3.5 81.2±2.3 83.9 ± 1.3 72.7±3.5 80.9±2.0 84.3 ± 1.8
+
+67.4±2.5 54.2±2.6 70.1±2.9 72.0 ± 2.0 63.9±2.2 73.3±2.6 73.6 ± 1.8
+
+79.6±1.2 68.5±3.2 77.4±2.2 81.5 ± 2.0 74.9±2.1 78.1±1.7 82.7 ± 1.2
+
+74.8±1.5 60.9±3.3 75.1±1.9 78.5 ± 1.1 69.0±3.5 75.5±2.2 80.0 ± 1.7
+
+Table 4: The results of node classiﬁcation accuracy (%) on 7 social networks using GraphSAGE as
+
+the base model. The best results with and without feature information, respectively, are in bold. A,
+
+X, Y stands for graph structures, node features, and node labels, respectively.
+
+Data
+
+Method
+
+Harvard
+
+Columbia
+
+Stanford
+
+Yale
+
+Cornell
+
+Dartmouth
+
+UPenn
+
+2A5,.Y9± 1.5
+A,X,Y
+
+SAGErandom SAGEdegree SAGEDW
+
+14.2±1.2 25.9±2.3 82.6±1.0
+
+18.8±1.4 17.8±0.7 25.9±2.3 27.1±2.0 77.5 ± 1.3 76.0±1.5
+
+17.0±1.9 30.0±3.0 82.2±1.1
+
+18.3±1.1 17.8±1.0 34.0±1.9 25.7±2.3 71.5 ± 1.8 80.5±1.5
+
+18.4±1.2 24.1±1.7 77.6±1.1
+
+Eigen-SAGEstruc 83.1 ± 0.9
+
+SAGEfeat
+
+76.6±1.5
+
+SAGEfeat+DW
+
+80.4±0.9
+
+Eigen-SAGEfeat+struc 84.8 ± 1.2
+
+76.4±1.6 77.6±1.5 77.5±2.0 80.0 ± 1.3
+
+78.2 ± 1.0 73.3±1.5 75.1±1.6 78.0 ± 0.9
+
+84.9 ± 1.3 79.2±2.5 82.6±1.1 86.2 ± 1.4
+
+70.7±1.4 62.7±1.9 71.2±1.7 73.1 ± 2.0
+
+82.4 ± 1.6 78.5±1.1 77.3±1.3 84.6 ± 1.4
+
+78.3 ± 1.5 71.4±1.7 77.4±1.1 79.5 ± 1.7
+
+We also experiment on four benchmark datasets commonly used in GNNs: Cora, Citeseer, Pubmed, and Reddit. The results are shown in Table 5. For simplicity, we only adopt GCN by Kipf and Welling [14] as the base GNN model. We make the following observations.
+
+• Similar to Section 5.2, when no node feature is available, Eigen-GCNstruc reports the best results, demonstrating that Eigen-GCN can better preserve graph structures.
+• When features are available, GCNfeat performs the best on three citation graphs and highly competently on Reddit, showing that features are dominant on these benchmark datasets. The results are consistent with the literature [35, 20], which show that features contain the “true signals” for those node classiﬁcation tasks.
+• Eigen-GCNfeat+struc has comparable performance with GCNfeat on the three citations graphs and is even better than GCNfeat on Reddit. These results show that expanding the initial bases with the eigenspace does not impair GNNs in feature-driven tasks. Thus, Eigen-GNN can be adopted as a default module if we are not sure whether a task is feature-driven or structure-driven.
+
+12
+
+Table 5: The results of node classiﬁcation accuracy (%) on the benchmark datasets. The best results
+
+with and without feature information, respectively, are in bold. A, X, Y stands for graph structures,
+
+node features, and node labels, respectively.
+
+Data
+
+Method
+
+Cora
+
+Citeseer Pubmed
+
+Reddit
+
+A,Y A,X,Y
+
+GCNrandom GCNdegree GCNone-hot GCNDW Eigen-GCNstruc GCNfeat GCNfeat+DW Eigen-GCNfeat+struc
+
+23.5 ± 1.6 33.5 ± 2.4 66.3 ± 0.6 70.6 ± 1.2 71.0 ± 0.5 81.5 ± 0.4 76.8 ± 0.5 78.9 ± 0.7
+
+21.2 ± 1.1 30.2 ± 0.9 45.2 ± 1.1 47.7 ± 1.1 49.3 ± 0.6 70.6 ± 0.8 61.8 ± 0.6 66.5 ± 0.3
+
+32.6 ± 1.0 34.9 ± 1.3 64.3 ± 0.9 69.3 ± 1.2 73.8 ± 0.3 78.6 ± 0.4 76.3 ± 0.5 78.6 ± 0.1
+
+86.1 ± 0.3 83.0 ± 0.4 Out of memory 94.3 ± 0.1 94.3 ± 0.0 96.4 ± 0.0 96.6 ± 0.1 96.6 ± 0.1
+
+A.2 Link Prediction
+Link prediction is to predict which pairs of nodes in a graph are most likely to form edges. We adopt eight benchmark datasets from [39] with the same experimental setting. The details of the datasets and experimental settings are provided in Appendix B.4. We use SEAL [39] as the baseline GNN model, a state-of-the-art GNN architecture speciﬁcally designed for link prediction. The architecture is kept the same as in the original paper.
+The results are reported in Table 6. We exclude the ﬁve baselines that do not use node features since SEAL has speciﬁcally designed those features and cannot function without them. We make the following observations.
+
+Table 6: The average precision of link prediction (%). The best results are highlighted in bold.
+
+Dataset
+
+C.elegans
+
+E.coli
+
+NS
+
+PB
+
+Power
+
+Router
+
+USAir
+
+Yeast
+
+SEAL SEALDW Eigen-SEAL
+Gain†
+
+77.6±0.9 91.5±0.8 96.8±1.8
+
+77.1±1.5 92.1±0.7 97.0±1.2 79.5 ± 0.8∗ 92.5 ± 0.6∗ 97.2 ± 0.6
+
++1.9
+
++0.4
+
++0.2
+
+87.3±0.3 69.9±1.6 88.2±1.0
+
+87.5±0.2 69.8±1.5 87.9±1.3 87.8 ± 0.4∗ 73.2 ± 2.4∗ 88.3 ± 1.2
+
++0.3
+
++3.3
+
++0.1
+
+90.3 ± 1.6 89.9±1.9 90.3 ± 1.2
+0.0
+
+93.7 ± 0.3 93.6±0.5 93.6±0.4
+−0.1
+
+†: Gain is the relative improvement of Eigen-SEAL compared to the better of the other two methods.
+
+*: The improvement of bolded results over non-bolded results is statistically signiﬁcant at 0.05-level paired t-test.
+
+• Eigen-SEAL reports signiﬁcantly better results than the two baselines on four out of the eight datasets (with the rest four datasets showing no signiﬁcant differences). This indicates that graph structures are important in link prediction tasks. The ﬁnding is consistent with the literature [19].
+• Although SEAL is speciﬁcally designed for link prediction and Eigen-GNN does not target at any speciﬁc task, Eigen-SEAL reports better performance. This demonstrates the general effectiveness of Eigen-GNN.
+• SEALfeat+DW fails to outperform SEAL on any dataset3. This shows that DeepWalk cannot enhance SEAL in link prediction. The results are consistent with the original paper [39].
+A.3 Scalability and Parameter Sensitivity
+Scalability Since Eigen-GNN conducts the same calculation as base GNN models in all the hidden layers, we only report the runtime of calculating the eigenbasis, which is the extra cost caused by Eigen-GNN. Speciﬁcally, we generate random graphs of different sizes using the Erdos Renyi model [10]. Figure 3a shows the runtime when ﬁxing either the number of nodes to ten thousand or ﬁxing the number of edges to one million, and varying the other factor. The time of calculating the eigenbasis increases roughly linearly with respect to the number of nodes and the number of edges in graphs. In addition, even for a large graph with ten thousand nodes and ﬁve million edges, the running time is no more than a few seconds on a single PC. The results show that Eigen-GNN is scalable to large-scale graphs.
+3Though SEALfeat+DW seems to improve SEAL on E.coli, NS, and PB, the improvement is not statistically signiﬁcant under 0.05 paired t-test.
+
+13
+
+Running Time (s) Running Time (s)
+Accuracy (%)
+
+5 qq Number of Nodes = 1e4
+qq
+4
+
+3
+2
+qq
+1e+06
+
+qq qq
+2e+06 3e+06 4e+06
+Number of Edges
+
+qq
+5e+06
+
+6
+qq Number of Edges = 1e6
+5
+qq
+
+4
+
+qq
+3
+qq
+2
+
+qq
+10000
+
+20000 30000 40000
+Number of Nodes
+
+qq
+50000
+
+70
+
+q
+
+q
+
+q
+
+60
+
+q
+
+50 q
+
+40
+
+8
+
+16
+
+32
+
+64
+
+128
+
+Dimensionality of the Eigenspace
+
+q Cora Citeseer PubMed
+
+(a)
+
+(b)
+
+Figure 3: Scalability and parameter sensitivity. (a) The running time of calculating the eigenbasis grows linearly with respect to the number of nodes and the number of edges in the graph, respectively. (b) The node classiﬁcation accuracy of Eigen-GNN with different eigenspace dimensionality.
+
+Parameter Sensitivity Eigen-GNN has only one parameter, the dimensionality d of the eigenspace. To test the parameter sensitivity, we follow the same experimental setting as in Appendix A.1 by adopting GCN [14] as the base GNN model and vary d in {8, 16, 32, 64, 128}. Figure 3b shows the node classiﬁcation results on the three citations graphs without using node features. The results of the other tasks on the corresponding datasets share similar patterns. When the dimensionality d increases, the accuracy of the model increases at ﬁrst but tends to saturate or even decreases if d becomes too large. A plausible reason is that, if the dimensionality of the eigenspace is too small, the model does not have enough capacities to learn useful graph structures. If the eigenspace grows too large, noises are likely to be introduced into the model.
+B Additional Experimental Details for Reproducibility
+B.1 Synthetic datasets generation details
+As introduced in Section 3.1, we use the Stochastic Blockmodel to generate the graph structures. Speciﬁcally, we generate 5, 000 nodes in a graph, which are randomly assigned to one of the ten different communities. Within each community, nodes have a probability probin = 0.025 to form edges, while nodes in different communities have a probability probout = 0.001 to form edges. For node features, we also divide nodes into ten groups. For each group, we generate a group vector following N (0, 4I) with dimensionality 32. We constrain that the minimum Euclidean distance between every two group vectors is larger than 1. Then, node features are randomly generated following i.i.d standard normal distribution N (0, I) around the group vectors of the groups that the nodes belong to.
+In summary, each synthetic dataset has 5, 000 nodes, 85, 294 edges, 32 features, and 10 labels/classes. Here, a class contains all nodes carrying the same label. The differences among different datasets are the nodes carrying different labels. In Figure 1a, the number of randomly selected nodes per class used for training is used as the x-axis and we randomly selected another 200 nodes per class for validation. The rest nodes are used for testing. In Figure 1b, we use 50 nodes per class for training, 150 nodes per class for validation, and the rest for testing.
+B.2 Node classiﬁcation datasets details
+• Harvard, Columbia, Stanford, Yale, Cornell, Dartmouth, and UPenn [32]4: these are Facebook social networks for different colleges/universities. Edges represent intra-school links of users and node attributes correspond to user proﬁles such as gender, major, dorm/house, etc. We use the class year as ground-truth labels. We preprocess the datasets by using a one-hot encoding of categorical node features and removing node features/labels which occur less than 0.1%/1% among all the nodes.
+4https://archive.org/details/oxford-2005-facebook-matrix
+14
+
+• Cora5, Citeseer5, Pubmed5 [30]: three citation graphs where nodes represent papers and edges represent citations between papers. The datasets also contain bag-of-words features and groundtruth topics as labels of the papers.
+• Reddit6 [12]: an online discussion forum for users where nodes are posts and two nodes are connected if they are commented by the same user. Each post also contains a low-dimensional word vector as features. The task is to predict which community the posts belong to.
+The statistics of the datasets are summarized in Table 7. For the Facebook social networks, we use 20 nodes per class for training, 30 nodes per class for validation, and the rest for testing. For the other four benchmark datasets, we adopt the ﬁxed training/validation/testing split that came with the datasets. Similar results are observed in random splits.
+
+Table 7: Statistics of the datasets used for node classiﬁcation.
+
+Dataset Type # Nodes #Edges #Classes #Features
+
+Harvard Social 15,126 1,649,234
+
+10
+
+136
+
+Columbia Social 11,770 888,666
+
+7
+
+197
+
+Stanford Social 11,621 1,136,660
+
+8
+
+225
+
+Yale
+
+Social 8,578 810,900
+
+8
+
+146
+
+Cornell Social 18,660 1,581,554
+
+7
+
+253
+
+Dartmouth Social 7,694 608,152
+
+9
+
+178
+
+UPenn Social 14,916 1,373,002
+
+7
+
+204
+
+Cora Citation 2,708
+
+5,429
+
+7
+
+1,433
+
+Citeseer Citation 3,327
+
+4,732
+
+6
+
+3,703
+
+Pubmed Citation 19,717 44,338
+
+3
+
+500
+
+Reddit Social 232,965 11,606,919 41
+
+602
+
+B.3 Circulant skip link graphs details
+
+A basic Circulant Skip Link (CSL) graph GN,R is an undirected graph, where {1, ..., N } is the set of N nodes and the edges consist of a cycle and a set of skip links. Denote A as the adjacency matrix.
+The cycle is formulated as:
+
+Aj,j+1 = Aj+1,j = 1, ∀1 ≤ j < N
+
+(5)
+
+A1,N = AN,1 = 1.
+
+(6)
+
+The skip links, controlled by an interval parameter R satisfying 1 < R < N , are deﬁned as:
+
+Ai,j = Aj,i = 1, if |j − i| = R or N − R mod N, ∀1 ≤ i, j ≤ N.
+
+(7)
+
+Figure 4 shows examples of G13,2 and G13,3, i.e., two CSL graphs with 13 nodes and with skip links of intervals 2 and 3, respectively. Intuitively, basic CSL graphs GN,R are 4-regular graphs (i.e., the
+
+degree of all nodes is 4) by connecting every “adjacent” node pair and every node pair that is “R-
+
+hops” away. The full CSL graph set includes the basic CSL graphs GN,R and all their permutations,
+
+i.e.,
+
+GN = {SN (GN,R) , ∀1 < R < N, ∀SN } ,
+
+(8)
+
+where SN (·) is any permutation of N node IDs.
+
+CSL graphs are widely adopted for graph isomorphism tests since their structures are highly regular and similar, and all nodes have the same degree. For example, it is known that G41 is composed of 10 isomorphism classes:
+
+G41 = {S41 (G41,R) |R ∈ {2, 3, 4, 5, 6, 9, 11, 12, 13, 16}} .
+
+Although there exist known mathematical approaches to solve graph isomorphism tests for CSL graphs [24], it still poses great challenges for machine learning models, including the existing GNNs, to distinguish them if no prior knowledge is used [23, 6].
+
+5https://github.com/tkipf/gcn 6http://snap.stanford.edu/graphsage/
+
+15
+
+Figure 4: An example of CSL graphs G13,2 and G13,3. Though these two graphs are nonisomorphism, their structures are extremely similar that the existing GNNs fail to distinguish them. The image is adapted from [23].
+
+Speciﬁcally, following the experimental setting in [23], we consider the aforementioned CSL graphs with 41 nodes and 10 isomorphism classes. Using the isomorphism classes as labels for graphs, the graph isomorphism test can be transformed into a graph classiﬁcation problem. For each isomorphism class, i.e., a graph label, we randomly generate 60 isomorphic CSL graphs belonging to that class. As a result, the dataset contains 600 graphs with 10 balanced classes. Following [23], we adopt a 5-fold cross-validation.
+B.4 Link prediction datasets details
+We adopt the following eight link prediction datasets7:
+• C.elegans: the neural network of the worm C.elegans. • E.coli: a pairwise reaction network of metabolites in E.coli. • NS: a collaboration network between researchers, where nodes represent authors and edges
+correspond to co-authorships. • PB: a graph formed by US political blogs where edges represent hyperlinks between blogs. • Power: an electrical grid of the western US, where edges represent high-voltage transmission
+lines between facilities. • Router: a router-level Internet connection graph. • USAir: a graph from US Airlines with nodes representing airports and edges representing air-
+lines. • Yeast: a protein-protein interaction network in yeast.
+
+Table 8: Statistics of the datasets used for link prediction.
+
+Dataset
+
+Type
+
+# Nodes # Edges Degree
+
+C.elegans Biology
+
+297 4,296 14.5
+
+Ecoli
+
+Biology
+
+1,805 29,320 16.2
+
+NS
+
+Collaboration 1,589 5,484 3.5
+
+PB
+
+Social
+
+1,222 33,428 27.4
+
+Power
+
+Industry
+
+4,941 13,188 2.7
+
+Router
+
+Internet
+
+5,022 12,516 2.5
+
+USAir Transportation 332 4,252 12.8
+
+Yeast
+
+Biology
+
+2,375 23,386 9.9
+
+The statistics of the datasets are summarized in Table 8. Following [39], we randomly split the edges of the graph into 50%-20%-30% parts, and use them for training, validation, and testing, respectively. In splitting the datasets, we maintain that each node has at least one edge in the training set. The same number of edges are sampled from the non-existing links (i.e., node pairs that do not have edges) as negative samples.
+7https://github.com/muhanzhang/SEAL
+
+16
+
+B.5 Source codes adopted
+We use the following publicly available implementations of base GNN models and DeepWalk:
+• GCN [14]: https://github.com/tkipf/gcn • StochasticGCN [5]: https://github.com/thu-ml/stochastic_gcn • GIN [37]: https://github.com/PurdueMINDS/RelationalPooling • SEAL [39]: https://github.com/muhanzhang/SEAL • DeepWalk [26]: https://github.com/phanein/deepwalk • GAT [33] and GraphSAGE [12]: https://github.com/rusty1s/pytorch_geometric
+
+B.6 Hyper-parameters
+
+We adopt the following hyper-parameters.
+
+• Synthetic: the number of graph convolution layers and fully connected layers are given in Section 3.1, with each layer containing 16 units. The dropout rate is searched from {0, 0.5} and L2 regularization is 5 × 10−4. The learning rate is searched from {0.005, 0.01, 0.025}. The maximum number of epochs is 400 with an early stopping round 100. We also test whether adding residual connections can improve the performance of GCNs and add residual connections in GCN2, GCN3, and GCN5. The hyper-parameters for DeepWalk are the default settings in the implementations of the authors, i.e., the number of walks 10, the walk length 40, the window size 5, and the dimensionality is set to 32 to fairly compare with GCNs with features as input. The dimensionality of the eigenspace is also set to d = 32 and we set f (x) = x.
+
+• Harvard, Columbia, Stanford, Yale, Cornell, Dartmouth, and UPenn: we set the same hyper-
+
+parameters for GCN, GAT, and GraphSAGE, which is a two-layer architecture with the hidden
+
+layer containing 64 units (for GAT, 8 heads with each head containing 8 units), the learning rate is 0.01 with weight decay 5 × 10−4, the maximum number of epochs is 400, and we select
+
+the epoch with the highest validation accuracy. The dropout is searched from {0, 0.5} and the
+
+dimensionality of the eigenspace is searched from {128, 256}. We set f (x) as a normalization
+
+function according to the Frobenius norm, i.e., f (Z) =
+
+Z ZF
+
+.
+
+• Cora, Citeseer, and Pubmed: we use the same GCN structure and hyper-parameters as in [14],
+
+i.e., a two-layer GCN with the hidden layer containing 16 units, the dropout rate 0.5, L2 regularization 5 × 10−4, the learning rate 0.01. The maximum number of epochs is 400 with an
+
+early stopping round 100. The dimensionality of the eigenspace is set to d = 32 and f (x) is the
+
+aforementioned normalization function according to the Frobenius norm.
+
+• Reddit: since the dataset has more than 200 thousand nodes and 11 million edges, a full-batch training of GNN is infeasible. Instead, we adopt the neighborhood sampling strategy proposed in Stochastic GCN [5] for all the methods. We use the exact same hyper-parameters and sampling strategy suggested in [5], i.e., the GraphSAGE mean pooling architecture, two graph convolution layers with the hidden layer size of 128 units, sampling two neighbors per node, no weight decay, the dropout rate 0.2, with layer-normalization, the batch-size 512, and a maximum of 30 epochs. The dimensionality of the eigenspace is set to d = 128 and we set f (x) as the aforementioned normalization based on Frobenius norm.
+
+• CSL: we tested using the default GIN structure (5 GNN layers, 2 MLP layers) [37] and a simpliﬁed GIN structure (1 GNN layer, 1 MLP layer). Since no substantial difference is observed, we adopt the latter due to its simplicity. Other settings are the same as in [23], i.e., no dropout or batch normalization, all layers having 16 hidden units, training epsilon via back-propagation, the learning rate 0.01, a maximum of 200 epochs, and no early stopping. The dimensionality of the eigenspace is d = 16 and we set f (x) = |x| to ensure permutation-equivariance.
+
+• The eight link prediction datasets: we use the default SEAL architecture [5], i.e., 4 graph convolution layers as in [40] with 32, 32, 32, and 1 units, 1 SortPooling layer with a threshold such that 60% graphs have nodes less than the threshold, 2 1-D convolution layers (with 16 and 32 channels), and 1 dense layer (with 128 units). The learning rate is 10−4, the batch size is 50, the number of epochs is 50 with an early stopping round 20, and the hop number is 1. The dimensionality of the eigenspace is d = 128 and we set f (x) as the aforementioned normalization based on Frobenius norm.
+
+17
+
+B.7 Hardware and Software Conﬁgurations
+All experiments are conducted on a server with the following conﬁgurations.
+• Operating System: Ubuntu 18.04.1 LTS • CPU: Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz • GPU: GeForce GTX TITAN X • Software: Python 3.6.9, TensorFlow 1.14.0, PyTorch 1.4.0, PyTorch Geometric 1.4.3, SciPy
+1.4.1, NumPy 1.18.2, Cuda 10.1
+
+C Proof of Theorem 1
+
+Proof. Denote by A and A , respectively, the adjacency matrices of G and G . Since E(i, j) = E (B(i), B(j)), we have Ai,j = AB(i),B(j), F (A)i,j = F (A )B(i),B(j), and G(A)i,j = G(A )B(i),B(j), where F (A) and G(A) is the graph structure function in GNNs and the graph structure function in the eigenspace, deﬁned in Eq. (1) and Eq. (4), respectively.
+Assume that the lth hidden layer in Eigen-GNN is permutation-equivariant, i.e., H(i,l:) = U(Bl()i),:, ∀1 ≤ i ≤ N . Using Eq. (1), the (l + 1)th layer is also permutation-equivariant:
+
+H(i,l:+1) = σ( j F (A)i,j H(jl,:)W(l)) = σ( j F (A)i,j U(Bl()j),:W(l))
+
+(9)
+
+= σ( j F (A )B(i),B(j)U(Bl()j),:W(l)) = U(Bl(+i)1,):.
+
+Next, by induction, we only need to prove that the 0th layer, i.e., H(0) and U(0), is also permutationequivariant. The node features are already permutation-equivariant by assumption. For the eigenbasis, since the top-d eigenvalues of G(A) are unique, from linear algebra, we know that the eigenvectors are determined up to a sign for isomorphism graphs [3]. Since we have adopted f (x) = |x|, we have H(i,0j) = U(B0()i),j . The theorem follows.
+
+D Proof of Theorem 3
+
+Proof. Denote by H(l) and U(l), respectively, the representations of the nodes in the lth hidden layer in Eigen-GNN and SGC. Since the last layer in both models are task-speciﬁc, e.g., a softmax layer for node classiﬁcation tasks or a readout function for graph classiﬁcation tasks, we only need to prove that Uinf converges to H(0) = q, where q = Q:,1 is a one-dimensional eigenbasis.
+The hidden representations of SGC are calculated as follows [35].
+
+U(l) =
+
+D˜ −
+
+1 2
+
+A˜ D˜ −
+
+1 2
+
+l
+X.
+
+(10)
+
+From
+
+linear
+
+algebra,
+
+the
+
+asymptotic
+
+behavior
+
+of
+
+Uinf
+
+depends
+
+on
+
+the
+
+spectrum
+
+of
+
+D˜ −
+
+1 2
+
+A˜ D˜ −
+
+1 2
+
+.
+
+De-
+
+note
+
+by
+
+λ1
+
+≤
+
+λ2
+
+≤
+
+...
+
+≤
+
+λN
+
+the
+
+eigenvalues
+
+of
+
+D˜ −
+
+1 2
+
+A˜ D˜ −
+
+1 2
+
+.
+
+From
+
+the
+
+spectral
+
+graph
+
+theory
+
+[25],
+
+we have the following results.
+
+• The spectrum is between [−1, 1], i.e., −1 ≤ λ1 ≤ λN ≤ 1. • If the graph is connected, λN = 1 and λN−1 < 1. • λ1 = −1 if and only if the graph is a bipartite.
+
+Combining the above results, we have the following equation for a connected non-bipartite graph.
+
+−1 < λ1 ≤ ... ≤ λN−1 < λN = 1.
+
+(11)
+
+18
+
+Then, we know that Uinf converges to the eigenvector corresponding to λN , which is also the
+
+eigenbasis
+
+corresponding
+
+to
+
+the
+
+largest
+
+absolute
+
+eigenvalue
+
+of
+
+D˜ −
+
+1 2
+
+A˜ D˜ −
+
+1 2
+
+,
+
+i.e.,
+
+lim
+l→inf
+
+U(:,li)
+
+=
+
+q,
+
+∀i.
+
+(12)
+
+19
+

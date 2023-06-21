@@ -1,0 +1,87 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2010.15891
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 29 Oct 2020]
+Title: Multi-agent Trajectory Prediction with Fuzzy Query Attention
+Authors: Nitin Kamra , Hao Zhu , Dweep Trivedi , Ming Zhang , Yan Liu
+Download a PDF of the paper titled Multi-agent Trajectory Prediction with Fuzzy Query Attention, by Nitin Kamra and 4 other authors
+Download PDF
+
+    Abstract: Trajectory prediction for scenes with multiple agents and entities is a challenging problem in numerous domains such as traffic prediction, pedestrian tracking and path planning. We present a general architecture to address this challenge which models the crucial inductive biases of motion, namely, inertia, relative motion, intents and interactions. Specifically, we propose a relational model to flexibly model interactions between agents in diverse environments. Since it is well-known that human decision making is fuzzy by nature, at the core of our model lies a novel attention mechanism which models interactions by making continuous-valued (fuzzy) decisions and learning the corresponding responses. Our architecture demonstrates significant performance gains over existing state-of-the-art predictive models in diverse domains such as human crowd trajectories, US freeway traffic, NBA sports data and physics datasets. We also present ablations and augmentations to understand the decision-making process and the source of gains in our model. 
+
+Comments: 	NeurIPS 2020 Camera-ready version. Code: this https URL
+Subjects: 	Machine Learning (cs.LG) ; Computer Vision and Pattern Recognition (cs.CV)
+Cite as: 	arXiv:2010.15891 [cs.LG]
+  	(or arXiv:2010.15891v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2010.15891
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Nitin Kamra [ view email ]
+[v1] Thu, 29 Oct 2020 19:12:12 UTC (2,469 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Multi-agent Trajectory Prediction with Fuzzy Query Attention, by Nitin Kamra and 4 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2010
+Change to browse by:
+cs
+cs.CV
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+DBLP - CS Bibliography
+listing | bibtex
+Nitin Kamra
+Hao Zhu
+Ming Zhang
+Yan Liu
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+
