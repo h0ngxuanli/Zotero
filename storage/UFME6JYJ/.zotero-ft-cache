@@ -1,0 +1,1428 @@
+Proceedings of Machine Learning Research vol TBD:1–21, 2023
+
+2nd Conference on Causal Learning and Reasoning
+
+Factual Observation Based Heterogeneity Learning for Counterfactual Prediction
+
+Hao Zou
+
+ZOUH18@MAILS.TSINGHUA.EDU.CN
+
+Department of Computer Science and Technology, Tsinghua University, Beijing, China
+
+Haotian Wang National University of Defense Technology, Changsha, China
+
+ACCWHT@HOTMAIL.COM
+
+Renzhe Xu
+
+XRZ199721@GMAIL.COM
+
+Department of Computer Science and Technology, Tsinghua University, Beijing, China
+
+Bo Li
+
+LIBO@SEM.TSINGHUA.EDU.CN
+
+School of Economics and Management, Tsinghua University, Beijing, China
+
+Jian Pei Duke University, USA
+
+J.PEI@DUKE.EDU
+
+Junjian Ye Huawei Noah’s Ark Lab, Shenzhen, China
+
+YEJUNJIAN@HUAWEI.COM
+
+Peng Cui *
+
+CUIP@TSINGHUA.EDU.CN
+
+Department of Computer Science and Technology, Tsinghua University, Beijing, China
+
+Editors: Mihaela van der Schaar, Dominik Janzing and Cheng Zhang
+
+Abstract
+Extant causal methods exclusively exploit the heterogeneity based on the observed covariates for heterogeneous outcome prediction. Even with nowadays big data, the collected covariates may not contain complete confounders. When some confounders are absent, the methods can suffer from confounding bias and missing heterogeneity. To address these two issues, we propose to leverage the factual observation in the observational data to recover the latent confounders. Since the learned confounder representation exploits the heterogeneity of latent confounders, it leads to finer granular heterogeneous outcome prediction, which is closer to the individual-level than prediction conditional on only covariates. Specifically, we propose a novel Factual Observation based Heterogeneity Learning (FOHL) algorithm with an encoder for confounder representation learning and a decoder for outcome prediction. Theoretical analysis reveals the validity of recovering confounders from factual observations to make the heterogeneous prediction closer to the individual-level. Furthermore, experimental results demonstrate that our FOHL method can outperform the existing baselines. Keywords: Latent Confounder Recovery; Missing Heterogeneity; Closer to Individual-level
+* Corresponding Author
+© 2023 H. Zou, H. Wang, R. Xu, B. Li, J. Pei, J. Ye & P. Cui.
+
+ZOU WANG XU LI PEI YE CUI
+
+𝑌1(𝑡′) 𝑌2(𝑡′)
+
+𝑌𝑚(𝑡′)
+
+𝑌1(𝑡′) 𝑌2(𝑡′)
+
+𝑌𝑚(𝑡′)
+
+……
+
+Recover
+
+……
+
+Income & Age
+
+𝔼[𝒚|Location, 𝒅𝒐(𝒕′)]
+
+𝔼[𝒚|Location,𝑰𝒏𝒄𝒐𝒎𝒆, 𝑨𝒈𝒆, 𝒅𝒐(𝒕′)]
+
+Prediction based on
+
+……
+
+• Location
+
+Location A Location A
+
+Income B Income C
+
+Age A
+
+Age B
+
+Location A Income B
+Age C
+
+Location A Income B
+Age A
+
+……
+
+Location A Income C
+Age B
+
+Location A Income B
+Age C
+
+Prediction based on • Location • Income • Age
+
+Figure 1: The diagram of heterogeneous outcome estimation conditional on observed covariates (i.e. location) v.s. complete confounders (i.e. all the three factors). When conditioning on only location, the resulting estimation (the average of m individual outcome) ignores the outcome variation among the sub-population. When we recover the latent confounders (i.e. income and age), we can obtain finer granular heterogeneous outcome prediction which steps closer to the individual-level.
+
+1. Introduction
+Predicting the counterfactual outcomes of different treatments is of significant importance in many applications relevant to decision-making (Bica et al., 2020a; Bottou et al., 2013; Li et al., 2015). The common practice is to train an outcome predictive model by leveraging the observational datasets which are common and cheap (Hassanpour and Greiner, 2020, 2019; Johansson et al., 2016; Shalit et al., 2017; Yao et al., 2018). It has been supported by previous literature that the counterfactual outcome of treatments varies in different parts of the population and identifying heterogeneous outcomes can help improve the effectiveness of decisions (Lee et al., 2020). Therefore, it is of urgent need in many applications to estimate the heterogeneous response of treatments, such as precision medicine (Dahabreh et al., 2016) and personalized recommendations (He et al., 2017; Rendle, 2010). To resolve this task, some papers estimate the heterogeneous counterfactual outcome by partitioning the population based on the observed covariates which characterize the individuals to some extent (i.e. expected outcome conditional on observed covariates) (Shalit et al., 2017; Johansson et al., 2016; Yao et al., 2018; Zou et al., 2020; Hassanpour and Greiner, 2020, 2019; Assaad et al., 2021; Qian et al., 2021; Bica et al., 2020b; Yoon et al., 2018).
+However, due to the limitation in information acquisition, some confounder variables which affect both outcome and treatments practically are absent in the observed covariates X. This phenomenon of missing confounders brings two challenges to the predictive methods: confounding bias and missing heterogeneity which is a new perspective provided by us and also the focus of this paper. The former challenge, namely the confounding bias, has been investigated by many methods using different tools such as instrumental variables and negative controls (Hartford et al., 2017; Heckman, 1997; Miao et al., 2018; Miao and Tchetgen Tchetgen, 2017). However, the methods mentioned above only estimate the expectation of outcome (conditional on the observed covariates) formally E[y|X, do(t)],
+2
+
+FACTUAL OBSERVATION BASED HETEROGENEITY LEARNING FOR COUNTERFACTUAL PREDICTION
+which is an incomplete characterization of one individual. As the missing confounders also play a vital role to depict the individualized causal effect, we define the missing heterogeneity problem as the variation of outcome in the sub-population with the same covariates X due to the heterogeneity of the missing confounders. Therefore, simply using the expected outcome value of the sub-population E[y|X, do(t)] as the estimation result and ignoring the variation of outcomes between individuals can lead to extra predictive error for individuals. To address the confounding bias and further the missing heterogeneity problem, it is a sensible idea to recover the complete confounders Z and then estimates heterogeneous outcome conditional on them E[y|Z, do(t)] which is at a finer granular level and steps closer to individual-level counterfactual prediction. One example of the comparison of the heterogeneous outcomes at different granular levels is shown in Figure 1.
+Fortunately, since the confounders affect the generation of factual treatments and outcomes in the observational dataset, some information about the latent confounders is encoded into them. Therefore, the factual observations (i.e. previously assigned treatments and particular outcomes) in the dataset present an opportunity to recover the latent confounders for simultaneously overcoming the confounding bias and missing heterogeneity problem. Drawing support from the rapidly developed latent variable models, we can model the underlying distribution of treatments, covariates, and outcomes with confounders, and then learn the representation of latent confounders from them. By conditioning on the learned confounder representation, we are capable of alleviating the missing heterogeneity problem and achieving finer granular heterogeneous outcome prediction than prediction conditional on only covariates. Notably, our idea of latent representation learning is inspired by the abduction step in solving the counterfactual query of the retrospective hypothetical scenarios in causal ladders (Pearl, 2009b, 2019). Although some works (Pawlowski et al., 2020; Khemakhem et al., 2021) have investigated this counterfactual query by inferring the latent exogenous noise in the framework of structure causal models (SCM) (Pearl, 2009a), they neglect the confounding bias problem and are restricted to some strong assumptions on SCM. For example, they need to access the full observations on the ancestor variables (corresponding to confounders and treatments in our problem).
+In this paper, we consider the setting of multiple treatments, which is ubiquitous in reality (Qian et al., 2021; Zou et al., 2020; Wang and Blei, 2019). To simultaneously overcome the confounding bias and missing heterogeneity, we develop a novel Factual Observation based Heterogeneity Learning (FOHL) algorithm for recovering the latent confounders. The model is built upon the technique of variational inference (Khemakhem et al., 2020; Kingma and Welling, 2013; Rezende et al., 2014) to model the underlying distribution of the observed covariates, latent confounders, treatments and outcomes. With the encoder component, we can infer the latent confounder representation from factual observations. With the decoder component, we can predict heterogeneous outcomes at a finer granular heterogeneity level than prediction conditional on covariates by feeding into the inferred confounder representation and counterfactual treatments. Creatively, we set the covariates as the ancestor of latent confounders to practically avoid the complicated assumption on the covariate distribution and resist the influence of observational noise. Theoretical analysis shows the validity of our strategy. We also empirically conduct extensive experiments on the synthetic datasets and semi-synthetic datasets to show that our method outperforms the existing baselines.
+The main contribution of this paper are summarized as follows:
+• To the best of our knowledge, we are the first to investigate the missing heterogeneity problem under the setting of missing confounders. We propose a novel and easy-to-implement Factual
+3
+
+ZOU WANG XU LI PEI YE CUI
+Observation based Heterogeneity Learning (FOHL) algorithm to overcome both this problem and confounding bias by learning latent confounder representation.
+• Theoretical analysis reveals that our strategy can remove confounding bias and more importantly alleviate missing heterogeneity for finer granular heterogeneous prediction than prediction conditional on only covariates. We conduct extensive experiments on both synthetic datasets and semi-synthetic datasets to show the effectiveness of our FOHL method.
+2. Related Works
+2.1. Heterogeneous outcome prediction conditional on covariates
+There have been a large number of works that predict heterogeneous treatment outcomes conditional on covariates. One important branch of literature considers the setting without missing confounders. The effort of these methods is mainly devoted to reducing the correlation between the treatments and confounders. Motivated by the ideas in domain adaptation (Tzeng et al., 2014; Ganin and Lempitsky, 2015; Bousmalis et al., 2016), some methods propose the paradigm of learning treatment invariant representation to remove the correlation between the treatments and confounders and predict the outcome based on the learned representation (Shalit et al., 2017; Johansson et al., 2016; Yao et al., 2018; Bica et al., 2020a; Xu et al., 2021; Berrevoets et al., 2020; Zeng et al., 2020). Since over-enforcing the balancing property of representation may harm the predictive power (Assaad et al., 2021), sample re-weighting is an alternative solution (Zou et al., 2020; Hassanpour and Greiner, 2020, 2019; Lim, 2018; Assaad et al., 2021) to make the treatments and confounders independent in the re-weighted dataset. In addition, some papers resort to data augmentation to generate the counterfactual data points (Qian et al., 2021; Bica et al., 2020b; Yoon et al., 2018).
+When faced with missing confounders, many methods are proposed to overcome the confounding bias and estimate the treatment outcome (conditional on covariates). Instrumental variables (Hartford et al., 2017; Heckman, 1997) and negative controls (Miao and Tchetgen Tchetgen, 2017; Miao et al., 2018) are two classical tools to remove the impact of missing confounders. However, these variables with restricted assumptions that are hard to seek in practice. In contrast, Louizos et al. (2017) proposes to infer the missing confounders from the proxies. Under the setting of multiple treatments, Wang and Blei (2019) observe that dependencies among the treatments can be leveraged to infer the missing confounders for removing confounding bias and obtaining unbiased treatment effect estimation. Miao et al. (2022) also gives two strategies and proves the theoretical validity with some additional assumptions. Nevertheless, these works still ignore the missing heterogeneity problem and integrate the effect of latent confounders in average/conditional treatment effect estimation.
+2.2. Counterfactual Inference with Exogenous Noise Abduction
+Answering counterfactual queries belongs to the third ladder of causality (Pearl, 2019), which is the most complicated and difficult one. This problem is usually resolved in the framework of the structural causal model (SCM) with three steps: abduction, action, and prediction (Pearl, 2009b). With the step of exogenous noise abduction, we can achieve a more accurate prediction for each instance than the intervention query (i.e. the second ladder of causality). Owing to the rapid development of deep generative models (Kingma and Welling, 2013; Rezende and Mohamed, 2015; Goodfellow et al., 2020), many methods utilize these flexible models to build the relationships between the variables and exogenous noises with weak specifications. Pawlowski et al. (2020) proposes three mechanisms
+4
+
+FACTUAL OBSERVATION BASED HETEROGENEITY LEARNING FOR COUNTERFACTUAL PREDICTION
+to specify the structure equations and utilizes normalization flows, variational auto-encoders (VAE), and generative adversarial networks (GAN) to resolve them respectively. Based on the significant progress in generative energy-based models recently (Song et al., 2021; Ho et al., 2020), Sanchez and Tsaftaris (2021) propose to use the advanced diffusion model to construct the deep structural causal model. Khemakhem et al. (2021) generalizes the classical additive noise models (Hoyer et al., 2008) and proposes to use autoregressive flow models (Huang et al., 2018) to specify the equation which guarantees causal identifiability under some additional assumptions.
+The methodologies above assume that the exogenous noise is independent of the endogenous variables. However, this assumption is usually overly restrictive when our heterogeneous outcome prediction problem is formulated into this framework. The latent confounders in our problem is likely to be correlated with the observed covariates as well as treatments which further results in confounding bias. Therefore, it is inappropriate to simply formulate the latent confounders as the exogenous noise and solve the problem in the SCM framework.
+3. Problem Formulation
+In this paper, we investigate the heterogeneous outcome prediction for individuals based on observational datasets. The observational datasets consists of the treatments variables T ∈ T = {0, 1}d, outcomes y ∈ R, and the observed covariates X ∈ X ⊂ Rp which can contains some confounder information. We mainly consider that setting that the covariates X are the noisy observation of latent confounders in this paper. For example, researchers usually can not obtain the true mental state of people but can partially observe it through questionnaire. For the brevity of description, we define Z ∈ Z ⊂ Rs as the complete confounder vector. The data generation process of these elements coincides with the graph in Figure 2(a). Empirically, the observational dataset can be denoted as {(xi, ti, yi)}1≤i≤n, where n is the sample size.
+In many applications, the investigator can not collect all the confounders into the observed covariates X. For the individual with complete confounder Z, we denote the individual-level outcome of counterfactual treatment T by YZ(T) which is the ultimate goal of counterfactual prediction. We assume overlap, stable unit treatment value (SUTVA) (Rosenbaum and Rubin, 1983) are satisfied in this paper.
+Because of confounding bias, directly applying supervised learning to estimate E[y|X, T] is a biased estimation of the heterogeneous outcome conditional on covariates E[y|X, do(T)]. Furthermore, even unbiased heterogeneous estimation E[y|X, do(T)] at a coarse granular level is still not accurate outcome prediction for individuals with confounders Z because of missing heterogeneity problem. Therefore, to step closer to individual-level prediction, it is necessary to recover the latent confounders to achieve finer granular heterogeneous outcome prediction by addressing confounding bias and missing heterogeneity.
+4. Proposed Method
+In this section, we introduce our proposed Factual Observation based Heterogeneity Learning (FOHL) algorithm in detail.
+5
+
+ZOU WANG XU LI PEI YE CUI
+
+Z
+
+X
+
+T
+
+X
+
+Z
+
+T
+
+y
+
+(a) Data generation process
+
+y
+
+Conditional prior Latent Variable
+
+Evidence
+
+(b) Probabilistic graph of our
+
+model
+
+Figure 2: The graph of (a) the data generation process and (b) the probabilistic graph of our model. The grey circle means latent variables, and which white circle means observed variables.
+
+4.1. Distribution Modelling
+
+From the graph shown in Figure 2(a), we can observe that given the latent confounders Z, the treatments T and outcomes y are conditional independent of the covariates X. Therefore, we model the joint distribution of these elements based on the probabilistic graph in Figure 2(b), which is Markov equivalent to Figure 2(a).
+For implementation, we develop our model based on the architecture like IVAE (Khemakhem et al., 2020) to fit the empirical joint distribution of the dataset. The model architecture consists of three components, conditional prior component pρ(Z|X), encoder qϕ(Z|X, T, y) and decoder pφ(T, y|Z). The components are designed as follows:
+
+s′
+
+s′
+
+qϕ(Z|X, T, y) = qϕ(z,i|X, T, y) , pρ(Z|X) = pρ(z,i|X)
+
+i=1
+
+i=1
+
+d
+
+pφ(T, y|Z) = pφ(T|Z)pφ(y|Z, T) , pφ(T|Z) = pφ(t,i|Z),
+
+i=1
+
+where we set
+
+qϕ(z,i|X, T, y) = N (µϕi (X, T, y), (σiϕ(X, T, y))2) , pρ(z,i|X) = N (µρi (X), (σiρ(X))2), pφ(y|Z, T) = N (µφ(Z, T), (σφ)2) , pϕ(t,i|Z) = Bernoulli(giϕ(Z)).
+
+The functions µ(ρ,ϕ,φ)(·), σ(ρ,ϕ)(·) and gϕ(·) are implemented by deep neural networks with parameters ρ, ϕ, φ. We set σφ as hyper-parameter. With the architecture above, we train the model to fit the
+distribution of the dataset by maximizing the evidence lower bound (ELBO) as follows:
+
+n
+Lelbo = Ez∼qϕ(z|xi,ti,yi) [log pφ(ti|z) + log pφ(yi|z, ti) − DKL(qϕ(z|xi, ti, yi)|pρ(z|xi))] .
+i=1
+(1) We can observe that the design of conditional prior component pρ(Z|X), makes our model compatible with the prediction of individuals outside the datasets. It enables us to infer the latent confounder representation based on only covariates and give the degenerate prediction at a coarse heterogeneity level which is the expected value of outcome conditional on the covariates.
+
+6
+
+FACTUAL OBSERVATION BASED HETEROGENEITY LEARNING FOR COUNTERFACTUAL PREDICTION
+
+We set covariates X as an ancestor of confounders Z rather than descendants for avoiding the
+
+intractable distribution assumption on covariates. In the wild application scenarios, the covariates
+
+can be continuous variables and mutually correlated of which the distribution is difficult to model.
+
+Furthermore, some noisy variables which are irrelevant to treatments and confounders may inevitably
+
+be collected into covariates (Zhang et al., 2021). However, the representation learned by our method,
+
+which maximizes the ELBO of
+
+n i=1
+
+p(ti,
+
+yi|xi),
+
+does
+
+not
+
+reconstruct
+
+the
+
+covariates
+
+and
+
+will
+
+be
+
+less vulnerable to the noisy variables. This will be empirically demonstrated in the section on
+
+experiments.
+
+4.2. Outcome Prediction
+For the convenience of description, we define Y (do(tc)|x, t, y) as the predicted outcome of treatment tc derived from our model for the individual with observed covariates x, treatment t and outcome y.
+Our prediction process is composed of two steps. At first, for the ith sample in the dataset, we can easily obtain the posterior distribution of the
+confounder representation with the encoder, zˆi ∼ qϕ(z|xi, ti, yi). Then given the posterior distribution of zˆi, we can infer the outcome distribution of counterfactual treatment tc with the decoder pφ(y|Z, T) as Ezˆi∼qϕ(z|xi,ti,yi) [pφ(y|zˆi, tc)]. We estimate the expected value of the distribution as the prediction result, that is
+
+Y (do(tc)|xi, ti, yi) = Ezˆi∼qϕ(z|xi,ti,yi) [µφ(y|zˆi, tc)] .
+
+(2)
+
+Empirically, the estimation result can be approximated by repeatedly sampling zˆji ∼ qϕ(z|xi, ti, yi), 1 ≤ j ≤ m and calculate the following equation:
+
+Yˆ (do(tc)|xi, ti, yi)
+
+=
+
+1 m
+
+m
+
+µφ(zˆji , tc).
+
+(3)
+
+j=1
+
+Besides, the trained model can also be applied to new individuals outside the datasets for degenerate prediction at a coarse heterogeneity level. Similarly, we define Y (do(tc)|x) as the prediction result conditional on only observed covariates x. For adapting the method to this scenario, we instead sample the confounder representation from conditional prior distribution in the first step, formally zˆ ∼ pρ(z|xi). The second step in Equation 3 remains unchanged. The pseudo-code of the whole algorithm can be found in the appendix.
+
+5. Theoretical Analysis
+
+To show the validity of our strategy, we theoretically analyze the performance comparison of heterogeneous outcome prediction based on respectively the latent confounder representation learned from factual observations and only observed covariates under some mild conditions. More specifically, we assume that the distribution of latent confounder can be identified up to an invertible transformation as follows, which is also admitted by some previous works (Louizos et al., 2017; Miao et al., 2022).
+
+Assumption 1 There exists an invertible mapping f from the true latent confounder z to inferred
+
+latent
+
+confounder
+
+representation
+
+z′.
+
+Formally,
+
+p′(z′
+
+=
+
+f (z),
+
+x,
+
+t,
+
+y)·|det(
+
+∂f ∂z
+
+)|
+
+=
+
+p(z,
+
+x,
+
+t,
+
+y),
+
+where
+
+det(
+
+∂f ∂z
+
+)
+
+is
+
+the
+
+determinant
+
+of
+
+Jacobian
+
+matrix
+
+of
+
+f
+
+,
+
+p(z,
+
+x,
+
+t,
+
+y)
+
+and
+
+p′(z′,
+
+x,
+
+t,
+
+y)
+
+are
+
+respectively
+
+the true joint distribution and the distribution derived from our model.
+
+7
+
+ZOU WANG XU LI PEI YE CUI
+
+With this assumption, we can prove that our outcome prediction results are unbiased.
+Proposition 1 If the Assumption 1 holds, we have Y (do(tc)|x, t, y) = E[y|x, t, y, do(tc)] and Y (do(tc)|x) = E[y|x, do(tc)].
+
+Before presenting our theoretical results on missing heterogeneity, we make the following definition of counterfactual predictive error:
+
+Definition 2 We respectively define the predictive error based on the latent confounder representation and only covariates as follows:
+
+E F OHL = Ez,x,t,y∼p(z,x,t,y),tc∼pu(t) (Yz(tc) − Y (do(tc)|x, t, y))2 , E X = Ez,x∼p(z,x),tc∼pu(t) (Yz(tc) − Y (do(tc)|x))2 ,
+
+where
+
+pu(t)
+
+=
+
+1 2d
+
+is
+
+the
+
+uniform
+
+distribution
+
+over
+
+the
+
+treatment
+
+space.
+
+With the assumptions, definitions, and propositions above, we can prove the following proposition:
+
+Proposition 3 Assuming the individual outcome satisfies Yz(t) = g(z, t) + ε where ε is a noise term with zero mean and σ2 variance, EF OHL, EX can be written as following:
+
+E F OHL = Etc∼pu(t) Ex,t,y∼p(x,t,y) V arz∼p(z|x,t,y) [g(z, tc)] + σ2,
+
+(4)
+
+E X = Etc∼pu(t) Ex∼p(x) V arz∼p(z|x) [g(z, tc)] + σ2.
+
+(5)
+
+According to the law of total variance, we have EF OHL ≤ EX.
+
+Proposition 3 reveals the validity of heterogeneity learning from factual observations for addressing the missing heterogeneity problem. In this way, we deal with the outcome variation in the sub-population with the same covariates X and achieve finer granular heterogeneous outcome prediction (i.e. closer to individual-level). Detailed proof of the propositions above can be found in the appendix. Empirically, the superiority of our strategy can also be verified in practice. We show it in the section of experiments.
+
+6. Experiments
+In this section, we present our experimental results to show the effectiveness of our method. The evaluation requires the ground truth of counterfactual outcomes for individuals, which is not satisfied by the observational study in reality. Hence the experiments are conducted on synthetic datasets and semi-synthetic datasets.
+6.1. Experimental Setup We give a brief overview of the baselines and the evaluation metrics used in the experiments.
+Baselines We compare our FOHL method with the methods listed below:
+8
+
+FACTUAL OBSERVATION BASED HETEROGENEITY LEARNING FOR COUNTERFACTUAL PREDICTION
+• Vanilla counterfactual prediction (Vcp): It directly applies feed-forward neural networks taking observed covariates and treatments as input to predict individual outcomes. The model is trained on the re-weighted dataset which removes the correlation between treatments and covariates. The sample weights are computed by density ratio estimation (Qin, 1998; Sugiyama et al., 2012; Bickel et al., 2007) as in Arbour et al. (2021).
+• CEVAE (Louizos et al., 2017): It uses variational autoencoder (VAE) (Rezende et al., 2014; Kingma and Welling, 2013) to capture the joint distribution of latent confounders, observed covariates, treatments and outcomes. Although the original version is designed for conditional average treatment effect estimation of binary treatment, we make some effort to extend this method for heterogeneous outcome prediction of multiple treatments by learning latent confounder representation from factual observations.
+• DSCM (Pawlowski et al., 2020): It simply formulates the treatments and covariates as the ancestors of the outcome, and conducts counterfactual query on this SCM. We use the variational inference to model the structural equation as the amortised, explicit setting in Pawlowski et al. (2020).
+• Deconfounder (Wang and Blei, 2019): It uses a factor model to compute the latent variables which can render the treatments conditionally independent as substitute confounders. Then it trained a predictive model taking substitute confounders and treatments as input. We choose VAE as the factor model which makes weaker assumptions about the data generation process.
+• Deconfounder(+): It trained the predictive model which takes observed covariates, substitute confounders learned by Deconfounder and treatments as input.
+Evaluation Metrics The methods are evaluated by the root mean square error (RMSE) of outcome estimation of the samples with all possible treatments in T . Intuitively, the smaller RMSE implies that the estimation achieved by the method is closer to the individual-level counterfactual prediction, with a better recovery on the missing heterogeneity. Specifically, there are two evaluation settings in our experiments, which are within-sample setting and out-of-sample setting.
+Under the within-sample setting, we evaluate methods on the samples in the observational dataset which is with factual observations. Latent confounder representation can be inferred by leveraging the previous treatment assignments and outcomes.
+Under the out-of-sample setting, the evaluation is conducted on the samples out of the observational dataset which is in absence of previous observed treatments and outcomes. Since Deconfounder and Deconfounder(+) rely heavily on the assigned treatments to infer hidden confounders, they can not be easily adapted to the out-of-sample setting. Vcp keeps the same between the two settings. Therefore, only DSCM, CEVAE, and our FOHL method are applicable and meaningful to this setting. The performance comparison between the two settings can reveal the advantage of heterogeneity learning from factual observations to address missing heterogeneity problem.
+6.2. Synthetic Datasets
+We give a brief overview of how to generate the synthetic datasets and then present the experimental results on the datasets.
+Datasets We generate the synthetic datasets in several steps. We generate the hidden confounders Z, where the elements are sampled from a gaussian distribution Z ∼ N (0, Σz). Then for each
+9
+
+ZOU WANG XU LI PEI YE CUI
+
+2.5 Within-sample RMSE
+
+2.6 Out-of-sample RMSE
+
+2.3
+
+2.5
+
+2.1
+
+2.4
+
+1.9
+
+2.4
+
+1.7
+
+2.3
+
+1.5 0
+
+2
+
+4 p2 6
+
+8 10
+FOHL (ours)
+
+2.2 0
+
+2
+CEVAE
+
+4 p2 6
+
+8
+
+10
+
+MSE
+
+5 4 3 2 1
+0 0 1 2 p1 3 4 5
+Covariates X DSCM FOHL (ours) Deconfounder CEVAE
+
+Figure 3: The influence of noisy measurement dimension p2 on RMSE of prediction. We conduct experiments under the setting where p1 = 3 and σx = 0.3. The shade region presents the interval [meanstd,mean+std] of RMSE.
+
+Figure 4: The confounder estimation MSE based on different methods. p1 is confounder measurement dimension.
+
+sample in the dataset, we assign treatments based on the hidden confounders Z. To be specific,
+we firstly compute the vector L = Z · A + εL, where L, εL ∈ Rd, A ∈ Rs×d. The elements in A are independently generated from N (0, 0.82) and fixed for all the samples. The noise vector ϵL is generated once from N (0, 1.82) for each sample. Then the treatment variable T is calculated
+
+from L. For each j ∈ {1, 2, ..., d}, if l,j > 0, we set t,j = 1, otherwise we set t,j = 0. The
+
+outcome is determined by both confounders Z and T. We generate it from a pre-defined function:
+
+y=
+
+s j=1
+
+d k=1
+
+z,j dj,kt,k,
+
+where
+
+D
+
+∈
+
+Rs×d
+
+is
+
+a
+
+constant
+
+matrix.
+
+The
+
+observed
+
+covariates
+
+consist
+
+of two parts. One is the noisy measurement of (partial) hidden confounders Xm ∈ Rp1. For each
+
+j ∈ {1, 2, ..., p1}, xm,j = z,j + εx, where εx ∼ N (0, σx2) is measurement noise. The other part is noisy observations Xn ∈ Rp2. The noisy observations are sampled from gaussian distribution
+
+Xn ∼ N (0, Σx) and irrelevant to treatments and outcomes. Finally, the observed covariates are
+
+the concatenate of the two parts. Formally, X = [Xm, Xn]. Since only partial information of
+
+confounders is observed, it brings missing heterogeneity and confounding bias into the dataset.
+
+For evaluation, we randomly assign new treatments to each sample by sampling treatments from uniform distribution: t,1, t,2, ..., t,d ∼ Bernoulli(0.5), and generate new outcomes. We calculate the RMSE of estimation of the new outcomes to compare different methods.
+
+In these experiments, we set confounder dimension s = 5, treatment dimension d = 20, dimension of noisy observation p2 = 10, and sample size n = 10000. More detailed information on the experimental setup is described in the appendix. We also conduct experiments under the setting where the latent confounders are generated from observed covariates. The detailed results are included in the appendix and show that our method still achieve superior performance.
+
+Results We conduct experiments under different settings by varying the dimension p1 and noise scale of hidden confounder measurement σx. For each experiment setting, we repeatedly conduct the experiments for 10 times and calculate the mean value and standard deviation of RMSEs in the outcome estimation. The performance under both the within-sample setting and the out-of-sample setting is reported in Table 1.
+
+10
+
+FACTUAL OBSERVATION BASED HETEROGENEITY LEARNING FOR COUNTERFACTUAL PREDICTION
+
+Table 1: The experimental results on synthetic datasets. Mean and STD refer to the average value and standard deviation of the RMSE results in 10 times repeated experiments. Lower metrics means better performance. The best performance among the methods is marked bold.
+
+Varying confounder measurement dimension p1, Fixing noise scale σx = 0.3
+
+Within-Sample Setting
+
+p1
+
+p1 = 0
+
+p1 = 1
+
+p1 = 2
+
+p1 = 3
+
+p1 = 4
+
+p1 = 5
+
+Methods
+
+Mean STD Mean STD Mean STD Mean STD Mean STD Mean STD
+
+Vcp Deconfounder Deconfounder(+)
+DSCM CEVAE FOHL
+
+4.161 3.259 4.392 3.784 2.107 1.920
+
+0.043 0.203 0.287 0.022 0.234 0.081
+
+3.768 3.259 3.998 3.265 2.016 1.862
+
+0.062 0.203 0.485 0.029 0.041 0.030
+
+3.430 3.259 3.874 3.023 1.844 1.722
+
+0.061 0.203 0.395 0.018 0.031 0.024
+
+2.853 3.259 3.233 2.536 2.283 1.703
+
+0.042 0.203 0.411 0.034 0.058 0.050
+
+2.039 3.259 2.964 1.787 1.588 1.449
+
+0.038 0.203 0.308 0.026 0.021 0.040
+
+1.391 3.259 2.073 1.190 1.551 1.172
+
+0.051 0.203 0.242 0.024 0.092 0.030
+
+Out-of-Sample Setting
+
+DSCM CEVAE FOHL
+
+4.069 0.014 3.514 0.022 3.183 0.012 2.651 0.028 1.817 0.021 1.210 0.021 3.715 0.032 3.060 0.017 2.754 0.020 2.520 0.041 1.754 0.016 1.620 0.070 3.732 0.022 3.071 0.013 2.740 0.015 2.300 0.028 1.662 0.032 1.189 0.027
+
+Varying noise scale σx , Fixing confounder measurement dimension p1 = 4
+
+Within-Sample Setting
+
+σx
+
+σx = 0.2
+
+σx = 0.4
+
+σx = 0.6
+
+σx = 0.8
+
+σx = 1.0
+
+σx = 1.2
+
+Methods
+
+Mean STD Mean STD Mean STD Mean STD Mean STD Mean STD
+
+Vcp Deconfounder Deconfounder(+)
+DSCM CEVAE FOHL
+
+1.799 3.259 2.467 1.611 1.534 1.384
+
+0.043 0.203 0.167 0.027 0.030 0.026
+
+2.275 3.259 2.899 1.988 1.682 1.555
+
+0.054 0.203 0.477 0.025 0.031 0.098
+
+2.719 3.259 3.036 2.386 1.800 1.678
+
+0.018 0.203 0.257 0.022 0.031 0.120
+
+3.074 3.259 3.279 2.710 1.869 1.724
+
+0.050 0.203 0.275 0.027 0.027 0.120
+
+3.338 3.259 3.460 2.950 1.895 1.751
+
+0.050 0.203 0.583 0.027 0.034 0.102
+
+3.519 3.259 3.777 3.143 1.883 1.755
+
+0.042 0.203 0.570 0.031 0.035 0.073
+
+Out-of-Sample Setting
+
+DSCM CEVAE FOHL
+
+1.631 0.021 2.042 0.023 2.487 0.016 2.859 0.022 3.135 0.017 3.348 0.019 1.606 0.024 1.900 0.024 2.226 0.022 2.494 0.016 2.699 0.021 2.861 0.021 1.524 0.024 1.848 0.059 2.210 0.047 2.506 0.042 2.734 0.030 2.921 0.027
+
+From the results in Table 1, we can observe that when less confounder information is contained in the observed covariates (e.g. smaller p1 and larger σx), Vcp performs worst among the different methods because it suffers from the confounding bias and missing heterogeneity problem due to the lack of confounder information in the data. Deconfounder can infer the hidden confounders when treatments are available and reduce RMSE based on Vcp to some degree when few individual information are measured. Deconfounder(+) roughly concatenates the inferred representation and noisy observations, therefore achieving unsatisfactory performance. DSCM assumes the latent confounders are marginally independent of observed covariates and treatments. Hence it suffers from the confounding bias and performs poorly under different settings. CEVAE and our FOHL method both learn the latent confounder representation from the factual observations to achieve finer granular heterogeneous prediction. The counterfactual prediction results are more accurate for individuals under the within-sample setting. The performance comparison between within-sample setting and out-of-sample setting highlights the advantage of addressing missing heterogeneity for finer granular
+
+11
+
+ZOU WANG XU LI PEI YE CUI
+heterogeneous outcome prediction. Since CEVAE learns the latent confounder representation to reconstruct observed covariates, it is vulnerable to noisy observations in the covariates. This has also been studied by previous literature (Rissanen and Marttinen, 2021). Therefore, our method achieves the best performance among all the methods.
+We conduct confounder estimation experiments with σx = 0.3, which trains a neural network to predict the true underlying confounders based on the learned representations of different methods or only covariates. The results shown in Figure 4 reveal that our method which simultaneously leverages covariates, treatments, and outcomes, achieves the smallest estimation error and performs best in recovering the underlying confounders. We also conduct experiments to predict the noisy observations Xn based on the representation learned by FOHL and CEVAE. The prediction MSE of representation learned by CEVAE and FOHL are respectively around 1.800 and 9.800 under various settings. This shows that our method can resist the influence of noise in the covariates while CEVAE suffers from it. We empirically investigate the influence of the noisy measurement dimension on performance. The results in Figure 3 show that the performance of our method is overall stable w.r.t the quantity of noisy measurement in the observed covariates. However, CEVAE is vulnerable to it.
+We explore the influence of latent variable dimension and hyper-parameter σφ in the model on the performance. The results of these experiments can be found in the appendix.
+6.3. Semi-synthetic Datasets
+We conduct some experiments on the semi-synthetic datasets generated by Recsim (Ie et al., 2019) which approximates the recommendation scenarios.
+Datasets There is an environment1 simulating document recommendation in Recsim. Each document is depicted by its category and quality. The confounder of a user is a vector of affinity to each document category Z ∈ Rs, where s is the number of categories. The recommended items form the treatment vector T ∈ {0, 1}d, where d is the number of documents in the pool and each bit means whether the corresponding document is recommended.
+To generate the observational dataset, we assign treatments in a similar manner to that of synthetic datasets. Given the user confounders and recommended documents (i.e. treatments), the simulator can generate the click probability on the recommended document bundle, which is treated as the outcome. We also concatenate the noisy measurement of user confounders and noisy observations as the observed covariates. For evaluation, we calculate the RMSE of prediction in the testing dataset, where each document is recommended independently with 50% probability. Due to the space limitations of the main paper, we leave a detailed description of the experimental setup in the appendix.
+Results We conduct experiments under different settings by varying the confounder measurement dimension and noise scale of confounder measurement. The results are shown in Table 2.
+From the results of the semi-synthetic dataset, we can observe a similar trend to that of experiments on synthetic datasets. When the confounder information in the observed covariates is little, the performance of FOHL and CEVAE under the within-sample setting is superior to the counterpart under the out-of-sample setting. This coincides with the intuition and indicates the benefit of leveraging factual observations to heterogeneity learning for finer granular heterogeneous outcome prediction, especially when little individual confounder information is observed in covariates.
+1. https://github.com/google-research/recsim/blob/master/recsim/environments/interest exploration.py
+12
+
+FACTUAL OBSERVATION BASED HETEROGENEITY LEARNING FOR COUNTERFACTUAL PREDICTION
+
+Table 2: The experimental results of click probability prediction on semi-synthetic datasets (×10−1).
+
+Varying confounder measurement dimension p1, Fixing noise scale σx = 0.5
+
+Within-Sample Setting
+
+p1
+
+p1 = 0
+
+p1 = 1
+
+p1 = 2
+
+p1 = 3
+
+p1 = 4
+
+p1 = 5
+
+Methods
+
+Mean STD Mean STD Mean STD Mean STD Mean STD Mean STD
+
+Vcp Deconfounder Deconfounder(+)
+DSCM CEVAE FOHL
+
+1.779 1.450 1.443 1.633 1.326 1.115
+
+0.014 0.117 0.325 0.007 0.200 0.224
+
+1.629 1.450 1.380 1.511 1.185 1.037
+
+0.036 0.117 0.273 0.017 0.044 0.101
+
+1.539 1.450 1.379 1.414 1.125 1.051
+
+0.020 0.117 0.243 0.013 0.046 0.086
+
+1.502 1.450 1.165 1.408 1.162 1.003
+
+0.026 0.117 0.103 0.041 0.037 0.104
+
+1.258 1.450 1.126 1.267 1.083 0.934
+
+0.022 0.117 0.285 0.066 0.030 0.059
+
+1.181 1.450 1.117 1.168 1.049 0.830
+
+0.052 0.117 0.222 0.063 0.039 0.035
+
+Out-of-Sample Setting
+
+DSCM CEVAE FOHL
+
+1.788 0.008 1.651 0.011 1.545 0.018 1.517 0.028 1.308 0.043 1.778 0.046 1.467 0.039 1.362 0.018 1.271 0.040 1.105 0.040 1.696 0.016 1.437 0.014 1.333 0.017 1.245 0.026 1.047 0.044
+Varying noise scale σx , Fixing confounder measurement dimension p1 = 4
+
+1.214 1.063 0.952
+
+0.042 0.042 0.023
+
+Within-Sample Setting
+
+σx
+
+σx = 0.2
+
+σx = 0.4
+
+σx = 0.6
+
+σx = 0.8
+
+σx = 1.0
+
+σx = 1.2
+
+Methods
+
+Mean STD Mean STD Mean STD Mean STD Mean STD Mean STD
+
+Vcp Deconfounder Deconfounder(+)
+DSCM CEVAE FOHL
+
+0.700 1.450 0.916 0.690 1.029 0.681
+
+0.032 0.117 0.247 0.016 0.098 0.017
+
+1.105 1.450 1.054 1.120 1.046 0.940
+
+0.033 0.117 0.153 0.067 0.035 0.046
+
+1.385 1.450 1.251 1.325 1.084 0.906
+
+0.019 0.117 0.274 0.082 0.032 0.052
+
+1.524 1.450 1.353 1.453 1.107 0.902
+
+0.019 0.117 0.248 0.072 0.040 0.046
+
+1.616 1.450 1.296 1.545 1.127 0.929
+
+0.020 0.117 0.164 0.064 0.038 0.077
+
+1.668 1.450 1.348 1.555 1.147 0.968
+
+0.017 0.117 0.528 0.023 0.032 0.101
+
+Out-of-Sample Setting
+
+DSCM CEVAE FOHL
+
+0.705 0.016 1.156 0.052 1.393 0.054 1.542 0.049 1.644 0.046 1.670 0.030 1.077 0.074 1.060 0.036 1.147 0.036 1.238 0.056 1.335 0.054 1.408 0.058 0.692 0.014 1.004 0.038 1.075 0.036 1.168 0.025 1.260 0.037 1.343 0.040
+
+7. Conclusion
+In this paper, we investigate the problem of finer granular heterogeneous outcome prediction under the setting of missing confounders which is closer to individual-level counterfactual prediction. We propose a Factual Observation based Heterogeneity Learning (FOHL) method to simultaneously address the confounding bias and missing heterogeneity problem. Theoretical analysis reveals the advantage of our strategy. Extensive experimental results show the effectiveness of our method.
+
+Acknowledgments
+Peng Cui’s research was supported in part by National Key R&D Program of China (No.2018AAA0102004, No. 2020AAA0106300), National Natural Science Foundation of China (No.U1936219, 62141607), Beijing Academy of Artificial Intelligence (BAAI). Bo Li’s research was supported by the National Natural Science Foundation of China (No.72171131, 72133002); the Technology and Innovation Major Project of the Ministry of Science and Technology of China under Grants 2020AAA0108400 and 2020AAA0108403.
+13
+
+ZOU WANG XU LI PEI YE CUI
+References
+David Arbour, Drew Dimmery, and Arjun Sondhi. Permutation weighting. In International Conference on Machine Learning, pages 331–341. PMLR, 2021.
+Serge Assaad, Shuxi Zeng, Chenyang Tao, Shounak Datta, Nikhil Mehta, Ricardo Henao, Fan Li, and Lawrence Carin. Counterfactual representation learning with balancing weights. In International Conference on Artificial Intelligence and Statistics, pages 1972–1980. PMLR, 2021.
+Jeroen Berrevoets, James Jordon, Ioana Bica, Mihaela van der Schaar, et al. Organite: Optimal transplant donor organ offering using an individual treatment effect. Advances in neural information processing systems, 33:20037–20050, 2020.
+Ioana Bica, Ahmed M. Alaa, James Jordon, and Mihaela van der Schaar. Estimating counterfactual treatment outcomes over time through adversarially balanced representations. In 8th International Conference on Learning Representations, ICLR 2020, Addis Ababa, Ethiopia, April 26-30, 2020, 2020a.
+Ioana Bica, James Jordon, and Mihaela van der Schaar. Estimating the effects of continuous-valued interventions using generative adversarial networks. Advances in Neural Information Processing Systems, 33:16434–16445, 2020b.
+Steffen Bickel, Michael Bru¨ckner, and Tobias Scheffer. Discriminative learning for differing training and test distributions. In Proceedings of the 24th international conference on Machine learning, pages 81–88, 2007.
+Le´on Bottou, Jonas Peters, Joaquin Quin˜onero-Candela, Denis X Charles, D Max Chickering, Elon Portugaly, Dipankar Ray, Patrice Simard, and Ed Snelson. Counterfactual reasoning and learning systems: The example of computational advertising. Journal of Machine Learning Research, 14 (11), 2013.
+Konstantinos Bousmalis, George Trigeorgis, Nathan Silberman, Dilip Krishnan, and Dumitru Erhan. Domain separation networks. Advances in neural information processing systems, 29, 2016.
+Issa J Dahabreh, Rodney Hayward, and David M Kent. Using group data to treat individuals: understanding heterogeneous treatment effects in the age of precision medicine and patient-centred evidence. International journal of epidemiology, 45(6):2184–2193, 2016.
+Yaroslav Ganin and Victor Lempitsky. Unsupervised domain adaptation by backpropagation. In International conference on machine learning, pages 1180–1189. PMLR, 2015.
+Ian Goodfellow, Jean Pouget-Abadie, Mehdi Mirza, Bing Xu, David Warde-Farley, Sherjil Ozair, Aaron Courville, and Yoshua Bengio. Generative adversarial networks. Communications of the ACM, 63(11):139–144, 2020.
+Jason Hartford, Greg Lewis, Kevin Leyton-Brown, and Matt Taddy. Deep iv: A flexible approach for counterfactual prediction. In International Conference on Machine Learning, pages 1414–1423. PMLR, 2017.
+14
+
+FACTUAL OBSERVATION BASED HETEROGENEITY LEARNING FOR COUNTERFACTUAL PREDICTION
+Negar Hassanpour and Russell Greiner. Counterfactual regression with importance sampling weights. In IJCAI, pages 5880–5887, 2019.
+Negar Hassanpour and Russell Greiner. Learning disentangled representations for counterfactual regression. In International Conference on Learning Representations, 2020.
+Xiangnan He, Lizi Liao, Hanwang Zhang, Liqiang Nie, Xia Hu, and Tat-Seng Chua. Neural collaborative filtering. In Proceedings of the 26th international conference on world wide web, pages 173–182, 2017.
+James Heckman. Instrumental variables: A study of implicit behavioral assumptions used in making program evaluations. Journal of human resources, pages 441–462, 1997.
+Jonathan Ho, Ajay Jain, and Pieter Abbeel. Denoising diffusion probabilistic models. Advances in Neural Information Processing Systems, 33:6840–6851, 2020.
+Patrik Hoyer, Dominik Janzing, Joris M Mooij, Jonas Peters, and Bernhard Scho¨lkopf. Nonlinear causal discovery with additive noise models. Advances in neural information processing systems, 21, 2008.
+Chin-Wei Huang, David Krueger, Alexandre Lacoste, and Aaron Courville. Neural autoregressive flows. In International Conference on Machine Learning, pages 2078–2087. PMLR, 2018.
+Eugene Ie, Chih-wei Hsu, Martin Mladenov, Vihan Jain, Sanmit Narvekar, Jing Wang, Rui Wu, and Craig Boutilier. Recsim: A configurable simulation platform for recommender systems. arXiv preprint arXiv:1909.04847, 2019.
+Fredrik Johansson, Uri Shalit, and David Sontag. Learning representations for counterfactual inference. In International conference on machine learning, pages 3020–3029. PMLR, 2016.
+Ilyes Khemakhem, Diederik Kingma, Ricardo Monti, and Aapo Hyvarinen. Variational autoencoders and nonlinear ica: A unifying framework. In International Conference on Artificial Intelligence and Statistics, pages 2207–2217. PMLR, 2020.
+Ilyes Khemakhem, Ricardo Monti, Robert Leech, and Aapo Hyvarinen. Causal autoregressive flows. In International conference on artificial intelligence and statistics, pages 3520–3528. PMLR, 2021.
+Diederik P Kingma and Max Welling. Auto-encoding variational bayes. arXiv preprint arXiv:1312.6114, 2013.
+Hyun-Suk Lee, Yao Zhang, William Zame, Cong Shen, Jang-Won Lee, and Mihaela van der Schaar. Robust recursive partitioning for heterogeneous treatment effects with uncertainty quantification. Advances in Neural Information Processing Systems, 33:2282–2292, 2020.
+Lihong Li, Shunbao Chen, Jim Kleban, and Ankur Gupta. Counterfactual estimation and optimization of click metrics in search engines: A case study. In Proceedings of the 24th International Conference on World Wide Web, pages 929–934, 2015.
+Bryan Lim. Forecasting treatment responses over time using recurrent marginal structural networks. Advances in neural information processing systems, 31, 2018.
+15
+
+ZOU WANG XU LI PEI YE CUI
+Christos Louizos, Uri Shalit, Joris M Mooij, David Sontag, Richard Zemel, and Max Welling. Causal effect inference with deep latent-variable models. Advances in neural information processing systems, 30, 2017.
+Wang Miao and Eric Tchetgen Tchetgen. Invited commentary: bias attenuation and identification of causal effects with multiple negative controls. American journal of epidemiology, 185(10): 950–953, 2017.
+Wang Miao, Zhi Geng, and Eric J Tchetgen Tchetgen. Identifying causal effects with proxy variables of an unmeasured confounder. Biometrika, 105(4):987–993, 2018.
+Wang Miao, Wenjie Hu, Elizabeth L. Ogburn, and Xiaohua Zhou. Identifying effects of multiple treatments in the presence of unmeasured confounding. Journal of the American Statistical Association, 2022.
+Nick Pawlowski, Daniel Coelho de Castro, and Ben Glocker. Deep structural causal models for tractable counterfactual inference. Advances in Neural Information Processing Systems, 33: 857–869, 2020.
+Judea Pearl. Causal inference in statistics: An overview. Statistics surveys, 3:96–146, 2009a.
+Judea Pearl. Causality. Cambridge university press, 2009b.
+Judea Pearl. The seven tools of causal inference, with reflections on machine learning. Communications of the ACM, 62(3):54–60, 2019.
+Zhaozhi Qian, Alicia Curth, and Mihaela van der Schaar. Estimating multi-cause treatment effects via single-cause perturbation. Advances in Neural Information Processing Systems, 34, 2021.
+Jing Qin. Inferences for case-control and semiparametric two-sample density ratio models. Biometrika, 85(3):619–630, 1998.
+Steffen Rendle. Factorization machines. In 2010 IEEE International conference on data mining, pages 995–1000. IEEE, 2010.
+Danilo Rezende and Shakir Mohamed. Variational inference with normalizing flows. In International conference on machine learning, pages 1530–1538. PMLR, 2015.
+Danilo Jimenez Rezende, Shakir Mohamed, and Daan Wierstra. Stochastic backpropagation and approximate inference in deep generative models. In International conference on machine learning, pages 1278–1286. PMLR, 2014.
+Severi Rissanen and Pekka Marttinen. A critical look at the consistency of causal estimation with deep latent variable models. Advances in Neural Information Processing Systems, 34, 2021.
+Paul R Rosenbaum and Donald B Rubin. The central role of the propensity score in observational studies for causal effects. Biometrika, 70(1):41–55, 1983.
+Pedro Sanchez and Sotirios A Tsaftaris. Diffusion causal models for counterfactual estimation. In First Conference on Causal Learning and Reasoning, 2021.
+16
+
+FACTUAL OBSERVATION BASED HETEROGENEITY LEARNING FOR COUNTERFACTUAL PREDICTION
+Uri Shalit, Fredrik D Johansson, and David Sontag. Estimating individual treatment effect: generalization bounds and algorithms. In International Conference on Machine Learning, pages 3076–3085. PMLR, 2017.
+Yang Song, Jascha Sohl-Dickstein, Diederik P. Kingma, Abhishek Kumar, Stefano Ermon, and Ben Poole. Score-based generative modeling through stochastic differential equations. In 9th International Conference on Learning Representations, ICLR 2021, Virtual Event, Austria, May 3-7, 2021. OpenReview.net, 2021. URL https://openreview.net/forum?id=PxTIG12RRHS.
+Masashi Sugiyama, Taiji Suzuki, and Takafumi Kanamori. Density ratio estimation in machine learning. Cambridge University Press, 2012.
+Eric Tzeng, Judy Hoffman, Ning Zhang, Kate Saenko, and Trevor Darrell. Deep domain confusion: Maximizing for domain invariance. arXiv preprint arXiv:1412.3474, 2014.
+Yixin Wang and David M Blei. The blessings of multiple causes. Journal of the American Statistical Association, 114(528):1574–1596, 2019.
+Can Xu, Ahmed Alaa, Ioana Bica, Brent Ershoff, Maxime Cannesson, and Mihaela van der Schaar. Learning matching representations for individualized organ transplantation allocation. In International Conference on Artificial Intelligence and Statistics, pages 2134–2142. PMLR, 2021.
+Liuyi Yao, Sheng Li, Yaliang Li, Mengdi Huai, Jing Gao, and Aidong Zhang. Representation learning for treatment effect estimation from observational data. Advances in Neural Information Processing Systems, 31, 2018.
+Jinsung Yoon, James Jordon, and Mihaela Van Der Schaar. Ganite: Estimation of individualized treatment effects using generative adversarial nets. In International Conference on Learning Representations, 2018.
+Shuxi Zeng, Serge Assaad, Chenyang Tao, Shounak Datta, Lawrence Carin, and Fan Li. Double robust representation learning for counterfactual prediction. arXiv preprint arXiv:2010.07866, 2020.
+Weijia Zhang, Lin Liu, and Jiuyong Li. Treatment effect estimation with disentangled latent factors. In AAAI, 2021.
+Hao Zou, Peng Cui, Bo Li, Zheyan Shen, Jianxin Ma, Hongxia Yang, and Yue He. Counterfactual prediction for bundle treatment. Advances in Neural Information Processing Systems, 33:19705– 19715, 2020.
+17
+
+ZOU WANG XU LI PEI YE CUI
+
+Appendix A. Proofs
+Proposition 4 (Restated) If the Assumption 1 holds, we have Y (do(tc)|x, t, y) = E[y|x, t, y, do(tc)] and Y (do(tc)|x) = E[y|x, do(tc)].
+
+Proof According to Assumption 1, we have:
+
+p′(x, t, y) =
+
+p′(z′, x, t, y)dz′ =
+z′
+
+z′
+
+p(f −1(z′), x, t, y)
+
+|det(
+
+∂f ∂z
+
+)|z=f
+
+−1 (z′
+
+)
+
+dz′
+
+p(z, x, t, y)
+
+∂f
+
+=
+
+z
+
+|det(
+
+∂f ∂z
+
+)|
+
+· |det( )|dz = ∂z
+
+p(z, x, t, y)dz = p(x, t, y).
+z
+
+p(t, y, z) = p(x, t, y, z)dx = p′(x, t, y, f (z))|det( ∂f )|dx
+
+(6)
+
+x
+
+x
+
+∂z
+
+= p′(t, y, f (z))|det( ∂f )|.
+
+(7)
+
+∂z
+
+p(t, z) = p′(t, f (z))|det( ∂f )|.
+
+(8)
+
+∂z
+
+p(x, z) = p′(x, f (z))|det( ∂f )|.
+
+(9)
+
+∂z
+
+Therefore, denoting z′ as the latent representation derived from our model and p′(y′|x, t, y, do(tc)) as the outcome distribution with intervening tc given observed x, t and y, we can conclude that
+
+p′(y′|z′, tc)
+
+=
+
+p′(y′, z′, tc) p′(z′, tc)
+
+=
+
+p(y′|f −1(z′), tc)
+
+(10)
+
+p′(z′|x, t, y)
+
+=
+
+p′(z′, x, t, y) p(f −1(z′)|x, t, y)
+
+p′(x, t, y)
+
+=
+
+|det(
+
+∂f ∂z
+
+)|z=f
+
+−1 (z′
+
+)
+
+(11)
+
+p′(y′|x, t, y, do(tc)) =
+
+p′(z′|x, t, y)p′(y′|z′, tc)dz′
+
+(12)
+
+z′
+
+=
+
+z′
+
+p(f −1(z′)|x, t, y)
+
+|det(
+
+∂f ∂z
+
+)|z=f
+
+−1
+
+(z′)
+
+p(y′
+
+|f
+
+−1
+
+(z′
+
+),
+
+tc)dz′
+
+(13)
+
+=
+
+z
+
+p(z|x, t, y)
+
+|det(
+
+∂f ∂z
+
+)|
+
+p(y′|z,
+
+tc)df (z)
+
+(14)
+
+= p(z|x, t, y)p(y′|z, tc)dz = p(y′|x, t, y, do(tc))
+
+(15)
+
+z
+
+Then we can have Y (do(tc)|x, t, y) = Ey∼p′(y|x,t,y,do(tc))[y] = E[y|x, t, y, do(tc)].
+
+Proposition 5 (Restated) Assuming the individual outcome satisfies Yz(t) = g(z, t) + ε where ε is a noise term with zero mean and σ2 variance, EF OHL, EX can be written as following:
+
+EF OHL EX
+
+= Etc∼pu(t) Ex,t,y∼p(x,t,y) V arz∼p(z|x,t,y) [g(z, tc|)] = Etc∼pu(t) Ex∼p(x) V arz∼p(z|x) [g(z, tc)] + σ2.
+
++ σ2,
+
+(16) (17)
+
+According to the law of total variance, we have EF OHL ≤ EX.
+
+18
+
+FACTUAL OBSERVATION BASED HETEROGENEITY LEARNING FOR COUNTERFACTUAL PREDICTION
+
+Proof
+
+EF OHL =
+
+pu(tc)
+
+p(x, t, y)p(z|x, t, y)[E[(Yz(tc) − Ez∼p(z|x,t,y)[g(z, tc)])2]]dxdtdydzdtc
+
+tc
+
+x,t,y,z
+
+=
+
+pu(tc)
+
+p(x, t, y)[V arz∼p(z|x,t,y)[g(z, tc)] + σ2]dxdtdzdtc
+
+tc
+
+x,t,y
+
+= Etc∼pu(t) Ex,t,y∼p(x,t,y) V arz∼p(z|x,t,y) [g(z, tc)] + σ2
+
+= Etc∼pu(t) Ex∼p(x) Et,y∼p(t,y|x) V arz∼p(z|x,t,y) [g(z, tc)] + σ2
+
+(18)
+
+Similarly, we can also have
+
+E X = Etc∼pu(t) Ex∼p(x) V arz∼p(z|x) [g(z, tc)] + σ2.
+
+According to the law of total variance, we have
+
+V arz∼p(z|x) [g(z, tc)] ≥ Et,y∼p(t,y|x) V arz∼p(z|x,t,y) [g(z, tc)] , ∀tc ∈ T , x ∈ X .
+
+The equality only holds when ∀x, t, y, tc, Ez∼p(z|x)[g(z, tc)] = Ez∼p(z|x,t,y)[g(z, tc)]. Therefore, we have EF OHL ≤ EX.
+
+Appendix B. Pseudo-code of FOHL
+The pseudo-code can be found in Algorithm 1.
+
+Appendix C. Experimental details
+
+In the synthetic datasets, the matrix Σz ∈ Rs×s. For i ̸= j, Σzi,j = 0.2 and for i = j, Σzi,j = 1.0. The matrix Σx ∈ Rp2×p2. For i ̸= j, Σxi,j = 0.8 and for i = j, Σxi,j = 1.0. The matrix D is generated from gaussian distribution, di,j = ai,j/4 + N (0, 0.12) + 0.1.
+
+In the semi-synthetic datasets, the user confounder Z is also sampled from gaussian distribution N (0, Σz). For i ̸= j, Σzi,j = 0.3 and for i = j, Σzi,j = 1.0.
+The observed covariates in the semi-synthetic datasets also consists of two parts. One is the
+
+noisy measurement of hidden confounders Xm ∈ Rp1. For each j ∈ {1, 2, ..., p1}, xm,j = z,j +
+
+εx, where εx ∼ N (0, σx2) is measurement noise. The other part is noisy observations Xn ∈
+
+Rp2. The noisy observations are sampled from guassian distribution Xn ∼ N (0, Σx). Finally,
+
+the observed covariates is the concatenate of the two parts. Formally, X = [Xm, Xn]. Σx =
+
+Diag(Σ(1), Σ(2), Σ(3)).
+
+For
+
+k
+
+∈
+
+{1, 2, 3},
+
+Σ(k)
+
+∈
+
+R p2 3
+
+×
+
+p2 3
+
+.
+
+For
+
+i
+
+̸=
+
+j,
+
+Σ(i,kj)
+
+=
+
+0.85
+
+and
+
+for
+
+i
+
+=
+
+j,
+
+Σ(i,kj) = 1.0. We set the sample size n = 10000, the dimension of confounders s = 5, the dimension
+
+treatment d = 50, the dimension of noisy observations p2 = 15.
+
+The encoder, decoder and conditional prior components are implemented by a neural networks with two hidden layers of size 50. The learning rate is set to be 10−3. We use the ELU function
+
+as activation functions. The model is trained by 3000 epochs using Adam optimizer. The hyper-
+
+parameter
+
+(σφ)2
+
+=
+
+1.0
+
+in
+
+the
+
+experiments
+
+of
+
+synthetic
+
+datasets
+
+and
+
+(σφ)2
+
+=
+
+1 800
+
+in
+
+the
+
+experiments
+
+of semi-synthetic datasets.
+
+19
+
+ZOU WANG XU LI PEI YE CUI
+
+Algorithm 1 Factual Observation based Heterogeneity Learning (FOHL)
+
+Input: Observational data {(xj, tj, yj)}1≤j≤n, learning rate λp, new treatments for the ith sample under within-sample setting tin, new samples and new treatments xout, tout under out-of-
+
+sample setting. Output: Predicted treatment outcome yin and yout.
+
+Train the model, including encoder qϕ(Z|X, T, y), decoder pφ(T|Z), pφ(y|Z, T) and conditional
+prior pρ(Z|X). Set yin ← 0. // Under within-sample setting.
+
+for k = 1, 2, ..., m do
+
+Sample r ∼ N (0, I).
+
+Compute zˆin ← µϕ(xi, ti, yi) + r ⊙ σϕ(xi, ti, yi).
+
+Update
+
+yin
+
+←
+
+yin
+
++
+
+1 m
+
+·
+
+µφ(zˆin, tin).
+
+end
+
+Set yout ← 0. // Under out-of-sample setting.
+
+for k = 1, 2, ..., m do
+
+Sample r ∼ N (0, I).
+
+Compute zˆout ← µρ(xout) + r ⊙ σρ(xout)
+
+Update
+
+yout
+
+←
+
+yout
+
++
+
+1 m
+
+·
+
+µφ(zˆout,
+
+tout).
+
+end
+
+Return predicted outcome yin and yout.
+
+Within-sample RMSE
+3.0
+
+Out-of-sample RMSE
+3.0
+
+3.0 Within-sample RMSE
+
+3.4 Out-of-sample RMSE
+
+2.5
+
+2.7
+
+2.5
+
+3.2
+
+2.0
+
+2.5
+
+2.1
+
+2.9
+
+1.50.1 0.25 0.5 21.0 2.5 5.0 2.20.1 0.25 0.5 21.0 2.5 5.0 1.6D2im 3of la4ten5t var6iabl7e 2.7D2im 3of la4ten5t var6iabl7e
+
+FOHL (ours)
+
+CEVAE
+
+Figure 5: The influence of σφ and latent variable dimension on RMSE of counterfactual prediction.
+We conduct experiments under the original synthetic dataset of main paper where p1 = 3 and σx = 0.3 for analysis on σφ and p1 = 2 and σx = 0.3 for analysis on latent variable dimension.
+
+Appendix D. Parameter Analysis
+We conduct parameter analysis on synthetic datasets to show the characteristic of our method. To show the influence of (σφ)2 and the latent variable dimension in model on the performance, we plot the curve of prediction error results in Figure 5. The results reflect that the performance of FOHL and CEVAE is stable w.r.t to the latent variable dimension. When the dimension is excessively small, the performance significantly declines.
+20
+
+FACTUAL OBSERVATION BASED HETEROGENEITY LEARNING FOR COUNTERFACTUAL PREDICTION
+
+Table 3: The experimental results on synthetic datasets where confounders are generated from covariates.
+
+Varying observed dimension p1, Fixing σz = 0.3
+
+Within-Sample Setting
+
+p1
+
+p1 = 0
+
+p1 = 1
+
+p1 = 2
+
+p1 = 3
+
+p1 = 4
+
+p1 = 5
+
+Methods
+
+Mean STD Mean STD Mean STD Mean STD Mean STD Mean STD
+
+Vcp Deconfounder Deconfounder(+)
+DSCM CEVAE FOHL
+
+4.016 3.393 3.614 3.674 2.468 2.198
+
+0.041 0.287 0.284 0.028 0.254 0.066
+
+3.938 3.393 3.862 3.452 2.358 2.191
+
+0.042 0.287 0.306 0.019 0.094 0.096
+
+3.652 3.393 3.793 3.104 2.542 2.173
+
+0.044 0.287 0.310 0.032 0.256 0.082
+
+3.065 3.393 3.287 2.653 2.372 1.946
+
+0.061 0.287 0.225 0.046 0.033 0.071
+
+2.789 3.393 3.657 2.430 2.946 1.746
+
+0.070 0.287 0.357 0.020 0.269 0.043
+
+1.496 3.393 2.529 1.330 1.495 1.337
+
+0.045 0.287 0.208 0.054 0.037 0.046
+
+Out-of-Sample Setting
+
+DSCM CEVAE FOHL
+
+3.880 0.011 3.514 0.022 3.338 0.021 2.743 0.037 2.487 0.023 1.342 0.051 3.612 0.038 3.450 0.055 3.286 0.307 2.683 0.015 2.988 0.144 1.515 0.033 3.695 0.036 3.494 0.033 3.026 0.030 2.600 0.032 2.321 0.033 1.347 0.042
+
+Varying σz , Fixing p1 = 3
+
+Within-Sample Setting
+
+σx
+
+σx = 0.2
+
+σx = 0.4
+
+σx = 0.6
+
+σx = 0.8
+
+σx = 1.0
+
+σx = 1.2
+
+Methods
+
+Mean STD Mean STD Mean STD Mean STD Mean STD Mean STD
+
+Vcp Deconfounder Deconfounder(+)
+DSCM CEVAE FOHL
+
+2.902 3.694 3.157 2.573 2.435 1.897
+
+0.044 0.322 0.221 0.045 0.080 0.063
+
+3.233 3.797 3.603 2.786 2.422 2.040
+
+0.057 0.280 0.471 0.044 0.080 0.062
+
+3.633 3.742 3.753 3.129 2.709 2.303
+
+0.038 0.249 0.412 0.043 0.211 0.058
+
+4.068 3.809 3.933 3.542 3.148 2.655
+
+0.048 0.387 0.533 0.041 0.385 0.053
+
+4.603 4.389 4.286 4.027 3.459 3.206
+
+0.046 0.225 0.607 0.029 0.320 0.086
+
+5.071 4.751 4.721 4.536 3.857 3.784
+
+0.039 0.595 0.494 0.037 0.278 0.109
+
+Out-of-Sample Setting
+
+DSCM CEVAE FOHL
+
+2.619 0.037 2.912 0.034 3.330 0.024 3.778 0.022 4.286 0.014 4.807 0.024 2.599 0.037 2.816 0.040 3.203 0.109 3.657 0.134 4.069 0.110 4.509 0.103 2.453 0.031 2.782 0.033 3.191 0.037 3.669 0.023 4.274 0.052 4.921 0.067
+
+Appendix E. Results of Experiments where covariates point towards confounders
+In some scenarios, the latent confounders may be generated from covariates. For example, the salary level is the privacy of many people while their jobs can be observed. To verify the effectiveness of our method under this setting, we set Xt ∼ N (0, Σz) where Σz keeps same as in the main paper. The latent confounders are generated by z,j = xt,j + εz, εz ∼ N (0, σz2), 1 ≤ j ≤ s. The observed covariates consists of two parts, X = [Xm, Xn]. Xm ∈ Rp1 consists of p1 dimension of Xt while Xn keeps same as in the main paper. The generation of the other elements is the same to the setting in the main paper. The results are reported in Table 3.
+
+21
+

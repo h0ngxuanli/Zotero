@@ -1,0 +1,1335 @@
+Confidence May Cheat: Self-Training on Graph Neural Networks under Distribution Shift
+
+Hongrui Liu∗
+liuhongrui@bupt.edu.cn Beijing University of Posts and
+Telecommunications
+
+Binbin Hu
+bin.hbb@antfin.com Ant Group
+
+Xiao Wang
+xiaowang@bupt.edu.cn Beijing University of Posts and
+Telecommunications Peng Cheng Laboratory
+
+arXiv:2201.11349v1 [cs.LG] 27 Jan 2022
+
+Chuan Shi†
+shichuan@bupt.edu.cn Beijing University of Posts and
+Telecommunications Peng Cheng Laboratory
+
+Zhiqiang Zhang
+lingyao.zzq@antfin.com Ant Group
+
+Jun Zhou
+jun.zhoujun@antfin.com Ant Group
+
+ABSTRACT
+Graph Convolutional Networks (GCNs) have recently attracted vast interest and achieved state-of-the-art performance on graphs, but its success could typically hinge on careful training with amounts of expensive and time-consuming labeled data. To alleviate labeled data scarcity, self-training methods have been widely adopted on graphs by labeling high-confidence unlabeled nodes and then adding them to the training step. In this line, we empirically make a thorough study for current self-training methods on graphs. Surprisingly, we find that high-confidence unlabeled nodes are not always useful, and even introduce the distribution shift issue between the original labeled dataset and the augmented dataset by self-training, severely hindering the capability of self-training on graphs. To this end, in this paper, we propose a novel Distribution Recovered Graph Self-Training framework (DR-GST), which could recover the distribution of the original labeled dataset. Specifically, we first prove the equality of loss function in self-training framework under the distribution shift case and the population distribution if each pseudo-labeled node is weighted by a proper coefficient. Considering the intractability of the coefficient, we then propose to replace the coefficient with the information gain after observing the same changing trend between them, where information gain is respectively estimated via both dropout variational inference and dropedge variational inference in DR-GST. However, such a weighted loss function will enlarge the impact of incorrect pseudo labels. As a result, we apply the loss correction method to improve the quality of pseudo labels. Both our theoretical analysis and extensive experiments on five benchmark datasets demonstrate the effectiveness of the proposed DR-GST, as well as each well-designed component in DR-GST.
+∗
+Work done during internship at Ant Group.
+†
+Corresponding author
+WWW ’22, April 25–29, 2022, Virtual Event, Lyon, France © 2022 Association for Computing Machinery. This is the author’s version of the work. It is posted here for your personal use. Not for redistribution. The definitive Version of Record was published in Proceedings of the ACM Web Conference 2022 (WWW ’22), April 25–29, 2022, Virtual Event, Lyon, France, https://doi.org/10.1145/3485447.3512172.
+
+CCS CONCEPTS
+• Computing methodologies → Neural networks; • Theory of computation → Social networks; Semi-supervised learning.
+
+KEYWORDS
+Graph Neural Networks, Self-Training, Information Gain
+ACM Reference Format: Hongrui Liu, Binbin Hu, Xiao Wang, Chuan Shi, Zhiqiang Zhang, and Jun Zhou. 2022. Confidence May Cheat: Self-Training on Graph Neural Networks under Distribution Shift. In Proceedings of the ACM Web Conference 2022 (WWW ’22), April 25–29, 2022, Virtual Event, Lyon, France. ACM, New York, NY, USA, 11 pages. https://doi.org/10.1145/3485447.3512172
+
+1 INTRODUCTION
+Graphs are ubiquitous across many real-world applications, ranging from citation and social network analysis to protein interface and chemical bond prediction. With the surge of demands, Graph Convolution Network (GCN) and its variants [17, 18, 30, 32, 35] (abbreviated as GCNs) have recently attracted vast interest and achieved state-of-the-art performance in various tasks on graphs, most notably semi-supervised node classification. Nevertheless, its success could typically hinge on careful training with large amounts of labeled data, which is expensive and time-consuming to be obtained [28]. Empirically, the performance of GCNs will rapidly decline with the decrease of labeled data [38].
+As one of the promising approaches, self-training [16, 19] aims at addressing labeled data scarcity by making full use of abundant unlabeled data in addition to task-specific labeled data. Given an arbitrary model trained on the original labeled data as the teacher model, the key idea of self-training is to pseudo-label high-confidence unlabeled samples to augment the above labeled data, and a student model is trained with augmented data to replace the teacher model. Such an iteration learning is repeated until convergence 1. Analogously, self-training has great potential to facilitate advancing GCNs to exploiting unlabeled data [20, 28, 38]. Whereas, these studies only focus on the high-confidence nodes on account of the prefabricated assumption that the higher the confidence, the more
+
+1
+The
+
+teacher-student
+
+term
+
+is
+
+commonly
+
+adopted
+
+in
+
+current
+
+self-training
+
+studies
+
+[8,
+
+14,
+
+22], and we just reuse it here for a clearer explanation.
+
+WWW ’22, April 25–29, 2022, Virtual Event, Lyon, France
+accurate the prediction. Naturally, we are curious about such a fundamental question, “Are all the unlabeled nodes pseudo-labeled with high confidence truly useful?”
+As a motivating example, we conduct an analysis experiment on a benchmark dataset Cora [26] to explore how much additional information these high-confidence nodes can bring to the model (denoted as information gain). More details can be seen in Section 3. Surprisingly, our experimental results show a clear negative correlation between the confidence and the information gain, implying that nodes pseudo-labeled by existing graph self-training methods with high confidence may be low-information-gain and useless. To further understand the underlying reason, we illustrate the distribution of unlabeled nodes and find these high-confidence (or low-information-gain) nodes are far from the decision boundary, which implies that they potentially guide the model to perform worthless optimization for a more crisp decision boundary. Existing graph self-training methods which focus on high-confidence nodes are “cheated” by confidence in this way.
+In light of the above observations, we further investigate into what will happen when self-training is cheated by confidence. We discover that during the optimization procedure dominated by easy nodes (i.e., nodes with low information gain), the Distribution Shift phenomenon between the original and augmented dataset gradually appears. This is because more and more easy nodes selected by high confidence are added to the original labeled dataset, leading to the distribution gradually shifting to the augmented dataset and overmuch attention paid on such easy nodes as a result. Not surprisingly, this issue will severely threaten the capacity of selftraining on graphs, since the distribution of the augmented dataset is different from the population distribution, resulting in a terrible generalization during evaluation. Alleviating distribution shift from self-training on graphs is in urgent demand, which is unexplored in existing studies.
+In this paper, we propose an information gain weighted selftraining framework DR-GST which could recover the distribution of original labeled dataset. Specifically, we first prove that the loss function of the self-training framework under the distribution shift case is equal to that under the population distribution if we could weight each pseudo-labeled node with a proper coefficient. But the coefficient is generally intractable in practice. Then we discover the same changing trend between the coefficient and information gain, and propose to replace the coefficient with information gain, where the information gain can be estimated via both dropout variational inference and dropedge variational inference. Consequently, we can recover the shifted distribution with the newly proposed information gain weighted loss function. Such a loss function forces the model to pay more attention to hard nodes, i.e., nodes with high information gain, but will enlarge the impact of incorrect pseudo labels. Therefore, we apply loss correction [10, 23, 27] to self-training to correct the prediction of the student model, so that the impact of incorrect pseudo labels from the teacher model can be alleviated in this way. Finally, we conduct a theoretical analysis of self-training on graphs, and the conclusion shows both distribution shift and incorrect pseudo labels will severely hinder its capability, which is consistent with our designs.
+In summary, the main contributions are highlighted as follows:
+
+Hongrui Liu, Binbin Hu, Xiao Wang, Chuan Shi, Zhiqiang Zhang, and Jun Zhou
+• We make a thorough study on graph self-training, and find two phenomena below: 1) pseudo-labeled high-confidence nodes may
+cheat. 2) distribution shift between the original labeled dataset
+and the augmented dataset. Both of them severely hinder the
+capability of self-training on graphs. • We propose a novel graph self-training framework DR-GST that
+not only addresses the distribution shift issue from the view
+of information gain, but also is equipped with the creative loss
+correction strategy for improving qualities of pseudo labels. • We theoretically analyze the rationality of the whole DR-GST
+framework and extensive experimental results on five benchmark
+datasets demonstrates that DR-GST consistently and significantly
+outperforms various state-of-arts.
+2 PRELIMINARY
+Let 𝒢 = (𝒱, ℰ, X) be a graph with the adjacent matrix A ∈ R|𝒱 |×|𝒱 |, where 𝒱 and ℰ are respectively the set of nodes and edges, and X = [x1, x2, · · · , x|𝒱 |] ∈ R|𝒱 |×𝐷𝑣 is the 𝐷𝑣-dimensional feature matrix for nodes. In the common semi-supervised node classifica-
+tion setting, we only have access to a small amounts of labeled nodes 𝒱𝐿 with their labels 𝒴𝐿 along with a larger amounts of unlabeled nodes 𝒱𝑈 , where |𝒱𝐿 | ≪ |𝒱𝑈 |.
+Self-training Generally, self-training methods on graphs firstly train a vanilla GCN as the base teacher model 𝑓𝜃 (X, A) with groundtruth labels 𝒴𝐿, where 𝜃 is the model parameter set. We could obtain the probability vector for each node 𝑣𝑖 ∈ 𝒱 as: p (𝑦𝑖 |x𝑖, A; 𝜃 ) = 𝑓𝜃 (x𝑖, A). For convenience, we abbreviate it to p𝑖 and denote the j-th element of p𝑖 by 𝑝𝑖,𝑗 . Next, the teacher model pseudo-labels a subset 𝒮𝑈 ⊂ 𝒱𝑈 of unlabeled nodes with its prediction 𝑦¯𝑢 = arg max𝑗 𝑝𝑢,𝑗 for each node 𝑣𝑢 ∈ 𝒮𝑈 . The selection of 𝒮𝑈 is based on the confidence score 𝑟𝑖 = max𝑗 𝑝𝑖,𝑗 , i.e., only nodes with 𝑟𝑖 higher than a threshold or top-k high-confidence nodes are added to the labeled dataset. Then the augmented dataset 𝒱𝐿 ∪ 𝒮𝑈 is used to train a student model 𝑓𝜃¯ with the following objective function.
+
+min ℒ
+𝜃¯∈Θ
+
+(A,
+
+X,
+
+𝒴𝐿 )
+
+=
+
+min
+𝜃¯∈Θ
+
+E𝑣𝑖
+
+∈𝒱𝐿 ,𝑦𝑖
+
+∈𝒴𝐿 𝑙
+
+(𝑦𝑖 ,
+
+p𝑖 )
+
++ 𝜆E𝑣𝑢 ∈𝒮𝑈 ,𝒮𝑈 ⊂𝒱𝑈 E𝑦¯𝑢 ∼p(𝑦𝑢 |x𝑢,𝐴;𝜃 )𝑙 (𝑦¯𝑢, p𝑢 ) ,
+
+(1)
+
+where 𝑙 (𝑦𝑖, p𝑖 ) = − log 𝑝𝑖,𝑦𝑖 is the multi-class cross entropy loss and we fix 𝜆 = 1 in this paper. Finally we replace the teacher
+
+model with the student model and iterate the above procedure until
+
+convergence.
+
+Information Gain As can be seen in Eq. 1, self-training on
+
+graphs will exploit the unlabeled data to train the whole model.
+
+Here, we aim to measure how an unlabeled node contributes to
+
+the model optimization in a principled way, i.e., information gain.
+
+Information gain usually measures the reduction in information
+
+given a random variable, where information is generally calculated
+
+by the Shannon’s entropy [6]. We utilize the information gain
+
+here to seek the node 𝑣𝑢 which owns the most information about
+
+parameters 𝜃 of model posterior and could reduce the number of
+
+possible parameter hypotheses maximally fast. We refer to this type
+
+of information gain as information gain about model parameters
+
+[22]. Formally, given a node 𝑣𝑢 , the information gain about model
+
+Confidence May Cheat: Self-Training on Graph Neural Networks under Distribution Shift
+
+WWW ’22, April 25–29, 2022, Virtual Event, Lyon, France
+
+(a)
+
+(b)
+
+Figure 1: (a): Relationship between confidence and information gain on Cora. (b): Visualization of embeddings on Cora
+
+(a) 𝑃𝑝𝑜𝑝
+
+(b) 𝑃𝑠𝑡
+
+(c) ratio of 𝑃𝑝𝑜𝑝 and 𝑃𝑠𝑡
+
+Figure 2: Visualization of labeled nodes under the ideal condition. (𝑃𝑝𝑜𝑝 : distribution before self-training, 𝑃𝑠𝑡 : distribution after self-training)
+
+parameters is defined as B𝑢 , which could be calculated as follows: B𝑢 (𝑦𝑢, 𝜃 |x𝑢, A, 𝒢) = H[E𝑃 (𝜃 |𝒢) [𝑦𝑢 |x𝑢, A; 𝜃 ]] (2) −E𝑃 (𝜃 |𝒢) [H[𝑦𝑢 |x𝑢, A; 𝜃 ]],
+where H(·) denotes the Shannon’s entropy and 𝑃 (𝜃 |𝒢) is the distribution of model posterior. The first term measures the information of the model parameters under posterior, while the second term captures the information of model parameters given an additional node 𝑣𝑢 . Obviously, by calculating the difference between the two terms above, B𝑢 can measure how much information 𝑣𝑢 can bring to learn the model parameters 𝜃 .
+3 EMPIRICAL ANALYSIS
+In this section, we conduct a series of empirical analysis to examine whether current graph self-training approaches adopt a principled way to leverage unlabeled data for semi-supervised node classification.
+Empirical Analysis of Confidence To better understand the capacity of high-confidence nodes in current self-training approaches, we aim to closely examine that how much additional information these nodes can bring to the model based on information gain. We first visualize the relationship between confidence and information gain in Fig. 1(a), where the x-axis is the confidence while the y-axis is the information gain, and the blue and orange dots respectively represent nodes with correct and incorrect predictions. From Fig. 1(a) we can observe a negative correlation, implying that existing graph self-training methods only focus on easy nodes (nodes with low information gain) and confidence may be cheating as a result. Essentially, such a “cheating" phenomenon lies in the worthless optimization for a more crisp decision boundary. Specifically, as shown in Fig. 1(b), on the Cora dataset, we visualize the node embeddings on the last layer of the standard GCN before softmax using t-SNE [29] algorithm, where a darker dot represents a node with lower information gain. From the plots, we find that most of easy nodes (i.e., low information gain) are far from the decision boundary. Whereas, these nodes are always emphasized by current self-training methods on graphs [20, 28, 38] by force of high confidence. That is, these methods are “cheated” by confidence in this way.
+Empirical Analysis of Distribution Shift Furthermore, we investigate what will happen when self-training has been cheated by confidence. As an illustrative example, we randomly generate
+
+500 nodes (blue) following two-dimensional Gaussion distribution 𝒩 (0, 0, 0.3, 0.3, 0) to represent labeled nodes in one class, and another 4000 nodes (grey) following the distribution of concentric circles [1] to represent labeled nodes belonging to other classes, as shown in Fig. 2(a). Furthermore, following the common self-training setting, a large amount of unlabeled nodes still exists in the dataset, but for clarity, we omit them in the figure. In line with the core idea of current self-training methods, for the “blue” class, unlabeled nodes around the center are pseudo-labeled for self-training since these nodes have high confidence (a.k.a., far from the decision boundary). During iteration, as shown in Fig 2(b), the data distribution will become more and more sharpen since nodes far from the decision boundary are paid disproportionate attention and thus the unsatisfying Distribution Shift phenomenon between the original and augmented dataset indeed appears.
+
+4 THE DR-GST FRAMEWORK
+In this section, we elaborate the proposed DR-GST, a novel selftraining framework aiming at recovering the shifted distribution.
+
+4.1 Information Gain Weighted Loss Function Towards Distribution Shift
+
+We start with the formulation of the self-training task by analyzing the corresponding loss functions. Specifically, assuming that the original labeled dataset follows the population distribution 𝑃𝑝𝑜𝑝 , given a classifier 𝑓𝜃 parameterized by 𝜃 , the best parameter set 𝜃 could be obtained via minimizing the following loss function:
+
+ℒ𝑝𝑜𝑝 = E(𝑣𝑖,𝑦𝑖 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴)𝑙 (𝑦𝑖, p𝑖 ).
+
+(3)
+
+Similarly, under the distribution shift case caused by self-training, the loss function can be represented as
+
+ℒ𝑠𝑡
+
+=
+
+|𝒱𝐿 | |𝒱𝐿 ∪ 𝒮𝑈
+
+|
+
+E ( 𝑣𝑖 ,𝑦𝑖
+
+) ∼𝑃𝑝𝑜 𝑝
+
+(𝒱,𝒴 ) 𝑙
+
+(𝑦𝑖
+
+,
+
+p𝑖
+
+)
+
+(4)
+
++
+
+|𝒮𝑈 | |𝒱𝐿 ∪ 𝒮𝑈
+
+| E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑠𝑡
+
+(𝒱,𝒴)𝑙 (𝑦¯𝑢, p𝑢 ),
+
+where 𝑃𝑠𝑡 represents the shifted distribution of the augmented dataset.
+Generally, the distribution shift could lead to a terrible generalization during evaluation, and thus severely threaten the capacity of graph self-training. Therefore, It is ideal to optimize 𝑓𝜃 with the loss function ℒ𝑝𝑜𝑝 under the population distribution rather than
+
+WWW ’22, April 25–29, 2022, Virtual Event, Lyon, France
+
+ℒ𝑠𝑡 under the distribution shift case. However, only ℒ𝑠𝑡 is available in practice. To close the gap, we show the following theorem.
+
+Theorem 4.1. Given ℒ𝑝𝑜𝑝 and ℒ𝑠𝑡 defined in Eq. 3 and Eq. 4,
+
+assuming that 𝑦¯𝑢 = 𝑦𝑢 for each pseudo-labeled node 𝑣𝑢 ∈ 𝒮𝑈 , then
+
+ℒ𝑠𝑡 = ℒ𝑝𝑜𝑝 holds true if ℒ𝑠𝑡 can be written with an additional weight
+
+coefficient 𝛾𝑢
+
+=
+
+𝑃𝑝𝑜𝑝 (𝑣𝑢,𝑦𝑢 ) 𝑃𝑠𝑡 (𝑣𝑢,𝑦𝑢 )
+
+as follows:
+
+ℒ𝑠𝑡
+
+=
+
+|𝒮𝑈 | |𝒱𝐿 ∪ 𝒮𝑈
+
+|
+
+E
+
+(𝑣𝑢
+
+,𝑦𝑢
+
+)
+
+∼𝑃𝑠𝑡
+
+(
+
+𝒱,𝒴
+
+)
+
+𝛾𝑢
+
+𝑙
+
+(𝑦¯𝑢
+
+,
+
+p𝑢
+
+)
+
+(5)
+
++
+
+|𝒱𝐿 | |𝒱𝐿 ∪ 𝒮𝑈
+
+| E(𝑣𝑖,𝑦𝑖 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴)𝑙 (𝑦𝑖, p𝑖 ),
+
+Proof. Please refer to A.1.1.
+
+□
+
+Based on Theorem 4.1, we can find that our desired ℒ𝑝𝑜𝑝 can be written as the available ℒ𝑠𝑡 only if a coefficient 𝛾𝑢 is added to ℒ𝑠𝑡 .
+
+In other words, the distribution shift issue could be addressed by
+optimizing 𝑓𝜃 with available ℒ𝑠𝑡 weighted by 𝛾𝑢 (in Eq. 5). However, it should be noted that the population distribution 𝑃𝑝𝑜𝑝 in ℒ𝑠𝑡 is
+
+generally intractable, which means that 𝛾𝑢 cannot be accurately
+
+calculated.
+
+To this end, we propose to build the bridge between 𝛾𝑢 and the
+
+information gain, which is motivated as follows. Recalling the data
+
+distributions shown in Fig. 2(a) and Fig. 2(b), we could formally
+
+represent the former as 𝑃𝑝𝑜𝑝 and the latter as 𝑃𝑠𝑡 . We visualize the
+
+desired weight coefficient 𝛾𝑢
+
+=
+
+𝑃𝑝𝑜𝑝 (𝑣𝑢,𝑦𝑢 ) 𝑃𝑠𝑡 (𝑣𝑢,𝑦𝑢 )
+
+for each pseudo-labeled
+
+node 𝑣𝑢 in Fig. 2(c) for better understanding its changing trend,
+
+where the darker area means the larger 𝛾𝑢 . Obviously, we observe
+
+that 𝛾𝑢 becomes smaller when getting closer to the center area (a.k.a., far away from the decision boundary), which is consistent
+
+with the change trend of the information gain. This finding inspires
+
+us to adopt the information gain to approximate 𝛾𝑢 .
+
+4.2 Information Gain Estimation on Graphs
+
+Next, we elaborate the estimation of the information gain for each node 𝑣𝑢 in graph. As mentioned in Eq. 2, the distribution of model posterior 𝑃 (𝜃 |𝒢) is desired for calculating information gain, but it is intractable in practice, and always computationally expensive for traditional bayesian neural networks [2, 11, 15]. Instead, we could shift attention towards dropout [9] and dropedge [25], a type of regularization technique for preventing over-fitting and over-smoothing in GCNs, which could be both interpreted as an approximation of 𝑃 (𝜃 |𝒢) [13]. Consequently, we propose to estimate the information gain assisted with dropout and dropedge (a.k.a., dropout and dropedge variational inference), which takes into account both features and the network topology in our unified framework DR-GST. For distinction, we refer to DR-GST with dropout variational inference as DR-GST𝑑𝑜 and that with dropedge variational inference as DR-GST𝑑𝑒 .
+
+4.2.1 Dropout Variational Inference. Specifically, given a 𝐿-layer GCN model 𝑓𝜃 , its 𝑙-th layer output H(𝑙) ∈ R|𝒱 |×𝐷𝑙 can be obtained
+
+by
+
+H(𝑙) = 𝜎 (𝔑(A)H(𝑙−1) W(𝑙−1) ),
+
+(6)
+
+where 𝔑(·) represents the normalizing operator, W(𝑙−1) ∈ R𝐷𝑙−1×𝐷𝑙 is the (l-1)-th layer weight matrix, 𝜎 (·) is the activation function and
+
+Hongrui Liu, Binbin Hu, Xiao Wang, Chuan Shi, Zhiqiang Zhang, and Jun Zhou
+
+H(1) = X ∈ R|𝒱 |×𝐷𝑣 , 𝜃 = {W(𝑙) }𝑙𝐿=1. Dropout randomly masks features of nodes in the graph through drawing from an indepen-
+dent Bernoulli random variable. Formally, the 𝑙-th layer output of
+𝑓𝜃 with dropout can be written as:
+
+H(𝑙) = 𝜎 (𝔑(A) (H(𝑙−1) ⊙ Z(𝑙−1) )W(𝑙−1) ),
+
+(7)
+
+where each element of Z(𝑙) ∈ {0, 1}𝐷𝑙−1×𝐷𝑙−1 is a sample of Bernoulli random variable, representing whether or not the corresponding feature in H(𝑙−1) is set to zero.
+Such Bernoulli random sampling on features can also be treated as a sample from 𝑃 (𝜃 |𝒢) [9], thus we can perform 𝑇 -times MonteCarlo sampling (referred to Monte-Carlo dropout, MC-dropout) during inference to estimate 𝑃 (𝜃 |𝒢). At each time 𝑡, a probability vector p˜𝑢𝑡 = p˜𝑡 (𝑦𝑢 |x𝑢, A; 𝜃˜𝑡 ) can be obtained by performing forward pass under such a sample weight 𝜃˜𝑡 , i.e., p˜𝑢𝑡 = 𝑓𝜃˜𝑡 (x𝑢, A).
+However, from the perspective of the computational overhead
+and practical performance, we only conduct dropout on the last
+layer during MC-dropout. In other words, the probability vector p˜𝑢𝑡 ∈ P˜𝑡 = 𝑓𝜃˜𝑡 (X, A) at each time 𝑡 can be obtained by:
+P˜𝑡 = 𝜎 (𝔑(A) (Z(𝑡) ⊙𝜎 (𝔑(A) · · · 𝜎 (𝔑(A)XW(1) ) · · · )W(𝑙−1) ))W(𝑙) ) (8)
+
+4.2.2 Dropedge Variational Inference. The dropedge variational inference takes a similar way with dropout variation inference, but imposes the randomness on the network topology instead.
+Specifically, the 𝑙-th layer output of 𝑓𝜃 with dropedge can be written as:
+
+H(𝑙) = 𝜎 (𝔑(A ⊙ Z(𝑙−1) )H(𝑙−1) W(𝑙−1) ),
+
+(9)
+
+where each element of Z(𝑙) ∈ {0, 1} |𝒱 |×|𝒱 | is also a sample of Bernoulli random variable, representing whether or not the corresponding edge in A is removed.
+Similarly, we only conduct dropedge on the last layer and per-
+form 𝑇 -times Monte-Carlo sampling (referred to as Monte-Carlo dropedge) base on dropedge, where at each time t, the probability vector p˜𝑢𝑡 ∈ P˜𝑡 = 𝑓𝜃˜𝑡 (X, A) at each time 𝑡 is obtained by
+
+P˜𝑡 = 𝜎 (𝔑(A⊙Z(𝑡) )𝜎 (𝔑(A) · · · 𝜎 (𝔑(A)XW(1) ) · · · )W(𝑙−1) )W(𝑙) ). (10)
+
+4.2.3 Information Gain Estimation. With such probability vector
+p˜𝑢𝑡 obtained by Eq. 8 or Eq. 10, we can calculate the prediction distribution p𝑢𝒢 by averaging all the p˜𝑢𝑡 :
+
+p𝑢𝒢
+
+=
+
+p(𝑦𝑢 |x𝑢, A, 𝒢)
+
+=
+
+1
+
+𝑇
+∑︁ p˜𝑢𝑡 , 𝜃˜𝑡
+
+∼
+
+𝑃 (𝜃 |𝒢),
+
+(11)
+
+𝑇
+
+𝑡 =1
+
+and thus the information gain B𝑢 can be calculated by:
+
+B𝑢 (𝑦𝑢, 𝜃 |x𝑢, A, 𝒢)
+
+=
+
+𝐷
+− ∑︁ 𝑝𝒢
+𝑢,𝑑
+
+log 𝑝𝒢
+𝑢,𝑑
+
++
+
+1 𝑇
+
+𝐷𝑇
+∑︁ ∑︁ 𝑝˜𝑡
+𝑢,𝑑
+
+log 𝑝˜𝑡 .
+𝑢,𝑑
+
+𝑑 =1
+
+𝑑=1 𝑡 =1
+
+(12)
+
+Finally, we weight the loss function with above information gain
+
+after normalization:
+
+Confidence May Cheat: Self-Training on Graph Neural Networks under Distribution Shift
+
+WWW ’22, April 25–29, 2022, Virtual Event, Lyon, France
+
+ℒ𝑠𝑡
+
+=
+
+|𝒮𝑈 | |𝒱𝐿 ∪ 𝒮𝑈
+
+|
+
+E ( 𝑣𝑢 ,𝑦𝑢
+
+) ∼𝑃𝑠𝑡
+
+(𝒱,𝒴
+
+)
+
+B¯𝑢𝑙
+
+(𝑦¯𝑢
+
+,
+
+p𝑢
+
+)
+
++
+
+|𝒱𝐿 | |𝒱𝐿 ∪ 𝒮𝑈
+
+| E(𝑣𝑖,𝑦𝑖 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴)𝑙 (𝑦𝑖, p𝑖 )
+
+(13)
+
+where
+
+B¯𝑢
+
+=
+
+𝛽
+
+·
+
+B𝑢
+1 |𝒮𝑈 |
+
+. 𝑖 B𝑖
+
+Here, we can tune the balance coefficient 𝛽 to recover the population
+
+distribution (i.e., ℒ𝑠𝑡 ≈ ℒ𝑝𝑜𝑝 ) as much as possible.
+
+4.3 Improving Qualities of Pseudo Labels via Loss Correction
+Till now, we have addressed the distribution shift issue with an information gain weighted loss function, where more attentions are paid to nodes with high information gain rather than high confidence. Unfortunately, such a training pipeline still implies hidden risks. Specifically, considering that pseudo labels of hard nodes are more likely to be incorrect as shown in Fig. 1(a) and our DR-GST focuses more on hard nodes, the impact of incorrect pseudo-labeled nodes will be enlarged and even mislead the learning of GCNs. Previous works generally filter out these low-quality nodes with collaborative scoring [20, 28] or prefabricated assumption [38] in a relatively coarse-grained manner, where abundant nodes with high information gain are discarded in advance. Instead, motivated by studies on learning with noisy labels [10, 23, 27], we propose to incorporate loss correction strategy into graph self-training. In brief, DR-GST corrects the predictions of the student model in each iteration, so as to eliminate the negative impact of misleading pseudo labels from the teacher model.
+Specifically, given a student model 𝑓𝜃¯ trained by pseudo labels, the loss correction assumes there is a model 𝑓𝜃∗ trained by groundtruth labels and a transition matrix T such that 𝑓𝜃¯ can be represented by 𝑓𝜃¯ = T𝑓𝜃∗ , as shown in Fig. 3, where each element in T ∈ R𝑐×𝑐 is a transition probability from the ground-truth label to the pseudo label, i.e., 𝑇𝑘 𝑗 = 𝑃 (𝑌¯ = 𝑗 |𝑌 = 𝑘) and 𝑐 is the number of classes. With such a transition matrix, every model trained by pseudo labels is equal to that trained by ground-truth labels. We have proved the equivalence relation above using the following proposition.
+Proposition 4.2. Given a model 𝑓𝜃¯ trained by pseudo labels and a model 𝑓𝜃∗ trained by ground-truth labels, assuming that there exists a transition matrix T such that the equation 𝑓𝜃¯(x𝑢, A) = T𝑓𝜃∗ (x𝑢, A) holds for each node 𝑣𝑢 , then 𝜃¯ = 𝜃 ∗ if T is a permutation matrix under cross entropy (CE) loss or T is an arbitrary non-zero matrix under mean square error (MSE) loss.
+
+Proof. Please refer to Appendix A.1.2.
+
+□
+
+Based on Proposition 4.2, ideally, we can train the student model regardless of the quality of labels, and recover 𝑓𝜃∗ with T. Specifically, as shown in Fig. 3, for each node 𝑣𝑖 ∈ {𝒱𝐿 ∪ 𝒮𝑈 } with its feature vector x𝑖 , we first feed it into student model and multiply the output with T to get 𝑓𝜃¯(x𝑖, A). Then we use 𝑓𝜃¯(x𝑖, A) to optimize the student model according to Eq. 13. Finally, at inference, we
+can treat the student model as 𝑓𝜃∗ . Please note that the transition matrix T is pre-computed and not updated during optimization of
+the student model.
+
+Figure 3: An illustration of loss correction.
+
+Next, we make an illustration for the computation of the transition matrix T. Noting that for each node 𝑣𝑖 ∈ 𝒱𝐿 with the groundtruth label 𝑦𝑖 = 𝑘, the probability 𝑃 (𝑌 = 𝑘 |𝑋 = x𝑖 ) should be 1 since we definitely know its label to be 𝑘. Therefore, given the output probability 𝑝𝑘 𝑗 = 𝑓𝜃¯(x𝑖, A)𝑗 of class 𝑗, we have
+
+𝑐
+𝑝𝑘 𝑗 = 𝑃 (𝑌¯ = 𝑗 |𝑋 = x𝑖 ) = ∑︁ 𝑃 (𝑌¯ = 𝑗 |𝑌 = 𝑚, 𝑋 = x𝑖 )𝑃 (𝑌 = 𝑚|𝑋 = x𝑖 )
+𝑚=1
+= 𝑃 (𝑌¯ = 𝑗 |𝑌 = 𝑘, 𝑋 = x𝑖 ) · 1 + 0 + · · · + 0 = 𝑇𝑘 𝑗 (x𝑖 ) = 𝑇𝑘 𝑗 .
+(14)
+In others words, the output probability vector 𝑓𝜃¯(x𝑖, A) of each node 𝑣𝑖 with its ground-truth label 𝑘 is the 𝑘-th row of T, where 𝜃¯ means such a model is trained with the augmented dataset 𝒱𝐿 𝒮𝑈 .
+Technically, we first train a student model 𝑓𝜃¯ without loss correction using the augmented dataset 𝒱𝐿 ∪ 𝒮𝑈 , then update T according to 𝑝𝑘 𝑗 = 𝑓𝜃¯(x𝑖, A)𝑗 , and finally re-train a student model from scratch with loss correction to obtain 𝑓𝜃∗ .
+Considering that there are multiple nodes belonging to class 𝑘
+in 𝒱𝐿, we propose the following optimization problem to learn T
+instead:
+
+(𝐿)
+
+𝑐
+
+𝑁
+𝑘
+
+∑︁ arg min
+T 𝑘 =1
+
+∑︁
+𝑗 =1
+
+| |T𝑘,:
+
+−
+
+𝑓𝜃¯(x𝑖, A)||2
+
++
+
+| | TTT
+
+−
+
+I||2,
+
+(15)
+
+where
+
+(𝐿)
+𝑁
+𝑘
+
+is
+
+the
+
+number
+
+of
+
+nodes
+
+belonging
+
+to
+
+class
+
+𝑘
+
+in
+
+𝒱𝐿
+
+and I is an identity matrix. Since the improved CE loss is utilized
+
+as the loss function in this paper as mentioned in Eq. 1 and Eq. 13, we append the regularization term ||TTT − I||2 for guiding T to approximate to a permutation matrix, which is derived from Proposition 4.2 under the CE loss. Moreover, we initialize T with the identify matrix I at the very beginning.
+
+4.4 Overview of DR-GST
+Till now, we have elaborated our proposed DR-GST framework,
+which solves both the distribution shift and the low-quality pseudo
+labels with the help of information gain and loss correction. We
+summarize it in Algorithm 1 and further analyze its time complexity
+in Appendix A.2. Given a graph 𝒢 = (𝒱, ℰ, X) with its original labeled dataset 𝒱𝐿,
+unlabeled dataset 𝒱𝑈 , adjacent matrix A as well as its label set 𝒴𝐿, we first train a teacher model 𝑓𝜃 on 𝒱𝐿 to obtain the prediction 𝑦¯𝑢 and the confidence 𝑟𝑢 for each unlabeled node 𝑣𝑢 ∈ 𝒱𝑈 at line 1. then iterate steps from line 3 to 9 util convergence, where we call each iteration a stage following [28]. Specifically, at line 3 we select part of unlabeled nodes whose confidence 𝑟𝑢 is bigger than a given threshold 𝜏 to obtain 𝒮𝑈 . Next at line 4 we pseudolabel each node 𝑣𝑢 ∈ 𝒮𝑈 with 𝑦¯𝑢 to augment 𝒱𝐿. Then at line 5 we calculate the information gain B𝑢 according to dropout or dropedge
+
+WWW ’22, April 25–29, 2022, Virtual Event, Lyon, France
+
+Hongrui Liu, Binbin Hu, Xiao Wang, Chuan Shi, Zhiqiang Zhang, and Jun Zhou
+
+variational inference in Section 4.2 and normalize it according to
+Eq. 13. With such information gain, we train a student model 𝑓𝜃¯ at line 6 using the augmented dataset, where pseudo labels may
+be incorrect. Therefore, at line 7 we update the transition matrix T with the output probability vector of 𝑓𝜃¯ of each node 𝑣𝑖 ∈ 𝒱𝐿 according to Eq. 15, and retrain the student model from scratch at line 8 with 𝑓𝜃¯ = T𝑓𝜃∗ to get 𝑓𝜃∗ . Finally, we replace the teacher model 𝑓𝜃 with 𝑓𝜃∗ and repeat above steps utill convergence.
+Algorithm 1 The DR-GST Framework
+Input: Graph 𝒢 = (𝒱, ℰ, X), original labeled dataset 𝒱𝐿, unlabeled dataset 𝒱𝑈 , adjacent matrix A, label set 𝒴𝐿, transition matrix T=I
+Output: Probability vector p𝑖 for each node 𝑣𝑖 1: Train a teacher model 𝑓𝜃 on 𝒱𝐿 to obtain the prediction 𝑦¯𝑢 and
+the confidence 𝑟𝑢 for each unlabeled node 𝑣𝑢 ∈ 𝒱𝑈 ; 2: for each stage 𝑘 do 3: Select part of unlabeled nodes according to 𝑟𝑢 to get 𝒮𝑈 ; 4: Pseudo-labeling each node 𝑣𝑢 ∈ 𝒮𝑈 with 𝑦¯𝑢 ; 5: Calculate the information gain B𝑢 according to Eq. 12; 6: Train a student model 𝑓𝜃¯ without T according to Eq. 13; 7: Update T using 𝑓𝜃¯(x𝑖, A) of 𝑣𝑖 ∈ 𝒱𝐿 according to Eq. 15; 8: Retrain a student model from scratch according to Eq. 13
+with 𝑓𝜃¯ = T𝑓𝜃∗ to get 𝑓𝜃∗ ; 9: Replace the teacher model 𝑓𝜃 with the student model 𝑓𝜃∗ ; 10: end for 11: return p𝑖 = 𝑓𝜃∗ (x𝑖, A) in the final stage.
+
+4.5 Theoretical Analysis
+
+In this section, we theoretically analyze the influence factors on self-training from the perspective of gradient descent, and our theorem below demonstrates the rationality of the whole DR-GST framework.
+
+Theorem 4.3. Assuming that ||∇𝜃𝑙 (𝑦𝑖, p𝑖 )|| ⩽ Ψ for each node 𝑣𝑖 , where Ψ is a constant, given ∇𝜃 ℒ𝑝𝑜𝑝 and ∇𝜃 ℒ𝑠𝑡 , the gradient of ℒ𝑝𝑜𝑝 and ℒ𝑠𝑡 w.r.t. model parameters 𝜃 , the following bound between ∇𝜃 ℒ𝑝𝑜𝑝 and ∇𝜃 ℒ𝑠𝑡 holds:
+
+||∇𝜃 ℒ𝑝𝑜𝑝
+
+− ∇𝜃 ℒ𝑠𝑡 ||
+
+⩽
+
+|𝒮𝑈 | |𝒱𝐿 ∪ 𝒮𝑈
+
+|
+
+Ψ
+
+(
+
+2
+
+|
+
+|𝑃
+
+(𝑣𝑢
+
+,𝑦𝑢
+
+)
+
+∼𝑃𝑝𝑜
+
+𝑝
+
+(𝒱,𝒴
+
+)
+
+(𝑦¯𝑢
+
+≠ 𝑦𝑢 )||
+
++ ||𝑃𝑠𝑡 (𝒱, 𝒴) − 𝑃𝑝𝑜𝑝 (𝒱, 𝒴)||).
+
+(16)
+
+Proof. Please refer to Appendix A.1.3.
+
+□
+
+From the Theorem 4.3 we can conclude that the performance of self-training is negatively related to the difference ||𝑃𝑠𝑡 (𝒱, 𝒴) − 𝑃𝑝𝑜𝑝 (𝒱, 𝒴)|| between the two distributions as well as the error rate ||𝑃 (𝑣𝑢,𝑦𝑢 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴) (𝑦¯𝑢 ≠ 𝑦𝑢 )|| of pseudo labels. Meanwhile, we find our proposed DR-GST is a natural framework equipped with
+two designs to correspondingly address the issues in self-training: information gain weighted loss function for distribution recovery and loss correction strategy for improving qualities of pseudo labels. This analysis further demonstrates the rationality of DR-GST framework
+from the theoretical perspective.
+
+5 EXPERIMENT
+In this section, we evaluate the effectiveness of DR-GST framework on semi-supervised node classification task with five widely used benchmark datasets from citation networks [3, 26] (i.e., Cora, Citeseer, Pubmed and CoraFull) and social networks [21] (i.e., Flickr). More detailed descriptions about datasets are in Appendix A.3.1.
+5.1 Experimental Setup
+5.1.1 Baselines. We compare our proposed DR-GST framework with two categories of baselines, including three representative GCNs (i.e., GCN [17], GAT [30], PPNP [18]) and three graph selftraining frameworks (i.e., STs [20], M3S [28], ABN [38]). Noting that STs includes four variants (i.e., Self-Training, Co-Training, Union and Intersection) in the original paper and the best performance is reported in our experiments. The implementation of DR-GST and all the baselines can be seen in Appendix A.3.2. More detailed experimental environment can be seen in Appendix A.3.3.
+5.1.2 Evaluation Protocol. To more comprehensively evaluate our model, for all the datasets, we arrange only a few (including 3, 5, 10, 20) labeled nodes per class (𝐿/𝐶) for the training set following [20]. Specifically, in the setting 𝐿/𝐶 = 20, we follow the standard split [26] for Cora, Citeseer and Pubmed, and manually select 20 labeled nodes per class for CoraFull and Flickr considering the lack of standard split. In the setting 𝐿/𝐶 < 20, we make 10 random splits for each 𝐿/𝐶, where each random split represents that we randomly select part of nodes from the training set of 𝐿/𝐶 = 20. For all the methods and all the cases, we run 10 times and report the mean accuracy.
+5.2 Overall Comparison on Node Classification
+The performance of different methods on node classification are summarized in Table 1. We have the following observations.
+• Our proposed DR-GST framework outperforms all the baselines by a considerable margin across most cases of all the datasets. The results demonstrate the effectiveness of DR-GST by adopting a more principled mechanism to make use of unlabeled nodes in graph for boosting classification performance.
+• With the decrease of labeled nodes, we observe that the performance of GCNs (i.e., GCN, GAT and APPNP) drops quickly. For clarity, we further illustrate the changing trend of accuracy w.r.t. 𝐿/𝐶 in Fig. 4. Obviously, we can discover the larger performance margin between DR-GST and GCNs with fewer labeled nodes per class, which further implies the superior capacity of DR-GST for addressing labeled data scarcity on graph learning.
+• Considering the two variants of DR-GST, we find that DR-GST𝑑𝑜 performs better on Pubmed, CoraFull and Flickr while DR-GST𝑑𝑒 on Cora and Citeseer. An intuitive explanation for such distinct performance is the different emphasis on network topology and feature information w.r.t. different graphs for node classification task. Correspondingly, in DR-GST framework, MC-dropedge performs information gain estimation with network topology while MC-dropout is based on feature information. This finding also sheds light on possible future work to combine both topology and feature to further enhance performance under our framework.
+
+Confidence May Cheat: Self-Training on Graph Neural Networks under Distribution Shift
+
+WWW ’22, April 25–29, 2022, Virtual Event, Lyon, France
+
+Table 1: Node classification results(%). (L/C: the number of labels per class; bold: best)
+
+Dataset
+
+Cora
+
+Citeseer
+
+Pubmed
+
+CoraFull
+
+Flickr
+
+L/C 3 5 10 20 3 5 10 20 3 5 10 20 3 5 10 20 3 5 10 20
+GCN 64.52 69.55 78.03 81.56 51.39 61.34 68.39 71.64 66.04 71.25 75.88 79.31 41.83 49.12 55.67 60.69 37.69 40.64 48.04 51.74
+GAT 67.19 69.45 76.38 82.24 55.19 59.40 67.61 72.00 67.85 68.41 72.42 78.38 36.44 46.70 52.45 57.97 20.02 24.90 33.27 37.06 APPNP 65.06 75.53 81.33 83.14 51.22 60.48 68.50 71.64 65.77 73.01 76.35 79.51 40.29 44.49 50.89 60.77 24.76 35.54 47.87 61.55
+STs 70.68 75.60 80.35 82.89 56.29 65.59 74.17 74.36 69.82 73.77 77.68 81.02 43.44 51.16 58.40 61.70 35.21 43.25 48.23 52.99 M3S 64.24 71.02 78.93 82.78 50.07 63.28 74.54 74.72 68.76 69.21 70.72 81.34 42.77 49.75 57.43 61.40 35.33 39.02 47.62 51.87 ABN 66.39 73.07 78.73 81.79 54.30 64.27 69.90 72.81 59.17 71.40 75.26 79.09 43.38 48.39 55.88 60.62 35.13 41.62 47.01 52.10 DR-GST𝑑𝑜 70.85 77.92 80.88 83.34 59.39 69.08 75.00 75.78 70.74 74.63 78.44 81.08 45.44 53.29 60.01 62.75 37.84 43.47 49.48 53.66 DR-GST𝑑𝑒 73.43 77.59 81.67 84.03 60.60 69.91 74.65 75.26 70.55 73.71 77.42 80.65 45.42 52.50 59.16 63.11 38.21 43.28 49.44 53.05
+
+• Among the two categories of baselines, self-training frameworks (i.e., STs, M3S and ABN) can generally improve GCNs (i.e., GCN, GAT and APPNP), which indicates the usefulness of unlabeled data. Nevertheless, DR-GST still yields better performance for the following two promising designs: 1) We pay more attention on nodes with high information gain rather than high confidence, so that the unsatisfying distribution shift issue is avoided. 2) We adopt a loss correction strategy, where qualities of pseudo labels are improved for subsequent self-training.
+5.3 In-depth Analysis of DR-GST
+In this section, we make a series of analysis to better understand each component in DR-GST, as well as key parameter selections.
+5.3.1 Ablation Study. As mentioned above, the performance of selftraining theoretically hinges on the distribution gap and qualities of pseudo labels, which could be naturally captured by our DR-GST framework with two corresponding designs: the information-gain based weighted loss function and loss correction module. To comprehensively understand their contributions towards self-training on graphs, we prepare following three variants of DR-GST: • DR-GST-lc: DR-GST only with the loss correction module, i.e.,
+B¯ = 1 for all the unlabeled nodes. • DR-GST-ig: DR-GST only with the information gain weighted
+loss function. • DR-GST-w/o: DR-GST without the above two designs.
+The results on DR-GST𝑑𝑜 and DR-GST𝑑𝑒 are respectively reported in Fig. 5 and Fig. 6 From the results we can find that the overall performance order is as follows: DR-GST > DR-GST-ig > DR-GST-lc > DR-GST-w/o. There are three conclusions here. Firstly, the best performance achieved by the complete DR-GST framework indicates the effectiveness of considering two components together. Secondly, the information gain weighted loss function and loss correction are both value modules for self-training on graphs. Thus, ignoring them altogether (i.e.,DR-GST-w/o) is not ideal. Thirdly, the information-gain weighted loss function plays a more vital role in our self-training framework since DR-GST-lc generally does not perform as well as DR-GST-ig. In short, above findings further verify the rationality of DR-GST from the empirical perspective.
+5.3.2 Parameter Study. Here, we investigate into the sensitivity of two hyper-parameters (i.e., threshold 𝜏 and balance coefficient 𝛽) on Cora and CoraFull datasets. Similar observations are also
+
+Figure 4: The changing trends of accuracy w.r.t. 𝐿/𝐶
+Figure 5: Ablation study of DR-GST𝑑𝑜 . made on other datastes. In particular, we respectively report the performance of DR-GST𝑑𝑜 and DR-GST𝑑𝑒 , and vary the 𝐿/𝐶 in {3, 5, 10}. For clear notation in figures, we use “do-3” to denote DR-GST𝑑𝑜 with 𝐿/𝐶 = 3, and the rest can be done in the same manner.
+Analysis of threshold 𝜏 in self-training We test the impact of threshold 𝜏 in self-training, and vary it from 0.40 to 0.70 for Cora and 0.60 to 0.90 for CoraFull. The results are summarized in Fig
+
+WWW ’22, April 25–29, 2022, Virtual Event, Lyon, France
+
+Hongrui Liu, Binbin Hu, Xiao Wang, Chuan Shi, Zhiqiang Zhang, and Jun Zhou
+
+(a) 𝑠𝑡𝑎𝑔𝑒 = 1
+
+(b) 𝑠𝑡𝑎𝑔𝑒 = 2
+
+(c) 𝑠𝑡𝑎𝑔𝑒 = 3
+
+Figure 6: Ablation study of DR-GST𝑑𝑒 .
+
+(d) 𝑠𝑡𝑎𝑔𝑒 = 1
+
+(e) 𝑠𝑡𝑎𝑔𝑒 = 2
+
+(f) 𝑠𝑡𝑎𝑔𝑒 = 3
+
+Figure 9: Visualization of learned embeddings for unlabeled nodes ((a)∼(c)) and test nodes ((d)∼(f)) on Cora at different stages during self-training.
+
+Figure 7: Impact of threshold 𝜏.
+Figure 8: Impact of balance coefficient 𝛽.
+.7. Generally speaking, the best performance is achieved when we set a smaller 𝜏, which is consistent with our analysis above that high-confidence unlabeled nodes contribute less.
+Analysis of balance coefficient 𝛽 We then test the impact of the balance coefficient 𝛽 in Eq. 13, and vary it from 1/3 to 1. The results are shown in Fig. 8. Obviously, with the increase of 𝛽, or, in other words, with more attention paid to hard nodes, the performance shows a downward trend, further demonstrating the effectiveness of our design. 5.3.3 Visualization. For a more intuitive of the proposed information gain based DR-GST, we conduct the task of visualization on Cora dataset. Specifically, as shown in Fig. 9, we visualize the output embedding of the student model at different stages in DR-GST for Cora dataset. From Fig. 9(a) to Fig. 9(c) we show the visualization of unlabeled nodes, where a lighter dot represents a node endowed with a higher weight by information gain when calculating the loss
+
+function in Eq. 13. Obviously, we can discover that at an earlier stage, DR-GST pays more attention to nodes close to the decision boundary which is also indistinct at this moment. With the training progress going on, the light nodes gradually vanish, implying that most of information these nodes contain has been learned, leading to a more crisp decision boundary. From Fig. 9(d) to Fig. 9(f) we show the visualization of test nodes, where different colors represent different classes. Apparently, the separability of different classes for test nodes is gradually improved, further demonstrating the effectiveness of DR-GST for optimizing the decision boundary.
+6 RELATED WORK
+In line with the main focus of our work, we review the most related work in graph neural networks and self-training.
+Graph Neural Networks Recent years have seen a surge of efforts on Graph Neural Networks (GNNs) and achieved state-ofthe-art performance in various tasks on graphs [33, 36]. Generally, current GNNs can be divided into two categories. The first category is spectral-based GNNs, which defines graph convolution operation in the spectral domain [4, 7]. The well-known GCN [17] simplifies graph convolutions by using the 1-order approximation. Since then, plenty of studies have sprung up. SGC [32] further simplifies GCN by removing the nonlinearities between GCN layers. [20] shows that GCNs smooth node features between neighbours. On the comparison, the other category is spatial-based GNNs, mainly devoted to aggregating and transforming the local information from the perspective of spatial domain. GAT [30] assigns the learnt weight to each edge during aggregation. [12] proposes a permutation-invariant aggregator for message passing. Moreover, there are many other graph neural models, we please refer the readers to recent surveys [34, 37] for a more comprehensive review.
+Self-training Despite the success, GNNs typically require large amounts of labeled data, which is expensive and time-consuming. Self-training [16] is one of the earliest strategies addressing labeled data scarcity by making better use of abundant unlabeled data, and has shown remarkable performance on various tasks [14, 19, 22].
+
+Confidence May Cheat: Self-Training on Graph Neural Networks under Distribution Shift
+
+WWW ’22, April 25–29, 2022, Virtual Event, Lyon, France
+
+Recently, [20] proposes a graph-based self-training framework, demonstrating the effectiveness of self-training on graphs. Further, [28] utilizes the DeepCluster [5] to filter out low-quality pseudo labels during self-training. CaGCN-st [31] argues that self-training under-performs due to generally overlooked low-confidence but high-accuracy predictions, and proposes a confidence-calibrated self-training framework. [38] proposes to select high-quality unlabeled nodes via an adaptive pseudo labeling technique. [24] utilizes a margin prediction confidence to select unlabeled nodes, aiming at identifying the most confident labels. In summary, almost all of graph self-training methods focus on improving the quality of pseudo labels by virtue of confidence, but none of them have ever considered the capability and limitation of such selection criterion.
+7 CONCLUSION
+In this paper, we empirically make a thorough study for capability and limitation of current self-training methods on graphs, and surprisingly find they may be cheated by confidence and even suffer from the distribution shift issue, leading to unpromising performance. To this end, we propose a novel self-training framework DR-GST which not only addresses the distribution shift issue from the view of information gain, but also is equipped with the creative loss correction strategy for improving qualities of pseudo labels. Theoretical analysis and extensive experiments well demonstrate the effectiveness of the proposed DR-GST. Moreover, our study also gives an insight that confidence alone is not enough for selftraining and thus motivates us an interesting direction for future work, i.e., exploiting more criteria for the selection of unlabeled nodes during self-training.
+8 ACKNOWLEDGMENTS
+This work is supported in part by the National Natural Science Foundation of China (No. U20B2045, 62192784, 62172052, 61772082, 62002029, U1936104), the Fundamental Research Funds for the Central Universities 2021RC28 and CCF-Ant Group Research Fund.
+REFERENCES
+[1] Antonin Berthon, Bo Han, Gang Niu, Tongliang Liu, and Masashi Sugiyama. 2021. Confidence scores make instance-dependent label-noise learning possible. In ICML. 825–836.
+[2] Charles Blundell, Julien Cornebise, Koray Kavukcuoglu, and Daan Wierstra. 2015. Weight uncertainty in neural network. In ICML. 1613–1622.
+[3] Aleksandar Bojchevski and Stephan Günnemann. 2018. Deep Gaussian Embedding of Graphs: Unsupervised Inductive Learning via Ranking. In ICLR.
+[4] Joan Bruna, Wojciech Zaremba, Arthur Szlam, and Yann LeCun. 2014. Spectral Networks and Locally Connected Networks on Graphs. In ICLR.
+[5] Mathilde Caron, Piotr Bojanowski, Armand Joulin, and Matthijs Douze. 2018. Deep clustering for unsupervised learning of visual features. In ECCV. 132–149.
+[6] Thomas M Cover. 1999. Elements of information theory. John Wiley & Sons. [7] Michaël Defferrard, Xavier Bresson, and Pierre Vandergheynst. 2016. Convolu-
+tional Neural Networks on Graphs with Fast Localized Spectral Filtering. In NIPS. 3837–3845. [8] Jiali Duan, Yen-Liang Lin, Son Dinh Tran, Larry S. Davis, and C.-C. Jay Kuo. 2020. SLADE: A Self-Training Framework for Distance Metric Learning. In CVPR. 9644–9653. [9] Yarin Gal and Zoubin Ghahramani. 2016. Dropout as a bayesian approximation: Representing model uncertainty in deep learning. In ICML. 1050–1059. [10] Jacob Goldberger and Ehud Ben-Reuven. 2017. Training deep neural-networks using a noise adaptation layer. In ICLR. [11] Alex Graves. 2011. Practical variational inference for neural networks. In NIPS. 2348–2356. [12] William L Hamilton, Rex Ying, and Jure Leskovec. 2017. Inductive representation learning on large graphs. In NIPS. 1025–1035.
+
+[13] Arman Hasanzadeh, Ehsan Hajiramezanali, Shahin Boluki, Mingyuan Zhou, Nick
+Duffield, Krishna Narayanan, and Xiaoning Qian. 2020. Bayesian graph neural networks with adaptive connection sampling. In ICML. 4094–4104. [14] Junxian He, Jiatao Gu, Jiajun Shen, and Marc’Aurelio Ranzato. 2020. Revisiting Self-Training for Neural Sequence Generation. In ICLR. [15] Jose Hernandez-Lobato, Yingzhen Li, Mark Rowland, Thang Bui, Daniel
+Hernández-Lobato, and Richard Turner. 2016. Black-box alpha divergence minimization. In ICML. 1511–1520. [16] H. J. Scudder III. 1965. Probability of error of some adaptive pattern-recognition machines. IEEE Transactions on Information Theory 11, 3 (1965), 363–371. [17] Thomas N. Kipf and Max Welling. 2017. Semi-Supervised Classification with Graph Convolutional Networks. In ICLR. [18] Johannes Klicpera, Aleksandar Bojchevski, and Stephan Günnemann. 2019. Pre-
+dict then Propagate: Graph Neural Networks meet Personalized PageRank. In ICLR. [19] Dong-Hyun Lee et al. 2013. Pseudo-label: The simple and efficient semisupervised learning method for deep neural networks. In ICML Workshop. [20] Qimai Li, Zhichao Han, and Xiao-Ming Wu. 2018. Deeper Insights Into Graph Convolutional Networks for Semi-Supervised Learning. In AAAI. 3538–3545. [21] Zaiqiao Meng, Shangsong Liang, Hongyan Bao, and Xiangliang Zhang. 2019. Co-embedding attributed networks. In WSDM. 393–401. [22] Subhabrata Mukherjee and Ahmed Awadallah. 2020. Uncertainty-aware selftraining for few-shot text classification. In NIPS. [23] Giorgio Patrini, Alessandro Rozza, Aditya Krishna Menon, Richard Nock, and
+Lizhen Qu. 2017. Making deep neural networks robust to label noise: A loss correction approach. In CVPR. 1944–1952. [24] Daniel Carlos Guimarães Pedronette and Longin Jan Latecki. 2021. Rank-based self-training for graph convolutional networks. Information Processing & Management 58, 2 (2021), 102443. [25] Yu Rong, Wenbing Huang, Tingyang Xu, and Junzhou Huang. 2019. Dropedge: Towards deep graph convolutional networks on node classification. arXiv preprint arXiv:1907.10903 (2019). [26] Prithviraj Sen, Galileo Namata, Mustafa Bilgic, Lise Getoor, Brian Galligher, and Tina Eliassi-Rad. 2008. Collective classification in network data. AI magazine 29, 3 (2008), 93–93.
+[27] Sainbayar Sukhbaatar, Joan Bruna, Manohar Paluri, Lubomir Bourdev, and Rob Fergus. 2014. Training convolutional networks with noisy labels. arXiv preprint arXiv:1406.2080 (2014).
+[28] Ke Sun, Zhouchen Lin, and Zhanxing Zhu. 2020. Multi-Stage Self-Supervised
+Learning for Graph Convolutional Networks on Graphs with Few Labeled Nodes. In AAAI. 5892–5899. [29] Laurens Van der Maaten and Geoffrey Hinton. 2008. Visualizing data using t-SNE. Journal of machine learning research 9, 11 (2008). [30] Petar Veličković, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Lio, and Yoshua Bengio. 2017. Graph attention networks. ICLR. [31] Xiao Wang, Hongrui Liu, Chuan Shi, and Cheng Yang. 2021. Be Confident! Towards Trustworthy Graph Neural Networks via Confidence Calibration. Advances in Neural Information Processing Systems 34 (2021). [32] Felix Wu, Amauri Souza, Tianyi Zhang, Christopher Fifty, Tao Yu, and Kilian Weinberger. 2019. Simplifying graph convolutional networks. In ICML. 6861– 6871.
+[33] Zonghan Wu, Shirui Pan, Fengwen Chen, Guodong Long, Chengqi Zhang, and S Yu Philip. 2020. A comprehensive survey on graph neural networks. IEEE transactions on neural networks and learning systems 32, 1 (2020), 4–24.
+[34] Zonghan Wu, Shirui Pan, Fengwen Chen, Guodong Long, Chengqi Zhang, and S Yu Philip. 2020. A comprehensive survey on graph neural networks. IEEE transactions on neural networks and learning systems 32, 1 (2020), 4–24.
+[35] Keyulu Xu, Weihua Hu, Jure Leskovec, and Stefanie Jegelka. 2019. How Powerful are Graph Neural Networks. In ICLR.
+[36] Ziwei Zhang, Peng Cui, and Wenwu Zhu. 2020. Deep learning on graphs: A survey. IEEE Transactions on Knowledge and Data Engineering (2020).
+[37] Jie Zhou, Ganqu Cui, Shengding Hu, Zhengyan Zhang, Cheng Yang, Zhiyuan Liu,
+Lifeng Wang, Changcheng Li, and Maosong Sun. 2020. Graph neural networks: A review of methods and applications. AI Open 1 (2020), 57–81. [38] Ziang Zhou, Jieming Shi, Shengzhong Zhang, Zengfeng Huang, and Qing Li.
+2019. Effective Semi-Supervised Node Classification on Few-Labeled Graph Data. arXiv preprint arXiv:1910.02684 (2019).
+
+WWW ’22, April 25–29, 2022, Virtual Event, Lyon, France
+
+Hongrui Liu, Binbin Hu, Xiao Wang, Chuan Shi, Zhiqiang Zhang, and Jun Zhou
+
+A SUPPLEMENT
+In the supplement, we first provide detailed poofs of import theorems in our paper i.e., Theorem 4.1, Proposition 4.2 and Theorem 4.3. Next, more experimental details are represented for reproduction.
+
+A.1 Proof
+
+In this section, we successively show the detailed proof for Theorem 4.1, Proposition 4.2 and Theorem 4.3.
+
+A.1.1 Proof of Theorem 4.1.
+
+Proof. With our assumption that 𝑦¯𝑢 = 𝑦𝑢 for each pseudolabeled node 𝑣𝑢 ∈ 𝒮𝑈 , we first rewrite ℒ𝑝𝑜𝑝 in Eq. 3 as:
+
+ℒ𝑝𝑜𝑝
+
+=
+
+|𝒮𝑈 | |𝒱𝐿 ∪ 𝒮𝑈
+
+|
+
+E ( 𝑣𝑢 ,𝑦𝑢
+
+) ∼𝑃𝑝𝑜 𝑝
+
+( 𝒱 ,𝒴 )
+
+𝑙
+
+(𝑦¯𝑢
+
+,
+
+p𝑢
+
+)
+
+(17)
+
++
+
+| |𝒱𝐿
+
+𝒱𝐿 | ∪ 𝒮𝑈
+
+|
+
+E
+
+(
+
+𝑣𝑖
+
+,𝑦𝑖
+
+)
+
+∼𝑃𝑝𝑜
+
+𝑝
+
+(𝒱,𝒴
+
+)
+
+𝑙
+
+(𝑦𝑖
+
+,
+
+p𝑖
+
+)
+
+.
+
+where y𝑢 is a one-hot vector expanded from 𝑦𝑢 . The proof is con-
+
+cluded for MSE loss.
+
+CE
+
+loss.
+
+Under
+
+CE
+
+loss,
+
+we
+
+prove
+
+the
+
+equality
+
+of
+
+𝜃¯ and
+
+∗
+𝜃
+
+from
+
+the perspective of gradient descent. Specifically, if for each node 𝑣𝑢 , the gradient of 𝑓𝜃¯(x𝑢, A) w.r.t. 𝜃¯ is equal to that of 𝑓𝜃∗ (x𝑢, A) w.r.t. 𝜃 ∗, then optimizing a model 𝑓𝜃¯ using gradient descent will definitely leads to our desired model 𝑓𝜃∗ , that is to say, 𝜃¯ = 𝜃 ∗.
+Specifically, for each node 𝑣𝑢 , we first rewrite the CE loss as
+
+follows:
+
+𝑙 (y𝑢, p𝑢 ) = y𝑢T log 𝑓𝜃 (x𝑢, A).
+
+(22)
+
+Then the difference 𝑑 of gradient between 𝜃¯ and 𝜃 ∗ can be written
+
+as: 𝑑 = ||∇𝜃 y¯𝑢T log 𝑓𝜃¯(x𝑢, A) − ∇𝜃 y𝑢T log 𝑓𝜃∗ (x𝑢, A)|| (23)
+Considering our assumption that 𝑓𝜃¯(x𝑢, A) = T𝑓𝜃∗ (x𝑢, A), Eq. 23 becomes:
+
+𝑑 = ||∇𝜃 (Ty𝑢 )T log(T𝑓𝜃∗ (x𝑢, A)) − ∇𝜃 y𝑢T log 𝑓𝜃∗ (x𝑢, A)|| (24)
+
+Note that 𝑃𝑝𝑜𝑝 (𝑣𝑢, 𝑦𝑢 )
+E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴)𝑙 (𝑦¯𝑢, p𝑢 ) = E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑠𝑡 (𝒱,𝒴) 𝑃𝑠𝑡 (𝑣𝑢, 𝑦𝑢 ) 𝑙 (𝑦¯𝑢, p𝑢 ), (18)
+
+then we can rewrite Eq. 17 as
+
+ℒ𝑝𝑜𝑝
+
+=
+
+|𝒮𝑈 | |𝒱𝐿 ∪ 𝒮𝑈
+
+|
+
+E ( 𝑣𝑢 ,𝑦𝑢
+
+) ∼𝑃𝑠𝑡
+
+( 𝒱 ,𝒴 )
+
+𝑃𝑝𝑜𝑝 (𝑣𝑢, 𝑦𝑢 ) 𝑃𝑠𝑡 (𝑣𝑢, 𝑦𝑢 )
+
+𝑙
+
+(𝑦¯𝑢 ,
+
+p𝑢
+
+)
+
++
+
+|𝒱𝐿 | |𝒱𝐿 ∪ 𝒮𝑈
+
+| E(𝑣𝑖,𝑦𝑖 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴)𝑙 (𝑦𝑖 , p𝑖 )
+
+(19)
+
+=
+
+|𝒮𝑈 | |𝒱𝐿 ∪ 𝒮𝑈
+
+|
+
+E ( 𝑣𝑢 ,𝑦𝑢
+
+) ∼𝑃𝑠𝑡
+
+( 𝒱 ,𝒴 ) 𝛾𝑢 𝑙
+
+(𝑦¯𝑢
+
+,
+
+p𝑢
+
+)
+
++
+
+|𝒱𝐿 | |𝒱𝐿 ∪ 𝒮𝑈
+
+| E(𝑣𝑖,𝑦𝑖 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴)𝑙 (𝑦𝑖, p𝑖 ),
+
+where 𝛾𝑢 can be regarded as a weight of the loss function for each
+
+pseudo-labeled node 𝑣𝑢 .
+
+Finally, recalling the loss function under the distribution shift
+
+According to the chain rule, we have:
+
+𝑑 = ||∇𝜃 𝑓𝜃∗ (x𝑢, A) · (TT (Ty𝑢 ⊘ T𝑓𝜃∗ (x𝑢, A)) − y𝑢 ⊘ 𝑓𝜃∗ (x𝑢, A))||, (25)
+where ⊘ represents the element-wise division operation. Obviously, if T is a permutation matrix, the difference 𝑑 of gra-
+
+dient is zero. The proof is concluded for CE loss.
+
+□
+
+A.1.3 Proof of Theorem 4.3. To prove Theorem 4.3, we need to borrow a corollary from [38], which illustrates the impact of incorrect pseudo labels on self-training without distribution shift.
+
+Corollary A.1. Assuming that the augmented dataset follows the population distribution 𝑃𝑝𝑜𝑝 and ||∇𝜃𝑙 || ≤ Ψ for any gradient ∇𝜃 ℒ, the following bound between ∇𝜃 ℒ𝑝𝑜𝑝 and ∇𝜃 ℒ𝑠𝑡 holds:
+
+|∇𝜃 ℒ𝑝𝑜𝑝
+
+− ∇𝜃 ℒ𝑠𝑡 |
+
+⩽
+
+|𝒮𝑈 | |𝒱𝐿 ∪ 𝒮𝑈
+
+|
+
+2Ψ
+
+|
+
+|𝑃
+
+(𝑣𝑢
+
+,𝑦𝑢
+
+)
+
+∼𝑃𝑝𝑜
+
+𝑝
+
+(𝒱,𝒴
+
+)
+
+(𝑦¯𝑢
+
+≠ 𝑦𝑢 )||.
+
+(26)
+
+case in Eq. 4, i.e.,
+
+Now, we prove Theorem 4.3.
+
+ℒ𝑠𝑡
+
+=
+
+|𝒱𝐿 | |𝒱𝐿 ∪ 𝒮𝑈
+
+|
+
+E ( 𝑣𝑖 ,𝑦𝑖
+
+) ∼𝑃𝑝𝑜 𝑝
+
+(𝒱,𝒴 ) 𝑙
+
+(𝑦𝑖
+
+,
+
+p𝑖
+
+)
+
+(20)
+
++
+
+|𝒮𝑈 | |𝒱𝐿 ∪ 𝒮𝑈
+
+|
+
+E
+
+(𝑣𝑢
+
+,𝑦𝑢
+
+)
+
+∼𝑃𝑠𝑡
+
+(
+
+𝒱,𝒴
+
+)
+
+𝑙
+
+(𝑦¯𝑢
+
+,
+
+p𝑢
+
+),
+
+we can find that it is definitely equal to that in Eq. 3 with an ad-
+
+ditional weight coefficient. In other words, we can recover the
+
+population distribution as long as we weight each pseudo-labeled
+
+node with a proper coefficient in ℒ𝑠𝑡 .
+
+□
+
+A.1.2 Proof of Proposition 4.2.
+
+Proof. Without loss of generality, we respectively prove the equality of 𝜃 ∗ and 𝜃¯ under MSE loss and CE loss.
+
+MSE loss. Under the MSE loss, with our non-zero assumption for T, the following equation holds true:
+
+∗
+𝜃
+
+=
+
+arg min
+𝜃∗ ∈Θ
+
+∑︁
+
+|| 𝑓𝜃 ∗
+
+( x𝑢 ,
+
+A)
+
+−
+
+y𝑢 ||2
+
+𝑢
+
+=
+
+arg
+
+min
+𝜃∗ ∈Θ
+
+∑︁
+
+|
+
+|T𝑓𝜃
+
+∗
+
+(x𝑢
+
+,
+
+A)
+
+−
+
+Ty𝑢
+
+||2
+
+(21)
+
+𝑢
+
+=
+
+arg
+
+min
+𝜃¯∈Θ
+
+∑︁
+𝑢
+
+| | 𝑓𝜃¯(x𝑢 ,
+
+A)
+
+−
+
+y¯𝑢
+
+||2
+
+=
+
+𝜃¯,
+
+Proof. We first calculate the difference between ∇𝜃 ℒ𝑝𝑜𝑝 and ∇𝜃 ℒ𝑠𝑡 as follows:
+
+||∇𝜃 ℒ𝑝𝑜𝑝
+
+− ∇𝜃 ℒ𝑠𝑡 ||
+
+=
+
+|𝒮𝑈 |𝒱𝐿
+
+| 𝒮𝑈
+
+|
+
+|
+
+|E
+
+(𝑣𝑢
+
+,𝑦𝑢
+
+)
+
+∼𝑃𝑝𝑜𝑝
+
+(𝒱,𝒴
+
+)
+
+∇𝜃
+
+𝑙
+
+(𝑦𝑢
+
+,
+
+p𝑢
+
+)
+
+− E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑠𝑡 (𝒱,𝒴) ∇𝜃 𝑙 (𝑦¯𝑢, p𝑢 ) ||.
+
+(27)
+
+Adding and subtracting a same term E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑠𝑡 (𝒱,𝒴) ∇𝜃 𝑙 (𝑦¯𝑢, p𝑢 ),
+
+and abbreviating
+
+|𝒮𝑈 | |𝒱𝐿 𝒮𝑈 |
+
+as 𝜂, Eq. 27 can be written as:
+
+||∇𝜃 ℒ𝑝𝑜𝑝 − ∇𝜃 ℒ𝑠𝑡 || =
+
+𝜂 ||E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴) ∇𝜃 𝑙 (𝑦𝑢, p𝑢 ) − E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴) ∇𝜃 𝑙 (𝑦¯𝑢, p𝑢 )
+
++ E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴) ∇𝜃 𝑙 (𝑦¯𝑢, p𝑢 ) − E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑠𝑡 (𝒱,𝒴) ∇𝜃 𝑙 (𝑦¯𝑢, p𝑢 ) ||.
+
+(28)
+
+According to the triangle property of the norm, the following in-
+
+equality is satisfied:
+
+||∇𝜃 ℒ𝑝𝑜𝑝 − ∇𝜃 ℒ𝑠𝑡 || ≤ 𝜂 (||E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴) ∇𝜃 𝑙 (𝑦𝑢, p𝑢 ) − E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴) ∇𝜃 𝑙 (𝑦¯𝑢, p𝑢 ) || + ||E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴) ∇𝜃 𝑙 (𝑦¯𝑢, p𝑢 ) − E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑠𝑡 (𝒱,𝒴) ∇𝜃 𝑙 (𝑦¯𝑢, p𝑢 ) ||).
+(29)
+
+Confidence May Cheat: Self-Training on Graph Neural Networks under Distribution Shift
+
+WWW ’22, April 25–29, 2022, Virtual Event, Lyon, France
+
+Table 2: The statistics of datasets
+
+Dataset Nodes Edges Classes Features Validation Test
+
+Cora 2708 5429 7 Citeseer 3327 4732 6 Pubmed 19717 44338 3 CoraFull 19793 65311 70
+Flickr 7575 239738 9
+
+1433 3703 500 8710 12047
+
+500 1000 500 1000 500 1000 500 1000 500 1000
+
+Recalling Corollary A.1, we know that the first term on the right
+
+hand side satisfies:
+||E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴) ∇𝜃 𝑙 (𝑦𝑢, p𝑢 ) − E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴) ∇𝜃 𝑙 (𝑦¯𝑢, p𝑢 ) || ≤ 2Ψ||𝑃 (𝑣𝑢,𝑦𝑢 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴) (𝑦¯𝑢 ≠ 𝑦𝑢 ) ||.
+(30)
+
+And for the second term, we have:
+
+E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑝𝑜𝑝 (𝒱,𝒴) ∇𝜃 𝑙 (𝑦¯𝑢, p𝑢 ) − E(𝑣𝑢,𝑦𝑢 )∼𝑃𝑠𝑡 (𝒱,𝒴) ∇𝜃 𝑙 (𝑦¯𝑢, p𝑢 ) ||
+
+∫ +∞ ∫ +∞
+
+=
+
+∇𝜃 𝑙 (𝑦¯𝑢, p𝑢 )𝑑 (𝑃𝑝𝑜𝑝 (𝒱, 𝒴) − 𝑃𝑠𝑡 (𝒱, 𝒴))
+
+−∞ −∞
+
+≤ Ψ · ||𝑃𝑝𝑜𝑝 (𝒱, 𝒴) − 𝑃𝑠𝑡 (𝒱, 𝒴)||,
+
+(31)
+
+where the inequality is from our assumption that ||∇𝜃𝑙 || ≤ Ψ.
+
+Combining Eq. 30 with Eq. 31, we have:
+
+||∇𝜃 ℒ𝑝𝑜𝑝
+
+− ∇𝜃 ℒ𝑠𝑡 ||
+
+⩽
+
+|𝒮𝑈 | |𝒱𝐿 ∪ 𝒮𝑈
+
+|
+
+Ψ
+
+(
+
+2
+
+|
+
+|𝑃
+
+(𝑣𝑢
+
+,𝑦𝑢
+
+)
+
+∼𝑃𝑝𝑜
+
+𝑝
+
+(𝒱,𝒴
+
+)
+
+(𝑦¯𝑢
+
+≠ 𝑦𝑢 )
+
++ ||𝑃𝑠𝑡 (𝒱, 𝒴) − 𝑃𝑝𝑜𝑝 (𝒱, 𝒴)||).
+
+(32)
+
+The proof is concluded.
+
+□
+
+A.2 Time Complexity Analysis
+We first analyze the time complexity of a general self-training framework. Assuming training an epoch takes 𝑂 (𝑀) time, given epochs 𝐸, its time complexity in each stage is 𝑂 (𝐸𝑀). DR-GST is innovated in information gain and loss correction, which respectively takes 𝑂 (𝑇 𝑀) and 𝑂 (𝐸𝑐2) time in each stage, where 𝑇 and 𝑐 are the numbers of sampling for variational inference and class.
+Moreover, considering that we train a student model twice in each stage, the total time complexity is 𝑂 ((2𝐸 + 𝑇 )𝑀 + 𝐸𝑐2). In fact, 𝑇 and 𝑂 (𝐸𝑐2) are always far less than 𝐸 and 𝑂 (𝐸𝑀). Consequently, the time complexity of DR-GST is approximately twice that of the
+general self-training framework.
+
+A.3 More Experimental Details
+A.3.1 Details of datasets. We adopt five widely used benchmark datasets from citation networks [3, 26] (i.e., Cora, Citeseer, Pubmed and CoraFull) and social network [21] (i.e., Flickr) for evaluation. For the citation networks, nodes represent papers, edges are the citation relationship between papers, node features are comprised of bag-ofwords vector of the papers and labels represent the fields of papers. And for the social network, nodes in Flickr represent users of the Flickr website, edges are their relationships induced by their photosharing records and labels represent users’ interest groups. For all the datasets, We choose 500 nodes for validation, 1000 nodes for test. The details of these datasets are summarized in Table 2. Our data
+
+are public and do not contain personally identifiable information and offensive content. The address of our data is https://docs.dgl.ai/ en/latest/api/python/dgl.data.html#node-prediction-datasets and the license is Apache License 2.0. A.3.2 Implementation. We supplement the implementation details of DR-GST and all the baselines here.
+For fair comparison, we utilize the standard GCN with 2 layers as the backbone for all graph self-training framework. We optimize models via Adam with learning rate of 0.01 and early stopping with a window size of 200. In paticular, we set L2 regularization with 𝜆𝑟 = 5𝑒 − 4 for Cora, Citeseer, Pubmed, CoraFull and 𝜆𝑟 = 5𝑒 − 5 for Flickr. We set ReLU as the activation function and apply a dropout rate of 0.5 to prevent over-fitting. As for the MC-dropout and MCdropedge, we set the number of sampling 𝑇 = 100. Moreover, we apply grid search for other important hyper-parameters. Specifically, the drop rate of MC-dropout and MC-dropedge is chosen from {0.1, 0.2, · · · , 0.5}, the balance coefficient 𝛽 for information gain in Eq. 13 is searched in {4/3, 1, 2/3, 1/2, 1/3, 1/4} and the threshold 𝜏 is tuned amongst {0.4, 0.45, · · · , 0.75} for Cora, Citeseer, {0.6, 0.65, · · · , 0.9} for Pubmed, CoraFull and {0.75, 0.78, · · · , 0.96} for Flickr.
+We adopt the implementation of GCN, GAT and APPNP from DGL2, and the implementations of STs 3 and ABN 4 are publicly provided by their authors. Considering that the implementation of M3S is not available, we re-implement it referring to the original paper [28]. For all baselines, we perform grid search for important hyper-parameters (i.e., 𝜏) to obtain optimal results. A.3.3 Experimental Environment. In this section we summarize the hardware and software environment in our experiments.
+We utilize a linux machine powered by an Intel(R) Xeon(R) CPU E5-2682 v4 @ 2.50GHz CPU and 4 Tesla P100-PCIE-16GB as well as 4 GeForce RTX 3090 GPU cards.
+The operating system is Linux version 3.10.0-693.el7.x86_64. We realize our code with Python 3.8.8 as well as some other python packages as follows: PyTorch 1.8.1, DGL 0.6.0 (cuda 10.1), NetworkX 2.5.
+2 https://www.dgl.ai/ 3 https://github.com/Davidham3/deeper_insights_into_GCNs 4 https://anonymous.4open.science/r/e7aca211-0d8d-4564-8f3f-0ef24b01941e/
+

@@ -1,0 +1,219 @@
+    首页
+    知学堂
+    会员
+    发现
+    等你来答 
+
+​
+提问
+​
+80
+消息
+​
+19
+私信
+​
+创作中心
+点击打开要爆了的主页
+深度学习里面，请问有写train函数的模板吗？
+关注问题 ​ 写回答
+点击打开要爆了的主页
+机器学习
+深度学习（Deep Learning）
+图像分割
+深度学习里面，请问有写train函数的模板吗？
+本人是图像分割的小白，最近在写分割的代码，写到train的时候不知道框架该怎么搭，只知道有两个循环，外循环是epoch，内循环是iteration，请… 显示全部 ​
+关注者
+910
+被浏览
+221,002
+关注问题 ​ 写回答
+​ 邀请回答
+​ 好问题 37
+​ 添加评论
+​ 分享
+​
+查看全部 20 个回答
+Introspector
+Introspector
+收藏不赞，等于没看
+​ 关注
+157 人赞同了该回答
+
+这是我常用的训练代码模板，使用了yaml保存日志（yaml保存日志的好处是可以随时从日志查看当前loss多高，配置的超参数，本次实验的代码，甚至能根据pid反查进程的cpu使用率等性能细节，后续处理实验数据时非常方便），并且能随时Ctrl + C停止训练并且不丢失数据。
+
+之后可能只会在github更新，所以求个star： https:// github.com/chaihahaha/d l-template
+
+ import traceback import inspect import yaml import sys import os import tqdm import datetime os . environ [ 'VAR_NAME' ] = sys . argv [ 1 ] logger = dict () # 用字典保存代码、进程ID、配置参数、开始时间、训练时产生的数据等日志信息 logger [ 'code' ] = inspect . getsource ( sys . modules [ __name__ ]) logger [ 'pid' ] = os . getpid () logger [ 'config' ] = config logger [ 'datetime' ] = str ( datetime . datetime . now ()) logger [ 'loss' ] = [] logger [ 'info' ] = [] batch_cnt = 0 log_freq = 100 try : for i in tqdm . tqdm ( range ( N )): for x , y in dataset : loss = model . fit ( x , y ) # 反向传播 logger [ 'loss' ] . append ( loss ) logger [ 'info' ] . append ( info ) batch_cnt += 1 if batch_cnt % log_freq == 0 : # 每log_freq个batch保存一次日志 with open ( 'train.log' , 'w' ) as f : f . write ( yaml . dump ( logger , Dumper = yaml . CDumper )) # 使用yaml保存日志 except KeyboardInterrupt : print ( 'manully stop training...' ) except Exception : print ( traceback . format_exc ()) finally : postprocess ( model ) # 训练结束后处理部分，比如保存模型权重等信息到磁盘  
+
+编辑于 2022-08-17 01:07 ・IP 属地广东
+​ 赞同 157 ​ ​ 3 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+更多回答
+王大队长
+王大队长
+图像处理
+​ 关注
+921 人赞同了该回答
+
+最近在kaggle上看到别人的训练函数代码写得很优秀，于是结合自己的训练函数喜好优化了一下训练函数（参数初始化、动态修改学习率、优化器选择），感觉比之前高级多了！还是要多学习大佬的代码！
+
+所需要的包：
+
+ import torch from torch import nn, optim from torch.optim.lr_scheduler import CosineAnnealingLR from torchinfo import summary＃打印网络模型各层信息的库 import timm import torchvision import torchvision.transforms as transforms from torch.utils.data import DataLoader from matplotlib import pyplot as plt import numpy as np from tqdm import tqdm＃进度条的库 import Ranger 
+
+对训练函数进行封装：
+
+ def train ( net , loss , train_dataloader , valid_dataloader , device , batch_size , num_epoch , lr , lr_min , optim = 'sgd' , init = True , scheduler_type = 'Cosine' ): def init_xavier ( m ): #参数初始化 #if type(m) == nn.Linear or type(m) == nn.Conv2d: if type ( m ) == nn . Linear : nn . init . xavier_normal_ ( m . weight ) if init : net . apply ( init_xavier ) print ( 'training on:' , device ) net . to ( device ) #优化器选择 if optim == 'sgd' : optimizer = torch . optim . SGD (( param for param in net . parameters () if param . requires_grad ), lr = lr , weight_decay = 0 ) elif optim == 'adam' : optimizer = torch . optim . Adam (( param for param in net . parameters () if param . requires_grad ), lr = lr , weight_decay = 0 ) elif optim == 'adamW' : optimizer = torch . optim . AdamW (( param for param in net . parameters () if param . requires_grad ), lr = lr , weight_decay = 0 ) elif optim == 'ranger' : optimizer = Ranger (( param for param in net . parameters () if param . requires_grad ), lr = lr , weight_decay = 0 ) if scheduler_type == 'Cosine' : scheduler = CosineAnnealingLR ( optimizer , T_max = num_epoch , eta_min = lr_min ) #用来保存每个epoch的Loss和acc以便最后画图 train_losses = [] train_acces = [] eval_acces = [] best_acc = 0.0 #训练 for epoch in range ( num_epoch ): print ( "——————第 {} 轮训练开始——————" . format ( epoch + 1 )) # 训练开始 net . train () train_acc = 0 for batch in tqdm ( train_dataloader , desc = '训练' ): imgs , targets = batch imgs = imgs . to ( device ) targets = targets . to ( device ) output = net ( imgs ) Loss = loss ( output , targets ) optimizer . zero_grad () Loss . backward () optimizer . step () _ , pred = output . max ( 1 ) num_correct = ( pred == targets ) . sum () . item () acc = num_correct / ( batch_size ) train_acc += acc scheduler . step () print ( "epoch: {} , Loss: {} , Acc: {} " . format ( epoch , Loss . item (), train_acc / len ( train_dataloader ))) train_acces . append ( train_acc / len ( train_dataloader )) train_losses . append ( Loss . item ()) # 测试步骤开始 net . eval () eval_loss = 0 eval_acc = 0 with torch . no_grad (): for imgs , targets in valid_dataloader : imgs = imgs . to ( device ) targets = targets . to ( device ) output = net ( imgs ) Loss = loss ( output , targets ) _ , pred = output . max ( 1 ) num_correct = ( pred == targets ) . sum () . item () eval_loss += Loss acc = num_correct / imgs . shape [ 0 ] eval_acc += acc eval_losses = eval_loss / ( len ( valid_dataloader )) eval_acc = eval_acc / ( len ( valid_dataloader )) if eval_acc > best_acc : best_acc = eval_acc torch . save ( net . state_dict (), 'best_acc.pth' ) eval_acces . append ( eval_acc ) print ( "整体验证集上的Loss: {} " . format ( eval_losses )) print ( "整体验证集上的正确率: {} " . format ( eval_acc )) return train_losses , train_acces , eval_acces  
+
+对整体进行封装（以CIFAR-10数据集为例）：
+
+ import torch from torch import nn , optim from torch.optim.lr_scheduler import CosineAnnealingLR from torchinfo import summary import timm import torchvision import torchvision.transforms as transforms from torch.utils.data import DataLoader from matplotlib import pyplot as plt import numpy as np from tqdm import tqdm import Ranger def get_dataloader ( batch_size ): data_transform = { "train" : transforms . Compose ([ transforms . RandomResizedCrop ( 224 ), transforms . RandomHorizontalFlip (), transforms . ToTensor (), transforms . Normalize ([ 0.485 , 0.456 , 0.406 ], [ 0.229 , 0.224 , 0.225 ])]), "val" : transforms . Compose ([ transforms . Resize ( 256 ), transforms . CenterCrop ( 224 ), transforms . ToTensor (), transforms . Normalize ([ 0.485 , 0.456 , 0.406 ], [ 0.229 , 0.224 , 0.225 ])])} train_dataset = torchvision . datasets . CIFAR10 ( './p10_dataset' , train = True , transform = data_transform [ "train" ], download = True ) test_dataset = torchvision . datasets . CIFAR10 ( './p10_dataset' , train = False , transform = data_transform [ "val" ], download = True ) print ( '训练数据集长度: {} ' . format ( len ( train_dataset ))) print ( '测试数据集长度: {} ' . format ( len ( test_dataset ))) # DataLoader创建数据集 train_dataloader = DataLoader ( train_dataset , batch_size = batch_size , shuffle = True ) test_dataloader = DataLoader ( test_dataset , batch_size = batch_size , shuffle = True ) return train_dataloader , test_dataloader def show_pic ( dataloader ): #展示dataloader里的6张图片 examples = enumerate ( dataloader ) # 组合成一个索引序列 batch_idx , ( example_data , example_targets ) = next ( examples ) classes = ( 'airplane' , 'automobile' , 'bird' , 'cat' , 'deer' , 'dog' , 'frog' , 'horse' , 'ship' , 'truck' ) fig = plt . figure () for i in range ( 6 ): plt . subplot ( 2 , 3 , i + 1 ) # plt.tight_layout() img = example_data [ i ] print ( 'pic shape:' , img . shape ) img = img . swapaxes ( 0 , 1 ) img = img . swapaxes ( 1 , 2 ) plt . imshow ( img , interpolation = 'none' ) plt . title ( classes [ example_targets [ i ] . item ()]) plt . xticks ([]) plt . yticks ([]) plt . show () def get_net (): #获得预训练模型并冻住前面层的参数 net = timm . create_model ( 'resnet50' , pretrained = True , num_classes = 10 ) print ( summary ( net , input_size = ( 128 , 3 , 224 , 224 ))) '''Freeze all layers except the last layer(fc or classifier)''' for param in net . parameters (): param . requires_grad = False # nn.init.xavier_normal_(model.fc.weight) # nn.init.zeros_(model.fc.bias) net . fc . weight . requires_grad = True net . fc . bias . requires_grad = True return net def train ( net , loss , train_dataloader , valid_dataloader , device , batch_size , num_epoch , lr , lr_min , optim = 'sgd' , init = True , scheduler_type = 'Cosine' ): def init_xavier ( m ): #if type(m) == nn.Linear or type(m) == nn.Conv2d: if type ( m ) == nn . Linear : nn . init . xavier_normal_ ( m . weight ) if init : net . apply ( init_xavier ) print ( 'training on:' , device ) net . to ( device ) if optim == 'sgd' : optimizer = torch . optim . SGD (( param for param in net . parameters () if param . requires_grad ), lr = lr , weight_decay = 0 ) elif optim == 'adam' : optimizer = torch . optim . Adam (( param for param in net . parameters () if param . requires_grad ), lr = lr , weight_decay = 0 ) elif optim == 'adamW' : optimizer = torch . optim . AdamW (( param for param in net . parameters () if param . requires_grad ), lr = lr , weight_decay = 0 ) elif optim == 'ranger' : optimizer = Ranger (( param for param in net . parameters () if param . requires_grad ), lr = lr , weight_decay = 0 ) if scheduler_type == 'Cosine' : scheduler = CosineAnnealingLR ( optimizer , T_max = num_epoch , eta_min = lr_min ) train_losses = [] train_acces = [] eval_acces = [] best_acc = 0.0 for epoch in range ( num_epoch ): print ( "——————第 {} 轮训练开始——————" . format ( epoch + 1 )) # 训练开始 net . train () train_acc = 0 for batch in tqdm ( train_dataloader , desc = '训练' ): imgs , targets = batch imgs = imgs . to ( device ) targets = targets . to ( device ) output = net ( imgs ) Loss = loss ( output , targets ) optimizer . zero_grad () Loss . backward () optimizer . step () _ , pred = output . max ( 1 ) num_correct = ( pred == targets ) . sum () . item () acc = num_correct / ( batch_size ) train_acc += acc scheduler . step () print ( "epoch: {} , Loss: {} , Acc: {} " . format ( epoch , Loss . item (), train_acc / len ( train_dataloader ))) train_acces . append ( train_acc / len ( train_dataloader )) train_losses . append ( Loss . item ()) # 测试步骤开始 net . eval () eval_loss = 0 eval_acc = 0 with torch . no_grad (): for imgs , targets in valid_dataloader : imgs = imgs . to ( device ) targets = targets . to ( device ) output = net ( imgs ) Loss = loss ( output , targets ) _ , pred = output . max ( 1 ) num_correct = ( pred == targets ) . sum () . item () eval_loss += Loss acc = num_correct / imgs . shape [ 0 ] eval_acc += acc eval_losses = eval_loss / ( len ( valid_dataloader )) eval_acc = eval_acc / ( len ( valid_dataloader )) if eval_acc > best_acc : best_acc = eval_acc torch . save ( net . state_dict (), 'best_acc.pth' ) eval_acces . append ( eval_acc ) print ( "整体验证集上的Loss: {} " . format ( eval_losses )) print ( "整体验证集上的正确率: {} " . format ( eval_acc )) return train_losses , train_acces , eval_acces def show_acces ( train_losses , train_acces , valid_acces , num_epoch ): #对准确率和loss画图显得直观 plt . plot ( 1 + np . arange ( len ( train_losses )), train_losses , linewidth = 1.5 , linestyle = 'dashed' , label = 'train_losses' ) plt . plot ( 1 + np . arange ( len ( train_acces )), train_acces , linewidth = 1.5 , linestyle = 'dashed' , label = 'train_acces' ) plt . plot ( 1 + np . arange ( len ( valid_acces )), valid_acces , linewidth = 1.5 , linestyle = 'dashed' , label = 'valid_acces' ) plt . grid () plt . xlabel ( 'epoch' ) plt . xticks ( range ( 1 , 1 + num_epoch , 1 )) plt . legend () plt . show () if __name__ == '__main__' : train_dataloader , test_dataloader = get_dataloader ( batch_size = 64 ) show_pic ( train_dataloader ) device = torch . device ( "cuda:0" if torch . cuda . is_available () else "cpu" ) net = get_net () loss = nn . CrossEntropyLoss () train_losses , train_acces , eval_acces = train ( net , loss , train_dataloader , test_dataloader , device , batch_size = 64 , num_epoch = 20 , lr = 0.1 , lr_min = 1e-4 , optim = 'sgd' , init = False ) show_acces ( train_losses , train_acces , eval_acces , num_epoch = 20 )  
+
+展开阅读全文 ​
+​ 赞同 921 ​ ​ 45 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+一个有毅力的吃货
+一个有毅力的吃货
+​
+​ 关注
+824 人赞同了该回答
+
+老师，这题我会。
+
+一般pytorch需要用户自定义训练循环，可以说有1000个pytorch用户就有1000种训练 代码风格 。
+从实用角度讲，一个优秀的训练循环应当具备以下特点。
+
+    代码简洁易懂 【模块化、易修改、short-enough】
+    支持常用功能 【进度条、评估指标、early-stopping】
+
+经过反复斟酌测试，我精心设计了仿照keras风格的 pytorch训练循环 。诸君且看
+
+ import os , sys , time import numpy as np import pandas as pd import datetime from tqdm import tqdm import torch from torch import nn from copy import deepcopy def printlog ( info ): nowtime = datetime . datetime . now () . strftime ( '%Y-%m- %d %H:%M:%S' ) print ( " \n " + "==========" * 8 + " %s " % nowtime ) print ( str ( info ) + " \n " ) class StepRunner : def __init__ ( self , net , loss_fn , stage = "train" , metrics_dict = None , optimizer = None ): self . net , self . loss_fn , self . metrics_dict , self . stage = net , loss_fn , metrics_dict , stage self . optimizer = optimizer def step ( self , features , labels ): #loss preds = self . net ( features ) loss = self . loss_fn ( preds , labels ) #backward() if self . optimizer is not None and self . stage == "train" : loss . backward () self . optimizer . step () self . optimizer . zero_grad () #metrics step_metrics = { self . stage + "_" + name : metric_fn ( preds , labels ) . item () for name , metric_fn in self . metrics_dict . items ()} return loss . item (), step_metrics def train_step ( self , features , labels ): self . net . train () #训练模式, dropout层发生作用 return self . step ( features , labels ) @torch.no_grad () def eval_step ( self , features , labels ): self . net . eval () #预测模式, dropout层不发生作用 return self . step ( features , labels ) def __call__ ( self , features , labels ): if self . stage == "train" : return self . train_step ( features , labels ) else : return self . eval_step ( features , labels ) class EpochRunner : def __init__ ( self , steprunner ): self . steprunner = steprunner self . stage = steprunner . stage def __call__ ( self , dataloader ): total_loss , step = 0 , 0 loop = tqdm ( enumerate ( dataloader ), total = len ( dataloader ), file = sys . stdout ) for i , batch in loop : loss , step_metrics = self . steprunner ( * batch ) step_log = dict ({ self . stage + "_loss" : loss }, ** step_metrics ) total_loss += loss step += 1 if i != len ( dataloader ) - 1 : loop . set_postfix ( ** step_log ) else : epoch_loss = total_loss / step epoch_metrics = { self . stage + "_" + name : metric_fn . compute () . item () for name , metric_fn in self . steprunner . metrics_dict . items ()} epoch_log = dict ({ self . stage + "_loss" : epoch_loss }, ** epoch_metrics ) loop . set_postfix ( ** epoch_log ) for name , metric_fn in self . steprunner . metrics_dict . items (): metric_fn . reset () return epoch_log def train_model ( net , optimizer , loss_fn , metrics_dict , train_data , val_data = None , epochs = 10 , ckpt_path = 'checkpoint.pt' , patience = 5 , monitor = "val_loss" , mode = "min" ): history = {} for epoch in range ( 1 , epochs + 1 ): printlog ( "Epoch {0} / {1}" . format ( epoch , epochs )) # 1，train ------------------------------------------------- train_step_runner = StepRunner ( net = net , stage = "train" , loss_fn = loss_fn , metrics_dict = deepcopy ( metrics_dict ), optimizer = optimizer ) train_epoch_runner = EpochRunner ( train_step_runner ) train_metrics = train_epoch_runner ( train_data ) for name , metric in train_metrics . items (): history [ name ] = history . get ( name , []) + [ metric ] # 2，validate ------------------------------------------------- if val_data : val_step_runner = StepRunner ( net = net , stage = "val" , loss_fn = loss_fn , metrics_dict = deepcopy ( metrics_dict )) val_epoch_runner = EpochRunner ( val_step_runner ) with torch . no_grad (): val_metrics = val_epoch_runner ( val_data ) val_metrics [ "epoch" ] = epoch for name , metric in val_metrics . items (): history [ name ] = history . get ( name , []) + [ metric ] # 3，early-stopping ------------------------------------------------- arr_scores = history [ monitor ] best_score_idx = np . argmax ( arr_scores ) if mode == "max" else np . argmin ( arr_scores ) if best_score_idx == len ( arr_scores ) - 1 : torch . save ( net . state_dict (), ckpt_path ) print ( "<<<<<< reach best {0} : {1} >>>>>>" . format ( monitor , arr_scores [ best_score_idx ])) if len ( arr_scores ) - best_score_idx > patience : print ( "<<<<<< {} without improvement in {} epoch, early stopping >>>>>>" . format ( monitor , patience )) break net . load_state_dict ( torch . load ( ckpt_path )) return pd . DataFrame ( history )  
+
+使用方法如下：
+
+ from torchmetrics import Accuracy loss_fn = nn . BCEWithLogitsLoss () optimizer = torch . optim . Adam ( net . parameters (), lr = 0.01 ) metrics_dict = { "acc" : Accuracy ()} dfhistory = train_model ( net , optimizer , loss_fn , metrics_dict , train_data = dl_train , val_data = dl_val , epochs = 10 , patience = 5 , monitor = "val_acc" , mode = "max" )  
+
+疗效如下：
+
+ ================================================================================2022-07-10 20:06:16 Epoch 1 / 10 100%|██████████| 200/200 [00:17<00:00, 11.74it/s, train_acc=0.735, train_loss=0.53] 100%|██████████| 40/40 [00:01<00:00, 20.07it/s, val_acc=0.827, val_loss=0.383] <<<<<< reach best val_acc : 0.8274999856948853 >>>>>> ================================================================================2022-07-10 20:06:35 Epoch 2 / 10 100%|██████████| 200/200 [00:16<00:00, 11.96it/s, train_acc=0.832, train_loss=0.391] 100%|██████████| 40/40 [00:02<00:00, 18.13it/s, val_acc=0.854, val_loss=0.317] <<<<<< reach best val_acc : 0.8544999957084656 >>>>>> ================================================================================2022-07-10 20:06:54 Epoch 3 / 10 100%|██████████| 200/200 [00:17<00:00, 11.71it/s, train_acc=0.87, train_loss=0.313] 100%|██████████| 40/40 [00:02<00:00, 19.96it/s, val_acc=0.902, val_loss=0.239] <<<<<< reach best val_acc : 0.9024999737739563 >>>>>> ================================================================================2022-07-10 20:07:13 Epoch 4 / 10 100%|██████████| 200/200 [00:16<00:00, 11.88it/s, train_acc=0.889, train_loss=0.265] 100%|██████████| 40/40 [00:02<00:00, 18.46it/s, val_acc=0.91, val_loss=0.216] <<<<<< reach best val_acc : 0.9100000262260437 >>>>>> ================================================================================2022-07-10 20:07:32 Epoch 5 / 10 100%|██████████| 200/200 [00:17<00:00, 11.71it/s, train_acc=0.902, train_loss=0.239] 100%|██████████| 40/40 [00:02<00:00, 19.68it/s, val_acc=0.891, val_loss=0.279] ================================================================================2022-07-10 20:07:51 Epoch 6 / 10 100%|██████████| 200/200 [00:17<00:00, 11.75it/s, train_acc=0.915, train_loss=0.212] 100%|██████████| 40/40 [00:02<00:00, 19.52it/s, val_acc=0.908, val_loss=0.222] ================================================================================2022-07-10 20:08:10 Epoch 7 / 10 100%|██████████| 200/200 [00:16<00:00, 11.79it/s, train_acc=0.921, train_loss=0.196] 100%|██████████| 40/40 [00:02<00:00, 19.26it/s, val_acc=0.929, val_loss=0.187] <<<<<< reach best val_acc : 0.9294999837875366 >>>>>> ================================================================================2022-07-10 20:08:29 Epoch 8 / 10 100%|██████████| 200/200 [00:17<00:00, 11.59it/s, train_acc=0.931, train_loss=0.175] 100%|██████████| 40/40 [00:02<00:00, 19.91it/s, val_acc=0.938, val_loss=0.187] <<<<<< reach best val_acc : 0.9375 >>>>>> ================================================================================2022-07-10 20:08:49 Epoch 9 / 10 100%|██████████| 200/200 [00:17<00:00, 11.68it/s, train_acc=0.929, train_loss=0.178] 100%|██████████| 40/40 [00:02<00:00, 19.90it/s, val_acc=0.937, val_loss=0.181] ================================================================================2022-07-10 20:09:08 Epoch 10 / 10 100%|██████████| 200/200 [00:16<00:00, 11.84it/s, train_acc=0.937, train_loss=0.16] 100%|██████████| 40/40 [00:02<00:00, 19.91it/s, val_acc=0.937, val_loss=0.167] 
+
+
+该训练循环满足我所说的以上全部这些特性。
+
+    模块化：自下而上分成 StepRunner, EpochRunner, 和train_model 三级，结构清晰明了。
+    易修改：如果输入和label形式有差异(例如，输入可能组装成字典，或者有多个输入)，仅需更改StepRunner就可以了，后面无需改动，非常灵活。
+    short-enough: 全部训练代码不到150行。
+    支持进度条：通过tqdm引入。
+    支持评估指标：引入torchmetrics库中的指标。
+    支持early-stopping：在train_model函数中指定 monitor、mode、patience即可。
+
+完整代码演示：
+https://github.com/lyhue1991/eat_pytorch_in_20_days/blob/master/1-2%2C%E5%9B%BE%E7%89%87%E6%95%B0%E6%8D%AE%E5%BB%BA%E6%A8%A1%E6%B5%81%E7%A8%8B%E8%8C%83%E4%BE%8B.ipynb ​ github.com/lyhue1991/eat_pytorch_in_20_days/blob/master/1-2%2C%E5%9B%BE%E7%89%87%E6%95%B0%E6%8D%AE%E5%BB%BA%E6%A8%A1%E6%B5%81%E7%A8%8B%E8%8C%83%E4%BE%8B.ipynb
+
+
+以上训练循环也是我在eat_pytorch_in_20_days中使用的主要训练循环。该库目前已经获得3.3k+星星⭐️，大部分读者反馈还是挺好用的。
+
+B站视频演示：
+eat_pytorch_in_20days食用指南_哔哩哔哩_bilibili ​ www.bilibili.com/video/BV1Ua411P7oe/
+
+以上。
+
+
+--2023-05-20更新--
+
+在这套模版的基础上我加了一些周边特性包括 notebook 中可视化，支持wandb/tensorboard，支持多GPU的DDP模式训练等，封装成了一个开源库 torchkeras ，目前已经获得了100多颗⭐️，欢迎大家参考使用。
+https://github.com/lyhue1991/torchkeras ​ github.com/lyhue1991/torchkeras
+
+jupyter中用起来~颜值报表~嘻嘻
+动图封面
+
+我的梦中情炉更完整的介绍：
+吃货本货：炼丹师，这是你的梦中情炉吗 9 赞同 · 3 评论 文章
+
+觉得不错的话，记得star支持一下 我的梦中情炉 哦。
+编辑于 2023-06-06 17:14
+真诚赞赏，手留余香
+赞赏
+还没有人赞赏，快来当第一个赞赏的人吧！
+​ 赞同 824 ​ ​ 28 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+查看全部 20 个回答
+广告
+关于作者
+Introspector
+Introspector
+收藏不赞，等于没看
+回答
+438
+文章
+104
+关注者
+7,296
+​ 关注她 ​ 发私信
+被收藏 56 次
+科研
+秋风暖暖 创建
+2 人关注
+深度学习
+theigrams 创建
+1 人关注
+计算机
+缕光 创建
+0 人关注
+杂七杂八
+天线短路宝宝 创建
+0 人关注
+机器学习
+NuNo 创建
+0 人关注
+相关问题
+利用python绘制三维线图，为什么提示list类型没有维度属性? 1 个回答
+为什么Point temp=foo_bar(global);无法编译？请说出哪里使用了拷贝构造函数？ 2 个回答
+R语言plot函数咋没反应呢? 0 个回答
+为什么我用R语言plot函数画出来的图是一条直线？代码都是对的 但是还是直线 有大佬解答这种情况吗？ 3 个回答
+eup 功能的应用场景都有哪些？ 0 个回答
+相关推荐
+live
+深度学习原理与 TensorFlow 实践
+48 人读过 ​ 阅读
+live
+深度学习案例精粹
+艾哈迈德·曼肖伊
+32 人读过 ​ 阅读
+live
+从零开始：机器学习的数学原理和算法实践
+16 人读过 ​ 阅读
+广告
+广告
+刘看山 知乎指南 知乎协议 知乎隐私保护指引
+应用 工作 申请开通知乎机构号
+侵权举报 网上有害信息举报专区
+京 ICP 证 110745 号
+京 ICP 备 13052560 号 - 1
+京公网安备 11010802020088 号
+京网文[2022]2674-081 号
+药品医疗器械网络信息服务备案
+（京）网药械信息备字（2022）第00334号 广播电视节目制作经营许可证:（京）字第06591号 服务热线：400-919-0001 违法和不良信息举报：010-82716601 举报邮箱：jubao@zhihu.com
+儿童色情信息举报专区
+互联网算法推荐举报专区
+仿冒诈骗专区
+MCN 举报专区
+信息安全漏洞反馈专区
+内容从业人员违法违规行为举报
+网络谣言信息举报入口
+网络传播秩序举报专区
+涉企虚假不实信息举报专区
+证照中心 Investor Relations
+联系我们 © 2023 知乎
+北京智者天下科技有限公司版权所有
+本站提供适老化无障碍服务

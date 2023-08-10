@@ -1,0 +1,1437 @@
+1
+A Survey of Trustworthy Federated Learning with Perspectives on Security, Robustness, and
+Privacy
+Yifei Zhang∗, Dun Zeng∗, Jinglong Luo∗, Zenglin Xu† Irwin King†
+Abstract—Trustworthy artiﬁcial intelligence (AI) technology has revolutionized daily life and greatly beneﬁted human society. Among various AI technologies, Federated Learning (FL) stands out as a promising solution for diverse real-world scenarios, ranging from risk evaluation systems in ﬁnance to cutting-edge technologies like drug discovery in life sciences. However, challenges around data isolation and privacy threaten the trustworthiness of FL systems. Adversarial attacks against data privacy, learning algorithm stability, and system conﬁdentiality are particularly concerning in the context of distributed training in federated learning. Therefore, it is crucial to develop FL in a trustworthy manner, with a focus on security, robustness, and privacy. In this survey, we propose a comprehensive roadmap for developing trustworthy FL systems and summarize existing efforts from three key aspects: security, robustness, and privacy. We outline the threats that pose vulnerabilities to trustworthy federated learning across different stages of development, including data processing, model training, and deployment. To guide the selection of the most appropriate defense methods, we discuss speciﬁc technical solutions for realizing each aspect of Trustworthy FL (TFL). Our approach differs from previous work that primarily discusses TFL from a legal perspective or presents FL from a high-level, non-technical viewpoint.
+Index Terms—Trustworthy Federated Learning, Privacy, Robustness, Security
+!
+
+arXiv:2302.10637v1 [cs.LG] 21 Feb 2023
+
+1 INTRODUCTION
+1.1 From Trustworthy AI to Trustworthy Federated Learning
+Trustworthy AI has recently received increased attention due to the need to avoid the adverse effects that AI could have on people [248, 202, 124, 190, 171]. There have been ongoing efforts to promote trustworthy AI, so that people can fully trust and live in harmony with AI technologies. Among various AI technologies [258, 189, 253, 256, 259, 257, 44, 43, 42, 45], Federated Learning (FL) stands out due to the demand for data privacy and data availability in distributed environments. The core idea of FL is to generate a collaboratively trained global learning model without sharing the data owned by the distributed clients [238, 172, 255]. Since its introduction in 2016 [138], FL has been widely used in various areas, including ﬁnance [93], health [165], business, and entertainment. However, FL is vulnerable to adversarial attacks that are mainly focused on impairing the learning model or violating data privacy, posing signiﬁcant threats to FL in safety-critical environments. Therefore, people increasingly expect FL to be private, reliable, and socially beneﬁcial enough to be trusted. In this survey, we
+• Yifei Zhang and Irwin King was with the Department of Computer Science and Engineering, The Chinese University of Hong Kong, ShaTin, N.T., Hong Kong SAR, China. Email: {yfzhang,king}@cse.cuhk.hk
+• Zeng Dun was with the University of Electronic Science and Technology of China and Peng Cheng Lab. Email: zengdun@std.uestc.edu.cn
+• Jinglong Luo and Zenglin Xu was Harbin Institute of Technology, Shenzhen and Peng Cheng Lab Email: luojl@pcl.ac.cn and xuzenglin@hit.edu.cn
+Yifei Zhang Dun Zeng and Jinglong Luo contribute equally. Corresponding Authors are Zengling Xu and Irwin King
+
+provide a summary of these efforts from the perspective of Trustworthy Federated Learning (TFL).
+The trustworthiness of the system is based on the concept of ”trust,” which makes the system ”worthy” of being relied on. Trust can be deﬁned as ”the relationship between a trustor and a trustee: the trustor trusts the trustee.” In the context of TFL, we deﬁne the trustee as the FL models or systems, and the trustor as the participants in FL, users, and regulators. From the perspective of software development, an FL model is trustworthy if it is free of threats in different development stages of an FL model (i.e., data processing, model training, and deployment), with three key aspects of trustworthiness, as we will discuss later. We deﬁne TFL as being safe and private for processing personal data (Privacy), stable and robust for training the model (Robustness), and conﬁdential and correct for deploying systems (Security), as shown in Fig. 1(a).
+1.2 Framework of Trustworthy Federated Learning
+Federated learning offers a more versatile approach to dealing with distributed data. It differs from traditional centralized machine learning in several ways, such as data isolation, communication, non-IID distribution, and others. These characteristics make FL unique and require different trustworthiness practices compared to general AI and other learning types [124, 248]. To provide a better understanding of our TFL framework, we will begin by brieﬂy describing potential threats in the different stages of FL
+• Data Processing. In the data processing stage, threats arise from potential information leakage and malicious attacks on the data. For instance, malicious actors can
+
+2
+
+(a) The development stage of TFL.
+
+(b) Aspects in TFL
+
+Figure 1: The overall framework of Trustworthy Federated Learning (TFL).
+
+‎Threats in Trustworthy FL
+
+‎Data Preprocessing
+
+‎Model Training
+
+‎Deployment
+
+‎Data Poisoning
+‎Label Flipping ‎Attack
+‎Poisoning Samples ‎Attack
+
+‎Out of Distribution ‎None-IID Data
+
+‎Data Secuity
+
+‎Model Poisoning
+‎Backdoor Attack ‎Byzantine Attack
+
+‎Training Privacy ‎Leakage
+‎Data & Label Leakge ‎Membership Leakage ‎Properties Leakage
+
+‎Communication ‎Eavesdropping
+‎Parameter ‎Eavesdropping
+‎Gradient ‎Eavesdropping
+
+‎Inference Attack
+
+‎Deployment Security
+
+‎Query Invasion Attack ‎Model Invasion Attack
+
+‎Data Security ‎Model Security
+
+Figure 2: Threats in different stages of Trustworthy Federated Learning.
+
+Table 1: The proposed taxonomy of Trustworthy Federated Learning
+
+Data Processing
+
+Model Traing
+
+Deployment
+
+Security Privacy
+
+Treats
+Information Leakage • Data & Label Leakage [177,
+261, 270] • Membership Leakage [59,
+130, 139, 150, 149, 160, 186] • Properties Leakage [9, 67,
+139]
+
+Defense
+
+• Cryptography-
+
+based
+
+Methods
+
+[146, 5, 154, 105, 145,
+
+205, 206, 175, 153, 119,
+
+35, 53, 25, 107, 108]
+
+• Anonymization Methods [130, 202, 70, 188, 222, 52, 262]
+
+Treats
+Gradient Inversion Attack [74, 261, 242, 237, 270]
+
+Defense
+• Cryptography-based Methods [19, 134, 55, 11, 228, 83, 8, 245, 251, 47, 264]
+
+Treats
+Deployment Security • Data security • Model security
+
+Defense
+
+• Cryptography-
+
+based
+
+Methods
+
+[91, 79, 66, 37, 174,
+
+125, 168, 100, 142, 169,
+
+34, 163, 97, 271, 164]
+
+Training Phase Privacy Leakage
+• Data & Label Leakage [177, 261, 270]
+• Membership Leakage [59, 130, 139, 150, 149, 160, 186]
+• Properties Leakage [9, 67, 139]
+
+• DP-based methods [4, 86, 95, 132, 131, 266]
+• Perturbation-based Method [85, 128, 214]
+
+Inference attack
+• Query-based [9, 67, 139]
+• Model-based [186, 140]
+
+attack attack
+
+• DP-based methods [139, 270] • Perturbation-based
+Method [215, 32, 64]
+
+Robustness
+
+Non-IID Data [265, 94]
+Data Poisoning[81, 10, 200, 62, 15, 207] • Label Flipping At-
+tack [15] • Poisoning Sample At-
+tack [81, 10]
+
+• Optimization-based Methods [117, 104, 208, 166, 3, 167]
+• Knowledge-based Methods [98, 181, 272, 112]
+
+Model Poisoning
+• Backdoor Attack [10, 39, 207, 81, 221, 71]
+• Byzantine Attack [63, 13, 173]
+
+• Robust Aggregation [18, 82, 220, 40, 236, 114, 218, 157, 158]
+• Byzantine Detection [147, 116, 223, 63, 260]
+• Hybrid Mechanism [159, 28, 84, 263, 270]
+
+N/A
+
+N/A
+
+conduct data poisoning attacks [39, 111, 6] in FL. They may modify the labels of training samples with a speciﬁc class, resulting in poor performance of the model on this class. • Model Training. During the model training process, a malicious participant in FL can perform model poisoning attacks [219, 221, 18] by uploading designed model parameters. The global model may have low accuracy due to the poisoned local updates. In addition to model poisoning attacks, Byzantine faults [18] are also common issues in distributed learning, where the parties may behave arbitrarily and upload random updates. • Deployment and Inference. After the model is learned, inference attacks [186, 140, 150] can be conducted on it if it is published. The server may infer sensitive information about the training data from the exchanged model parameters. For example, membership inference attacks [186, 150] can infer whether a speciﬁc data
+
+record was used in the training. It is worth noting that inference attacks may also occur in the learning process by the FL manager, who has access to the local updates of the parties.
+Then we brieﬂy explain the three key core aspects of trustworthiness and its associated defense methods (Table 1).
+• Privacy. Privacy refers to how private data within FL can be protected to prevent it from being leaked. It is crucial to guarantee the privacy of FL data and model parameters, which are considered conﬁdential information belonging to their owners, and to prevent any unauthorized use of the data that can directly or indirectly identify a person or household. This data covers a wide range of information, including names, ages, genders, face images, ﬁngerprints, etc. Commitment to privacy protection is an essential factor in determining
+
+3
+
+the trustworthiness of an FL system. This is not only because of the data value but also because of regulatory and legal requirements. • Robustness. Robustness refers to the ability of FL to remain stable under extreme conditions, particularly those created by attackers. This is essential because real environments where FL systems are deployed are usually complex and volatile. Robustness is a vital factor that affects the performance of FL systems in empirical environments. The lack of robustness may also cause unintended or harmful behavior by the system, thereby diminishing its trustworthiness. • Security. Security refers to the protective measures taken to prevent unauthorized users from gaining access to data. The core of security is to ensure that unauthorized users cannot access sensitive data. Therefore, the security of FL aims to ensure the conﬁdentiality and correctness of computational data. Speciﬁcally, this data includes training and prediction data, intermediate parameters, and the results of the trained model. Unlike privacy, which targets individuals, security focuses more on systems, institutions, and the public interest.
+It is worth noting that previous works on FL [238, 232] often use the terms privacy and security indiscriminately and refer to them as privacy-preserving federated learning (PPFL). However, these two concepts have different guarantees for TFL, and we aim to clarify the distinction between them. In TFL, security guarantees the conﬁdentiality and correctness of the system. Protection is necessary to ensure that attackers cannot access the internal TFL, such as weight, gradients, and other sensitive information. On the other hand, privacy in TFL indicates how private information within FL can be protected to prevent it from being leaked. Some studies have found that private information, such as data records, proprieties, and membership, can be retrieved from the weight and gradient. Thus, privacy guarantees that even if attackers can access the internal TFL, such as weight, model, gradients, etc., private information can still be preserved.
+Our survey focuses on providing technical solutions for each aspect of TFL in different development stages. This perspective sets it apart from recent related works, such as government guidelines [187] that suggest building TFL systems through laws and regulations or reviews [24, 187] that discuss TFL realization from a high-level, non-technical perspective. Our main contributions are:
+• We present a synopsis of threats and defense approaches for the core aspects of TFL (i.e., privacy, robustness, and security) in different development stages of FL (i.e., data processing, model training, and deployment) to provide a general picture of the ﬁeld of Trustworthy Federated Learning.
+• We discuss the challenges of trustworthiness in FL, clarify existing gaps, identify open research problems, and indicate future research directions.
+In the remaining sections, we organize the survey as follows: In Section 2, we provide an overview of existing threats in the TFL system to help readers understand the risks involved in building a TFL system from a software development perspective. In Section 3, we detail the aspect of security, which ensures the conﬁdentiality and correct-
+
+ness of computational data in TFL. In Section 4, we detail the aspect of robustness, which makes a TFL system robust to the noisy perturbations of inputs and enables it to make trustworthy decisions. In Section 5, we present the dimension of privacy, which guarantees a TFL system avoids leaking any private information.
+2 THREATS IN TRUSTWORTHY FEDERATED LEARNING
+Potential threats exist in all phases of federal learning, harming the trustworthiness of the system. The distribute nature of FL makes it vulnerable to information leakage and adversarial attack. In this section, we summarize and compare the existing studies on FL threats according to the aspects considered in Section 1.
+2.1 Threats in Data Processing of Federated Learning
+One main vulnerable stage of FL is the data processing. At this stage, raw data is cleaned, processed, and transformed into features that can be accepted by machine learning model. Due to the distributed nature of federated learning, Non-iid data and information leakage are common treats in unprotected FL environment. Meanwhile, malicious can to harm the model by sending poisoned data during data processing. In what follows, we summarize the potential threats in the data processing phase.
+Information Leakage. Information leakage exists in the data processing stages even if there is no direct data exchange in FL. In federal learning, although data is not directly involved in communication, the exchanged model parameters and gradients still contain private information. In the absence of data protection (e.g., encryption, perturbation, or anonymization), a direct exchange of model and gradient derived from the local data causes privacy leaks. A number of studies show that the raw record, membership, and properties can be inferred from weight and gradients [270, 261].
+Non-IID Data. Due to distributed setting of FL, the data are preserved on isolated devices/institutions and cannot be centralized. Hence, the data samples are generated in various devices/institutions where the source distributions can be None Independent and Identically Distributed (NoneIID) in many ways [94]. A number of studies [265, 268] have indicated that the performance drop of FL in Non-IID settings is inevitable. The divergence of local updates [265] continues to accumulate, slowing down the model convergence and weakening model performance.
+Data Poisoning Attack. Data poisoning occurs during the data pre-processing step. The adversary adds a number of data samples to the training set with goal of miss classify the target label. The label-ﬂipping attack [15] is a common example. It does not change the data properties, but make the the target labels to another class. For instance, hostile users can poison their data by replacing all labels of “apple” with labels of “banana”. As a result, the trained classiﬁer cannot correctly categorize “apple” and it will incorrectly expect “apple” to be “banana”. Gu et al. [81] design another practical poisoning attack called backdoor attacks. In this scenario, an attacker can alter speciﬁc features or subsections of the original training dataset to implant backdoors
+
+4
+
+into the model, so that the model responds according to the adversary’s intent if the input contains the backdoor features. This kind of attack is difﬁcult to identify as the performance of the poisoned model with clean inputs remains mostly unchanged. Note that any FL clients are capable of launching a data poisoning attack. The impact on the FL model is dependent on the frequency of the engagement of clients in attacks and the quantity of tainted training data.
+2.2 Threats in Model Training of Federated Learning
+Model Poisoning Attack. Model poisoning attacks are intended to poison local updates before they are communicated to the server or to implant hidden backdoors inside the global model [10]. Because models are continuously updated, it is believed that model poisoning attacks more effective compared to data poisoning attacks. Depending on the objectives of the attack, there are two types of poisoningbased attacks (i.e., untargeted and targeted attacks). In targeted model poisoning, the adversary seeks to induce the FL model to misclassify a collection of speciﬁed inputs with high probability. The poisoned updates can be injected via manipulating the training process or generated by incorporating hidden backdoors [18]. Bagdasaryan et al. [10] shows the simple single-shot attack could be sufﬁcient to harm the FL model. In untargeted attack poisoning, the adversary seeks to undermine the performance of the FL model. In a byzantine attack [63, 13, 173], the adversary players change their outputs to have the same distribution as the right model updates in order to evade detection. It behaves completely arbitrarily to diminish model performance.
+Privacy Leakage and Communication Eavesdropping. Information leakage and communication eavesdropping are common issue during the training process, especially during weight and gradient updates. It is important to note that information leakage is a privacy threat, whereas communication eavesdropping is a security threat. In FL, three types of data must be transferred between clinets and server: weight, gradients, and ﬁnal model. Each of these data formats contains sensitive information about the training datasets that can be intercepted and utilized to reveal sensitive information [68, 240]. Clients communicate gradients/weights to the server, which collects them and returns them to clients for model updating in gradient/weight-update-based FL systems [131]. Gradients are commonly calculated in deep neural network models by back-propagating throughout the whole network. Speciﬁcally, the gradient is compute via the current layer activation and the error propagate fromt the loss. in the same way, the local model weight is update using the gradients compute form the local dataset. As a result, weight updating, gradient updating, and ﬁnal model) may contain sensitive details about local data [192, 161].
+2.3 Threats in Development of Federated Learning
+Inference Phase Data Security. In the phase of deployment or inference, the task initiator usually deploys the carefullytrained model to the cloud server to provide prediction services and get the related payment. The model parameters, as the intellectual property of the model owner, need to be effectively protected in order to continuously generate value.
+
+However, the curious cloud server may steal the model parameters during the deployment process. Furthermore, to accomplish the prediction task, users need to upload their data, which may contain sensitive information such as gender, age, health status, etc. being exposed to the cloud server. A lot of work [91, 79, 66, 37, 174, 125, 168, 100, 142, 169, 34, 163, 97, 271, 164] emerged in order to address data leakage in the inference phase, and we will describe these studies in detail afterwards.
+Inference Phase Attack. The inference phase focuses on determining how to provide the query service to consumers, and it is also vulnerable to inference attack [185, 140]. This kind of attack is launched in the inference phase after the model has been trained, which is usually referred to as an evasive or exploratory attack. In general, the purpose of an inference attack is to produce inaccurate predictions or collect information about the model’s attributes rather than to alert the trained model. The threat during the inference phase is mostly associated with the ﬁnal model, which is either published to clients or provided as an API for external users. There are two key threats associated with inference attacks: (1) Model-based attacks and (2) Querybased attacks. Attackers have access to the model parameters and thus the query results as well as any intermediate computations, they can extract sensitive information about the participants’ training datasets [68, 249].
+3 SECURITY
+In this section, TFL is introduced from a security perspective, and we refer to these studies as Secure Federation Learning (SFL). Speciﬁcally, SFL guarantee the conﬁdentiality and integrity of data and model during FL training and inference by employing secure computing include Secure Multi-Party Computation (SMPC) [234, 235] and Homomorphic Encryption (HE) [152, 60, 2]. In Section 3.1, We ﬁrst analyze the threats that exist in SFL and give a formal deﬁnition of SFL based on this. Subsequently the secure computing techniques used to address the threats present in SFL are presented in Section 3.2. Finally, we provide an overview of SFL research works in terms of data security, model security, and system security in Section 3.3.
+3.1 The Deﬁnition of Secure Federated Learning
+In this section, we describe the threat models present in the FL training and prediction process and give the deﬁnition of SFL based on these threat models. Speciﬁcally, there are different threats to FL in different scenarios. These threats can be abstracted into different threat models. An SFL algorithm is secure under a certain threat model means that it can resist all attacks under that threat model.
+The threat model of SFL can be divided into a semihonest (passive) model and a malicious (active) model according to the system’s tolerance to the adversary’s capabilities. Speciﬁcally, under the assumption of a semi-honest model, the adversary will perform operations according to the protocol but tries to mine the private data of other participants through the information obtained in the process of executing the SFL protocol. And the security of SFL under the semi-honest model requires that the user’s private
+
+5
+
+information is not available to the adversary. Unlike the semi-honest model, in the malicious model the adversary will violate the protocol in order to obtain private data. The security of SFL under the malicious model also requires that the user’s private data is not available to the adversary. In addition, the security strengths of the SFL algorithms, sorted from weak to strong, are: abort, fair, and guaranteed output delivery (GOD). In detail, abort means that the security detects malicious behavior and terminates the protocol. Fairness means that the dishonest participant can get the output when and only when the honest participant gets the output result in the secure computing protocol. The GOD means that the dishonest participant cannot prevent the honest participant from obtaining the output during protocol execution. Furthermore, the threat model of SFL can be divided into honest-majority and dishonest-majority according to the percentage of participants controlled by the adversary in the system. Speciﬁcally, the number of adversary-controlled participants in the honest majority model is less than half of the total number of participants. In contrast, in the dishonest majority model, the number of participants controlled by the adversary is greater than or equal to half of the total number of participants. Based on the threat model of SFL, we give the following deﬁnition of SFL.
+
+Deﬁnition 3.1. The training process of FL can be seen as a function of m-ary functionality, denoted by
+
+f : ({0, 1}∗)m → ({0, 1}∗)m.
+
+(1)
+
+Speciﬁcally, f is a random process mapping string se-
+
+quences of the form x = (x1, . . . , xm) into sequences of random variables, f1(x), . . . , fm(x) such that, for every i, the i-th party Pi who initially holds an input xi, wishes to obtain the i-th element in f (x1, . . . , xm) which is denoted by fi(x1, . . . , xm). The inference process of FL can be seen as a function of one-ary functionality,
+
+denoted by
+
+g : {0, 1}∗ → {0, 1}∗.
+
+(2)
+
+Speciﬁcally, g is a random process mapping string sequences of the form y into sequences of random variables, g(y), such that the client C who initially holds an input y wishes to obtain the g(y). We call an FL algorithm as an SFL algorithm if it can complete the calculation of the training or inference process under a given threat model.
+
+3.2 Defense Methods in Secure Federate Learning
+In this section, we introduce the defense techniques commonly used in the SFL algorithms, such as SMPC, HE, and Trusted Execution Environment (TEE). Accordingly, SFL algorithms using different secure computing techniques will have different characteristics. For example, the SMPCbased secure computing algorithm can theoretically realize any computation, but it needs to spend a lot of communication costs. Conversely, the HE-based secure computing algorithm can implement addition and multiplication operations without any communication costs, but it requires huge computational overhead.
+
+3.2.1 Secure Multi-Party Computation
+Secure Multi-Party Computation (SMPC) originated from the millionaire problem proposed in [234]. The goal of SMPC is to allow a group of mutually untrusted data owners to work together on the computation of a function under the condition that the conﬁdentiality of their independent data is not compromised. The main techniques currently implementing the SMPC protocol include Garbled Circuit (GC) [235], Oblivious Transfer (OT) [162], and Secret Sharing (SS) [183]. All these techniques have limitations and usually require a combination with other techniques to construct efﬁcient SFL algorithms. For example, in spite of, GC can theoretically enable secure computation of arbitrary functions in constant rounds, but transmitting the complete encrypted circuit will result in high communication costs. In contrast, while SS can achieve secure computation at a lower communication cost, it requires a larger number of communication rounds for complex operations.
+Oblivious Transfer. Oblivious transfer (OT) is proposed in [162]. As a very important primitive in cryptography, OT not only can implement the SMPC protocol independently but also can integrate with other technologies to complete the construction of the SMPC protocol. There are generally two parties in the OT protocol namely, the sender and the receiver. The goal of the OT protocol is to enable the receiver to obtain certain information from the sender obliviously on the premise that the sender and receiver’s respective private information is not leaked.
+Garbled Circuit. Garbled circuit (GC) is a two-party SMPC protocol proposed in [234]. The two parties in the GC are called garbler and evaluator. Suppose the input information of the garbler is x, and the input information of the evaluator is y. The main idea of GC is to convert computational functions into boolean circuits. In the obfuscation stage, the garbler converts the Boolean circuit corresponding to the calculation function into a garbled circuit and sends the garbled circuit and the random input label corresponding to x to the evaluator. The evaluator executes the OT protocol by interacting with the garbler and obtains the corresponding random input label of y. The evaluator decrypts the garbled circuit using the random input tag to get the calculation result. Finally, the evaluator sends the decrypted calculation result to the garbler. Since the garbled circuit and the random input label of x are random values for the calculator, they do not contain any information of x, and the security of the OT protocol used ensures that the information of y will not be leaked to the obfuscator. Therefore, the obfuscation circuit ensures that both parties involved in the calculation can obtain the calculation result without revealing their respective input data.
+Secret Sharing. Secret sharing (SS) is a technique independently proposed by Shamir [183] and Blackly [17] with its full name called (t, n)-threshold secret sharing schemes, where n is the number of parties and t is a threshold value. The security of SS requires that any less than t parties cannot obtain any secret information jointly. As a special case of secret sharing, (2, 2)-additive secret sharing contains two algorithms: Shr(·) and Rec(·, ·). Let ([u]0, [u]1) be the additive share of any u on ZL. Shr(u) → ([u]0, [u]1) is used to generate the share by randomly selecting a number r from
+
+6
+
+ZL, letting [u]0 = r, and computing [u]1 = (u − r) mod L. prevents them from stealing training data and intermediate
+
+Note that due to the randomness of r, neither a single [u]0 results of the model training process. For internal adver-
+
+nor [u]1 can be used to infer the original value of u. The saries, such as servers and participants, TEE can prevent
+
+algorithm Rec([u]0, [u]1) → u is used to reconstruct the collusion attacks, model reversal attacks, backdoor attacks,
+
+original value from the additive shares, which can be done etc., between them. Furthermore, TEE can be used to protect
+
+by simply calculating ([u]0 + [u]1) mod L. The additive the model parameter information.
+
+secret-sharing technique has been widely used to construct
+
+SMPC protocols for ML operations [146, 205, 206, 175]. GMW [80] represents a function as a Boolean circuit and uses the value of XOR-based SS. Compared with addition secret sharing, ”XOR” is used instead of addition and ”AND” is used instead of multiplication in GMW.
+
+3.3 Secure Federated Learning Works
+In this section, we categorize the SFL-related works in terms of data security, model security, and system security. The speciﬁc roadmap is as follows. First, in data security, we give an overview of SFL algorithms that only protect
+
+3.2.2 Homomorphic Encryption
+Homomorphic encryption (HE) makes the operation of plaintext and ciphertext satisfy the homomorphic property, i.e., it supports the operation of ciphertext on multiple data, and the result of decryption is the same as the result of the operation of the plaintext of data. Formally, we have
+
+data security. This type of algorithm is generally applied in the training phase. To balance security and efﬁciency, they protect only part of the training process and we refer to it as partially secure federated training (PSFT). Next, in model security, we review SFL algorithms that protect both model and data security. These algorithms enable fully secure federated training (FSFT) while supporting secure
+
+f ([x1], [x2], · · · , [xn]) → [f (x1, x2, · · · , xn)], where ∀x ∈ X , x1f,exd2e,ra· ·te·d, xinnfe→ren[xc1e],([SxF2I]),.·F·i·n,a[lxlyn,].we review representative (3) security systems in SFL.
+
+Homomorphic encryption originated in 1978 when Rivest et al. [170] proposed the concept of privacy homomorphism. 3.3.1 Data Security
+
+However, as an open problem, it was not until 2009, when Here, we present an overview of the SFL algorithms that
+
+Gentry proposed the ﬁrst fully homomorphic encryption only protects data security, i.e., PSFT. Speciﬁcally, We catego-
+
+scheme [75] that the feasibility of computing any function rize the PSFT algorithms according to the different defense
+
+on encrypted data was demonstrated. According to the type techniques used in them. As a class of SFL algorithms, PSFT
+
+and number of ciphertext operations that can be supported, protects part of the federal training process. In detail, the
+
+homomorphic encryption can be classiﬁed as partial ho- PSFT algorithm completes the training process by protecting
+
+momorphic encryption (PHE), somewhat homomorphic en- the user’s local model gradients. The pipeline of PSFT is
+
+cryption (SHE), and fully homomorphic encryption (FHE). shown in Fig. 3.
+
+Speciﬁcally, PHE supports only a single type of ciphertext homomorphic operation, mainly including additive homomorphic encryption (AHE) and multiplicative homomorphic encryption (MHE), represented by Paillier [152], and ElGamal [60], respectively. SHE supports inﬁnite addition and at least one multiplication operation in the ciphertext space and can be converted into a fully homomorphic encryption scheme using bootstrapping [2] technique. The construction of FHE follows Gentry’s blueprint, i.e., it can perform any number of addition and multiplication operations in the ciphertext space. Most of the current mainstream FHE schemes are constructed based on the lattice difﬁculty problem, and the representative schemes include BGV [22], BFV [21, 61], GSW [76], CGGI [50], CKKS [48], etc.
+
+SMPC-based PSFT. The SMPC-based PSFT algorithms have the advantage of low computational cost and communication volume. However, they usually requires more communication rounds and leaks the aggregation parameters to the server. As a well-known work, Bonawitz et al. [19] proposes the ﬁrst SMPC-based PSFT algorithm by using the Difﬁe-Hellman key exchange protocol [54] and secret sharing. Speciﬁcally, it can protect the local parameters under the semi-honest (malicious) model by three(four) rounds of communication, when there are participants dropped in each round. On top of that, Mandal et al. [134] reducing the communication cost by using non-interactive key generation and L-regular graphs. Subsequently, Bell et al. [12] demonstrated that each client
+
+3.2.3 Trusted Execution Environment
+
+only needs to share the public key and encrypted share with some of the clients to accomplish secure aggregation. Based
+
+A Trusted Execution Environment (TEE) [193] enables a on this ﬁnding, they further reduce the communication
+
+certain part of the federated learning process into a trusted and computation costs. In addition to this, there are
+
+environment in the cloud, whose code can be attested and some SMPC-based PSFT algorithms [55, 11] that use
+
+veriﬁed. It provides several properties which guarantee that multiple non-colluding aggregation servers to protect local
+
+codes could be executed faithfully and privately. In detail, parameters. Speciﬁcally, participants send the shares of
+
+the conﬁdentiality of TEEs guarantees the program process local parameters to the corresponding aggregation servers
+
+execution is secret, and the state of code is private; while the to achieve secure aggregation. Unlike [19] which considers
+
+integrity of TEE ensures that the code’s execution cannot be user dropouts, this type of work focuses on how to reduce
+
+affected. In addition, the measurement of TEE provides the the amount of communication transmitted by participants.
+
+remote party with proof of the code being executed and its As the ﬁrst work, Dong et al. [55] proposes to reduce the
+
+starting state.
+
+communication volume by using a quantization approach.
+
+The main function of TEE in SFL is to reduce the at- Inspired by this, Beguier and Tramel [11] further reduces
+
+tack surface of adversaries. For external adversaries, TEE the communication and computational cost of the PSFT
+
+7
+
+Figure 3: The pipeline of partially secure federated training.
+algorithm by fusing techniques such as model sparsiﬁcation, model quantization, and error compensation, making the communication of the PSFT algorithm comparable to or lower than FedAvg.
+
+HE-based PSFT. Compared with the SMPC-based PSFL algorithms, the HE-based PSFT algorithms have the advantage of additionally ensuring that the global model parameters are not leaked to the curious server. This advantage further reduces the risk of data leakage during the model training phase. Although, the HE-based PSFT algorithms provides strong security guarantees but adds signiﬁcant computational and communication overheads. Speciﬁcally, directly using HE algorithms, such as Paillier cryptosystem to implement security parameter aggregation, causes its computational cost to account for 80% and increases communication by more than 150 times [245]. To reduce the computation and communication overhead of the HE-based PSFT algorithms, Aono et al. [8] proposes a packetized computation, which effectively improves the computation and communication efﬁciency by encrypting multiple plaintexts after encoding them into one large integer while guaranteeing the correctness of ciphertext computation. Subsequently, Zhang et al. [245] further reduces the computation and communication overhead of HE-based PSFT algorithms by encrypting the quantized gradients after packing them by deﬂating, cutting, and quantizing them in advance. In addition, [228, 83, 251] designs HE-based PSFT algorithms with veriﬁable features by introducing bilinear aggregation signatures, homomorphic hashing, etc., which effectively prevents malicious servers from corrupting or forging aggregation results.
+TEE-based PSFT. Unlike SMPC and HE, which achieve security assurance for FL at the algorithm level, TEE uses hardware isolation to reduce the risk of data leakage [247, 47, 41, 143]. Specially, the TEE effectively reducing the attack surface of adversaries in the FL system as well as preventing collusive attacks by participants in the FL system. The main problems faced by TEE in the construction of SFL systems include the lack of storage space and vulnerability to sidechannel attacks. To address these problems, Cheng et al. [47] adopts the ”Separation of power” approach to alleviate the problem of insufﬁcient TEE memory by using multiple TEEs as aggregation servers to complete the aggregation of model parameters. At the same time, participants shufﬂe the parameters by random permutation before uploading them, effectively preventing TEE from side-channel attacks. In addition, Chen et al. [41] uses TEE to protect the integrity of the FL training process and prevent malicious participants from tampering with or delaying the local training process. Furthermore, TEE can also provide additional model protection for FL algorithms, making the trained model accessible only to the task initiator after the FL task ends [247].
+
+Figure 4: The pipeline of fully secure federated training.
+In addition to this, some PSFT algorithms consider scenarios in which participants’ data are divided according to features. In this setting, [73, 225] design PSFT algorithms about linear regression and xgboost based on SMPC. [87, 46, 38, 65, 102, 233, 49, 254] consider the design of the PSFT algorithms by using HE. Speciﬁcally, [87, 233] propose PSFT algorithms on logistic regression. [46, 38, 65] propose the PSFT algorithm about tree-based model. [102, 49, 254] design PSFT algorithms about neural network. Furthermore, Chamani and Papadopoulos [29] uses TEE to design PSFT algorithm. [90, 69, 217, 36] further improve the security of PSFT algorithms by fusing SMPC and HE. Recently, Liu et al. [129] provides an overview of federal learning algorithms by features.
+In general, PSFT algorithms based on different technologies have their own characteristics. Speciﬁcally, the SMPCbased PSFT algorithms have good computational efﬁciency and can solve the user dropout problem using SS, making them more suitable for scenarios where the participants are mobile devices. In contrast, the HE-based PSFT algorithm is more suitable for scenarios where participants have stable communication and strong computational power. Furtermore, TEE can provide stronger hardware protection on top of the algorithm protection. Although, the good efﬁciency of PSFT makes it possible to train complex models, however, PSFT leaks global parameters to users or aggregation servers. This may compromise the conﬁdentiality of the data to some extent.
+3.3.2 Model Security
+In the following, we present an overview of SFL algorithms that can protect both model and data security.
+Fully Secure Federated Learning. Compared to the PSFT algorithms, which can only provide partial protection, FSFT algorithms achieve complete protection of the federation training process. Speciﬁcally, they convert the basic operations in machine learning such as matrix multiplication, and activation functions into corresponding secure operations using secure computing techniques. The FSFT algorithms usually adopts an architecture of outsourced computing, whose security relies on the assumption of non-collusion among the outsourced computing servers. In detail, the data
+
+8
+
+and model owner ﬁrst encrypts the data and model and sends it to the cloud servers. Then, the cloud servers the use the encrypted data and model interactions to complete the FL training process to obtain the encrypted model parameters. The pipeline of FSFT is shown in Fig. 4. We classify the work of FSFT according to the number of servers. A summary of the FSFT algorithms is shown in Table 2.
+Under the two server architecture, SecureML [146] ﬁrst introduces SS technology into model training for machine learning, and designed a secure SGD algorithm for semihonest models by fusing GC. The effectiveness of SecureML is demonstrated by secure training of linear regression, logistic regression, and fully connected neural network on MNIST. Subsequently, Quotient [5] is designed by converting the original neural network into a three-valued neural network, i.e., the parameters contain only {−1, 0, 1}. The efﬁciency of SecureML is improved by a factor of 13 while maintaining the model performance. In addition, ABY2.0 [154] reduces the communication overhead of the online phase of the secure multiplication operator by proposing new SS semantics. On top of this, the overall efﬁciency of SecureML has been improved by up to 6.1 times. Furthermore, Kelkar et al. [105] achieves security computation of the exponential operator by transforming SS between different semantics and completes the training of Poisson regression.
+Under a three-server architecture, ABY3 [145] designs the FSFT algorithm under both semi-honest and malicious settings by fusing SS and GC. By optimizing the secure multiplication operator and the conversion protocol between SS and GC, the efﬁciency of SecureML is greatly improved. Experimental results show that [145] is 55,000 times faster than [146] in secure neural network training. Subsequently, Blaze [153] optimized ABY3 by proposing new SS semantics in a three-server architecture and achieved an efﬁciency improvement of up to 2,610 times. Unlike with ABY3 which uses three computational servers, SecureNN [205] designs secure FSFT under a semi-honest model by introducing an auxiliary service server. With the assistance of the auxiliary server, SecureNN greatly reduces the communication and computation overhead caused by HE or OT in the preprocessing phase of FSFT under the two-service architecture. Experimental results show that secure neural networks trained using SecureNN over LAN and WAN are 79 and 553 times faster than SecureML, respectively. Subsequently, Falcon [206] is designed by fusing the techniques of [205] and [145]. By implementing secure computation of batch normalization functions, [206] can accomplish secure training of complex neural network models including VGG16. In addition, ARIANN [175] also designs the FSFT algorithm by using the auxiliary server model. However, by resorting to the function secret sharing technique, ARIANN greatly optimizes the online efﬁciency of SecureNN nonlinear operations, i.e., achieves secure comparison operations with only one round of communication in the online phase. Under a four-server architecture, Privpy [119] improves the efﬁciency of multiplicative online computation greatly by introducing replicated 2-out-of-4SS. Furthermore, [25, 35, 53, 107] improve the efﬁciency or security of the FSFT, respectively.
+In summary, the FSFT algorithms achieve complete
+
+protection of the training process compared to the PSFT Algorithm. Speciﬁcally, all sensitive data in the training process including intermediate parameters are effectively protected by the FSFT algorithms. Meanwhile, by using outsourced computing, they are making full use of the computing resources of the cloud server and reduce the local computing of the participants. Although the efﬁciency of FSFT algorithms have been greatly improved in recent years, however, they are still very slow and cannot complete most deep learning training tasks in a reasonable time. Therefore, they are suitable for simple training tasks with high security.
+Secure Federated Inference (SFI). The SFI algorithms allow prediction tasks to be completed while protecting the security of the model provider’s model and the user’s prediction data. Speciﬁcally, they convert the operations in the prediction process, such as matrix multiplication and activation functions, into secure operations through secure computing techniques. They often adopt a client-server architecture. In detail, the model provider ﬁrst deploys the model encrypted or publicly to a cloud server to provide inference services. Users with inference needs send the encrypted inference samples to the cloud servers. Then, the cloud server completes the inference task on the encrypted model and data, and returns the inference results to the user. The pipeline of SFI is shown in Fig. 5. We also classify the SFI algorithm by the number of servers. A summary of the SFI algorithms is shown in Table 3.
+Under one server architecture, CryptoDL [79] and CryptoNets [91] implemented deep convolutional neural networks for secure prediction on MNIST using HE. By using polynomials to approximate nonlinear activation functions, such as ReLU, Sigmoid, etc., they achieve the expected prediction performance of 99% on MNIST. Subsequently, to address the problem that HE is difﬁcult to achieve secure computation of nonlinear operations, Fenner and Pyzer-Knapp [66] proposes a way of server-user interaction. Speciﬁcally, the server ﬁrst completes the linear computation of SFI in the ciphertext state and sends the computation result to the user. The user decrypts and then completes the nonlinear computation in the plaintext state and sends the computed result encrypted to the server. THE-X [37], also adopts the same server-user interactive computation and uses linear neural networks to achieve the approximation of nonlinear operations, such as softmax and layer-norm. After optimization, THE-X achieves the ﬁrst secure inference of BERT-tiny. Under two server architecture, DeepSecure [174] uses GC to achieve secure prediction and avoids polynomial approximation computation. Although [174] uses a binarized neural network to optimize communication efﬁciency, the communication overhead is still huge. As one of the most famous working SFI, MiniONN [125] is designed by integrating HE and GC. By exploiting the advantages of different techniques, i.e., HE for linear computation and GC for nonlinear computation, MiniONN greatly improves the overall efﬁciency of the SFI algorithm. Received inspiration from MiniONN Gazelle [100], also designes the SFI algorithm by combing HE and GC and additionally improved the computational efﬁciency of HE by using single instruction, multiple data (SIMD). In addition, Delphi [142]
+
+9
+Table 2: Fully Secure Federated Train Algorithms
+
+No. of Servers
+
+Security Model
+
+Secure Defense Methods
+
+Semi-honest Malicious
+
+Model
+
+Dataset
+
+References
+
+2
+
+D
+
+
+
+GC/OT/SS/HE
+
+FC [146]
+
+MNIST
+
+SecureML [146]
+
+2
+
+D
+
+
+
+GC/OT/SS
+
+FC [5]
+
+MNIST
+
+QUOTINENT [5]
+
+2
+
+D
+
+
+
+GC/OT/SS/HE
+
+FC [154]
+
+MNIST
+
+ABY2.0 [154]
+
+2
+
+D
+
+
+
+GC/OT/SS/HE
+
+PR [105] Smoking and Cancer Kelkar et al. [105]
+
+3
+
+H
+
+Abort
+
+GC/OT/SS
+
+FC [145]
+
+MNIST
+
+ABY3 [145]
+
+3/4
+
+H
+
+
+
+SS
+
+LeNet[205]
+
+MNIST
+
+SecureNN [205]
+
+3
+
+H
+
+Abort
+
+SS
+
+VGG16 [206]
+
+Tiny ImageNet
+
+FALCON [206]
+
+3
+
+H
+
+
+
+SS
+
+VGG16 [175]
+
+Tiny ImageNet
+
+ARIANN [175]
+
+3
+
+H
+
+Fairness
+
+SS
+
+FC [153]
+
+Parkinson
+
+BLAZE [153]
+
+4
+
+H
+
+Fairness
+
+GC/SS
+
+FC [119]
+
+MNIST
+
+PrivPy [119]
+
+4
+
+H
+
+
+
+SS
+
+FC [35]
+
+MNIST
+
+Trident [35]
+
+4
+
+H
+
+GOD
+
+SS
+
+FC [53]
+
+MNIST
+
+Fantastic Four [53]
+
+4
+
+H
+
+GOD
+
+SS
+
+FC [25]
+
+MNIST
+
+FLASH [25]
+
+3/4
+
+H
+
+GOD
+
+SS
+
+LR [107]
+
+MNIST
+
+SWIFT [107]
+
+4
+
+H
+
+GOD
+
+GC/SS
+
+LeNet [108]
+
+MNIST
+
+Tetrad [108]
+
+1 “” denotes not support; “H” denotes honest majority; “D” denotes dishonest majority; “LR” denotes logistic regression; “PR” denotes Poisson regression; “FC” denotes a fully connected neural network.
+2 For the accuracy of the network structure, it is recommended to refer to the original paper. When work is performed on multiple models and datasets, we list only the most complex models and datasets in their experiments. Different works may tailor the network structure or dataset according to the characteristics of the designed FSFT algorithm, such as replacing the loss function, reducing the number of samples, etc. For the accuracy of the experiments, it is recommended to refer to the original paper.
+
+Figure 5: The pipeline of secure federated inference.
+
+improves the efﬁciency of the SFI algorithm by transferring the computation on HE in Gazelle to be done ofﬂine and introducing neural architecture search (NAS) to optimize the preprocessing. It is worth mentioning that Delphi is one of the earlier works that tried to accelerate SFI computation using GPUs. Furthermore, XONN [169] reduces the communication overhead by introducing model pruning and secret sharing techniques based on DeepSecure. Subsequently, Cryptﬂow2 [163] optimizes the communication efﬁciency of the nonlinear activation function of the SFI algorithm using OT and the ﬁrst ResNet50 and DenseNet121 security predictions were implemented by using Cryptﬂow2. Unlike existing SFI algorithms, which all use the same bit-width integers for computation, SIRNN [164] uses shorter bitwidths for part of the computation, further reducing the SFI algorithm communication cost, and designing a nonuniform bit-width SFI algorithm in a two-server architecture. Experimental results show that SIRNN can effectively support secure inference for Heads [176]. As the state-of-theart work in a two-server architecture, Cheetah [97] avoids the expensive rotation operation under the SIMD packing technique by cleverly constructing the mapping between
+
+plaintext and ciphertext, and improves the computation and communication efﬁciency of the linear layer of SFI algorithm. Besides, Cheetah also optimizes the nonlinear computation of SFI algorithm by using slient-OT [231].
+Under three server architecture, Chameleon [168] optimizes the communication in the ofﬂine phase of the SFI algorithm and the conversion efﬁciency of GC and SS in the online phase by introducing an assistance server. Furthermore, through consistency detection and fair reconstruction protocols, Astra [34] implements a secure SFI algorithm under the malicious model. Through different forms of secret-sharing techniques Astra optimizes the communication efﬁciency of the online phase of the secure multiplication operator.
+Overall, SFI algorithms are well suited for Machine Learning as a Service (MLaaS) scenarios as they protect sensitive data during model deployment and inference. Currently, they have been able to implement inference tasks for complex deep models in a reasonable time. In the design of algorithms, the technical route of simultaneously using multiple secure computing techniques to enhance the efﬁ-
+
+10
+
+ciency of SFI algorithms is gradually becoming mainstream. In addition, SFI algorithms are further enhanced effectively through the incorporation of methods such as model quantization and the interaction computation between client and server.
+3.3.3 Secure System
+With the rapid development of SFL, corresponding SFL systems have emerged one after another. They efﬁciently support secure training or prediction tasks by integrating different SFL algorithms. In this section, we select some representative ones from them to introduce according to the maturity of the system and the amount of users, etc. A summary of the SFL systems is shown in Table 4.
+CrypTFlow [109] is an open-source SFL system under the Microsoft Research EzPC [31] project. By using [109] users can convert Tensorﬂow and ONNX models into SFL models. The CrypTFlow focuses on SFI tasks, and uses the security operators in SecureNN [205]. In addition, CrypTFlow can implement secure SFI algorithms under malicious models, by using TEE, i.e., SGX. CrypTen [106] is an SFL system built on PyTorch to efﬁciently support FSFLT and SFI. By integrating with the generic PyTorch API, CrypTen lowers the barrier to use the SFL system, enabling machine learning researchers to easily experiment with machine learning models using secure computing techniques. PySyft [273] is OpenMined’s open SFL system that provides secure and private data science in Python. PySyft supports both PSFLT, FSFLT, and SFI. In detail, the private data is decoupled from model training and inference by leveraging secure computing techniques such as SMPC and HE in Pysyft. FATE1 is an SFL open-source project initiated by Webank’s AI Department. By implementing multiple secure computing protocols, FATE can effectively support PSFLT, FSFLT, and SFI. Furthermore, With the help of highly modular and ﬂexible scheduling system, FATE has good performance and availability. SecretFlow 2 is a uniﬁed programming framework initiated by Ant for privacy-preserving data intelligence and machine learning. It provides an abstract device layer consisting of ordinary devices and secret devices, whereas cryptographic devices consist of cryptographic algorithms such as SMPC, HE, TEE, and hardware devices. With a device layer containing secret devices and a workﬂow layer that seamlessly integrates data processing, model training, and hyperparameter tuning, SecretFlow enables efﬁcient SFT and SFI. Rosetta3 is a TensorFlow-based SFL system. Speciﬁcally, by overloading TensorFlow’s API, Rosetta allows converting traditional TensorFlow-based algorithm code to SFL algorithm code with minimal changes. The current version of Rosetta integrates multiple SFL algorithms to support SFT and SFI. TFencrypted4 is also a TensorFlow-based SFL system. Unlike Rosetta, TF Encrypted makes the system easier to use by leveraging the Keras API. By integrating the relevant SFL algorithms of SMPC and HE, TF Encrypted can effectively support SFT and SFI. CryptGPU [198] and Piranha [213] are
+
+two SFL systems that support GPU-accelerated computing and achieve the desired results. CryptGPU implements GPU acceleration of the SFL system by integer decomposition and then uses a submodule of the ﬂoating-point Kernel accelerated computational decomposition in Pytorch. Piranha, on the other hand, implements the integer Kernel directly on the GPU to support accelerated computation of the SFL system. PaddleFL5 is an open-source SFL system based on PaddlePaddle6. With PaddlePaddle’s large-scale distributed training and Kubernetes’ elastic scheduling capability for training tasks, PaddleFL can be easily deployed based on full-stack open-source software.
+In summary, the current SFL systems are designed to provide an easy-to-use conversion tool for noncryptography, distributed systems, or high-performance computing professionals. For the sake of the usage habits of machine learning researchers, existing SFL systems are usually developed on mainstream machine learning frameworks such as Tensorﬂow7 or Pytorch8. Speciﬁcally, through overloading the APIs of these deep learning frameworks, the SFL systems can convert a machine learning algorithm code to SFL algorithm code with only minor changes.
+4 ROBUSTNESS
+Robust federated learning (RFL) focuses on defending against threats to model performance during the model training process. Compared with SFL techniques that guarantee the correctness of computing results and protect the system from external attackers, RFL considers the threats from internal. More speciﬁcally, there are three main threats in RFL, which can not be defended in SFL techniques. Firstly, Non-IID data samples collected by decentralized and inaccessible FL clients could inﬂuence the performance of the federated learning model. Furthermore, Byzantine problems may happen to unreliable clients, causing these clients to upload poisoned or failed local models to the server. Moreover, vulnerable clients could be manipulated by human attackers, and then inject backdoors into FL models. Because these threats happen in the data processing or model training procedure in local clients, the above process can not be prevented by SFL techniques. Hence, additional techniques to guarantee the model performance in a federated learning system and prevent internal attacks are required, which can be summarized as robust federated learning.
+In the background, robustness is a vital component in trustworthy machine learning [204], as conventional machine learning models are vulnerable to various failures or attacks. When it comes to distributed machine learning systems, it also suffers unreliable clients and lossy communication channels. Federated learning (FL), as a new distributed learning paradigm with privacy-preserving requirements, will face the same even worse vulnerability in different ways. In this section, we focus on the robust techniques in the global aggregation stage on the FL server and discuss the main challenges in RFL that differ from a centralized and
+
+1. FATE: https://github.com/FederatedAI/FATE. 2. SecretFlow: https://github.com/secretﬂow/secretﬂow. 3. Rosetta: https://github.com/LatticeX-Foundation/Rosetta. 4. TF-encrypted: https://github.com/tf-encrypted/tf-encrypted.
+
+5. PaddleFL: https://github.com/PaddlePaddle/PaddleFL. 6. PaddlePaddle: https://www.paddlepaddle.org.cn. 7. TensorFlow: https://tensorﬂow.google.cn. 8. Pytorch: https://pytorch.org.
+
+11
+Table 3: Secure Federated Inference Algorithms
+
+No. of Servers
+
+Security Model
+
+Secure Defense Methods
+
+Semi-honest Malicious
+
+Model
+
+Dataset
+
+References
+
+1
+
+D
+
+
+
+HE
+
+Shallow CNN
+
+MNIST
+
+CryptoDL [91]
+
+1
+
+D
+
+
+
+HE
+
+Shallow CNN
+
+MNIST
+
+CryptoNets [79]
+
+1
+
+D
+
+
+
+HE
+
+GP
+
+P. falciparum
+
+Fenner and Pyzer-Knapp [66]
+
+1
+
+D
+
+
+
+HE
+
+BERT-tiny
+
+MNLI
+
+THE-X [37]
+
+2
+
+D
+
+
+
+GC
+
+Shallow CNN Smart-sensing
+
+DeepSecure [174]
+
+2
+
+D
+
+
+
+GC/OT/SS/HE
+
+Shallow CNN
+
+CIFAR-10
+
+MiniONN [125]
+
+2
+
+D
+
+
+
+GC/OT/SS/HE
+
+Shallow CNN
+
+CIFAR-10
+
+Gazelle [100]
+
+2
+
+D
+
+
+
+GC/OT/SS/HE
+
+ResNet-32
+
+CIFAR-100
+
+Delphi [142]
+
+2
+
+D
+
+
+
+GC/OT/SS
+
+Shallow CNN
+
+CIFAR-10
+
+XONN [169]
+
+2
+
+D
+
+
+
+HE/OT/SS
+
+DenseNet-121
+
+ImageNet
+
+Cryptﬂow2 [163]
+
+2
+
+D
+
+
+
+HE/OT/SS
+
+DenseNet-121
+
+ImageNet
+
+Cheetah [97]
+
+2
+
+D
+
+
+
+OT/SS
+
+Heads [176] SCUT Head [156]
+
+SIRNN [164]
+
+3
+
+H
+
+
+
+GC/OT/SS
+
+Shallow CNN
+
+MNIST
+
+Chameleon [168]
+
+3
+
+H
+
+Fairness
+
+GC/OT/SS
+
+SVM
+
+MNIST
+
+Astra [34]
+
+1 “” denotes not support; “H” means honest-majority; “D” means dishonest-majority. 2 For the accuracy of the network structure, it is recommended to refer to the original paper. When work is performed on multiple models and
+datasets, we list only the most complex models and datasets in their experiments. Different works may tailor the network structure or dataset according to the characteristics of the designed FSFT algorithm, such as replacing the loss function, reducing the number of samples, etc. For
+the sake of the accuracy of the experiments, it is recommended to refer to the original paper.
+
+Table 4: Summary of SFL System
+
+Techniques
+
+PSFT FSFT SFI GPU
+
+Frameworks
+
+Systems
+
+SMPC
+
+
+
+
+
+SMPC/TEE
+
+
+
+SMPC/HE/TEE 
+
+SMPC
+
+
+
+SMPC
+
+
+
+SMPC/HE
+
+SMPC/HE
+
+SMPC/HE/TEE
+
+SMPC
+
+
+
+SMPC
+
+
+
+
+
+Tensorﬂow
+
+CrypTFlow [109]
+
+
+
+Tensorﬂow
+
+Rosetta
+
+
+
+Tensorﬂow
+
+TF-encrypted
+
+
+
+Pytorch
+
+CrypTen [106]
+
+Pytorch
+
+CryptGPU [198]
+
+Tensorﬂow/pytorch
+
+Pysyft [273]
+
+ Tensorﬂow/pytorch
+
+FATE
+
+ Tensorﬂow/pytorch
+
+SecretFlow
+
+PaddlePaddle
+
+PaddleFL
+
+NA
+
+Piranha [213]
+
+“ ” denotes supported; “” denotes not supported; “NA” denotes not adopted.
+
+distributed data center. We put little attention to the robust system techniques because they have been summarised in the literature [182, 115, 20]. We categorize the threats to robustness FL into three classes (Non-IID issues, Byzantine problems, and targeted attacks) and discuss the defenses against them respectively. In detail, we focus on the robustness to Non-IID data issues in Section 4.1, the robustness to Byzantine problems in Section 4.2, and the robustness to targeted attacks in Section 4.3.
+4.1 Robustness to Non-IID Data
+The vital methods of addressing the Non-IID data challenges are to improve the ability of FL algorithms against model divergence in local training and global aggregation procedures. With the rapid increase of research interest in FL, FL algorithms for Non-IID issues have been proposed in recent years. Furthermore, a review paper [268] provides its category about FL on Non-IID data from the categories of Non-IID scenario and system view perspectives. In this section, we provide a different view to categorize the FL algorithms towards Non-IID data issues from a technical view.
+Non-IID Data Issue. Due to the privacy regulations that forbid the FL server from directly manipulating the local privacy data samples, the data samples are collected alone in various devices/institutions where the source distributions can be Non-IID in many ways [94]. Hence, Non-IID data
+
+issues are a fundamental challenge in RFL, which results in model performance degradation compared with distributed learning with IID data. These issues commonly exist in FL applications, which further motivate the research against model performance degradation with Non-IID data.
+Concretely, Non-IID data issues inﬂuence the model training performance of FL by causing the divergence of local updates [265]. Although the authors claim that FedAvg [137] could solve the Non-IID data issue to some extent, studies [265, 94, 101] have indicated that the performance drop of FL in Non-IID settings is inevitable. After each round of federated synchronization, local models share the same parameters but converge to different local optimums due to the heterogeneity in local data distributions. Consequently, the divergence of uploaded local update directions causes worse global aggregation results. This divergence usually continues to accumulate during the FL, slowing down the model convergence and weakening model performance. In detail, the scenarios of Non-IID clients can be categorized into several parties [101].
+• Feature Distribution Skew. The marginal distribution of label P(x) varies across clients. In a handwriting recognition task, the same words written by different users may differ in stroke width, slant, etc
+• Label Distribution Skew. The marginal distribution of label P(y) may vary across clients. For instance, clients’ data are tied to personal preferences - customers only
+
+12
+
+buy certain items on an online shopping website. • Feature Concept Skew. The condition distributions
+P(x|y) vary across clients, and P(y) is the same. For instance, the images of items could vary widely at different times and with different illumination. Hence, the data samples with the same label could look very different. • Label Concept Skew. The condition distributions P(y|x) vary across clients and P(x) is the same. Similar feature representations from different clients could have different labels because of personal preferences, and the same sentences may reﬂect different sentiments in language text.
+In real-world settings, the data distribution of clients can be the hybrid case of the above scenarios. Furthermore, the number of data samples may be unbalanced among clients as well. Overall, the Non-IID data issue is a basic threat to model performance. Hence, the RFL approaches to guarantee the performance of the FL model is important.
+RFL against Non-IID Data. Training a robust shared global model for an FL system is the most important target to achieve in RFL. For example, FedAvg aims to train a shared model on decentralized privacy datasets, where the shared model shall generalize all distributions of all datasets. However, it could be hard with decentralized Non-IID data. To overcome the Non-IID data, the basic idea of FL for a shared model is to reduce the inconsistency among clients with Non-IID data. Moreover, depending on the problem formulation and targets, we broadly categorize them into optimization-based and knowledge-based methods. In this section, we focus on the robustness of the shared global model in the literature, where most approaches could be implemented on personalized FL at the same time.
+We note that personalized FL [197] is another solution for Non-IID data issues, which trains personalized models for heterogeneous clients. Personalized FL is robust to Non-IID data issues in most cases, because personalized models usually are derived from the global model via ﬁne-tuning [118, 196, 96] or knowledge transferring [16, 123, 88]. Hence, the personalized model naturally ﬁts the local distributions and inherits the robustness of the global model [118]. As the robustness of the global model also affects the inherited personalized models, we focus on the techniques for training a robust global model in the section.
+Optimization-based Methods. The basic idea of optimization-based methods is to reduce the divergence of local updates via distributed convex/non-convex optimization techniques. Typically, the proposed optimization-based methods are based on the optimization framework of FedAvg, and further implement various frameworks from different motivations. In detail, FedProx [117] adds a proximal term on the client update procedure to restrict their updates to be close. SCAFFOLD [104] uses control variates (variance reduction) to correct for the “client drift” in its local updates. FedNova [208] implements a normalized averaging method that eliminates objective inconsistency while preserving fast error convergence. Reddi et al. [166] propose a generalized FedAvg named FedOPT including client optimization and server optimization procedure. Then, FedOPT derives
+
+FedADAGRAD, FedYOGI, and FedADAM by specializing in global optimizer on the server side. FedDyn [3] proposes a solution for a fundamental dilemma, in that the minima of the local-device level empirical loss are inconsistent with those of the global empirical loss. Furthermore, Reisizadeh et al. [167] propose FLRA, a general Byzantine-robust federated optimization approach against distribution shifts in samples located in different clients. In summary, optimization-based methods usually are ﬂexible with promising convergence analysis.
+
+Knowledge-based Methods. Differing from the optimization formulations, knowledge-based approaches for NonIID issues are motivated by knowledge-transferring techniques. The main drawback of such approaches is the requirement of a proxy dataset on the FL server. For instance, Jeong et al. [98] introduces knowledge distillation and proposed federated distillation (FD). FD exchanges model outputs as opposed to FL based on exchanging model parameters. FedKD [181] presents several advanced FD applications harnessing wireless channel characteristics and/or exploiting proxy datasets, thereby achieving even higher accuracy than FL. Li and Wang [112] demonstrate the model heterogeneity problems in FL, where the models differ in clients. Then, federated model distillation (FedMD), based on transfer learning and knowledge distillation, enables FL for independently designed models. Knowledge distillation usually depends on a proxy dataset, making it impractical unless such a prerequisite is satisﬁed. In the above approaches, the quality of the proxy dataset also affects the performance of the FL model, which make knowledgebased approaches unreliable in real applications. To solve that, FedGEN [272] implements a data-free knowledge distillation approach to address heterogeneous FL, where the server learns a lightweight generator to ensemble user information in a data-free manner, which is then broadcasted to users, regulating local training using the learned knowledge as an inductive bias.
+
+Clustering-based Methods. Clustering-based methods ad-
+
+dress Non-IID data issues via cluster clients with similar
+
+data distributions. Clustering-based methods are usually
+
+orthogonal with optimization and knowledge-based algo-
+
+rithms. Hence, we can run federated optimization algo-
+
+rithms among the clients in the same cluster, which is
+
+also known as clustered federated learning (CFL). CFL is
+
+presented in [178], which recursively bi-partition clients
+
+into two conﬂict clients clusters according to the gradients.
+
+The clustering-based methods are based on the following
+
+assumption 4.1.
+
+Assumption 4.1 (Clustered Federated Learning [178]). There
+
+exists a partitioning C
+
+=
+
+{c1, . . . , cK },
+
+K k=1
+
+ck
+
+=
+
+{1, . . . , N } (N ≥ K ≥ 2) of the client population, such
+
+that every subset of clients ck ∈ C satisﬁes the distribution learning assumption (i.e., the data distribution
+
+among these clients is similar).
+
+The key component of clustering-based methods is the algorithm to privacy-respectively distinguish the data distribution of clients and then conduct clustering on these clients. CFL works [191, 57, 155, 211, 226] clusters clients using K-means clustering based on client parameters. CFL [178, 179] separates clients into two partitions, which
+
+13
+
+…
+
+Data Process
+
+…
+
+Local Update
+Δw#
+Δw"
+
+Global Aggregate
+
+𝑤!
+
+𝑤! = 𝑤 + 𝐴𝑔𝑔𝑟𝑒𝑔𝑎𝑡𝑒(Δw" + ⋯ + Δ𝑤#)
+
+Server
+
+𝑤!
+
+(a) Federated learning with benign clients.
+
+Data Poisoning
+
+Model Poisoning
+
+Δ𝑤$#
+
+Poisoned Global Aggregate
+
+𝑤!
+
+𝑤! = 𝑤 + 𝐴𝑔𝑔𝑟𝑒𝑔𝑎𝑡𝑒(Δ𝑤/" + ⋯ + Δ𝑤#)
+
+…
+
+…
+
+Δw" 𝑤!
+
+Server
+
+(b) Federated learning with unreliable clients.
+Figure 6: The illustration of threats in RFL. are congruent. FL+HC [23] uses local updates to produce hierarchical clustering. IFCA [78]/HypCluster [135] implicitly clusters clients by broadcasting different models to them and allowing them to choose which cluster to join based on local empirical loss (hypothesis-based clustering). For the model updating method, CFL [23, 178, 179] utilizes FedAvg to train cluster models for each cluster during the cluster model updating procedure, ignoring the fact that knowledge from one cluster may help the learning of other clusters. IFCA conducts parameters-sharing in feature extractor layers and trains personalized output layers via FedAvg. In addition, FedGSP [244] assigns clients to homogeneous clusters to minimize the overall distribution divergence among clusters, and increases the degree of parallelism by reassigning more clusters in each round. This idea was further extended to a hierarchical cloud-edge-end FL framework for 5G empowered industries, namded a FedGS, to improve industrial FL performance on non-IID data [122].
+Overall, current CFL methods focus on how to cluster clients better mostly. They learn federated model within client cluster alone and isolated. However, how to enables the federated learning process more efﬁcient across clusters is another open problem in CFL.
+4.2 Robustness to Byzantine Problem
+The failures that happen on the client side may damage the efﬁciency of the FL system, which can be summarized as the Byzantine problem (the models uploaded from clients are unreliable). In this section, we review the Byzantine problem in FL and summarise the defenses against them. FL server is susceptible to malicious clients as a distributed learning paradigm due to the inaccessibility of clients’ local training data and the uninspectable local training processes as shown in Fig. 6(b). In this case, the server cannot be sure whether the clients are honest and benign. The Byzantine problems usually happen during the client update
+
+procedure. A subset of clients may be corrupted by an adversary or random failure during the FL. These clients may upload poison local updates to the server. The federated optimization procedure will be ruined if the server unconsciously aggregates these poisoned updates. In this section, an untargeted attack is a speciﬁc scenario of the Byzantine problem (clients that may behave abnormally, or even exhibit arbitrary and potentially adversarial behavior). That is, the behavior of a subset of clients is arbitrary as deﬁned in Deﬁnition 4.1. Considering there are p Byzantine clients in an FL system, the affection of the Byzantine attacks on distributed learning can be described as follows:
+w = w − Λ(∆w1, . . . , ∆˜w1, . . . , ∆˜wp, . . . , ∆wK ), (4)
+where ∆˜w denotes the gradients from Byzantine clients. The Byzantine gradients may cause the optimization direction deviates from the global optimum. Hence, effective Byzantine-robust FL approaches are urgently needed to guarantee the model performance of FL. The FL server could not observe the process that happened on the client side including data processing and client local training. Hence, the information for the server to determine the identity of clients is only the uploaded local updates. Based on that observation, the Byzantine-robust FL that defends the Byzantine problem could be categorized into (1) Robust aggregation, (2) Byzantine detection, and (3) Hybrid mechanism.
+Deﬁnition 4.1. [Byzantine client [110, 18]] A Byzantine client can upload arbitrary local updates to the server
+
+∆wi =
+
+∗,
+
+if the i-th client is Byzantine,
+
+∇Fi(wi; Di), otherwise,
+
+(5)
+
+where “*” represents arbitrary values and Fi represents
+
+client i’s objective function.
+
+Robust Aggregation. The main goal of robust aggregation approaches is to mitigate the inﬂuence of Byzantine clients on global aggregation. Robust aggregation techniques are effective in traditional data center distributed machine learning. A robust aggregation scheme assumes that the poisoned local model updates are geometrically far from benign ones. Hence, methods in the literature aim to build a robust aggregation rule that can mitigate the impacts of malicious attacks to a certain degree. For example in distributed learning, Krum [18] and Bulyan [82] select the local updates with the smallest Euclidean distances to the remaining ones and aggregate them to update the global model. Medoid and Marginal Median [220] select a subset of clients as a representative set and uses its update to estimate the true center. GeoMed [40] estimates the center based on the local updates without distinguishing the malicious from the normal ones. Trimmed Mean and Median [236] remove the biggest and smallest values and take the average and median of the remaining ones as the aggregated value for each of the model parameters among all the local model updates. Depending on their aggregation techniques, there are implicit voting majority rules in several methods [18, 82, 236], that is, a certain local model update away from others should follow the majority direction. Consequently, they may fail when the number of Byzantine clients is too large. Hence, they have
+
+14
+
+a theoretical break point, indicating the maximum number of Byzantine clients that can be defended as summarised in Table 5. Overall, robust distributed learning approaches are proposed based on the assumption that the data samples are IID in clients, which conﬂicts with real-world FL. Besides, the Non-IID scenarios would cause updates to diverge, making the geometric-based robust approaches fail.
+Other robust aggregation techniques mitigate the inﬂuence of Byzantine clients via adding regularization terms [114, 147, 223]. Li et al. [114] enhance the robustness against Byzantine attacks via adding an additional l1-norm regularization on the cost function. Zeno+ [223] estimates the descent of the loss value in asynchronous SGD and declines the Byzantine clients’ contribution via penalty term. Mun˜ oz-Gonza´lez et al. [147] proposes Adaptive Federated Averaging (AFA) to estimate the quality of the client’s updates and dynamically adjust its averaging weights. Regularization-based methods provide robust analysis under the general cases in optimization and the performance usually is better than geometric-based methods.
+In summary, mitigating the inﬂuence of poisoned local updates on global optimization procedures is the main idea of robust aggregation approaches. Most of the above robust aggregation schemes suffer from signiﬁcant performance degradation when a relatively large proportion of clients are compromised, or data among clients is highly Non-IID. Furthermore, recently proposed poisoning attacks [63, 13, 173] for FL can bypass these robust aggregation algorithms. Motivated by these new challenges, the Byzantine-robust federated optimization approaches have been proposed [218, 157, 158], which reveals the further challenges for robust aggregation techniques. From an application view, most of the Byzantine-robust federated optimization approaches assume failure modes without generality. The complex and unpredictable threats [133] in FL motivate further studies on general Byzantine robustness, which is an open problem.
+Byzantine Detection. Byzantine detection schemes are to identify and exclude malicious local updates so that Byzantine clients will not damage the FL system. Depending on the detection rules of such approaches, we further categorize these methods as validation-based methods and gradientbased methods. For validation-based methods, Error Ratebased Rejection (ERR) rejects local updates that would decrease the global model’s accuracy. Loss Function-based Rejection (LFR) [63] ranks the model’s credibility according to the loss decrease. For gradient-based methods, Li et al. [116] use a variational autoencoder (VAE) to capture modelupdate statistics and distinguish malicious clients from benign ones accordingly. Zhang et al. [260] observe that the model updates from a client in multiple iterations are inconsistent and propose FLDetector [260] to check their modelupdates consistency. Recently, BytoChain [121] introduces a Byzantine resistant secure blockchained federated learning framework, which executes heavy veriﬁcation workﬂows in parallel and detects byzantine attacks through a byzantine resistant consensus Proof-of-Accuracy (PoA). In summary, Byzantine detection is compatible with most federated optimization algorithms. Hence, they are more robust than Robust-aggregation schemes. Thus, byzantine detection is a promising direction for exploring robust federated learning.
+
+However, these approaches require extra calculation on the server and client [260, 260, 116], or additional public data on the server [63].
+Hybrid Mechanism. Other works combine the above schemes and propose a hybrid defense mechanism. DiverseFl [159] trains a bootstrapping model for each client using some of the client’s local data and compares the trained model with her submitted local model update to examine the local training process. FLTrust [28] trains a bootstrapping model on a public dataset and uses cosine similarities between local model updates and the trained bootstrapping model to rank the model’s credibility. CoMT [84] couples the process of teaching and learning and thus produces directly a robust prediction model despite the extremely pervasive systematic data corruption. FedInv [263] conducts a privacyrespecting model inversion [270] to the local updates and obtains a dummy dataset. Then, FedInv scores and clusters local model updates by Wasserstein distance of the dummy dataset and removes those updates that are far from others. Hybrid mechanism robust federated learning approaches smartly preserve the advantages of both robust aggregation and Byzantine detection techniques, however, usually consume more resources. Hence, the resource-efﬁcient robust approach is also an open problem in applications.
+4.3 Robustness to Targeted Attacks
+In targeted attacks, the attackers usually could manipulate the learning process of multiple clients and inject speciﬁc backdoors into the FL model. In this way. the FL model will output unexpected results on speciﬁc inputs with trigger, while the model performance on clean data is normal. Thus, attacks with speciﬁc targets are more dangerous threats to RFL. The most discussed targeted attack in the literature is backdoor attacks [10, 81, 207], which can be further enhanced by Sybil attacks [56, 71] in FL. The backdoors in the trained model could be triggered at any time and make the model output unexpected results during the inference stage. The Sybil attacks could manipulate the model training process to control the behaviors of the FL model (backdoor FL models are easier). In this section, we introduce the targeted attacks in FL and review the proposed solutions in the literature.
+Backdoor Attacks. An adversary can conduct complex attacks (e.g., both data poisoning and model poisoning) to implant a backdoor trigger into the learned model. Usually, the model will behave normally on clean data, while predicting a target class if the trigger appears. The backdoor attacks in FL are carried out by adversary clients with smartly organized data/model poisoning attacks. Bagdasaryan et al. [10] introduce semantic backdoors in FL that cause the model to misclassify even unmodiﬁed inputs. Edge-case backdoors [207] force a model to misclassify on seemingly easy inputs that are however unlikely to be part of the training, or test data, i.e., they live on the tail of the input distribution. Badnet [81] lets Byzantine clients inject labelﬂipped data samples with speciﬁc backdoor triggers into the training datasets. Xie et al. [221] propose DBA (distributed backdoor attack), which decomposes a global trigger pattern into separate local patterns and embeds them into the training set of different adversarial parties respectively. Liu et al.
+
+Table 5: Summary of representative defenses
+
+Category
+
+Type
+
+Method
+
+Technique
+
+Geometric-based Robust Aggregation
+
+Krum[18] BGD [40] Xie et al. [220] Yin et al. [236]
+
+Euclidean distance Geometric median Geometric median Coordinate-wise median
+
+Regularization-based
+
+Bulyan [82] Zeno++ [223] AFA[147] RSA[114]
+
+Krum + trimmed median Inner-product validation Gradient similarity Loss regularization
+
+Byzantine Detection
+
+Validation-based Gradient-based
+
+ERR&LFR [63] Bafﬂe[7] FoolsGold [71] FLDetector[260]
+
+Global validation Loss feed-back Gradient similarity Gradient consistency
+
+Li et al. [116]
+
+Anomaly detection
+
+Hybrid Mechanism
+
+CoMT [84] FLTrust [28] FedInv [263]
+
+Collaborative teaching Global ﬁne-tuning Gradient-based clustering
+
+DiverseFl [159] Sun et al. [195] CRFL [224]
+
+Filter update Clipping and DP Clipping and smoothing
+
+“ ” denotes supported, and “” denotes not supported or not studied.
+
+Break Point
+(K-2)/2K NA NA K/2 (K-3)/4K NA NA NA NA NA NA NA NA NA NA NA NA NA NA
+
+Non-IID Data      
+
+15
+
+Robust to threats Byzantine Problem
+
+Targeted Attacks        
+
+
+
+ 
+ 
+
+[127] propose a two-phase backdoor attack, which includes a preliminary phase for a whole population distribution inference attack and generates a well-crafted dataset and the later injected backdoor attacks would beneﬁt from the crafted dataset. If an attacker could inject c, fake participants, into the FL system, the FL may suffer from Sybil attack [56, 71]. A single Sybil attacker could launch arbitrary attacks by inﬂuencing the fake participants. For example, Sybil clients contribute updates towards a speciﬁc poisoning objective [71], which achieves targeted attacks (inject backdoors) and untargeted attacks (ruin model performance). In summary, backdoor attacks are a well-designed combination of poisoning attacks from adversaries. Its form and target could vary in real-world applications, which makes it hard to be detected and defend.
+Defense. The main idea of defending against backdoor attacks is to prevent the formulation of backdoor triggers in model training, as the backdoor attacks can be considered to add an implicit predicting task into the model without noticing and use a trigger to launch a such predicting task in the inference stage. Compared with the defense approaches against the Byzantine problem, targeted attacks are harder to defend as the adversaries may not damage the model performance on clean datasets. Based on the observation that backdoor attackers are likely to produce updates with large norms, several studies are proposed to defend against backdoor attacks by manipulating those suspicious gradients. For example, Sun et al. [195] suggests using norm thresholding and differential privacy (clipping updates) to defend against backdoor attacks. CRFL [224] exploits clipping and smoothing on model parameters to control the global model smoothness. A sample-wise robustness certiﬁcation on backdoors with limited magnitude is proved in the paper. The above techniques clip gradients from all clients to destroy the backdoor tasks. However, the hidden cost is the loss of performance of model training. The targeted attacks are basically conducted via model poisoning and data poisoning. Hence, previously discussed robust aggregation methods and Byzantine detection schemes could defend against backdoor attacks to some extent. Based on that, BaFFLe [7] utilizes data information feedback from multi-
+
+ple clients for uncovering model poisoning and detecting backdoor attacks.
+5 PRIVACY
+A privacy attack in federated learning (FL) aims to expose personal information about users who are participating in the machine learning task. This not only endangers the privacy of the data used to train the machine learning models, but also the individuals who voluntarily share their personal information. Initially, it was believed that FL was a distributed machine learning paradigm that could protect personal information. However, the learning process is vulnerable to real-world applications and faces a wide range of attacks. Despite the fact that private data is never shared, exchanged models are prone to remembering the private information of the training dataset. In this section, we present a taxonomy that aims to simplify the understanding of different privacy attacks, as shown in Table 6.
+5.1 Privacy Threats in Trustworthy Federated Learning
+5.1.1 Data & Label Leakage
+In the context of Federated Learning, the data and label attack is also commonly referred to as the reconstruction attack. The goal of these attacks is to recover the dataset of a client who participates in an FL task. The attacks typically aim to generate the original training data samples and their corresponding labels. The most common data types that can be targeted by these attacks are images or plain text, which often contain private information owned by the parties.
+Gradient-based Data Leakage. In a gradient-based Federated Learning (FL) training procedure, as described in [113, 239], selected clients share their gradients with the federated server in communication rounds. However, model gradients may cause a signiﬁcant amount of privacy leakage as they are derived from the participants’ private training datasets. By observing, altering, or listening in on gradient updates during the training process, an adversary (e.g., participants or eavesdroppers) can infer private data using gradients obtained via the training datasets [270, 261].
+
+16
+Table 6: A Summary of the Relationship between Privacy Treats and the Existing Methods
+
+Data & Label Leakage Membership Leakage Proporties Leakage
+
+Privacy Threats
+Parameter Updating Gradient Updating Training Phase Inference Phase Individual Proporties Population Proporties
+
+[113, 239, 270, 261]
+[138, 230, 92, 212, 241] [202, 139, 92]
+[186, 140] [209, 250]
+[144, 141, 229, 269, 33]
+
+Defense Methods
+
+Diff. Privacy
+
+Perturbation
+
+Local Diff. Privacy Global Diff. Privacy
+
+Additive
+
+Multiplicative
+
+[14, 180, 203]
+
+[4, 58, 148]
+
+[215, 228, 270] [30, 72, 99]
+
+[139, 148, 194]
+
+[86, 148]
+
+[77, 86, 95]
+
+[32, 64]
+
+[266, 267]
+
+[139, 148, 201]
+
+[128, 214, 270]
+
+[64, 167]
+
+Anonymization [188, 222]
+[52, 180, 192] [52, 180, 192]
+
+To obtain the training inputs and labels, an optimization algorithm designed by Zhu et al. [270] ﬁrst creates a dummy dataset made up of ﬁctitious samples and labels. Dummy gradients are then obtained using standard forward and backward propagation on the ﬁctitious dataset. The learning process is accomplished by minimizing the difference between the fake gradient and the real gradient. By using this approach, the attacker can infer the training samples and labels with a limited number of training rounds.
+Zhao et al. [261] expanded on the attack proposed in [270] by utilizing the relationship between the groundtruth labels and the gradient signs.
+Weight-Based Data Leakage. In weight-based Federated Learning (FL) frameworks, as
+described in [138], selected clients share their local model parameters with the federated server in communication rounds. Multiple participants have access to the aggregated parameters that the server calculates. A weight update can, therefore, expose the provided data to adversarial participants or eavesdroppers [230]. Malicious participants can calculate the differences between FL models in different update rounds by repeatedly saving the parameters.
+Xu et al. [230] showed that the model weight can be trained to reveal sensitive information by controlling speciﬁc participants during the training phase. In addition, Hitaj et al. [92] offer a Generative Adversarial Network (GAN)-based active attack for recovering training images, where the key to training the GAN is employing the global model as a discriminator. The attacker misleads the target client to release more information about the target label. Furthermore, Wang et al. [212] have altered the GAN architecture to a multitask GAN.
+Apart from GAN-based attacks, Yuan et al. [241] focus on reconstructing text via model parameters in natural language processing tasks, especially for language modeling.
+5.1.2 Membership Leakage
+Membership inference is a technique used to determine whether a given data sample was part of the training dataset [120, 130]. For instance, it can be used to identify whether a particular patient’s records were used to train a classiﬁer for a speciﬁc disease.
+Traing Phase Membership Leakage. The work by Shokri et al. [186] focused on the membership inference attack against privacy leakage in machine learning, where an inference model is trained to determine whether a given data sample belongs to the training dataset.
+Truex et al. [202] extended this approach to a broader context, demonstrating its data-driven nature and high transferability.
+
+Recent studies have identiﬁed the gradients and embedding layers as the two areas facing privacy leakage in membership inference attacks [139]. It has been shown that the embedding of a deep learning network can expose the locations of words in the training data through non-zero gradients, allowing an adversary to conduct a membership inference attack. To address this issue, Hitaj et al. [92] evaluated membership inference attacks against generative models, revealing that many models based on boundary equilibrium GANs or deep GANs are vulnerable to privacy leaks.
+Inference Phase Membership Leakage During the inference phase, Fredrikson et al. [68] developed an inversion method for retrieving private information, revealing that it can expose user-level information.
+In a similar vein, Melis et al. [140] investigated membership privacy leakage during the inference phase, demonstrating that deep learning models can disclose the placements of words in a batch. In this case, inference attacks are primarily responsible for privacy leaks when attackers can only access model query outputs, such as those returned by a machine learning-as-a-service API [202].
+Furthermore, Shokri et al. [186] explored privacy leakage during the inference phase by examining the inference membership attack against model query results. In this approach, an inference model is trained to distinguish between training and non-training data samples.
+5.1.3 Property Inference Attack
+This type of attack aims to determine whether an unrelated property of a client or the FL task population is present in the FL model, with the objective of acquiring a characteristic that should not be shared. For example, consider a machine learning model designed to detect faces. An attack might attempt to infer whether training images contain faces with blue eyes, even though this characteristic is unrelated to the primary goal of the model.
+Property on Population Distribution. This type of attack aims to infer the distribution of a feature in a group of clients. Wang et al. [209] propose a set of passive attacks using stochastic gradient descent that can be used to infer the label in each training round. To accomplish this, the attacker needs to possess internal knowledge as well as partial external knowledge, which includes information about the number of clients, the average number of labels, and the number of data samples per label.
+In a more general FL setting, Zhang et al. [250] propose a passive attack with limited knowledge to infer the distribution of sensitive features in the training datasets.
+
+17
+
+Property on Individual Distribution. Attackers may attempt to infer the presence of an unrelated property in target clients. With stochastic gradient descent, Mo et al. [144] propose a formal evaluation process to measure the leak of such properties in deep neural networks. Both passive and active property inference attacks have been created by Melis et al. [141] using internal knowledge, with multitasking learning used to power the active attack [252]. In a regular FL setting, Xu and Li [229] propose two attacks, passive and active, with the active attack leveraging CycleGAN [269] to reconstruct gradients using the target attribute. Chase et al. [33] suggest a poisoning attack to infer properties, which requires partial internal information to modify the target client’s dataset and external knowledge. Finally, in an unusual FL environment using blockchain-assisted HFL, Shen et al. [184] propose an active attack.
+
+5.2 Privacy Defences Method for Trustworthy FL
+5.2.1 Differential Privacy
+Differential Privacy (DP) allows for information leakage while carefully limiting the harm to people whose private data is stored in a training set. In essence, it hides a person’s personal information by introducing random noise. This type of noise is proportional to the largest modiﬁcation that a single person can make to the output. It should be noted that DP makes the assumption that the adversary has any external knowledge.
+Deﬁnition 5.1 (Differential Privacy [172]). A database access mechanism, M, preserves -DP if for all neighboring databases x, y and each possible output of M, represented by S, it holds that:
+
+P [M(x) ∈ S] ≤ e P [M(y) ∈ S].
+
+(6)
+
+If, on the other hand, for 0 < δ < 1 it holds that:
+
+P [M(x) ∈ S] ≤ e P [M(y) ∈ S] + δ,
+
+(7)
+
+then the mechanism possesses the property of ( , δ)DP, also known as approximate DP. In other words, DP speciﬁes a ”privacy budget” given by and δ. The way in which it is spent is given by the concept of privacy loss. The privacy loss allows us to reinterpret both, and δ in a more intuitive way:
+• limits the quantity of privacy loss permitted, that is, our privacy budget.
+• δ is the probability of exceeding the privacy budget given by so that we can ensure that with probability 1 − δ, the privacy loss will not be greater than .
+
+and there are mainly two types of DP (i.e., Global Differential Privacy and Local Differential Privacy) Global Differential Privacy Methods. The global differential privacy scheme has been widely used in many federated learning (FL) methods [136, 51, 58, 77, 85, 86]. Geyer et al. [77] presented an FL framework based on global differential privacy by incorporating the Gaussian mechanism to protect client datasets. Speciﬁcally, the global model is obtained by randomly selecting different clients at each training round [77]. The server then adds random noise to the aggregated global model, which prevents adversary
+
+clients from inferring the private information of other clients from the global model.
+However, this framework is vulnerable to malicious servers since they have access to clean model updates from the participants. To address this issue, Hao et al. [86] proposed adding noise to the local gradients instead of the aggregated model. Following this paradigm, [77] proposed a differential privacy-based privacy-preserving language model at the user level, which achieved comparative performance while preserving privacy. However, one challenge of this method is the trade-off between privacy and utility, as differential privacy inevitably incurs high computation costs.
+Overall, the global differential privacy method has an advantage in preserving privacy at a limited cost to model performance. This is because differential privacy is applied to the entire dataset with limited noise, guaranteeing a good statistical distribution.
+Local Differential Privacy Methods. Various federated learning (FL) approaches have employed the local differential privacy mechanism [14, 27, 126, 132, 148, 180, 194, 194, 203, 210, 216, 266, 267]. The ﬁrst attempt to combine local differential privacy scheme with deep neural networks was proposed by Abadi et al. [1]. This privacy-preserving method involves two operations: clipping the norm of updating gradients to limit sensitive information in the data, and injecting noise into clipped gradients. However, this method was not applied to FL systems.
+[267] investigated local differential privacy and evaluated both efﬁciency and privacy loss in the setting of FL, ignoring the impact of local differential privacy on model performance. Bhowmick et al. [14] designed a local differential privacy-based method that is free from reconstruction attacks. This approach employs local differential privacy to protect the privacy of samples on the client side and to ensure the privacy of the global model on the server side. In mobile edge computing, Lu et al. [132] proposed asynchronous FL, which adopts local differential privacy for local model updates. In the Internet-of-Things, Cao et al. [27] designed an FL framework with local differential privacy as its privacy utility. Truex et al. [203] scaled the local differential privacy approach to large-scale network training. In the ﬁeld of natural language processing, Wang et al. [210] used a local differential privacy FL framework for industrial-level text mining tasks and showed that it can guarantee data privacy while maintaining model accuracy.
+In summary, due to the nature of local differential privacy methods, they offer a stronger privacy guarantee compared to global differential privacy-based FL methods.
+5.2.2 Perturbation Methods
+They are an alternative approach to provide defenses against privacy attacks that are not based on DP. Its main aim is to introduce noise to the most vulnerable components of the federated learning, such as shared model parameters or the local dataset of each client, to reduce the amount of information an attacker can extract. There are mainly two types of perturbation methods (i.e., additive based Methods and multiplicative based Methods)
+Additive Perturbation Methods. Additive perturbationbased FL methods are a popular class of privacy-preserving
+
+18
+
+techniques in FL [30, 64, 77, 86, 95, 128, 201, 214, 228]. These methods aim to incorporate random noise into the weight updates or gradient updates to prevent private information leakage during training. While some methods add noise to the model parameters [85, 86, 201, 228], others add noise to the gradient updates [85, 86, 201, 228].
+One challenge with these methods is to balance the privacy guarantee with the model’s accuracy. To address this challenge, Chamikara et al. [30] propose a lossless data perturbation method that maintains model accuracy while providing a strong privacy guarantee. In this method, random noise is added to the data, rather than the model or gradients.
+Other studies, such as Hu et al. [95] and Liu et al. [128], focus on designing personalized FL models that add noise to intermediate updates or data attributes to ensure privacy. However, one limitation of additive perturbation methods is that they may not be a lossless solution and can affect the model’s performance. Additionally, these methods are vulnerable to noise reduction attacks, which can compromise the privacy of the data [103].
+Multiplicative Perturbation Methods. Multiplicative perturbation is an alternative method to adding random noise to data in perturbation-based machine learning. This technique transforms the original data into some space [30, 32, 64, 72, 99, 246], and has been adapted for use in the context of the Internet of Things (IoT) in federated learning (FL) systems. Several studies have explored the use of multiplicative perturbation to preserve data privacy in FL, including Chamikara et al. [30] and Jiang et al. [99].
+In particular, Jiang et al. [99] present an FL method for IoT objects that employs independent Gaussian random projection to perturb the data of each object, while Chamikara et al. [30] propose a multiplicative perturbation mechanism in fog devices. However, it should be noted that the latter method may be vulnerable to insider attackers, i.e. honest but curious servers.
+Other studies have used multiplicative perturbations to obfuscate the stochastic gradient update and protect the gradients from curious attackers. For example, Gade and Vaidya [72] explore the use of this method to protect the gradients in FL systems. Additionally, Chang et al. [32] and Zhang et al. [246] propose a multiplicative perturbation method for weight update-based FL frameworks, which is applied to local weights with the aim of preventing gradient leakage to servers.
+Overall, perturbation-based FL methods that use multiplicative perturbation offer stronger privacy guarantees compared to those using additive perturbation, as it is more difﬁcult to reconstruct the original data in this case.
+5.2.3 Anonymization-based Method
+While perturbation-based methods are often considered to be strong privacy preservation techniques, some works [151, 77] argue that they can still degrade data utility. As a result, anonymization-based methods have been presented to address this concern [188, 52, 222, 262].
+For instance, Song et al. [188] adopt a GAN-based FL framework with anonymization schemes to protect against user-level privacy attacks.
+
+Similarly, Choudhury et al. [52] propose an anonymization method for FL that aims to improve both data utility and model performance. This approach involves a global anonymization mapping process for predicting the deployed FL model. Their evaluation shows that this method provides stronger privacy preservation and model performance compared to DP-based FL methods.
+In summary, anonymization-based methods provide strong privacy preservation without sacriﬁcing data utility, and can outperform DP-based methods in terms of FL performance. Therefore, they offer a promising alternative to perturbation-based methods for privacy-preserving FL.
+6 CHALLENGES AND FUTURE DIRECTIONS
+6.1 Secure of Federated Learning
+Although SFL is currently receiving a lot of attention and making impressive progress in both academia and industry, there are still many challenges that need to be addressed. In this section, we summarize the main challenges currently faced by the SFL algorithm. Based on these challenges, some research directions that we consider valuable are proposed.
+• Designing more adaptable PSFT algorithms. The current PSFT algorithm is usually customized for ”FedAvg”. In order to accommodate more complex data distributions in FL, more aggregation algorithms have been developed, such as ”FedPox” [117], ”SCAFFOLD” [104]. How to customize the PSFT algorithm for these new aggregation algorithms is worthy of future research.
+• Design of SFL algorithms for adaptive protection. The objects protected by existing SFL algorithms are usually deterministic. Speciﬁcally, the PSFT algorithm only protects the security of local model parameters, but exposes the complete global parameters and ﬁnal model results. The FSFT and SFI algorithms protect the complete data and model security but greatly reduce the overall efﬁciency of the algorithm. However, the data and model parameters that need to be protected are often different at different stages or in different application scenarios. It makes sense to design an efﬁcient SFL algorithm that can protect the data and models in the FL system accurately according to the requirements.
+• How to better integrate secure computing techniques into SFL systems? The current SFL algorithm is usually designed to apply safe computation directly. Only the feature of using the same training data for multiple iterations in the machine learning training process is exploited in Kelkar et al. [105] to improve the efﬁciency of secure multiplication. How to combine more features of machine learning algorithms in the training and prediction process to optimize the efﬁciency of SFL algorithms is a direction worth investigating in the future.
+• How to perform better engineering optimization of SFL algorithms? The reason for the use of secure computing techniques makes it difﬁcult for the SFL algorithm to be directly compatible with the current mainstream machine learning frameworks. This leads to the fact that existing engineering optimization methods for machine learning cannot be applied to the SFL algorithm.
+
+19
+
+Only a relatively small amount of work has considered engineering optimization of SFL algorithms, such as using GPUs to accelerate FSFT training. How to make more use of engineering optimization to improve the efﬁciency of SFL algorithms deserves to be investigated in the future.
+6.2 Robustness of Federated Learning
+Robust federated learning cares about the trustworthiness of model training performance. By reviewing the robust techniques in robust federated learning, we conclude the challenges and the feasible future directions as follows:
+• Non-IID Data issues commonly exist in real-world federated learning scenarios, which makes the local gradients geometrically diverse. Consequently, the geometric-based robust distributed learning approaches fail to maintain the robustness of federated learning. Distinguishing the gradients from Byzantine clients or Non-IID clients would be an open problem for future studies on robust aggregation techniques.
+• From the perspective of defense against targeted attacks, the researchers observed that the norm of the poisoned gradients is usually large. Hence, the commonly used approaches are conducting gradient-clipping or gradient-noising. The possibly model training performance degeneration is unavoidable due to the gradientclipping/noising on benign gradients. Therefore, another open problem in robust federated learning is to keep the model training performance while defending against potential attacks.
+• In real-world applications, the failure, and attack modes are various. Besides, the threat modes are unknown to the server and can be different over time, which further motivates the study of general robust federated learning approaches.
+• Despite a few FL benchmarks [26, 199] and frameworks [227, 243, 89] having been proposed, we lack a standard benchmark to verify the robust ability of proposed FL approaches, which is future work for the FL community.
+6.3 Privacy of Trustworthy Federated Learning
+Despite the tremendous growth of privacy-preserving FL in recent years, this research area still poses signiﬁcant challenges and offers opportunities for developing existing frameworks and creating new methods to enhance both data privacy and utility. Some open research problems and directions are highlighted below:
+• Privacy-preserving mechanisms in FL have a tradeoff between effectiveness and efﬁciency. Therefore, it is crucial to comprehend usage scenarios under different privacy requirements and study how to optimize the deployment of defense mechanisms.
+• Data memorization is a major challenge that requires serious attention since neural network-based federated learning may overﬁt and memorize sensitive information. Anonymizing the data and model can be a potential solution to this issue. Hence, we believe that developing an effective mechanism for anonymizing
+
+training datasets is an essential way to ensure privacy preservation in FL. • Developing hybrid approaches for privacy methods in FL by combining various security techniques such as encryption is advantageous. This is because different defense strategies offer signiﬁcant advantages in different areas, and it is appropriate to leverage their beneﬁts to advance existing frameworks.
+Overall, TFL is a thriving research ﬁeld with numerous approaches and applications. This survey aims to summarize existing advances and trends in TFL, with the goal of facilitating and advancing future TFL research and implementation. From a technical perspective, this survey provides a roadmap for building TFL systems. It begins by deﬁning TFL and presents a general picture of the vulnerabilities in the available literature associated with trustworthiness in FL. The survey then reviews recent improvements in TFL regarding security, robustness, and privacy. It explains the threats, summarizes the known defense mechanisms for establishing trustworthy FL in each aspect, and suggests potential future research routes for these elements. We conclude that the study of TFL is a must-have in trustworthy AI due to its importance. There are still several challenges to be addressed and directions to be explored to identify additional threats or vulnerabilities of TFL and appropriate mechanisms to make it a resilient and robust learning paradigm against those threats.
+REFERENCES
+[1] M. Abadi, A. Chu, I. Goodfellow, H. B. McMahan, I. Mironov, K. Talwar, and L. Zhang. Deep learning with differential privacy. In Proceedings of the 2016 ACM SIGSAC conference on computer and communications security, pages 308–318, 2016.
+[2] S. Abney. Bootstrapping. In Proceedings of the 40th annual meeting of the Association for Computational Linguistics, pages 360–367, 2002.
+[3] D. A. E. Acar, Y. Zhao, R. M. Navarro, M. Mattina, P. N. Whatmough, and V. Saligrama. Federated learning based on dynamic regularization. In 9th International Conference on Learning Representations, ICLR 2021, Virtual Event, Austria, May 3-7, 2021. OpenReview.net, 2021. URL https://openreview.net/forum? id=B7v4QMR6Z9w.
+[4] N. Agarwal, A. T. Suresh, F. X. X. Yu, S. Kumar, and B. McMahan. cpsgd: Communication-efﬁcient and differentially-private distributed sgd. Advances in Neural Information Processing Systems, 31, 2018.
+[5] N. Agrawal, A. Shahin Shamsabadi, M. J. Kusner, and A. Gasco´ n. Quotient: two-party secure neural network training and prediction. In Proceedings of the 2019 ACM SIGSAC Conference on Computer and Communications Security, pages 1231–1247, 2019.
+[6] S. Alfeld, X. Zhu, and P. Barford. Data poisoning attacks against autoregressive models. In Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 30, 2016.
+[7] S. Andreina, G. A. Marson, H. Mo¨ llering, and G. Karame. Bafﬂe: Backdoor detection via feedbackbased federated learning. In 2021 IEEE 41st Inter-
+
+20
+
+national Conference on Distributed Computing Systems (ICDCS), pages 852–863. IEEE, 2021. [8] Y. Aono, T. Hayashi, L. Wang, S. Moriai, et al. Privacypreserving deep learning via additively homomorphic encryption. IEEE Transactions on Information Forensics and Security, 13(5):1333–1345, 2017. [9] G. Ateniese, G. Felici, L. V. Mancini, A. Spognardi, A. Villani, and D. Vitali. Hacking smart machines with smarter ones: How to extract meaningful data from machine learning classiﬁers. arXiv preprint arXiv:1306.4447, 2013. [10] E. Bagdasaryan, A. Veit, Y. Hua, D. Estrin, and V. Shmatikov. How to backdoor federated learning. In International Conference on Artiﬁcial Intelligence and Statistics, pages 2938–2948. PMLR, 2020. [11] C. Beguier and E. W. Tramel. Safer: Sparse secure aggregation for federated learning. arXiv preprint arXiv:2007.14861, 2020. [12] J. H. Bell, K. A. Bonawitz, A. Gasco´ n, T. Lepoint, and M. Raykova. Secure single-server aggregation with (poly) logarithmic overhead. In Proceedings of the 2020 ACM SIGSAC Conference on Computer and Communications Security, pages 1253–1269, 2020. [13] A. N. Bhagoji, S. Chakraborty, P. Mittal, and S. Calo. Analyzing federated learning through an adversarial lens. In International Conference on Machine Learning, pages 634–643. PMLR, 2019. [14] A. Bhowmick, J. Duchi, J. Freudiger, G. Kapoor, and R. Rogers. Protection against reconstruction and its applications in private federated learning. arXiv preprint arXiv:1812.00984, 2018. [15] B. Biggio, B. Nelson, and P. Laskov. Poisoning attacks against support vector machines. arXiv preprint arXiv:1206.6389, 2012. [16] I. Bistritz, A. Mann, and N. Bambos. Distributed distillation for on-device learning. Advances in Neural Information Processing Systems, 33:22593–22604, 2020. [17] G. R. Blakley. Safeguarding cryptographic keys. In Managing Requirements Knowledge, International Workshop on, pages 313–313, 1979. [18] P. Blanchard, E. M. El Mhamdi, R. Guerraoui, and J. Stainer. Machine learning with adversaries: Byzantine tolerant gradient descent. Advances in Neural Information Processing Systems, 30, 2017. [19] K. Bonawitz, V. Ivanov, B. Kreuter, A. Marcedone, H. B. McMahan, S. Patel, D. Ramage, A. Segal, and K. Seth. Practical secure aggregation for privacypreserving machine learning. In proceedings of the 2017 ACM SIGSAC Conference on Computer and Communications Security, pages 1175–1191, 2017. [20] K. Bonawitz, H. Eichner, W. Grieskamp, D. Huba, A. Ingerman, V. Ivanov, C. Kiddon, J. Konecˇny` , S. Mazzocchi, B. McMahan, et al. Towards federated learning at scale: System design. Proceedings of Machine Learning and Systems, 1:374–388, 2019. [21] Z. Brakerski. Fully homomorphic encryption without modulus switching from classical gapsvp. In Annual Cryptology Conference, pages 868–886. Springer, 2012. [22] Z. Brakerski, C. Gentry, and V. Vaikuntanathan. (leveled) fully homomorphic encryption without bootstrapping. ACM Transactions on Computation Theory
+
+(TOCT), 6(3):1–36, 2014. [23] C. Briggs, Z. Fan, and P. Andras. Federated learning
+with hierarchical clustering of local updates to improve training on non-iid data. In 2020 International Joint Conference on Neural Networks (IJCNN), pages 1– 9. IEEE, 2020. [24] M.-E. Brunet, C. Alkalay-Houlihan, A. Anderson, and R. Zemel. Understanding the origins of bias in word embeddings. In International conference on machine learning, pages 803–811. PMLR, 2019. [25] M. Byali, H. Chaudhari, A. Patra, and A. Suresh. Flash: Fast and robust framework for privacypreserving machine learning. Proceedings on Privacy Enhancing Technologies, 2:459–480, 2020. [26] S. Caldas, S. M. K. Duddu, P. Wu, T. Li, J. Konecˇny` , H. B. McMahan, V. Smith, and A. Talwalkar. Leaf: A benchmark for federated settings. arXiv preprint arXiv:1812.01097, 2018. [27] H. Cao, S. Liu, R. Zhao, and X. Xiong. Ifed: A novel federated learning framework for local differential privacy in power internet of things. International Journal of Distributed Sensor Networks, 16(5): 1550147720919698, 2020. [28] X. Cao, M. Fang, J. Liu, and N. Z. Gong. Fltrust: Byzantine-robust federated learning via trust bootstrapping. In ISOC Network and Distributed System Security Symposium (NDSS), 2021. [29] J. G. Chamani and D. Papadopoulos. Mitigating leakage in federated learning with trusted hardware. arXiv preprint arXiv:2011.04948, 2020. [30] M. A. P. Chamikara, P. Bertok, I. Khalil, D. Liu, and S. Camtepe. Privacy preserving distributed machine learning with federated learning. Computer Communications, 171:112–125, 2021. [31] N. Chandran, D. Gupta, A. Rastogi, R. Sharma, and S. Tripathi. Ezpc: programmable and efﬁcient secure two-party computation for machine learning. In 2019 IEEE European Symposium on Security and Privacy (EuroS&P), pages 496–511. IEEE, 2019. [32] H. Chang, V. Shejwalkar, R. Shokri, and A. Houmansadr. Cronus: Robust and heterogeneous collaborative learning with black-box knowledge transfer. arXiv preprint arXiv:1912.11279, 2019. [33] M. Chase, E. Ghosh, and S. Mahloujifar. Property inference from poisoning. arXiv preprint arXiv:2101.11073, 2021. [34] H. Chaudhari, A. Choudhury, A. Patra, and A. Suresh. Astra: high throughput 3pc over rings with application to secure prediction. In Proceedings of the 2019 ACM SIGSAC Conference on Cloud Computing Security Workshop, pages 81–92, 2019. [35] H. Chaudhari, R. Rachuri, and A. Suresh. Trident: Efﬁcient 4pc framework for privacy preserving machine learning. arXiv preprint arXiv:1912.02631, 2019. [36] C. Chen, J. Zhou, L. Wang, X. Wu, W. Fang, J. Tan, L. Wang, A. X. Liu, H. Wang, and C. Hong. When homomorphic encryption marries secret sharing: Secure large-scale sparse logistic regression and applications in risk control. In Proceedings of the 27th ACM SIGKDD Conference on Knowledge Discovery & Data Mining, pages 2652–2662, 2021.
+
+21
+
+[37] T. Chen, H. Bao, S. Huang, L. Dong, B. Jiao, D. Jiang, H. Zhou, and J. Li. The-x: Privacy-preserving transformer inference with homomorphic encryption. arXiv preprint arXiv:2206.00216, 2022.
+[38] W. Chen, G. Ma, T. Fan, Y. Kang, Q. Xu, and Q. Yang. Secureboost+: A high performance gradient boosting tree framework for large scale vertical federated learning. arXiv preprint arXiv:2110.10927, 2021.
+[39] X. Chen, C. Liu, B. Li, K. Lu, and D. Song. Targeted backdoor attacks on deep learning systems using data poisoning. arXiv preprint arXiv:1712.05526, 2017.
+[40] Y. Chen, L. Su, and J. Xu. Distributed statistical machine learning in adversarial settings: Byzantine gradient descent. Proceedings of the ACM on Measurement and Analysis of Computing Systems, 1(2):1–25, 2017.
+[41] Y. Chen, F. Luo, T. Li, T. Xiang, Z. Liu, and J. Li. A training-integrity privacy-preserving federated learning scheme with trusted execution environment. Information Sciences, 522:69–79, 2020.
+[42] Y. Chen, H. Guo, Y. Zhang, C. Ma, R. Tang, J. Li, and I. King. Learning binarized graph representations with multi-faceted quantization reinforcement for topk recommendation. In SIGKDD, 2022.
+[43] Y. Chen, M. Yang, Y. Zhang, M. Zhao, Z. Meng, J. Hao, and I. King. Modeling scale-free graphs with hyperbolic geometry for knowledge-aware recommendation. In WSDM, pages 94–102, 2022.
+[44] Y. Chen, Y. Yang, Y. Wang, J. Bai, X. Song, and I. King. Attentive knowledge-aware graph convolutional networks with collaborative guidance for personalized recommendation. In ICDE, 2022.
+[45] Y. Chen, Y. Fang, Y. Zhang, and I. King. Bipartite graph convolutional hashing for effective and efﬁcient top-n search in hamming space. In WWW, 2023.
+[46] K. Cheng, T. Fan, Y. Jin, Y. Liu, T. Chen, D. Papadopoulos, and Q. Yang. Secureboost: A lossless federated learning framework. IEEE Intelligent Systems, 36(6): 87–98, 2021.
+[47] P.-C. Cheng, K. Eykholt, Z. Gu, H. Jamjoom, K. Jayaram, E. Valdez, and A. Verma. Separation of powers in federated learning (poster paper). In Proceedings of the First Workshop on Systems Challenges in Reliable and Secure Federated Learning, pages 16–18, 2021.
+[48] J. H. Cheon, A. Kim, M. Kim, and Y. Song. Homomorphic encryption for arithmetic of approximate numbers. In International conference on the theory and application of cryptology and information security, pages 409–437. Springer, 2017.
+[49] T.-H. Cheung, W. Dai, and S. Li. Fedsgc: Federated simple graph convolution for node classiﬁcation. In International Workshop on Federated and Transfer Learning for Data Sparsity and Conﬁdentiality in Conjuncation with IJCAI, 2021.
+[50] I. Chillotti, N. Gama, M. Georgieva, and M. Izabachene. Faster fully homomorphic encryption: Bootstrapping in less than 0.1 seconds. In international conference on the theory and application of cryptology and information security, pages 3–33. Springer, 2016.
+[51] O. Choudhury, A. Gkoulalas-Divanis, T. Salonidis, I. Sylla, Y. Park, G. Hsu, and A. Das. Differen-
+
+tial privacy-enabled federated learning for sensitive health data. arXiv preprint arXiv:1910.02578, 2019. [52] O. Choudhury, A. Gkoulalas-Divanis, T. Salonidis, I. Sylla, Y. Park, G. Hsu, and A. Das. A syntactic approach for privacy-preserving federated learning. In ECAI 2020, pages 1762–1769. IOS Press, 2020. [53] A. Dalskov, D. Escudero, and M. Keller. Fantastic four:{Honest-Majority}{Four-Party} secure computation with malicious security. In 30th USENIX Security Symposium (USENIX Security 21), pages 2183–2200, 2021. [54] W. Difﬁe and M. E. Hellman. New directions in cryptography. In Democratizing Cryptography: The Work of Whitﬁeld Difﬁe and Martin Hellman, pages 365–390. 2022. [55] Y. Dong, X. Chen, L. Shen, and D. Wang. Eastﬂy: Efﬁcient and secure ternary federated learning. Computers & Security, 94:101824, 2020. [56] J. R. Douceur. The sybil attack. In International workshop on peer-to-peer systems, pages 251–260. Springer, 2002. [57] M. Duan, D. Liu, X. Ji, Y. Wu, L. Liang, X. Chen, Y. Tan, and A. Ren. Flexible clustered federated learning for client-level data distribution shift. IEEE Transactions on Parallel and Distributed Systems, 2021. [58] A. Dubey and A. Pentland. Differentially-private federated linear bandits. Advances in Neural Information Processing Systems, 33:6003–6014, 2020. [59] C. Dwork and M. Naor. On the difﬁculties of disclosure prevention in statistical databases or the case for differential privacy. Journal of Privacy and Conﬁdentiality, 2(1), 2010. [60] T. ElGamal. A public key cryptosystem and a signature scheme based on discrete logarithms. IEEE transactions on information theory, 31(4):469–472, 1985. [61] J. Fan and F. Vercauteren. Somewhat practical fully homomorphic encryption. Cryptology ePrint Archive, 2012. [62] M. Fang, G. Yang, N. Z. Gong, and J. Liu. Poisoning attacks to graph-based recommender systems. In Proceedings of the 34th annual computer security applications conference, pages 381–392, 2018. [63] M. Fang, X. Cao, J. Jia, and N. Gong. Local model poisoning attacks to {Byzantine-Robust} federated learning. In 29th USENIX Security Symposium (USENIX Security 20), pages 1605–1622, 2020. [64] Y. Feng, X. Yang, W. Fang, S.-T. Xia, and X. Tang. Practical and bilateral privacy-preserving federated learning. 2020. [65] Z. Feng, H. Xiong, C. Song, S. Yang, B. Zhao, L. Wang, Z. Chen, S. Yang, L. Liu, and J. Huan. Securegbm: Secure multi-party gradient boosting. In 2019 IEEE International Conference on Big Data (Big Data), pages 1312–1321. IEEE, 2019. [66] P. Fenner and E. Pyzer-Knapp. Privacy-preserving gaussian process regression–a modular approach to the application of homomorphic encryption. In Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 34, pages 3866–3873, 2020. [67] M. Fredrikson, E. Lantz, S. Jha, S. Lin, D. Page, and T. Ristenpart. Privacy in pharmacogenetics: An {End-
+
+22
+
+to-End} case study of personalized warfarin dosing. In 23rd USENIX Security Symposium (USENIX Security 14), pages 17–32, 2014. [68] M. Fredrikson, S. Jha, and T. Ristenpart. Model inversion attacks that exploit conﬁdence information and basic countermeasures. In Proceedings of the 22nd ACM SIGSAC conference on computer and communications security, pages 1322–1333, 2015. [69] F. Fu, H. Xue, Y. Cheng, Y. Tao, and B. Cui. Blindﬂ: Vertical federated machine learning without peeking into your data. In Proceedings of the 2022 International Conference on Management of Data, pages 1316–1330, 2022. [70] C. Fung, J. Koerner, S. Grant, and I. Beschastnikh. Dancing in the dark: Private multi-party machine learning in an untrusted setting. arXiv preprint arXiv:1811.09712, 2018. [71] C. Fung, C. J. Yoon, and I. Beschastnikh. The limitations of federated learning in sybil settings. In 23rd International Symposium on Research in Attacks, Intrusions and Defenses (RAID 2020), pages 301–316, 2020. [72] S. Gade and N. H. Vaidya. Privacy-preserving distributed learning via obfuscated stochastic gradients. In 2018 IEEE Conference on Decision and Control (CDC), pages 184–191. IEEE, 2018. [73] A. Gasco´ n, P. Schoppmann, B. Balle, M. Raykova, J. Doerner, S. Zahur, and D. Evans. Secure linear regression on vertically partitioned datasets. IACR Cryptol. ePrint Arch., 2016:892, 2016. [74] J. Geiping, H. Bauermeister, H. Dro¨ ge, and M. Moeller. Inverting gradients-how easy is it to break privacy in federated learning? Advances in Neural Information Processing Systems, 33:16937–16947, 2020. [75] C. Gentry. A fully homomorphic encryption scheme. Stanford university, 2009. [76] C. Gentry, A. Sahai, and B. Waters. Homomorphic encryption from learning with errors: Conceptuallysimpler, asymptotically-faster, attribute-based. In Annual Cryptology Conference, pages 75–92. Springer, 2013. [77] R. C. Geyer, T. Klein, and M. Nabi. Differentially private federated learning: A client level perspective. arXiv preprint arXiv:1712.07557, 2017. [78] A. Ghosh, J. Chung, D. Yin, and K. Ramchandran. An efﬁcient framework for clustered federated learning. Advances in Neural Information Processing Systems, 33: 19586–19597, 2020. [79] R. Gilad-Bachrach, N. Dowlin, K. Laine, K. Lauter, M. Naehrig, and J. Wernsing. Cryptonets: Applying neural networks to encrypted data with high throughput and accuracy. In International conference on machine learning, pages 201–210. PMLR, 2016. [80] O. Goldreich, S. Micali, and A. Wigderson. How to play any mental game, or a completeness theorem for protocols with honest majority. In Providing Sound Foundations for Cryptography: On the Work of Shaﬁ Goldwasser and Silvio Micali, pages 307–328. 2019. [81] T. Gu, B. Dolan-Gavitt, and S. Garg. Badnets: Identifying vulnerabilities in the machine learning model supply chain. arXiv preprint arXiv:1708.06733, 2017.
+
+[82] R. Guerraoui, S. Rouault, et al. The hidden vulnerability of distributed learning in byzantium. In International Conference on Machine Learning, pages 3521–3530. PMLR, 2018.
+[83] X. Guo, Z. Liu, J. Li, J. Gao, B. Hou, C. Dong, and T. Baker. V eri ﬂ: Communication-efﬁcient and fast veriﬁable aggregation for federated learning. IEEE Transactions on Information Forensics and Security, 16: 1736–1751, 2020.
+[84] Y. Han and X. Zhang. Robust federated learning via collaborative machine teaching. In Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 34, pages 4075–4082, 2020.
+[85] M. Hao, H. Li, X. Luo, G. Xu, H. Yang, and S. Liu. Efﬁcient and privacy-enhanced federated learning for industrial artiﬁcial intelligence. IEEE Transactions on Industrial Informatics, 16(10):6532–6542, 2019.
+[86] M. Hao, H. Li, G. Xu, S. Liu, and H. Yang. Towards efﬁcient and privacy-preserving federated deep learning. In ICC 2019-2019 IEEE international conference on communications (ICC), pages 1–6. IEEE, 2019.
+[87] S. Hardy, W. Henecka, H. Ivey-Law, R. Nock, G. Patrini, G. Smith, and B. Thorne. Private federated learning on vertically partitioned data via entity resolution and additively homomorphic encryption. arXiv preprint arXiv:1711.10677, 2017.
+[88] C. He, M. Annavaram, and S. Avestimehr. Group knowledge transfer: Federated learning of large cnns at the edge. Advances in Neural Information Processing Systems, 33:14068–14080, 2020.
+[89] C. He, S. Li, J. So, X. Zeng, M. Zhang, H. Wang, X. Wang, P. Vepakomma, A. Singh, H. Qiu, et al. Fedml: A research library and benchmark for federated machine learning. arXiv preprint arXiv:2007.13518, 2020.
+[90] D. He, R. Du, S. Zhu, M. Zhang, K. Liang, and S. Chan. Secure logistic regression for vertical federated learning. IEEE Internet Computing, 26(2):61–68, 2021.
+[91] E. Hesamifard, H. Takabi, and M. Ghasemi. Cryptodl: Deep neural networks over encrypted data. arXiv preprint arXiv:1711.05189, 2017.
+[92] B. Hitaj, G. Ateniese, and F. Perez-Cruz. Deep models under the gan: information leakage from collaborative deep learning. In Proceedings of the 2017 ACM SIGSAC conference on computer and communications security, pages 603–618, 2017.
+[93] M. Househ, E. Borycki, and A. Kushniruk. Multiple Perspectives on Artiﬁcial Intelligence in Healthcare. Springer, 2021.
+[94] K. Hsieh, A. Phanishayee, O. Mutlu, and P. Gibbons. The non-iid data quagmire of decentralized machine learning. In International Conference on Machine Learning, pages 4387–4398. PMLR, 2020.
+[95] R. Hu, Y. Guo, H. Li, Q. Pei, and Y. Gong. Personalized federated learning with differential privacy. IEEE Internet of Things Journal, 7(10):9530–9539, 2020.
+[96] Y. Huang, L. Chu, Z. Zhou, L. Wang, J. Liu, J. Pei, and Y. Zhang. Personalized cross-silo federated learning on non-iid data. In AAAI, pages 7865–7873, 2021.
+[97] Z. Huang, W.-j. Lu, C. Hong, and J. Ding. Cheetah: Lean and fast secure two-party deep neural network
+
+23
+
+inference. IACR Cryptol. ePrint Arch., 2022:207, 2022. [98] E. Jeong, S. Oh, H. Kim, J. Park, M. Bennis, and
+S.-L. Kim. Communication-efﬁcient on-device machine learning: Federated distillation and augmentation under non-iid private data. arXiv preprint arXiv:1811.11479, 2018. [99] L. Jiang, R. Tan, X. Lou, and G. Lin. On lightweight privacy-preserving collaborative learning for internetof-things objects. In Proceedings of the international conference on internet of things design and implementation, pages 70–81, 2019. [100] C. Juvekar, V. Vaikuntanathan, and A. Chandrakasan. {GAZELLE}: A low latency framework for secure neural network inference. In 27th USENIX Security Symposium (USENIX Security 18), pages 1651–1669, 2018. [101] P. Kairouz, H. B. McMahan, B. Avent, A. Bellet, M. Bennis, A. N. Bhagoji, K. Bonawitz, Z. Charles, G. Cormode, R. Cummings, et al. Advances and open problems in federated learning. Foundations and Trends® in Machine Learning, 14(1–2):1–210, 2021. [102] Y. Kang, Y. He, J. Luo, T. Fan, Y. Liu, and Q. Yang. Privacy-preserving federated adversarial domain adaptation over feature groups for interpretability. IEEE Transactions on Big Data, 2022. [103] H. Kargupta, S. Datta, Q. Wang, and K. Sivakumar. On the privacy preserving properties of random data perturbation techniques. In Third IEEE international conference on data mining, pages 99–106. IEEE, 2003. [104] S. P. Karimireddy, S. Kale, M. Mohri, S. Reddi, S. Stich, and A. T. Suresh. Scaffold: Stochastic controlled averaging for federated learning. In International Conference on Machine Learning, pages 5132–5143. PMLR, 2020. [105] M. Kelkar, P. H. Le, M. Raykova, and K. Seth. Secure poisson regression. In 31st USENIX Security Symposium (USENIX Security 22), pages 791–808, 2022. [106] B. Knott, S. Venkataraman, A. Hannun, S. Sengupta, M. Ibrahim, and L. van der Maaten. CrypTen: Secure multi-party computation meets machine learning. In Proc. NeurIPS, 2021. [107] N. Koti, M. Pancholi, A. Patra, and A. Suresh. {SWIFT}: Super-fast and robust {Privacy-Preserving} machine learning. In 30th USENIX Security Symposium (USENIX Security 21), pages 2651–2668, 2021. [108] N. Koti, A. Patra, R. Rachuri, and A. Suresh. Tetrad: actively secure 4pc for secure training and inference. arXiv preprint arXiv:2106.02850, 2021. [109] N. Kumar, M. Rathee, N. Chandran, D. Gupta, A. Rastogi, and R. Sharma. Cryptﬂow: Secure tensorﬂow inference. In 2020 IEEE Symposium on Security and Privacy (SP), pages 336–353. IEEE, 2020. [110] L. Lamport, R. Shostak, and M. Pease. The byzantine generals problem. In Concurrency: the works of leslie lamport, pages 203–226. 2019. [111] B. Li, Y. Wang, A. Singh, and Y. Vorobeychik. Data poisoning attacks on factorization-based collaborative ﬁltering. Advances in neural information processing systems, 29, 2016. [112] D. Li and J. Wang. Fedmd: Heterogenous federated learning via model distillation. arXiv preprint
+
+arXiv:1910.03581, 2019. [113] H. Li and T. Han. An end-to-end encrypted neural
+network for gradient upda tes transmission in federated learning. arXiv preprint arXiv:1908.08340, 2019. [114] L. Li, W. Xu, T. Chen, G. B. Giannakis, and Q. Ling. Rsa: Byzantine-robust stochastic aggregation methods for distributed learning from heterogeneous datasets. In Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 33, pages 1544–1551, 2019. [115] Q. Li, Z. Wen, Z. Wu, S. Hu, N. Wang, Y. Li, X. Liu, and B. He. A survey on federated learning systems: vision, hype and reality for data privacy and protection. IEEE Transactions on Knowledge and Data Engineering, 2021. [116] S. Li, Y. Cheng, W. Wang, Y. Liu, and T. Chen. Learning to detect malicious clients for robust federated learning. arXiv preprint arXiv:2002.00211, 2020. [117] T. Li, A. K. Sahu, M. Zaheer, M. Sanjabi, A. Talwalkar, and V. Smith. Federated optimization in heterogeneous networks. Proceedings of Machine Learning and Systems, 2:429–450, 2020. [118] T. Li, S. Hu, A. Beirami, and V. Smith. Ditto: Fair and robust federated learning through personalization. In International Conference on Machine Learning, pages 6357–6368. PMLR, 2021. [119] Y. Li and W. Xu. Privpy: General and scalable privacypreserving data mining. In Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, pages 1299–1307, 2019. [120] Z. Li and Y. Zhang. Label-leaks: Membership inference attack with label. arXiv preprint arXiv:2007.15528, 2020. [121] Z. Li, H. Yu, T. Zhou, L. Luo, M. Fan, Z. Xu, and G. Sun. Byzantine resistant secure blockchained federated learning at the edge. IEEE Network, 35(4):295–301, 2021. [122] Z. Li, Y. He, H. Yu, J. Kang, X. Li, Z. Xu, and D. Niyato. Data heterogeneity-robust federated learning via group client selection in industrial iot. IEEE Internet Things J., 9(18):17844–17857, 2022. [123] T. Lin, L. Kong, S. U. Stich, and M. Jaggi. Ensemble distillation for robust model fusion in federated learning. Advances in Neural Information Processing Systems, 33:2351–2363, 2020. [124] H. Liu, Y. Wang, W. Fan, X. Liu, Y. Li, S. Jain, Y. Liu, A. K. Jain, and J. Tang. Trustworthy ai: A computational perspective. arXiv preprint arXiv:2107.06641, 2021. [125] J. Liu, M. Juuti, Y. Lu, and N. Asokan. Oblivious neural network predictions via minionn transformations. In Proceedings of the 2017 ACM SIGSAC conference on computer and communications security, pages 619–631, 2017. [126] R. Liu, Y. Cao, M. Yoshikawa, and H. Chen. Fedsel: Federated sgd under local differential privacy with top-k dimension selection. In International Conference on Database Systems for Advanced Applications, pages 485–501. Springer, 2020. [127] T. Liu, X. Hu, and T. Shu. Technical report: Assisting backdoor federated learning with whole population knowledge alignment. arXiv preprint arXiv:2207.12327, 2022.
+
+24
+
+[128] X. Liu, H. Li, G. Xu, R. Lu, and M. He. Adaptive privacy-preserving federated learning. Peer-to-Peer Networking and Applications, 13(6):2356–2366, 2020.
+[129] Y. Liu, Y. Kang, T. Zou, Y. Pu, Y. He, X. Ye, Y. Ouyang, Y.-Q. Zhang, and Q. Yang. Vertical federated learning. arXiv preprint arXiv:2211.12814, 2022.
+[130] H. Lu, C. Liu, T. He, S. Wang, and K. S. Chan. Sharing models or coresets: A study based on membership inference attack. arXiv preprint arXiv:2007.02977, 2020.
+[131] S. Lu, Y. Zhang, and Y. Wang. Decentralized federated learning for electronic health records. In 2020 54th Annual Conference on Information Sciences and Systems (CISS), pages 1–5. IEEE, 2020.
+[132] Y. Lu, X. Huang, Y. Dai, S. Maharjan, and Y. Zhang. Differentially private asynchronous federated learning for mobile edge computing in urban informatics. IEEE Transactions on Industrial Informatics, 16(3):2134– 2143, 2019.
+[133] L. Lyu, H. Yu, and Q. Yang. Threats to federated learning: A survey. arXiv preprint arXiv:2003.02133, 2020.
+[134] K. Mandal, G. Gong, and C. Liu. Nike-based fast privacy-preserving highdimensional data aggregation for mobile devices. IEEE T Depend Secure; Technical Report; University of Waterloo: Waterloo, ON, Canada, pages 142–149, 2018.
+[135] Y. Mansour, M. Mohri, J. Ro, and A. T. Suresh. Three approaches for personalization with applications to federated learning. arXiv preprint arXiv:2002.10619, 2020.
+[136] Y. Mao, C. You, J. Zhang, K. Huang, and K. B. Letaief. A survey on mobile edge computing: The communication perspective. IEEE communications surveys & tutorials, 19(4):2322–2358, 2017.
+[137] B. McMahan, E. Moore, D. Ramage, S. Hampson, and B. A. y Arcas. Communication-efﬁcient learning of deep networks from decentralized data. In Artiﬁcial intelligence and statistics, pages 1273–1282. PMLR, 2017.
+[138] B. McMahan, E. Moore, D. Ramage, S. Hampson, and B. A. y Arcas. Communication-efﬁcient learning of deep networks from decentralized data. In Artiﬁcial intelligence and statistics, pages 1273–1282. PMLR, 2017.
+[139] H. B. McMahan, D. Ramage, K. Talwar, and L. Zhang. Learning differentially private recurrent language models. arXiv preprint arXiv:1710.06963, 2017.
+[140] L. Melis, C. Song, E. De Cristofaro, and V. Shmatikov. Exploiting unintended feature leakage in collaborative learning. In 2019 IEEE symposium on security and privacy (SP), pages 691–706. IEEE, 2019.
+[141] L. Melis, C. Song, E. De Cristofaro, and V. Shmatikov. Exploiting unintended feature leakage in collaborative learning. In 2019 IEEE symposium on security and privacy (SP), pages 691–706. IEEE, 2019.
+[142] P. Mishra, R. Lehmkuhl, A. Srinivasan, W. Zheng, and R. A. Popa. Delphi: A cryptographic inference service for neural networks. In 29th USENIX Security Symposium (USENIX Security 20), pages 2505–2522, 2020.
+[143] F. Mo and H. Haddadi. Efﬁcient and private federated learning using tee. In Proc. EuroSys Conf., Dresden, Germany, 2019.
+
+[144] F. Mo, A. Borovykh, M. Malekzadeh, H. Haddadi, and S. Demetriou. Layer-wise characterization of latent information leakage in federated learning. arXiv preprint arXiv:2010.08762, 2020.
+[145] P. Mohassel and P. Rindal. ABY3: A mixed protocol framework for machine learning. In Proc. CCS, pages 35–52, 2018.
+[146] P. Mohassel and Y. Zhang. SecureML: A system for scalable privacy-preserving machine learning. In IEEE Symposium on Security and Privacy, pages 19–38, 2017.
+[147] L. Mun˜ oz-Gonza´lez, K. T. Co, and E. C. Lupu. Byzantine-robust federated machine learning through adaptive model averaging. arXiv preprint arXiv:1909.05125, 2019.
+[148] M. Naseri, J. Hayes, and E. De Cristofaro. Toward robustness and privacy in federated learning: Experimenting with local and central differential privacy. arXiv e-prints, pages arXiv–2009, 2020.
+[149] M. Nasr, R. Shokri, and A. Houmansadr. Machine learning with membership privacy using adversarial regularization. In Proceedings of the 2018 ACM SIGSAC conference on computer and communications security, pages 634–646, 2018.
+[150] M. Nasr, R. Shokri, and A. Houmansadr. Comprehensive privacy analysis of deep learning: Passive and active white-box inference attacks against centralized and federated learning. In 2019 IEEE symposium on security and privacy (SP), pages 739–753. IEEE, 2019.
+[151] K. L. Ng, Z. Chen, Z. Liu, H. Yu, Y. Liu, and Q. Yang. A multi-player game for studying federated learning incentive schemes. In Proceedings of the Twenty-Ninth International Conference on International Joint Conferences on Artiﬁcial Intelligence, pages 5279–5281, 2021.
+[152] P. Paillier. Public-key cryptosystems based on composite degree residuosity classes. In International conference on the theory and applications of cryptographic techniques, pages 223–238. Springer, 1999.
+[153] A. Patra and A. Suresh. Blaze: Blazing fast privacypreserving machine learning. Cryptology ePrint Archive, 2020.
+[154] A. Patra, T. Schneider, A. Suresh, and H. Yalame. {ABY2. 0}: Improved {Mixed-Protocol} secure {TwoParty} computation. In 30th USENIX Security Symposium (USENIX Security 21), pages 2165–2182, 2021.
+[155] W. Pedrycz. Federated fcm: Clustering under privacy requirements. IEEE Transactions on Fuzzy Systems, 2021.
+[156] D. Peng, Z. Sun, Z. Chen, Z. Cai, L. Xie, and L. Jin. Detecting heads using feature reﬁne net and cascaded multi-scale architecture. In 2018 24th International Conference on Pattern Recognition (ICPR), pages 2528– 2533. IEEE, 2018.
+[157] K. Pillutla, S. M. Kakade, and Z. Harchaoui. Robust aggregation for federated learning. arXiv preprint arXiv:1912.13445, 2019.
+[158] A. Portnoy, Y. Tirosh, and D. Hendler. Towards federated learning with byzantine-robust client weighting. Applied Sciences, 12(17):8847, 2022.
+[159] S. Prakash and A. S. Avestimehr. Mitigating byzantine attacks in federated learning. arXiv preprint arXiv:2010.07541, 2020.
+
+25
+
+[160] A. Pustozerova and R. Mayer. Information leaks in federated learning. In Proceedings of the Network and Distributed System Security Symposium, volume 10, 2020.
+[161] Y. Qu, L. Gao, T. H. Luan, Y. Xiang, S. Yu, B. Li, and G. Zheng. Decentralized privacy using blockchainenabled federated learning in fog computing. IEEE Internet of Things Journal, 7(6):5171–5183, 2020.
+[162] M. O. Rabin. How to exchange secrets with oblivious transfer. Cryptology ePrint Archive, 2005.
+[163] D. Rathee, M. Rathee, N. Kumar, N. Chandran, D. Gupta, A. Rastogi, and R. Sharma. Cryptﬂow2: Practical 2-party secure inference. In Proceedings of the 2020 ACM SIGSAC Conference on Computer and Communications Security, pages 325–342, 2020.
+[164] D. Rathee, M. Rathee, R. K. K. Goli, D. Gupta, R. Sharma, N. Chandran, and A. Rastogi. Sirnn: A math library for secure rnn inference. In 2021 IEEE Symposium on Security and Privacy (SP), pages 1003– 1020, 2021.
+[165] R. Rau, R. Wardrop, and L. Zingales. The Palgrave Handbook of Technological Finance. Springer, 2021.
+[166] S. Reddi, Z. Charles, M. Zaheer, Z. Garrett, K. Rush, J. Konecˇny` , S. Kumar, and H. B. McMahan. Adaptive federated optimization. arXiv preprint arXiv:2003.00295, 2020.
+[167] A. Reisizadeh, F. Farnia, R. Pedarsani, and A. Jadbabaie. Robust federated learning: The case of afﬁne distribution shifts. Advances in Neural Information Processing Systems, 33:21554–21565, 2020.
+[168] M. S. Riazi, C. Weinert, O. Tkachenko, E. M. Songhori, T. Schneider, and F. Koushanfar. Chameleon: A hybrid secure computation framework for machine learning applications. In Proceedings of the 2018 on Asia conference on computer and communications security, pages 707–721, 2018.
+[169] M. S. Riazi, M. Samragh, H. Chen, K. Laine, K. Lauter, and F. Koushanfar. {XONN}:{XNOR-based} oblivious deep neural network inference. In 28th USENIX Security Symposium (USENIX Security 19), pages 1501– 1518, 2019.
+[170] R. L. Rivest, L. Adleman, M. L. Dertouzos, et al. On data banks and privacy homomorphisms. Foundations of secure computation, 4(11):169–180, 1978.
+[171] M.-A. Rizoiu, T. Graham, R. Zhang, Y. Zhang, R. Ackland, and L. Xie. # debatenight: The role and inﬂuence of socialbots on twitter during the 1st 2016 us presidential debate. In Proceedings of the international AAAI conference on web and social media, volume 12, 2018.
+[172] N. Rodr´ıguez-Barroso, D. Jime´nez-Lo´ pez, M. V. Luzo´ n, F. Herrera, and E. Mart´ınez-Ca´mara. Survey on federated learning threats: concepts, taxonomy on attacks and defences, experimental study and challenges. Information Fusion, 90:148–173, 2023.
+[173] D. Rong, Q. He, and J. Chen. Poisoning deep learning based recommender model in federated learning scenarios. arXiv preprint arXiv:2204.13594, 2022.
+[174] B. D. Rouhani, M. S. Riazi, and F. Koushanfar. Deepsecure: Scalable provably-secure deep learning. In Proceedings of the 55th annual design automation conference, pages 1–6, 2018.
+
+[175] T. Ryffel, P. Tholoniat, D. Pointcheval, and F. Bach. AriaNN: Low-interaction privacy-preserving deep learning via function secret sharing. Proc. on Privacy Enhancing Technologies, 2022(1):291–316, 2020.
+[176] O. Saha, A. Kusupati, H. V. Simhadri, M. Varma, and P. Jain. Rnnpool: efﬁcient non-linear pooling for ram constrained inference. Advances in Neural Information Processing Systems, 33:20473–20484, 2020.
+[177] A. Sannai. Reconstruction of training samples from loss functions. arXiv preprint arXiv:1805.07337, 2018.
+[178] F. Sattler, K.-R. Mu¨ ller, and W. Samek. Clustered federated learning: Model-agnostic distributed multitask optimization under privacy constraints. IEEE transactions on neural networks and learning systems, 32 (8):3710–3722, 2020.
+[179] F. Sattler, K.-R. Mu¨ ller, T. Wiegand, and W. Samek. On the byzantine robustness of clustered federated learning. In ICASSP 2020-2020 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP), pages 8861–8865. IEEE, 2020.
+[180] M. Seif, R. Tandon, and M. Li. Wireless federated learning with local differential privacy. In 2020 IEEE International Symposium on Information Theory (ISIT), pages 2604–2609. IEEE, 2020.
+[181] H. Seo, J. Park, S. Oh, M. Bennis, and S.-L. Kim. Federated knowledge distillation. arXiv preprint arXiv:2011.02367, 2020.
+[182] M. Shaﬁque, M. Naseer, T. Theocharides, C. Kyrkou, O. Mutlu, L. Orosa, and J. Choi. Robust machine learning systems: Challenges, current trends, perspectives, and the road ahead. IEEE Design & Test, 37(2):30–57, 2020.
+[183] A. Shamir. How to share a secret. Communications of the ACM, 22(11):612–613, 1979.
+[184] M. Shen, H. Wang, B. Zhang, L. Zhu, K. Xu, Q. Li, and X. Du. Exploiting unintended property leakage in blockchain-assisted federated learning for intelligent edge computing. IEEE Internet of Things Journal, 8(4): 2265–2275, 2020.
+[185] R. Shokri, M. Stronati, C. Song, and V. Shmatikov. Membership inference attacks against machine learning models. In 2017 IEEE symposium on security and privacy (SP), pages 3–18. IEEE, 2017.
+[186] R. Shokri, M. Stronati, C. Song, and V. Shmatikov. Membership inference attacks against machine learning models. In 2017 IEEE symposium on security and privacy (SP), pages 3–18. IEEE, 2017.
+[187] N. A. Smuha. The eu approach to ethics guidelines for trustworthy artiﬁcial intelligence. Computer Law Review International, 20(4):97–106, 2019.
+[188] M. Song, Z. Wang, Z. Zhang, Y. Song, Q. Wang, J. Ren, and H. Qi. Analyzing user-level privacy attack against federated learning. IEEE Journal on Selected Areas in Communications, 38(10):2430–2444, 2020.
+[189] Z. Song, Z. Meng, Y. Zhang, and I. King. Semisupervised multi-label learning for graph-structured data. In Proceedings of the 30th ACM International Conference on Information & Knowledge Management, pages 1723–1733, 2021.
+[190] Z. Song, Y. Zhang, and I. King. Towards an optimal asymmetric graph structure for robust semi-
+
+26
+
+supervised node classiﬁcation. In Proceedings of the 28th ACM SIGKDD Conference on Knowledge Discovery and Data Mining, pages 1656–1665, 2022. [191] M. Stallmann and A. Wilbik. Towards federated clustering: A federated fuzzy c-means algorithm (ffcm). arXiv preprint arXiv:2201.07316, 2022. [192] L. Su and J. Xu. Securing distributed gradient descent in high dimensional statistical learning. Proceedings of the ACM on Measurement and Analysis of Computing Systems, 3(1):1–41, 2019. [193] P. Subramanyan, R. Sinha, I. Lebedev, S. Devadas, and S. A. Seshia. A formal foundation for secure remote execution of enclaves. In Proceedings of the 2017 ACM SIGSAC Conference on Computer and Communications Security, pages 2435–2450, 2017. [194] L. Sun, J. Qian, and X. Chen. Ldp-ﬂ: Practical private aggregation in federated learning with local differential privacy. arXiv preprint arXiv:2007.15789, 2020. [195] Z. Sun, P. Kairouz, A. T. Suresh, and H. B. McMahan. Can you really backdoor federated learning? arXiv preprint arXiv:1911.07963, 2019. [196] C. T Dinh, N. Tran, and J. Nguyen. Personalized federated learning with moreau envelopes. Advances in Neural Information Processing Systems, 33:21394–21405, 2020. [197] A. Z. Tan, H. Yu, L. Cui, and Q. Yang. Towards personalized federated learning. IEEE Transactions on Neural Networks and Learning Systems, 2022. [198] S. Tan, B. Knott, Y. Tian, and D. J. Wu. Cryptgpu: Fast privacy-preserving machine learning on the gpu. In 2021 IEEE Symposium on Security and Privacy (SP), pages 1021–1038. IEEE, 2021. [199] J. O. d. Terrail, S.-S. Ayed, E. Cyffers, F. Grimberg, C. He, R. Loeb, P. Mangold, T. Marchand, O. Marfoq, E. Mushtaq, et al. Flamby: Datasets and benchmarks for cross-silo federated learning in realistic healthcare settings. arXiv preprint arXiv:2210.04620, 2022. [200] V. Tolpegin, S. Truex, M. E. Gursoy, and L. Liu. Data poisoning attacks against federated learning systems. In European Symposium on Research in Computer Security, pages 480–501. Springer, 2020. [201] A. Triastcyn and B. Faltings. Federated learning with bayesian differential privacy. In 2019 IEEE International Conference on Big Data (Big Data), pages 2587– 2596. IEEE, 2019. [202] S. Truex, L. Liu, M. E. Gursoy, L. Yu, and W. Wei. Demystifying membership inference attacks in machine learning as a service. IEEE Transactions on Services Computing, 2019. [203] S. Truex, L. Liu, K.-H. Chow, M. E. Gursoy, and W. Wei. Ldp-fed: Federated learning with local differential privacy. In Proceedings of the Third ACM International Workshop on Edge Systems, Analytics and Networking, pages 61–66, 2020. [204] K. R. Varshney. Trustworthy machine learning and artiﬁcial intelligence. XRDS: Crossroads, The ACM Magazine for Students, 25(3):26–29, 2019. [205] S. Wagh, D. Gupta, and N. Chandran. SecureNN: 3Party secure computation for neural network training. Proc. Priv. Enhancing Technol., 2019(3):26–49, 2019. [206] S. Wagh, S. Tople, F. Benhamouda, E. Kushilevitz,
+
+P. Mittal, and T. Rabin. Falcon: Honest-majority maliciously secure framework for private deep learning. arXiv preprint arXiv:2004.02229, 2020. [207] H. Wang, K. Sreenivasan, S. Rajput, H. Vishwakarma, S. Agarwal, J.-y. Sohn, K. Lee, and D. Papailiopoulos. Attack of the tails: Yes, you really can backdoor federated learning. Advances in Neural Information Processing Systems, 33:16070–16084, 2020. [208] J. Wang, Q. Liu, H. Liang, G. Joshi, and H. V. Poor. Tackling the objective inconsistency problem in heterogeneous federated optimization. Advances in neural information processing systems, 33:7611–7623, 2020. [209] L. Wang, S. Xu, X. Wang, and Q. Zhu. Eavesdrop the composition proportion of training labels in federated learning. arXiv preprint arXiv:1910.06044, 2019. [210] Y. Wang, Y. Tong, and D. Shi. Federated latent dirichlet allocation: A local differential privacy based framework. In Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 34, pages 6283–6290, 2020. [211] Y. Wang, M. Jia, N. Gao, L. Von Krannichfeldt, M. Sun, and G. Hug. Federated clustering for electricity consumption pattern extraction. IEEE Transactions on Smart Grid, 13(3):2425–2439, 2022. [212] Z. Wang, M. Song, Z. Zhang, Y. Song, Q. Wang, and H. Qi. Beyond inferring class representatives: Userlevel privacy leakage from federated learning. In IEEE INFOCOM 2019-IEEE Conference on Computer Communications, pages 2512–2520. IEEE, 2019. [213] J.-L. Watson, S. Wagh, and R. A. Popa. Piranha: A {GPU} platform for secure computation. In 31st USENIX Security Symposium (USENIX Security 22), pages 827–844, 2022. [214] K. Wei, J. Li, M. Ding, C. Ma, H. H. Yang, F. Farokhi, S. Jin, T. Q. Quek, and H. V. Poor. Federated learning with differential privacy: Algorithms and performance analysis. IEEE Transactions on Information Forensics and Security, 15:3454–3469, 2020. [215] W. Wei, L. Liu, M. Loper, K.-H. Chow, M. E. Gursoy, S. Truex, and Y. Wu. A framework for evaluating client privacy leakages in federated learning. In European Symposium on Research in Computer Security, pages 545–566. Springer, 2020. [216] M. Wu, D. Ye, J. Ding, Y. Guo, R. Yu, and M. Pan. Incentivizing differentially private federated learning: A multidimensional contract approach. IEEE Internet of Things Journal, 8(13):10639–10651, 2021. [217] Y. Wu, S. Cai, X. Xiao, G. Chen, and B. C. Ooi. Privacy preserving vertical federated learning for tree-based models. arXiv preprint arXiv:2008.06170, 2020. [218] Z. Wu, Q. Ling, T. Chen, and G. B. Giannakis. Federated variance-reduced stochastic gradient descent with robustness to byzantine attacks. IEEE Transactions on Signal Processing, 68:4583–4596, 2020. [219] X. Xiao, G. Wang, and J. Gehrke. Differential privacy via wavelet transforms. IEEE Transactions on knowledge and data engineering, 23(8):1200–1214, 2010. [220] C. Xie, O. Koyejo, and I. Gupta. Generalized byzantine-tolerant sgd. arXiv preprint arXiv:1802.10116, 2018. [221] C. Xie, K. Huang, P.-Y. Chen, and B. Li. Dba: Distributed backdoor attacks against federated learning.
+
+27
+
+In International Conference on Learning Representations, 2019. [222] C. Xie, O. Koyejo, and I. Gupta. Slsgd: Secure and efﬁcient distributed on-device machine learning. In Joint European Conference on Machine Learning and Knowledge Discovery in Databases, pages 213–228. Springer, 2019. [223] C. Xie, S. Koyejo, and I. Gupta. Zeno++: Robust fully asynchronous sgd. In International Conference on Machine Learning, pages 10495–10503. PMLR, 2020. [224] C. Xie, M. Chen, P.-Y. Chen, and B. Li. Crﬂ: Certiﬁably robust federated learning against backdoor attacks. In International Conference on Machine Learning, pages 11372–11382. PMLR, 2021. [225] L. Xie, J. Liu, S. Lu, T.-H. Chang, and Q. Shi. An efﬁcient learning framework for federated xgboost using secret sharing and distributed optimization. ACM Transactions on Intelligent Systems and Technology (TIST), 13(5):1–28, 2022. [226] M. Xie, G. Long, T. Shen, T. Zhou, X. Wang, J. Jiang, and C. Zhang. Multi-center federated learning. arXiv preprint arXiv:2005.01026, 2020. [227] Y. Xie, Z. Wang, D. Chen, D. Gao, L. Yao, W. Kuang, Y. Li, B. Ding, and J. Zhou. Federatedscope: A comprehensive and ﬂexible federated learning platform via message passing. arXiv preprint arXiv:2204.05011, 2022. [228] G. Xu, H. Li, S. Liu, K. Yang, and X. Lin. Verifynet: Secure and veriﬁable federated learning. IEEE Transactions on Information Forensics and Security, 15:911–926, 2019. [229] M. Xu and X. Li. Subject property inference attack in collaborative learning. In 2020 12th International Conference on Intelligent Human-Machine Systems and Cybernetics (IHMSC), volume 1, pages 227–231. IEEE, 2020. [230] X. Xu, J. Wu, M. Yang, T. Luo, X. Duan, W. Li, Y. Wu, and B. Wu. Information leakage by model weights on federated learning. In Proceedings of the 2020 Workshop on Privacy-Preserving Machine Learning in Practice, pages 31–36, 2020. [231] K. Yang, C. Weng, X. Lan, J. Zhang, and X. Wang. Ferret: Fast extension for correlated ot with small communication. In Proceedings of the 2020 ACM SIGSAC Conference on Computer and Communications Security, pages 1607–1626, 2020. [232] Q. Yang, Y. Liu, T. Chen, and Y. Tong. Federated machine learning: Concept and applications. ACM Transactions on Intelligent Systems and Technology (TIST), 10 (2):1–19, 2019. [233] S. Yang, B. Ren, X. Zhou, and L. Liu. Parallel distributed logistic regression for vertical federated learning without third-party coordinator. arXiv preprint arXiv:1911.09824, 2019. [234] A. C. Yao. Protocols for secure computations. In 23rd annual symposium on foundations of computer science (sfcs 1982), pages 160–164. IEEE, 1982. [235] A. C.-C. Yao. How to generate and exchange secrets. In Annual Symposium on Foundations of Computer Science, pages 162–167, 1986. [236] D. Yin, Y. Chen, R. Kannan, and P. Bartlett. Byzantinerobust distributed learning: Towards optimal statisti-
+
+cal rates. In International Conference on Machine Learning, pages 5650–5659. PMLR, 2018. [237] H. Yin, A. Mallya, A. Vahdat, J. M. Alvarez, J. Kautz, and P. Molchanov. See through gradients: Image batch recovery via gradinversion. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 16337–16346, 2021. [238] X. Yin, Y. Zhu, and J. Hu. A comprehensive survey of privacy-preserving federated learning: A taxonomy, review, and future directions. ACM Computing Surveys (CSUR), 54(6):1–36, 2021. [239] C. Yu, H. Tang, C. Renggli, S. Kassing, A. Singla, D. Alistarh, C. Zhang, and J. Liu. Distributed learning over unreliable networks. In International Conference on Machine Learning, pages 7202–7212. PMLR, 2019. [240] H. Yu, S. Yang, and S. Zhu. Parallel restarted sgd with faster convergence and less communication: Demystifying why model averaging works for deep learning. In Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 33, pages 5693–5700, 2019. [241] X. Yuan, X. Ma, L. Zhang, Y. Fang, and D. Wu. Beyond class-level privacy leakage: Breaking recordlevel privacy in federated learning. IEEE Internet of Things Journal, 9(4):2555–2565, 2021. [242] K. Yue, R. Jin, C.-W. Wong, D. Baron, and H. Dai. Gradient obfuscation gives a false sense of security in federated learning. arXiv preprint arXiv:2206.04055, 2022. [243] D. Zeng, S. Liang, X. Hu, and Z. Xu. Fedlab: A ﬂexible federated learning framework. CoRR, abs/2107.11621, 2021. URL https://arxiv.org/abs/2107.11621. [244] S. Zeng, Z. Li, H. Yu, Y. He, Z. Xu, D. Niyato, and H. Yu. Heterogeneous federated learning via grouped sequential-to-parallel training. In Database Systems for Advanced Applications - 27th International Conference, DASFAA 2022,, volume 13246, pages 455–471. Springer, 2022. [245] C. Zhang, S. Li, J. Xia, W. Wang, F. Yan, and Y. Liu. {BatchCrypt}: Efﬁcient homomorphic encryption for {Cross-Silo} federated learning. In 2020 USENIX Annual Technical Conference (USENIX ATC 20), pages 493–506, 2020. [246] C. Zhang, Y. Liu, L. Wang, Y. Liu, L. Li, and N. Zheng. Joint intelligence ranking by federated multiplicative update. IEEE Intelligent Systems, 35(4):15–24, 2020. [247] C. Zhang, J. Xia, B. Yang, H. Puyang, W. Wang, R. Chen, I. E. Akkus, P. Aditya, and F. Yan. Citadel: Protecting data privacy and model conﬁdentiality for collaborative learning. In Proceedings of the ACM Symposium on Cloud Computing, pages 546–561, 2021. [248] H. Zhang, B. Wu, X. Yuan, S. Pan, H. Tong, and J. Pei. Trustworthy graph neural networks: Aspects, methods and trends. arXiv preprint arXiv:2205.07424, 2022. [249] J. Zhang, Z. Zhang, X. Xiao, Y. Yang, and M. Winslett. Functional mechanism: regression analysis under differential privacy. arXiv preprint arXiv:1208.0219, 2012. [250] W. Zhang, S. Tople, and O. Ohrimenko. Leakage of dataset properties in {Multi-Party} machine learning. In 30th USENIX Security Symposium (USENIX Security 21), pages 2687–2704, 2021.
+
+28
+
+[251] X. Zhang, A. Fu, H. Wang, C. Zhou, and Z. Chen. A privacy-preserving and veriﬁable federated learning scheme. In ICC 2020-2020 IEEE International Conference on Communications (ICC), pages 1–6. IEEE, 2020.
+[252] Y. Zhang and Q. Yang. A survey on multi-task learning. IEEE Transactions on Knowledge and Data Engineering, 2021.
+[253] Y. Zhang and H. Zhu. Doc2hash: Learning discrete latent variables for documents retrieval. In Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies, Volume 1 (Long and Short Papers), June 2019. doi: 10.18653/v1/N19-1232. URL https://aclanthology.org/N19-1232.
+[254] Y. Zhang and H. Zhu. Additively homomorphical encryption based deep neural network for asymmetrically collaborative machine learning. arXiv preprint arXiv:2007.06849, 2020.
+[255] Y. Zhang and H. Zhu. Additively homomorphical encryption based deep neural network for asymmetrically collaborative machine learning. arXiv preprint arXiv:2007.06849, 2020.
+[256] Y. Zhang and H. Zhu. Discrete wasserstein autoencoders for document retrieval. In ICASSP 2020-2020 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP), pages 8159–8163. IEEE, 2020.
+[257] Y. Zhang, H. Zhu, Z. Meng, P. Koniusz, and I. King. Graph-adaptive rectiﬁed linear unit for graph neural networks. In Proceedings of the ACM Web Conference 2022, pages 1331–1339, 2022.
+[258] Y. Zhang, H. Zhu, Z. Song, P. Koniusz, and I. King. Costa: Covariance-preserving feature augmentation for graph contrastive learning. In Proceedings of the 28th ACM SIGKDD Conference on Knowledge Discovery and Data Mining, pages 2524–2534, 2022.
+[259] Y. Zhang, H. Zhu, Z. Song, P. Koniusz, and I. King. Spectral feature augmentation for graph contrastive learning and beyond. arXiv preprint arXiv:2212.01026, 2022.
+[260] Z. Zhang, X. Cao, J. Jia, and N. Z. Gong. Fldetector: Defending federated learning against model poisoning attacks via detecting malicious clients. In Proceedings of the 28th ACM SIGKDD Conference on Knowledge Discovery and Data Mining, pages 2545–2555, 2022.
+[261] B. Zhao, K. R. Mopuri, and H. Bilen. idlg: Improved deep leakage from gradients. arXiv preprint arXiv:2001.02610, 2020.
+[262] B. Zhao, K. Fan, K. Yang, Z. Wang, H. Li, and Y. Yang. Anonymous and privacy-preserving federated learning with industrial big data. IEEE Transactions on Industrial Informatics, 17(9):6314–6323, 2021.
+[263] B. Zhao, P. Sun, T. Wang, and K. Jiang. Fedinv: Byzantine-robust federated learning by inversing local model updates. 2022.
+[264] K. Zhao, W. Xi, Z. Wang, J. Zhao, R. Wang, and Z. Jiang. Smss: Secure member selection strategy in federated learning. IEEE Intelligent Systems, 35(4):37– 49, 2020.
+[265] Y. Zhao, M. Li, L. Lai, N. Suda, D. Civin, and V. Chandra. Federated learning with non-iid data. arXiv
+
+preprint arXiv:1806.00582, 2018. [266] Y. Zhao, J. Zhao, M. Yang, T. Wang, N. Wang, L. Lyu,
+D. Niyato, and K.-Y. Lam. Local differential privacybased federated learning for internet of things. IEEE Internet of Things Journal, 8(11):8836–8853, 2020. [267] H. Zheng, H. Hu, and Z. Han. Preserving user privacy for machine learning: local differential privacy or federated machine learning? IEEE Intelligent Systems, 35 (4):5–14, 2020. [268] H. Zhu, J. Xu, S. Liu, and Y. Jin. Federated learning on non-iid data: A survey. Neurocomputing, 465:371–390, 2021. [269] J.-Y. Zhu, T. Park, P. Isola, and A. A. Efros. Unpaired image-to-image translation using cycle-consistent adversarial networks. In Proceedings of the IEEE international conference on computer vision, pages 2223–2232, 2017. [270] L. Zhu, Z. Liu, and S. Han. Deep leakage from gradients. Advances in neural information processing systems, 32, 2019. [271] W. Zhu, M. Wei, X. Li, and Q. Li. Securebinn: 3party secure computation for binarized neural network inference. In European Symposium on Research in Computer Security, pages 275–294. Springer, 2022. [272] Z. Zhu, J. Hong, and J. Zhou. Data-free knowledge distillation for heterogeneous federated learning. In International Conference on Machine Learning, pages 12878–12889. PMLR, 2021. [273] A. Ziller, A. Trask, A. Lopardo, B. Szymkow, B. Wagner, E. Bluemke, J.-M. Nounahon, J. PasseratPalmbach, K. Prakash, N. Rose, et al. Pysyft: A library for easy federated learning. In Federated Learning Systems, pages 111–139. Springer, 2021.
+

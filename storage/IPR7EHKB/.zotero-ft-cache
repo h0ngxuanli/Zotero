@@ -1,0 +1,321 @@
+Federated Learning Attacks and Defenses: A Survey
+Yao Chen1, Yijie Gui1, Hong Lin1, Wensheng Gan1,2∗, Yongdong Wu1
+1Jinan University, Guangzhou 510632, China 2Pazhou Lab, Guangzhou 510330, China
+Email: {csyaochen, y.j.gui123, lhed9eh0g, wsgan001, wuyd175}@gmail.com
+
+arXiv:2211.14952v1 [cs.CR] 27 Nov 2022
+
+Abstract—In terms of artiﬁcial intelligence, there are several security and privacy deﬁciencies in the traditional centralized training methods of machine learning models by a server. To address this limitation, federated learning (FL) has been proposed and is known for breaking down “data silos” and protecting the privacy of users. However, FL has not yet gained popularity in the industry, mainly due to its security, privacy, and high cost of communication. For the purpose of advancing the research in this ﬁeld, building a robust FL system, and realizing the wide application of FL, this paper sorts out the possible attacks and corresponding defenses of the current FL system systematically. Firstly, this paper brieﬂy introduces the basic workﬂow of FL and related knowledge of attacks and defenses. It reviews a great deal of research about privacy theft and malicious attacks that have been studied in recent years. Most importantly, in view of the current three classiﬁcation criteria, namely the three stages of machine learning, the three different roles in federated learning, and the CIA (Conﬁdentiality, Integrity, and Availability) guidelines on privacy protection, we divide attack approaches into two categories according to the training stage and the prediction stage in machine learning. Furthermore, we also identify the CIA property violated for each attack method and potential attack role. Various defense mechanisms are then analyzed separately from the level of privacy and security. Finally, we summarize the possible challenges in the application of FL from the aspect of attacks and defenses and discuss the future development direction of FL systems. In this way, the designed FL system has the ability to resist different attacks and is more secure and stable.
+Index Terms—federated learning, attacks, defenses, challenges, opportunities
+I. INTRODUCTION
+With the vigorous development of big data and artiﬁcial intelligence, large amounts of data and models have been generated. The process and the transfer of data have become much more frequent in the meantime. As we all know, in many industries, data often exists in the form of silos, and the most straightforward way to solve the silo problem is to ensemble data into one party for further processing [1]. However, this practice will certainly cause data privacy leakage problems. Nowadays, many countries have made efforts to strengthen the protection of citizens’ private data security. Take the European Union’s General Data Protection Regulation (GDPR) as an example, which came into force on May 25, 2018. Protecting users’ personal privacy and data security is the goal of this regulation. Similarly, since 2017, the Cybersecurity Law of the People’s Republic of China has guaranteed cybersecurity, protected the legitimate rights and interests of citizens, and
+
+promoted the healthy development of economic and social information technology1. Naturally, with the emphasis on data privacy and security becoming a worldwide trend, breaking down data silos and making full use of data have become hot topics today. To address this limit, federated learning (FL) [2], [3], [4] is proposed as a data integration method that complies with data privacy and security laws.
+Google proposed FL in 2016 [5] to address the limitation of updating models locally by the user using an Android mobile phone. This technique has been used in many other areas in combination with other expertise, such as enterprise data alliance [6], blockchain [7], smart ﬁnance [8], smart healthcare [9], etc. FL is actually an encrypted distributed machine learning technique that can effectively assist multiple organizations and the usage of data while meeting the requirements of privacy protection, data security, and government regulations. It is characterized by the following four parts: multi-party collaboration; equality of all parties; data privacy protection; and data encryption. A concept that is similar to FL is joint learning [10]. The difference between them is that joint learning has no requirements for aggregated methods or privacy about data. In addition, there is still a difference between FL and privacy protection theories commonly used in data mining [11], [12], such as differential privacy [13], [14], [15], k-anonymity [16], [17], and l-diversity [18]. Speciﬁcally, FL protects users’ data privacy through the exchange of parameters under speciﬁc encryption mechanisms. However, differential privacy, k-anonymity, and l-diversity methods protect the users’ privacy information by adding noise to data or obfuscating sensitive attributes in the databases.
+The workﬂow of FL can be generally divided into three steps: the server generates the initial global model, the participants train the model locally, and the server updates the global model. This is shown in Fig. 1. On the basis of the distribution of data sources among all participants, FL can be divided into three categories [1]: horizontally federated learning (HFL), vertically federated learning (VFL), and federated transfer learning (FTL). The essence of HFL is the union of samples. When users’ features of two datasets overlap more and users overlap less, we divide the dataset horizontally and take out the part of the data where the users’ features of both datasets are the same, but the users are not exactly the same for training (that is the user dimension). The nature of VFL is the union
+
+∗Corresponding author.
+
+1http://www.gov.cn/xinwen/2016-11/07/content 5129723.htm
+
+Private Data Local Model
+
+Private Data Local Model
+
+1 2 3
+
+1 2 3
+
+1
+
+2
+
+3 Private Data Local Model
+
+Central Server
+
+Global Model 1
+
+2
+
+3
+
+1 2 3
+
+1
+
+2
+
+3
+
+Local Model Private Data
+
+Private Data Local Model
+
+Local Model Private Data
+
+Step 1: The server generates the initial global model and sends it to the participants. Step 2: The participants train the global model locally and then send the trained model to the server. Step 3: The server aggregates the local models sent by each participant and updates the global model, then sends the global model to the
+participants for the next training round.
+Fig. 1: An overall ﬂow of FL [19].
+
+of features. When two datasets have more overlap in users but less overlap in users’ features, we divide the dataset vertically and take out the part of the data where the users on both sides are the same, but the user features are not exactly the same for training (that is the feature dimension). However, in those cases where both datasets have less overlap in users and users’ features, we do not slice the data and use the transfer learning method to overcome the shortfall of data or label. The transfer learning method can be used by alliances between banks and e-commerce companies in different regions. FTL is applicable to some scenarios based on deep neural networks.
+Although FL does not directly exchange data and has a higher privacy guarantee than traditional machine learning, there are still some insecure problems in speciﬁc practical applications that need to be further studied and solved [20]. It faces four challenges in general: high communication costs, systemic heterogeneity, statistical heterogeneity, and data security [3]. The ﬁrst three challenges are problems that FL may encounter in practical applications. The last challenge ensures that federal learning meets privacy, security, and various legal regulations. In naive FL, the conﬁdentiality of data mainly depends on the use of cryptographic algorithms, such as AES [21], SM4 [22], RSA [23], etc. These algorithms enable the plaintext data to be encrypted to obtain irreversible ciphertext data, ensuring that the privacy of the data is not leaked. However, there are some research works [24], [25], [26], [27] proving that some private data can be inferred from the transmission of data. The member inference attack was ﬁrst proposed by Shokri et al. [27] and aims to use the trained model to determine whether a sample belongs to the corresponding training set. This can reveal private information in certain situations, such as disease classiﬁcation models in the medical ﬁeld. As attackers continue to ﬁnd
+
+out vulnerabilities in the network, the model inversion attack [28], the adversarial attack [29], the backdoor attack [30], [31], the Denial of Service attack [32], and other attacks are successively discovered by them. In order to cope with various attacks, differential privacy [13], [33], secure multiparty computing [34], [35], homomorphic encryption [36], [37], and other strategies for defense have also been proposed to ensure security in FL.
+Until now, most of the existing literature reviews about FL attacks and defenses mainly focused on speciﬁc attack types [38], [39] and listed each attack type for analysis and explanation [40], [19], [41]. Some more speciﬁc literature classiﬁes attacks according to different criteria. For example, Liu et al. [42] divided threat models, attacks, and defenses through three stages of FL (data and behavior auditing phase, training phase, and prediction phase). Chen et al. [43] classiﬁed attacks according to three different principles of information security (i.e., conﬁdentiality, integrity, and availability). Wu et al. [44] enumerated types of attacks according to the potential attackers in the FL system. One of the highlights of this paper is to look for the intersection of the above three criteria and combine them reasonably.
+Contributions: This paper aims to summarizing the development of attack and defense technologies in the frameworks of different FL systems in recent years. The classiﬁcation of existing attacks, which combines the current three classiﬁcation criteria, is highlighted in this paper. In addition, we categorize and discuss various attack strategies in detail, including poisoning attack, inference attack, reconstruction attack, etc. Speciﬁcally, existing defenses are discussed in detail from the perspective of privacy and security, respectively. Finally, we put forward six research directions for the future development of attack and defense in various FL systems.
+
+Outline: The remaining content of this paper is organized and presented as follows: we provide and describe some fundamental knowledge about FL in Section II. Most importantly, we categorize attacks and defenses and give a detailed analysis in Section III and Section IV. Furthermore, in Section V, we present a comprehensive review of challenges and potential future research directions for FL. Finally, we make a conclusion for this review in Section VI.
+II. BACKGROUND
+Federated learning is a machine learning paradigm that involves multiple participants [42]. In this paradigm, the participants can build the model jointly without disclosing the underlying data or its cryptographic form. In short, FL implements training and builds a shared model without letting data leave the local area. This section provides background knowledge on FL attacks and defenses, including different types of FL and some threats to security and privacy that FL encounters in each process.
+A. Types of Federated Learning
+Based on the data characteristics of the participants and the distribution of the data samples, FL can be classiﬁed into the following three types [1].
+Horizontally federated learning (HFL). The characteristic of HFL is that participants have different data samples, but the data features in the samples overlap [42]. For example, given two hospitals in different locations, the intersection of the data samples from these two hospitals is small. However, the business of hospitals is very similar. Therefore, there are many overlaps in the data characteristics of the data samples. In this case, we can use HFL to build a joint model.
+Vertically federated learning (VFL). The characteristic of VFL is that data samples owned by participants overlap, but the data features in the samples are different [45]. For instance, a bank and an e-commerce company are in the same area. Their user groups include some local residents, so the intersection of the data samples from these two institutions is large. The characteristics of the data collected by the bank are related to the credit level of the user. And the characteristics of the data collected by the e-commerce company are related to consumer behaviors. Therefore, the characteristics of the data collected by these two institutions are not the same. This situation is suitable for the VFL.
+Federated transfer learning (FTL). FTL is characterized by less overlap of data characteristics in different data samples and less overlap of data samples owned by the participants [20]. FTL combines the ideas of FL and transfer learning, where transfer learning is a machine learning method that transfers knowledge learned in one domain or task to another domain or task [46], [47]. FTL uses transfer learning to overcome the problem of non-overlapping samples and nonoverlapping features [48].
+B. Security and Privacy Threats in FL
+Fig. 2 depicts the classic workﬂow of FL training models and the privacy and security threats that exist. The workﬂow
+
+of FL training models is generally divided into three steps: generate the initial model, train the local model, and update the global model.
+Generating the initial model. FL usually starts with an initial global model generated by the server. This global model is then broadcast to those participants who trained the model together [45]. In this step, a malicious server may inject malicious data into the global model. This behavior affects the training and prediction of the model. All participants download the global model from the malicious server and upload the local model to the malicious server. This attack behavior may threaten the privacy and security of the participants by attacking the models uploaded by the participants. Poisoning attacks often occur during this step.
+Training the local model. Each participant downloads a global model from the server. Then, the participant trains this global model with local data. This training process is done locally. As a result, raw data from participants does not leave the local area. Finally, each participant uploads the trained local model to the server. In this step, the attacker may be a participant who injects malicious behavior into the local model or an eavesdropper who steals information from a communication channel. In other words, the attacker, as a participant, inﬂuences the training of the FL by sending local models with malicious behaviors to the server [38]. Besides, this attacker can also infer some sensitive information from the global model that the server sends each time. The attacker can also use the information stolen from the communication channel to carry out the attack. The communication channel transmits the local models uploaded by the participants and the global model broadcast by the server. During this uploading and downloading process, an attacker may tamper with or steal the models, thus affecting the training of the global model and compromising the privacy of the participants. Poisoning attacks and inference attacks are common here.
+Updating the global model. The server collects the local models uploaded by all participants and then performs a model aggregation operation. This step’s goal is to recombine all of the collected local models into a global model. The aggregation algorithm is involved here. FedAvg is the classical aggregation algorithm [5], which obtains a new common model by weighting the parameters of all the models and averaging them. In this step, the server may be injected with malicious behavior by the attacker, which can affect the training of the model [41]. In addition to this, the malicious server receives local models from all participants. The attacker can use the local models uploaded by the participants to perform inference attacks, or he can use the generated models to reconstruct the training set of the participants. These actions may infer sensitive information about the participants and thus threaten the privacy and security of the participants.
+III. ATTACKS IN FL
+There are many types of attacks in FL, with different standards for the classiﬁcation of attacks in previous studies. For instance, Chen et al. [43] classiﬁed attacks based on
+
+Download the global model operation Upload the local model operation
+1 3
+
+FL Server
+Attacker
+
+1 Generating the initial model. 2 Training the local model. 3 Updating the global model.
+
+Attacker
+
+2 Local Model Private Data Participant
+
+. . .
+
+2 Local Model Private Data
+
+Participant
+
+FL participants
+
+2 Local Model Private Data Attacker
+
+Fig. 2: Threats in a federated learning environment.
+
+three different principles of information security named CIA (conﬁdentiality, integrity, and availability). Liu et al. [42] listed the corresponding possible attacks based on the three phases of the FL (including data auditing, training, and predicting). Wu et al. [44] enumerated types of attacks according to the potential attackers of the FL system (including local workers, the central server, and the eavesdropper). In this section, we categorize and introduce the major attacks using the above criteria. As shown in Table I, we retain two classiﬁcation standards: potential attack roles and three principles of information security. Since most attacks exist in the latter two phases, we remove the data auditing phase [42]. In addition, FL is usually in the training phase in most cases. However, we believe that for attackers, when the model is trained to a certain extent, they can enter the prediction stage and carry out some attacks through this stage, even though the model is not fully trained. Therefore, in our opinion, the prediction stage is also an important part of federated learning.
+TABLE I: Classiﬁcation of attacks in FL
+
+Local worker
+
+Training phase
+
+Data poisoning Inference attack Byzantine attack
+
+Model poisoning Reconstruction attack
+
+Center server
+
+Model poisoning
+
+Inference attack
+
+Reconstruction attack
+
+Byzantine attack
+
+outsider
+
+Inference attack
+
+confidentiality
+
+integrity
+
+Predicting phase
+Evasion attack Inference attack Model extraction attack Reconstruction attack
+availability
+
+A. Poisoning Attacks
+There are some different classiﬁcation standards for poisoning attacks. Speciﬁcally, they can be divided into data
+
+poisoning and model poisoning according to the poisoning objects, and can be divided into random attacks and backdoor attacks (target attacks) according to whether the attack is targeted. It violates the integrity principle of FL by making the global model unusable under certain conditions.
+Data poisoning refers to an attacker tampering with or adding data to the training set maliciously, which eventually leads to the destruction or hijacking of the model. This attack is usually implemented by the local worker, who is the owner of the data. Later, the idea of clean-label poisoning comes up [49]. This is a backdoor attack that adds malicious data instead of changing it. Conversely, dirty data poisoning usually involves changing the original dataset through label-ﬂipping [50], [51] or the generation of toxic samples [52], [53].
+Model poisoning means that the attacker changes the parameters of the target model directly, causing errors in the global model or leaving a backdoor. It has been shown to be more effective than data poisoning [54]. Perturbing the weights of convolutional neural networks in a targeted manner can be used to insert backdoors [55]. By using available bit-ﬂipping techniques, the target model can be converted into the Trojan infection model [56]. Since the model needs to be transmitted repeatedly between the local worker and the center server, either one of them could be an attacker.
+B. Inference Attacks
+Although the data transmitted from the client to the server is not the original data, there is still a risk of leakage. Inference attacks indicate that attackers can use the eavesdropped information to infer useful information to a certain extent, which obviously destroys the conﬁdentiality of the model. The member inference attack was ﬁrst proposed in [27], which trains a model with similar functions on a speciﬁed sample and then judges whether the sample is used for the target model’s training. This training method is called the Shadow
+
+training technique. What’s more, the attribute inference attack [25] aims to determine whether a participant’s data is relevant to a certain attribute. There have been studies to prove that this attack can infer the accent information of the training set in FL of speech recognition. According to a recent study [57], sensitive information represented by labels can potentially be inferred from user-uploaded gradients.
+C. Reconstruction Attacks
+Unlike inference attacks that cannot reveal raw data, reconstruction attacks can obtain the original information of the training dataset by collecting some information such as predicted conﬁdence values, model parameters, and gradients. Therefore, this type of attack is also a conﬁdentiality attack. The model inversion attack is one of the reconstruction attacks and was ﬁrst proposed by [58]. This model shows that when the adversary has white-box access rights, the adversary can use the linear model to estimate the attribute information of the original data. Another attack method is generative adversarial networks (GAN) [59] and it points out that attackers can obtain samples of other participants, and this process only requires black-box access. And Deep Leakage from Gradients (DLG) shows that the attacker could recover the original data by analyzing the gradient information [60]. Then, the Improved Deep Leakage from Gradients (IDLG) [61] improves the accuracy of data recovery. Inverting gradients based on DLG were proposed [62] and it broadened the attack scenario to include the actual industrialized scenario rather than being limited to the strong assumption of low-resolution recovery and a shallow network. Recently, Generative Regression Neural Network (GRNN) based on GAN was proposed to restore the original training data without the need for additional information [63]. It indicated that GRNN has stronger robustness and higher accuracy than previous methods.
+D. Model Extraction Attack
+When FL has ﬁnished training the model, the global model will serve outsiders in the form of an API. At this time, the user may query the relevant information of the target model through the API loop and ﬁnally achieve the effect of extracting the model. Trame`r et al. [64] ﬁrst demonstrated that this attack will be effective when the attacker has the same distribution of data and model-related information as the model. The attack proposed in [65] can obtain hyperparameters located at the bottom layer of the model. Orekondy et al. [66] proposed the Knockoff Net, through which attackers can steal based on the conﬁdence value output by the API, and the stealing effect is positively correlated with the complexity of the target model.
+E. Evasion Attacks
+Evasion attack is a type of attack in which an attacker deceives the target machine learning system by constructing speciﬁc input samples without changing the target machine learning system. It usually occurs during the prediction phase, when the model has ﬁnished training. The effect of this kind of attack can be summarized as the model extrapolates
+
+the original answer “A” to be the wrong answer “B”. Main feature of it is a wide spread of hazards, including road sign recognition for autonomous driving [67], face recognition [68], voice recognition system [69], etc. Evasion attack is an integrity attack due to the spooﬁng of the model.
+F. Byzantine Attacks
+Byzantine attack is a type of attack in which an attacker hides among the participants of FL and arbitrarily uploads malicious data, aiming to destroy the global model (e.g., model availability). To deal with this attack, it is common to combine stochastic gradient descent (SGD) with different robust aggregation rules (e.g., Krum, Median). However, the stochastic gradient noise induced by SGD makes it impossible for the server to judge whether it is malicious information or the noise of real information, which becomes an exploit point for attackers [70]. Xie et al. [71] use a method called “inner product manipulation” to make the aggregated vector direction in the server inconsistent with the true gradient, thereby causing SGD to fail. Similar to this idea, it has been proven that by poisoning the local model, the global model has a large test error rate [72].
+Discussion: Whether an attack is signiﬁcant depends on the depth of its damage and the scope of its damage. We can see that each of the above attacks makes assumptions about the attacker’s privileges or attack capabilities. Obviously, an excellent attack should have as few assumptions as possible, which mean that it is more applicable to a wider range of scenarios and more difﬁcult to be detected by defense strategies. Therefore, making fewer assumptions should be a principle for designing future attack strategies, and the corresponding defense strategy should also detect the difference between malicious participants and attacking participants as much as possible. In conclusion, comprehensive and in-depth attack research can promote the development of defense.
+IV. DEFENSES IN FL
+In this section, we describe several defense methods in the FL environment at the privacy level and the security level, respectively. The goal of the security-based defense policy is different from that of the privacy-based defense policy. More speciﬁcally, privacy refers to private information that a person does not want others to know and invade, focusing on sensitive personal information [73]; security focuses on conﬁdential data and information assets, not just personal information. As we all know, the CIA follows three core security principles [74]. The attack on FL is considered at the privacy level, when the attacker tries to infer private information about the participant. Privacy protection methods are used to defend against privacy attacks and to ensure that sensitive data is not leaked to others [75]. The security attack is a malicious action performed by hackers with specialized knowledge to compromise the conﬁdentiality, integrity, and availability of data and models. And the security defense aims to improve the FL framework’s CIA.
+
+A. Defenses at the Privacy Level
+In this section, some privacy protection methods are discussed for defending against attacks at the privacy level. Table II describes these approaches, including the types of attacks they defend against and their shortcomings.
+TABLE II: Privacy protection methods in FL.
+
+Method
+
+Attacks Defended Against
+
+Deficiency
+
+Data Anonymization
+
+Linkage attack, homogeneity attack. Reduced usability of the data.
+
+Differential Privacy Secure Multi-party Computation
+Homomorphic Encryption Trusted Execution Environment
+Blockchain
+
+Poisoning attack, inference attack, evasion attack, reconstruction attack, and model inversion.
+
+Noise affects the utility of the model.
+
+Inference attacks, reconstruction attacks, model inversion, and leaks from malicious central servers.
+
+SMC requires a substantial computational and communication overhead, which reduces the enthusiasm of the participants to cooperate.
+
+Inference attacks, GAN attacks, model High communication and computational
+
+inversion, inference attacks, and
+
+overhead and high equipment requirements.
+
+reconstruction attacks.
+
+MIA, PIA, model inversion, and malicious Server.
+Poisoning attacks.
+
+Inability to execute very complex trading logic.
+It requires a lot of computing resources, making it unsuitable for some resourcelimited devices.
+
+Data anonymization. In order to defend against privacy attacks, we can use anonymization techniques to hide or remove sensitive personal attributes, such as personally identiﬁable information (PII) [76], so that the attacker cannot identify a speciﬁc individual through the data. K-anonymity, L-diversity, and T-closeness are three common anonymization techniques. Anonymization techniques have been used to improve the privacy of FL [77], [78]. This type of approach improves privacy by hiding or removing sensitive information, but may reduce the usability of the dataset [79]. In addition, much anonymized data can be easily “de-anonymized”. Thus, data anonymization is often used in conjunction with other ways to protect privacy.
+Differential privacy (DP) [13]. This is a common approach for protecting privacy in FL frameworks by adding noise to the uploaded data, making it impossible for an attacker to access the original data or model. It hinders the reverse data retrieval from the attacker [80]. DP defends against attacks during the training phase and the prediction phase of FL. Those types of attacks that DP defends against are poisoning attack, inference attack, evasion attack, reconstruction attack, and model inversion [81], [82], [83]. Although DP can improve the privacy of the FL framework, the utility of the models can be seriously affected if too much noise is added. Therefore, how to balance privacy and utility is an important issue when using DP in the FL framework.
+Secure multi-party computation (SMC) [34]. SMC is a generic cryptographic primitive for solving privacy-preserving collaborative computation problems between a set of mutually distrusting participants [35]. SMC does not leak the input and output of the participant to other members participating in the computation. In the FL framework, SMC is able to defend against inference attacks, reconstruction attacks, model inversion, and leaks from malicious center servers [2], [83]. SMC contains complex cryptographic operations, which leads
+
+to a large computational overhead and high performance loss. This may reduce the participants’ interest in cooperating, so SMC is not suitable for large-scale FL scenarios.
+Homomorphic encryption (HE) [84]. The principle that HE can protect data privacy is that it does not touch the original data. HE ﬁrst encrypts the data, then processes it, and ﬁnally decrypts it. HE defends against attacks during the training phase and the prediction phase of FL. Although HE provides strict privacy guarantees, HE incurs a large computational overhead [81]. Therefore, this approach is not suitable for FL scenarios with numerous participants and devices with limited computational resources.
+Trusted execution environment (TEE) [85]. TEE is a tamper-proof and trusted ecosystem for executing authenticated and veriﬁed code. In the FL framework, TEE establishes digital trust by protecting devices in FL, which effectively prevents attackers from attacking private information [82]. TEE can defend against attacks such as MIA, PIA, mode inversion, and malicious server [83]. However, TEE has limited execution space, which prevents complex transaction logic from being executed.
+Blockchain [86]. It is a distributed ledger technology that uses the blockchain to verify and store data, generates and updates data through a consensus mechanism, and involves an intelligent contract and an incentive mechanism [2]. What’s more, blockchain technology is decentralized, tamper-proof, unforgeable, auditable, and accountable [87]. Blockchain is a preferred solution to the problem of implementing data security and data validation in a non-centralized FL scenario [2]. In addition, the veriﬁability of blockchain will reduce the impact of poisoning attacks [80]. This method has the drawback that it can’t be used in FL situations with a lot of people and devices with limited computing power.
+B. Defenses at the Security Level
+Vulnerabilities in FL provide an opportunity for curious attackers or malicious attackers to gain unauthorized access. To ensure the security of the FL framework, we want to scan for all vulnerabilities as much as possible. There are three main sources of vulnerabilities: insecure communication channels, malicious clients, and central parameter servers that are not robust or secure enough. The defense methods for security breaches can be divided into active and passive defenses. The purpose of active defense is to detect and mitigate the risk to the FL framework in advance, before it has an impact on the framework. The purpose of passive defense is to remediate and mitigate the impact when an attack has already occurred. The security defense approach is closely related to the CIA [74], which is the core of information security and lays the foundation for all security-based frameworks. The CIA refers to the three qualities of information security—conﬁdentiality, integrity, and availability—that are usually used to analyze security defense methods in the FL framework.
+Conﬁdentiality. The types of attacks that compromise conﬁdentiality are inference attack, reconstruction attack, and model extraction attack. Nasr et al. [88] showed that data
+
+can be inferred by considering model weights in the FL environment. It has also been demonstrated that local datasets can be reconstructed by gradients [62]. In addition to the privacy-preserving approaches, many defensive approaches have been proposed to ensure the conﬁdentiality of data. For example, VerifyNet, a veriﬁable FL framework, can guarantee the conﬁdentiality of the gradients uploaded by participants using the proposed double masking protocols [89].
+Integrality. Poisoning attack and Evasion attack are types of attacks that compromise integrity. The primary purpose of ensuring data integrity is to ensure that once data is collected, it cannot be tampered with. Common methods to ensure data integrity are TEE and blockchain. TEE enables end-to-end security and authentication. People have applied TEE to the FL framework to detect participants who violate training integrity protocols [90]. Blockchain is tamper-evident, decentralized, and protected against single points of failure, and these properties meet the requirements of integrity protection. In addition, there are several methods to ensure integrity by screening malicious clients [91].
+Availability. The attacks on availability in the FL framework are related to Byzantine attacks. Until now, many kinds of defense methods against Byzantine attacks have been proposed. For example, the Krum algorithm is an aggregation rule with resilience properties that can be used to defend against Byzantine attacks [92]. Implementing incentives in the FL framework is a good way to improve data availability by rewarding or penalizing participants based on the value of their contributions. This reduces the possibility of participants sending useless or harmful data, and also improves the usability of the training model.
+Discussion: It is clear from the above analysis that each defense method focuses on addressing one or more types of attack methods. There is no single defense method that can address all types of attacks. That is, if we want to keep the FL framework as secure and private as possible, we need to combine multiple defense methods into the FL framework in a harmonious way. How to choose the right defense method is an important issue. In addition to considering the defense capability, the utility of the data or model and cost are also important considerations. The defense method should not sacriﬁce the utility of the data or model; otherwise, it has little application value. In addition, defense methods require expensive equipment or cost, which greatly limits the application scenarios.
+V. CHALLENGES AND PROMISING DIRECTIONS
+From the various attacks and defenses mentioned above, it can be seen that although the FL framework and the corresponding techniques can protect data to a certain extent, there are still many security issues to be solved. After sorting through and analyzing the relevant work from the past few years, we’ve come up with a list of several ways that could be improved and deserve more research:
+
+A. Trade-off on Security, Communication, and Computing
+While measures such as homomorphic encryption and differential privacy protect the security of privacy, they can also reduce FL performance, including increased communication delay and increased computing load. In future research, applying cloud computing to FL may be a way to optimize performance with the help of edge computing technology. In addition, recent related research considers choosing an appropriate security strategy [93], [94], with the expectation that it will maximize communication efﬁciency and computational efﬁciency as much as possible while ensuring system security.
+B. Emphasis on Robustness or Emphasis on Privacy?
+Current research on robustness and privacy is inherently conﬂicted [73]. On the one hand, since robustness pursues the universality of defenses against adversarial attacks, it is necessary to ﬁnd commonalities between different attacks, which requires greater access to data and models. However, FL does not comply with the principles in GDPR2, a regulation designed to protect data, and the pursuit of robustness may exacerbate this problem [81]. On the other hand, privacy pursues a comprehensive defense against a certain type of attack with encryption and other means, but may overlook opportunities for other types of attacks (e.g., a lack of robustness). Exploring how to strike a balance between them is a direction worthy of future research.
+C. Contribution Measurements and Incentive Strategies
+We know that it is not easy to guarantee that all clients are honest and well-intentioned. In the FL system, we deﬁne individuals who beneﬁt from collective resources or public goods but do not pay anything as free-riders. In general, each client receives an incentive or reward for making a contribution within the FL system. In this way, those free-riders also get incentives for free by sending fake updates to the global model. Previous studies [95] extensively discussed and analyzed this phenomenon in peer-to-peer (P2P) networks. A defensive method called Standard deviation-Deep Autoencoding Gaussian Mixture Model (STD-DAGMM) [96] was proposed to identify free-riders and prevent them from receiving updated models and rewards. As more and more workers emerge into the FL system, certain defensive strategies need to be adopted to deal with this malicious behavior for the purpose of improving the accuracy and fairness of the FL system. Therefore, it is necessary to explore other incentive strategies to detect fake model updates and assess the actual contribution of each client.
+D. Attacks and Defenses in the New Form of FL
+As mentioned above, the current research on attacks and defenses of FL mainly focuses on the most basic form, e.g., HFL with a homogeneous model architecture. For FL with heterogeneous model architecture [97], [98], VFL, and FTL, the applicability of existing privacy-preserving techniques and
+2https://en.wikipedia.org/wiki/General Data Protection Regulation
+
+attack defense mechanisms has not been studied fully and empirically. In addition, based on the innovative idea that each participant can become a server, decentralized FL has received relevant research [99], [100], [101]. Does the rotation of server roles and permissions aggravate or distract from security risks? Security research in this area is also a future research direction.
+E. Another Interpretation of the Means of Attacks
+Note that attacks and defenses are inseparable. Only if the attack keeps developing can the defense keep improving. Thereafter, a thorough study of attacks can promote the development of defenses to a certain extent, thus promoting the development of FL. Apart from threatening models, some attack methods can also be used to study good technical applications. For example, Adi et al. [102] found that the production, embedding, and veriﬁcation in the backdoor attack were consistent with the three processes of the watermarking mechanism. Therefore, backdoor technology is used to watermark deep neural networks in a black-box way for intellectual property protection. With the in-depth study of attack and defense problems in FL, a promising research direction is how to use these technologies to address some of the limits of privacy protection in real life, in addition to focusing on attack and defense technology itself.
+F. Applications of the FL Systems
+It is key to strengthen the defensive strategy in the FL system, integrate privacy protection measures such as secure multi-party computing or differential privacy, and build an enhanced privacy protection FL system framework to simulate the attack and the defense in reality. There are a few opensource systems that provide FL frameworks for researchers and developers to continuously improve and upgrade them, including Google’s TFF3, PySyft4 based on the PyTorch framework, and FATE5 developed by WeBank. However, it should be noted that, besides PySyft, there is currently no framework or system that can incorporate and execute differential privacy or secure multi-party computation in real-world applications [19]. Thereafter, integrating constantly updated privacy protection technologies into FL systems is a challenging direction. It will also be important to use FL systems in more areas of life.
+VI. CONCLUSION
+Federated learning, as a new breed of artiﬁcial intelligence, is currently in a baby state. It follows local computing and model transmission, two concepts that reduce the cost and risk of privacy leakage brought by traditional centralized machine learning approaches. Although FL can solve some real-world problems, there are still many potential threats. Aiming at providing a comprehensive survey and giving readers a clear view and understanding of attacks and defenses in FL, we introduce and describe the existing work and research of the FL framework in ﬁve parts: background, characteristics,
+3https://www.tensorﬂow.org/federated/federated learning 4https://blog.openmined.org/tag/pysyft/ 5https://fate.fedai.org/
+
+classiﬁcation, systematic attack approaches, and systematic defense strategies. Then, we classify the possible attacks and threats according to the current three classiﬁcation criteria, list the attack methods for each category, and introduce the corresponding principle of the speciﬁc attack. Later on, against these attacks and threats, the speciﬁc defense measures are summarized in two parts: privacy and security, respectively. Finally, we discuss six challenges in FL from the perspective of attacks and defenses. We also highlight several promising directions for future work in this quite active research area.
+ACKNOWLEDGMENT
+This research was supported in part by Key-Area Research and Development Program of Guangdong Province (No. 2020B0101090004), National Natural Science Foundation of China (Nos. 62002136, 62272196, 61932011), Natural Science Foundation of Guangdong Province (No. 2022A1515011861), Guangzhou Basic and Applied Basic Research Foundation (Nos. 202102020277, 2019B1515120010), Guangdong Key R&D Plan2020 (No. 2020B0101090002), Fundamental Research Funds for the Central Universities of Jinan University (No. 21622416), the Young Scholar Program of Pazhou Lab (No. PZL2021KF0023), National Key Research and Development Plan of China (No. 2020YFB1005600), and National Joint Engineering Research Center for Network Security Detection and Protection Technology, Guangdong Key Laboratory for Data Security and Privacy Preserving. Dr. Wensheng Gan is the corresponding author of this paper.
+REFERENCES
+[1] Q. Yang, Y. Liu, T. Chen, and Y. Tong, “Federated machine learning: Concept and applications,” ACM Transactions on Intelligent Systems and Technology, vol. 10, no. 2, pp. 1–19, 2019.
+[2] C. Zhang, Y. Xie, H. Bai, B. Yu, W. Li, and Y. Gao, “A survey on federated learning,” Knowledge-Based Systems, vol. 216, p. 106775, 2021.
+[3] T. Li, A. K. Sahu, A. Talwalkar, and V. Smith, “Federated learning: Challenges, methods, and future directions,” IEEE Signal Processing Magazine, vol. 37, no. 3, pp. 50–60, 2020.
+[4] P. Kairouz, H. B. McMahan, B. Avent, A. Bellet, M. Bennis, A. N. Bhagoji, K. Bonawitz, Z. Charles, G. Cormode, R. Cummings et al., “Advances and open problems in federated learning,” Foundations and Trends® in Machine Learning, vol. 14, no. 1–2, pp. 1–210, 2021.
+[5] B. McMahan, E. Moore, D. Ramage, S. Hampson, and B. A. y Arcas, “Communication-efﬁcient learning of deep networks from decentralized data,” in Artiﬁcial Intelligence and Statistics. PMLR, 2017, pp. 1273–1282.
+[6] J. Yang, Y. Duan, T. Qiao, H. Zhou, J. Wang, and W. Zhao, “Prototyping federated learning on edge computing systems.” Frontiers Comput. Sci., vol. 14, no. 6, p. 146318, 2020.
+[7] Y. Lu, X. Huang, Y. Dai, S. Maharjan, and Y. Zhang, “Blockchain and federated learning for privacy-preserved data sharing in industrial iot,” IEEE Transactions on Industrial Informatics, vol. 16, no. 6, pp. 4177–4186, 2019.
+[8] G. Long, Y. Tan, J. Jiang, and C. Zhang, “Federated learning for open banking,” in Federated Learning. Springer, 2020, pp. 240–254.
+[9] Y. Kumar and R. Singla, “Federated learning systems for healthcare: perspective and recent progress,” Federated Learning Systems, pp. 141– 156, 2021.
+[10] J. R. Finkel and C. D. Manning, “Hierarchical joint learning: Improving joint parsing and named entity recognition with non-jointly labeled data,” in 48th Annual Meeting of the Association for Computational Linguistics, 2010, pp. 720–728.
+
+[11] W. Gan, J. C. W. Lin, H. C. Chao, and J. Zhan, “Data mining in distributed environment: a survey,” Wiley Interdisciplinary Reviews: Data Mining and Knowledge Discovery, vol. 7, no. 6, p. e1216, 2017.
+[12] W. Gan, J. C. W. Lin, P. Fournier-Viger, H. C. Chao, V. S. Tseng, and P. S. Yu, “A survey of utility-oriented pattern mining,” IEEE Transactions on Knowledge and Data Engineering, vol. 33, no. 4, pp. 1306–1327, 2021.
+[13] C. Dwork, “Differential privacy: A survey of results,” in International Conference on Theory and Applications of Models of Computation. Springer, 2008, pp. 1–19.
+[14] M. Abadi, A. Chu, I. Goodfellow, H. B. McMahan, I. Mironov, K. Talwar, and L. Zhang, “Deep learning with differential privacy,” in ACM SIGSAC Conference on Computer and Communications Security, 2016, pp. 308–318.
+[15] J. Li, W. Gan, Y. Gui, Y. Wu, and P. S. Yu, “Frequent itemset mining with local differential privacy,” in the 31st ACM International Conference on Information and Knowledge Management, 2022, pp. 1146–1155.
+[16] L. Sweeney, “k-anonymity: A model for protecting privacy,” International Journal of Uncertainty, Fuzziness and Knowledge-based Systems, vol. 10, no. 05, pp. 557–570, 2002.
+[17] K. LeFevre, D. J. DeWitt, and R. Ramakrishnan, “Mondrian multidimensional k-anonymity,” in IEEE 22nd International Conference on Data Engineering. IEEE, 2006, pp. 25–25.
+[18] A. Machanavajjhala, D. Kifer, J. Gehrke, and M. Venkitasubramaniam, “l-diversity: Privacy beyond k-anonymity,” ACM Transactions on Knowledge Discovery from Data, vol. 1, no. 1, pp. 3–es, 2007.
+[19] V. Mothukuri, R. M. Parizi, S. Pouriyeh, Y. Huang, A. Dehghantanha, and G. Srivastava, “A survey on security and privacy of federated learning,” Future Generation Computer Systems, vol. 115, pp. 619– 640, 2021.
+[20] Y. Liu, Y. Kang, C. Xing, T. Chen, and Q. Yang, “A secure federated transfer learning framework,” IEEE Intelligent Systems, vol. 35, no. 4, pp. 70–82, 2020.
+[21] J. Daemen and V. Rijmen, “AES proposal: Rijndael,” 1999. [22] J. Zhang, W. Wu, and Y. Zheng, “Security of SM4 against (related-key)
+differential cryptanalysis,” in International Conference on Information Security Practice and Experience. Springer, 2016, pp. 65–78. [23] M. J. Wiener, “Cryptanalysis of short RSA secret exponents,” IEEE Transactions on Information Theory, vol. 36, no. 3, pp. 553–558, 1990. [24] K. Ganju, Q. Wang, W. Yang, C. A. Gunter, and N. Borisov, “Property inference attacks on fully connected neural networks using permutation invariant representations,” in ACM SIGSAC Conference on Computer and Communications Security, 2018, pp. 619–633. [25] G. Ateniese, L. V. Mancini, A. Spognardi, A. Villani, D. Vitali, and G. Felici, “Hacking smart machines with smarter ones: How to extract meaningful data from machine learning classiﬁers,” International Journal of Security and Networks, vol. 10, no. 3, pp. 137–150, 2015. [26] L. Melis, C. Song, E. De Cristofaro, and V. Shmatikov, “Exploiting unintended feature leakage in collaborative learning,” in IEEE Symposium on Security and Privacy. IEEE, 2019, pp. 691–706. [27] R. Shokri, M. Stronati, C. Song, and V. Shmatikov, “Membership inference attacks against machine learning models,” in IEEE Symposium on Security and Privacy. IEEE, 2017, pp. 3–18. [28] M. Fredrikson, S. Jha, and T. Ristenpart, “Model inversion attacks that exploit conﬁdence information and basic countermeasures,” in the 22nd ACM SIGSAC Conference on Computer and Communications Security, 2015, pp. 1322–1333. [29] I. J. Goodfellow, J. Shlens, and C. Szegedy, “Explaining and harnessing adversarial examples,” in International Conference on Learning Representations, 2014. [30] Y. Li, Y. Jiang, Z. Li, and S. T. Xia, “Backdoor learning: A survey,” IEEE Transactions on Neural Networks and Learning Systems, 2022. [31] H. Wang, K. Sreenivasan, S. Rajput, H. Vishwakarma, S. Agarwal, J.-y. Sohn, K. Lee, and D. Papailiopoulos, “Attack of the tails: Yes, you really can backdoor federated learning,” Advances in Neural Information Processing Systems, vol. 33, pp. 16 070–16 084, 2020. [32] L. Garber, “Denial-of-service attacks rip the internet,” computer, vol. 33, no. 04, pp. 12–17, 2000. [33] C. Dwork, A. Roth et al., “The algorithmic foundations of differential privacy,” Foundations and Trends® in Theoretical Computer Science, vol. 9, no. 3–4, pp. 211–407, 2014. [34] O. Goldreich, “Secure multi-party computation,” Manuscript. Preliminary version, vol. 78, p. 110, 1998.
+
+[35] C. Zhao, S. Zhao, M. Zhao, Z. Chen, C. Z. Gao, H. Li, and Y. a. Tan, “Secure multi-party computation: theory, practice and applications,” Information Sciences, vol. 476, pp. 357–372, 2019.
+[36] M. Naehrig, K. Lauter, and V. Vaikuntanathan, “Can homomorphic encryption be practical?” in 3rd ACM Workshop on Cloud Computing Security Workshop, 2011, pp. 113–124.
+[37] P. Martins, L. Sousa, and A. Mariano, “A survey on fully homomorphic encryption: An engineering perspective,” ACM Computing Surveys, vol. 50, no. 6, pp. 1–33, 2017.
+[38] E. Bagdasaryan, A. Veit, Y. Hua, D. Estrin, and V. Shmatikov, “How to backdoor federated learning,” in International Conference on Artiﬁcial Intelligence and Statistics. PMLR, 2020, pp. 2938–2948.
+[39] X. Luo, Y. Wu, X. Xiao, and B. C. Ooi, “Feature inference attack on model predictions in vertical federated learning,” in IEEE 37th International Conference on Data Engineering. IEEE, 2021, pp. 181– 192.
+[40] M. S. Jere, T. Farnan, and F. Koushanfar, “A taxonomy of attacks on federated learning,” IEEE Security & Privacy, vol. 19, no. 2, pp. 20–28, 2020.
+[41] L. Lyu, H. Yu, and Q. Yang, “Threats to federated learning: A survey,” arXiv preprint arXiv:2003.02133, 2020.
+[42] P. Liu, X. Xu, and W. Wang, “Threats, attacks and defenses to federated learning: issues, taxonomy and perspectives,” Cybersecurity, vol. 5, no. 1, pp. 1–19, 2022.
+[43] M. Chen, J. Zhang, and T. Li, “Threats and defenses of federated learning: a survey,” Computer Science, vol. 49, no. 7, p. 310, 2022.
+[44] J. Wu, S. Si, J. Wang, and J. Xiao, “Threats and defenses of federated learning: a survey,” Big Data Research, vol. 8, no. 5, p. 12, 2022.
+[45] A. Qammar, J. Ding, and H. Ning, “Federated learning attack surface: taxonomy, cyber defences, challenges, and future directions,” Artiﬁcial Intelligence Review, vol. 55, no. 5, pp. 3569–3606, 2022.
+[46] S. J. Pan and Q. Yang, “A survey on transfer learning,” IEEE Transactions on Knowledge and Data Engineering, vol. 22, no. 10, pp. 1345– 1359, 2009.
+[47] Q. Jing, W. Wang, J. Zhang, H. Tian, and K. Chen, “Quantifying the performance of federated transfer learning,” CoRR, vol. abs/1912.12795, 2019.
+[48] T. Liu, Q. Yang, and D. Tao, “Understanding how feature structure transfers in transfer learning.” in the 26th International Joint Conference on Artiﬁcial Intelligence, 2017, pp. 2365–2371.
+[49] S. Zhao, X. Ma, X. Zheng, J. Bailey, J. Chen, and Y.-G. Jiang, “Cleanlabel backdoor attacks on video recognition models,” in IEEE/CVF Conference on Computer Vision and Pattern Recognition, 2020, pp. 14 443–14 452.
+[50] C. Fung, C. J. Yoon, and I. Beschastnikh, “Mitigating sybils in federated learning poisoning,” arXiv preprint arXiv:1808.04866, 2018.
+[51] V. Tolpegin, S. Truex, M. E. Gursoy, and L. Liu, “Data poisoning attacks against federated learning systems,” in European Symposium on Research in Computer Security. Springer, 2020, pp. 480–501.
+[52] X. Chen, C. Liu, B. Li, K. Lu, and D. Song, “Targeted backdoor attacks on deep learning systems using data poisoning,” arXiv preprint arXiv:1712.05526, 2017.
+[53] T. Gu, K. Liu, B. Dolan-Gavitt, and S. Garg, “BadNets: Evaluating backdooring attacks on deep neural networks,” IEEE Access, vol. 7, pp. 47 230–47 244, 2019.
+[54] A. N. Bhagoji, S. Chakraborty, P. Mittal, and S. Calo, “Analyzing federated learning through an adversarial lens,” in International Conference on Machine Learning. PMLR, 2019, pp. 634–643.
+[55] J. Dumford and W. Scheirer, “Backdooring convolutional neural networks via targeted weight perturbations,” in IEEE International Joint Conference on Biometrics. IEEE, 2020, pp. 1–9.
+[56] A. S. Rakin, Z. He, and D. Fan, “TBT: Targeted neural network attack with bit trojan,” in IEEE/CVF Conference on Computer Vision and Pattern Recognition, 2020, pp. 13 198–13 207.
+[57] A. Wainakh, F. Ventola, T. Mu¨ßig, J. Keim, C. G. Cordero, E. Zimmer, T. Grube, K. Kersting, and M. Mu¨hlha¨user, “User label leakage from gradients in federated learning,” arXiv preprint arXiv:2105.09369, 2021.
+[58] M. Fredrikson, E. Lantz, S. Jha, S. Lin, D. Page, and T. Ristenpart, “Privacy in pharmacogenetics: An End-to-End case study of personalized warfarin dosing,” in 23rd USENIX Security Symposium, 2014, pp. 17–32.
+[59] B. Hitaj, G. Ateniese, and F. Perez-Cruz, “Deep models under the gan: information leakage from collaborative deep learning,” in ACM
+
+SIGSAC Conference on Computer and Communications Security, 2017, pp. 603–618. [60] L. Zhu, Z. Liu, and S. Han, “Deep leakage from gradients,” Advances in Neural Information Processing Systems, vol. 32, 2019. [61] B. Zhao, K. R. Mopuri, and H. Bilen, “iDLG: Improved deep leakage from gradients,” arXiv preprint arXiv:2001.02610, 2020. [62] J. Geiping, H. Bauermeister, H. Dro¨ge, and M. Moeller, “Inverting gradients-how easy is it to break privacy in federated learning?” Advances in Neural Information Processing Systems, vol. 33, pp. 16 937–16 947, 2020. [63] H. Ren, J. Deng, and X. Xie, “GRNN: Generative regression neural network—a data leakage attack for federated learning,” ACM Transactions on Intelligent Systems and Technology, vol. 13, no. 4, pp. 1–24, 2022. [64] F. Trame`r, F. Zhang, A. Juels, M. K. Reiter, and T. Ristenpart, “Stealing machine learning models via prediction APIs,” in 25th USENIX security symposium, 2016, pp. 601–618. [65] B. Wang and N. Z. Gong, “Stealing hyperparameters in machine learning,” in IEEE Symposium on Security and Privacy. IEEE, 2018, pp. 36–52. [66] T. Orekondy, B. Schiele, and M. Fritz, “Knockoff nets: Stealing functionality of black-box models,” in IEEE/CVF Conference on Computer Vision and Pattern Recognition, 2019, pp. 4954–4963. [67] J. Lu, H. Sibai, and E. Fabry, “Adversarial examples that fool detectors,” arXiv preprint arXiv:1712.02494, 2017. [68] M. Sharif, S. Bhagavatula, L. Bauer, and M. K. Reiter, “Accessorize to a crime: Real and stealthy attacks on state-of-the-art face recognition,” in ACM Sigsac Conference on Computer and Communications Security, 2016, pp. 1528–1540. [69] N. Carlini, P. Mishra, T. Vaidya, Y. Zhang, M. Sherr, C. Shields, D. Wagner, and W. Zhou, “Hidden voice commands,” in 25th USENIX Security Symposium, 2016, pp. 513–530. [70] Z. Wu, Q. Ling, T. Chen, and G. B. Giannakis, “Federated variancereduced stochastic gradient descent with robustness to byzantine attacks,” IEEE Transactions on Signal Processing, vol. 68, pp. 4583– 4596, 2020. [71] C. Xie, O. Koyejo, and I. Gupta, “Fall of empires: Breaking byzantinetolerant sgd by inner product manipulation,” in Uncertainty in Artiﬁcial Intelligence. PMLR, 2020, pp. 261–270. [72] M. Fang, X. Cao, J. Jia, and N. Gong, “Local model poisoning attacks to Byzantine-Robust federated learning,” in 29th USENIX Security Symposium, 2020, pp. 1605–1622. [73] L. Lyu, H. Yu, X. Ma, L. Sun, J. Zhao, Q. Yang, and P. S. Yu, “Privacy and robustness in federated learning: Attacks and defenses,” arXiv preprint arXiv:2012.06337, 2020. [74] M. Alazab, S. P. RM, M. Parimala, P. K. R. Maddikunta, T. R. Gadekallu, and Q. V. Pham, “Federated learning for cybersecurity: Concepts, challenges, and future directions,” IEEE Transactions on Industrial Informatics, vol. 18, no. 5, pp. 3501–3509, 2021. [75] X. Yin, Y. Zhu, and J. Hu, “A comprehensive survey of privacypreserving federated learning: A taxonomy, review, and future directions,” ACM Computing Surveys, vol. 54, no. 6, pp. 1–36, 2021. [76] P. M. Schwartz and D. J. Solove, “The PII problem: Privacy and a new concept of personally identiﬁable information,” New York University Law Review, vol. 86, p. 1814, 2011. [77] M. Song, Z. Wang, Z. Zhang, Y. Song, Q. Wang, J. Ren, and H. Qi, “Analyzing user-level privacy attack against federated learning,” IEEE Journal on Selected Areas in Communications, vol. 38, no. 10, pp. 2430–2444, 2020. [78] O. Choudhury, A. Gkoulalas-Divanis, T. Salonidis, I. Sylla, Y. Park, G. Hsu, and A. Das, “A syntactic approach for privacy-preserving federated learning,” in European Conference on Artiﬁcial Intelligence. IOS Press, 2020, pp. 1762–1769. [79] M. M. Merener, “Theoretical results on de-anonymization via linkage attacks.” Transactions on Data Privacy, vol. 5, no. 2, pp. 377–402, 2012. [80] R. Gosselin, L. Vieu, F. Loukil, and A. Benoit, “Privacy and security in federated learning: A survey,” Applied Sciences, vol. 12, no. 19, p. 9901, 2022. [81] N. Truong, K. Sun, S. Wang, F. Guitton, and Y. Guo, “Privacy preservation in federated learning: An insightful survey from the gdpr perspective,” Computers & Security, vol. 110, p. 102402, 2021. [82] N. Bouacida and P. Mohapatra, “Vulnerabilities in federated learning,” IEEE Access, vol. 9, pp. 63 229–63 249, 2021.
+
+[83] J. Zhang, H. Zhu, F. Wang, J. Zhao, Q. Xu, H. Li et al., “Security and privacy threats to federated learning: Issues, methods, and challenges,” Security and Communication Networks, vol. 2022, 2022.
+[84] P. Paillier, “Public-key cryptosystems based on composite degree residuosity classes,” in International Conference on the Theory and Applications of Cryptographic Techniques. Springer, 1999, pp. 223– 238.
+[85] M. Sabt, M. Achemlal, and A. Bouabdallah, “Trusted execution environment: what it is, and what it is not,” in IEEE Trustcom/BigDataSE/ISPA, vol. 1. IEEE, 2015, pp. 57–64.
+[86] Z. Zheng, S. Xie, H. Dai, X. Chen, and H. Wang, “An overview of blockchain technology: Architecture, consensus, and future trends,” in IEEE international congress on big data. Ieee, 2017, pp. 557–564.
+[87] W. Issa, N. Moustafa, B. Turnbull, N. Sohrabi, and Z. Tari, “Blockchain-based federated learning for securing internet of things: A comprehensive survey,” ACM Computing Surveys, 2022.
+[88] M. Nasr, R. Shokri, and A. Houmansadr, “Comprehensive privacy analysis of deep learning: Passive and active white-box inference attacks against centralized and federated learning,” in IEEE symposium on security and privacy. IEEE, 2019, pp. 739–753.
+[89] G. Xu, H. Li, S. Liu, K. Yang, and X. Lin, “Verifynet: Secure and veriﬁable federated learning,” IEEE Transactions on Information Forensics and Security, vol. 15, pp. 911–926, 2019.
+[90] Y. Chen, F. Luo, T. Li, T. Xiang, Z. Liu, and J. Li, “A training-integrity privacy-preserving federated learning scheme with trusted execution environment,” Information Sciences, vol. 522, pp. 69–79, 2020.
+[91] N. Rodr´ıguez-Barroso, E. Mart´ınez-Ca´mara, M. Luzo´n, G. G. Seco, M. A´ . Veganzones, and F. Herrera, “Dynamic federated learning model for identifying adversarial clients,” arXiv preprint arXiv:2007.15030, 2020.
+[92] P. Blanchard, E. M. El Mhamdi, R. Guerraoui, and J. Stainer, “Machine learning with adversaries: Byzantine tolerant gradient descent,” Advances in Neural Information Processing Systems, vol. 30, 2017.
+[93] M. Hao, H. Li, G. Xu, S. Liu, and H. Yang, “Towards efﬁcient and privacy-preserving federated deep learning,” in International Conference on Communications. IEEE, 2019, pp. 1–6.
+[94] C. A. Choquette-Choo, N. Dullerud, A. Dziedzic, Y. Zhang, S. Jha, N. Papernot, and X. Wang, “CaPC Learning: Conﬁdential and private collaborative learning,” in International Conference on Learning Representations. OpenReview.net, 2021.
+[95] Y. M. Tseng and F. G. Chen, “A free-rider aware reputation system for peer-to-peer ﬁle-sharing networks,” Expert Systems with Applications, vol. 38, no. 3, pp. 2432–2440, 2011.
+[96] J. Lin, M. Du, and J. Liu, “Free-riders in federated learning: Attacks and defenses,” arXiv preprint arXiv:1911.12560, 2019.
+[97] O. Litany, H. Maron, D. Acuna, J. Kautz, G. Chechik, and S. Fidler, “Federated learning with heterogeneous architectures using graph hypernetworks,” arXiv preprint arXiv:2201.08459, 2022.
+[98] L. Qu, Y. Zhou, P. P. Liang, Y. Xia, F. Wang, E. Adeli, L. FeiFei, and D. Rubin, “Rethinking architecture design for tackling data heterogeneity in federated learning,” in IEEE/CVF Conference on Computer Vision and Pattern Recognition, 2022, pp. 10 061–10 071.
+[99] C. Korkmaz, H. E. Kocas, A. Uysal, A. Masry, O. Ozkasap, and B. Akgun, “Chain FL: Decentralized federated machine learning via blockchain,” in the 2nd International Conference on Blockchain Computing and Applications. IEEE, 2020, pp. 140–146.
+[100] Y. Hu, Y. Zhou, J. Xiao, and C. Wu, “GFL: A decentralized federated learning framework based on blockchain,” arXiv preprint arXiv:2010.10996, 2020.
+[101] J. Li, Y. Shao, K. Wei, M. Ding, C. Ma, L. Shi, Z. Han, and H. V. Poor, “Blockchain assisted decentralized federated learning (BLADEFL): Performance analysis and resource allocation,” IEEE Transactions on Parallel and Distributed Systems, vol. 33, no. 10, pp. 2401–2415, 2021.
+[102] Y. Adi, C. Baum, M. Cisse, B. Pinkas, and J. Keshet, “Turning your weakness into a strength: Watermarking deep neural networks by backdooring,” in 27th USENIX Security Symposium, 2018, pp. 1615– 1631.
+

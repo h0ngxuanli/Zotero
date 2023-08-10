@@ -1,0 +1,215 @@
+首发于 Pytorch炼丹
+写文章
+点击打开要爆了的主页
+AI实验管理攻略
+金瀛若愚
+金瀛若愚
+​ ​
+Microsoft 资深科研工程师
+​ 关注他
+123 人赞同了该文章
+
+AI研究员（aka 调参侠）的日常困扰之一是大量的训练实验如何管理。
+待解决的问题
+
+合理的实验管理方案可以帮我们保持思路清晰。在调参侠的职业日常，常常有多份代码同时跑在不同的GPU集群上。这些代码可能只是参数取值不同，也可能有算法层面的大变。AI实验常需几小时到几天才能跑完，因此调参侠常常发现，实验跑完之时就是忘记为啥跑之日。项目紧急时，尤其容易搞混实验设定和结果之间的对应关系，影响对算法的判断。比如，我们可能看到实验A的结果比实验B好，但是忘记了二者数据集不同，进而得出错误结论。
+目标
+
+一套成熟的实验管理攻略要达到如下效果：
+
+    能轻易找到实验结果，如Precision-Recall曲线，Loss曲线等
+    实验结果要能对比。比如你的metric是PR曲线，那么用Tensorboard，Wandb之类的网页工具就能比对任意实验。相比之下，用matplotlib为每个实验画PR曲线存成图片就不好，第一不易重叠两个实验的曲线去比照，第二无法从图片里得到曲线上每个点对应的坐标值
+    能轻易找到实验生成文件，如模型checkpoints，evaluation的原始输出和可视化结果。这些文件在后期能帮助你在不重复运行试验的情况下重现结果，比如去分析该模型哪里好哪里不好。比如后期发现evaluation代码写错了，即可用之前保存下的模型或输出文件重新测试，无需重复train
+    能完整保存实验设定（代码实现），能轻松对比不同实验的设定，参数取值等
+    要能通过Docker等方式保存运行环境，便于后期重现
+    做好代码备份和版本控制。除了必备的Git之外，引用的外部工具包和数据集也最好备份，以免外部工具包升级后无法重复之前实验的结果
+
+解决方案
+
+业界有很多或粗暴或fancy的解决方案。经过长期尝试，Wandb+Excel大法是我目前采取的方式。
+
+工具1： Wandb+Hydra+OmegaConf
+
+Wandb可以理解为Tensorboard升级版。它功能更强大，更好用。Wandb不仅可以记录自定义的LR，Loss等曲线，支持分组等操作，还能自动记录硬件数据，如GPU使用率、磁盘访问等，用来分析性能瓶颈。缺点是实验记录会传到其服务器上，万一服务器崩溃会耽误事。实测发生过服务器崩溃的情况，但半年只遇到一次。原始数据最好存一份在本地。
+Wandb绘制的曲线
+
+同时，facebook的Hydra管理实验配置（config）很方便。Hydra使用OmegaConf这个库，用来解析yaml配置文件。这三者配合食用口感最佳。
+
+下面是示例代码。
+
+ # install by "pip install wandb" import wandb import hydra from omegaconf import DictConfig , OmegaConf from rich import pretty , print # 第一步，登录。从wandb官网注册，获得login key，替换xxx部分 wandb . login ( key = 'xxx' ) # 如果不希望结果同步到网页，则使用这一行。 # os.environ['WANDB_MODE'] = 'dryrun' # 调用这个method来初始化。如果是分布式训练，只需要master node做 # 这里传进来的参数是OmegaConf的一个config。Omniconf支持值里面有变量 # OmegaConf.to_container(cfg, resolve=True)把cfg转换成一个dict # 同时resolve参数把里面的变量替换成对应值 def wandb_init ( cfg : DictConfig ): wandb . init ( project = 'niubi' , group = cfg . exp_group , name = cfg . exp_name , notes = cfg . exp_desc , save_code = True , config = OmegaConf . to_container ( cfg , resolve = True ) ) # 记得把最终的配置存下来，便于以后复现 OmegaConf . save ( config = cfg , f = os . path . join ( wandb . run . dir , 'conf.yaml' )) # main函数，"@hydra"部分是hydra库解析配置文件的方式。具体请参看其文档 # 这里config_path参数指我的配置文件（yaml）在'configs'这个路径 # config_name参数指默认的配置是该路径下的“defaults.yaml”这个文件 # 实际运行时可以用命令行参数override部分配置 @hydra . main ( config_path = 'configs' , config_name = 'defaults' ) def main ( cfg ): # pretty用来是print出的文字带颜色. 来自于rich这个库 pretty . install () # 把OmniConf的cfg转成yaml，print出来 print ( OmegaConf . to_yaml ( cfg )) # ... wandb_init ( cfg ) # During training, record a data point in this way # step=epoch records the x value of the curves, data records the y values # 'data' is a dict. Each key creates a figure with that as the title wandb . log ( step = epoch , data = { 'loss' : metric . mean }) # do this after training wandb . finish ()  
+
+工具2: Excel大法
+
+用Excel记录实验数据，尤其是每个实验在哪跑，这样后期能去监控这些实验是否中途崩溃。如果实验崩溃，Wandb上不一定能看到一条记录，这是Excel大法就很有用。虽然Wandb也能比对参数，但Excel更粗暴直观。
+
+Excel可以用”条件格式“（conditional formatting）自动给每个格改颜色，一遍更直观，如下图。锁定第一行、启用过滤（filter）能便于查找。
+
+举例：
+
+Best Practices 经验类:
+
+    要dump出全部参数，存成一个文件，和模型的输出、checkpoints等保存在一个文件夹下。很多时候我们大部分参数都会用默认值，但随实验进行，默认值可能改变，于是后期会想不起来。所以要保存全部参数
+    每次实验要做一个git commit或者branch。把对应的commit id记录下来便于后期查找。Github可以看diff，很方便。同时也可以把代码打包成一个zip便于后期下载查看。相关代码见后文
+    每个实验既要有个数字标题（如exp666）也要有对应的文字标题。前者便于到不同的集群去查找这个实验，后者便于想起它是为什么目的做的
+    避免用相同实验名去做第二次实验，因为不经意间可能会载入上一次训练的model，或者覆盖上一次实验的结果。为此，上一条的数字标题，git commit id或者timestamp都可以作为存储实验结果的路径的一部分
+
+这里有个过时的管理config的办法，就是用argparse和yacs两个库。两者结合可以实现从命令行、config文件、默认config文件三者共同指定参数。有些主流的优秀论文都是这么做的。示例代码见后文
+
+config相关代码：
+
+ from yacs.config import CfgNode as CN import yaml import argparse # define the default parameters and values _C = CN () _C . exp_group = 'default' _C . exp_name = 'exp_name' _C . description = ' _C . data = CN () _C . data . batch_size = 16 # call this each time you want the default values def get_cfg_defaults (): return _C . clone () """ Then you use a .yaml file to specify parameters for each experiment You can only include part of the parameters. Other parameters will adopt the default values in the "_C.xxx" part above: A sample yaml file content is like below. It only specifies two parameters: exp_group: 'imagenet' data: batch_size: 32 """ # do this in your training code # get the default values cfg = get_cfg_defaults () # update some values from the yaml file to overwrite default values cfg . merge_from_file ( config_fp ) # use this to take parameter values from the command line # and overwrite the above parser = argparse . ArgumentParser () parser . add_argument ( "opts" , help = "Override config options using the command-line" , default = None , nargs = argparse . REMAINDER ) args = parser . parse_args () cfg . merge_from_list ( args . opts ) # dump all the parameters into a file to save as a record with open ( ' %s /config.yaml' % record_dir , 'w' ) as f : f . write ( cfg . dump ())  
+
+自动代码备份：
+
+ # save files in dir_path to code.zip with a password os . system ( 'zip -P %s %s -r %s ' % PASSWORD , 'code.zip' , dir_path ) # commands to git commit, or branch # cmd = 'git checkout -b ' + id + \ # '&& git add -A ' + \ # '&& git commit -m ' + id + \ # '&& git checkout main && git rebase ' + id # os.system(cmd) cmd = 'git add -A ' + \ '&& git commit -m ' + id os . system ( cmd )  
+
+编辑于 2021-08-06 12:44
+PyTorch
+深度学习（Deep Learning）
+软件开发
+​ 赞同 123 ​ ​ 26 条评论
+​ 分享
+​ 喜欢 ​ 收藏 ​ 申请转载
+​
+评论千万条，友善第一条
+
+26 条评论
+默认
+最新
+字节
+字节
+Hydra用来管理参数是不是也不错？
+数据版本这块楼主有什么好工具推荐吗？[思考]
+2021-06-12 · 热评
+​ 回复 ​ 1
+金瀛若愚
+金瀛若愚
+作者
+学习了，Hydra看起来真不错，感谢！数据方面我会对每个版本都存一份，并写个Wiki记录其统计信息。原因是未来会需要在旧版本数据上重新train来对比，Wiki的内容可以用来说增加多少数据后涨了几个点，进而说服金主继续砸钱标数据
+2021-06-12
+​ 回复 ​ 2
+Costa
+Costa
+wandb最近有个新产品管理数据叫wandb artifacts: https:// docs.wandb.ai/guides/ar tifacts 推荐看看
+2021-08-21
+​ 回复 ​ 1
+展开其他 2 条回复 ​
+想飞的石头
+想飞的石头
+dvc wandb都不错，我们在团队内部也在做相关的尝试，目前还在刚开始，很乐意有人在讨论这个事[赞] [赞] [赞]
+2021-08-06
+​ 回复 ​ 赞
+ZH Less
+ZH Less
+有测试过kubeflow的metadata服务吗？
+2022-01-24
+​ 回复 ​ 赞
+想飞的石头
+想飞的石头
+ZH Less
+没有， 我们自研了一套关于整个流程的元数据， 因为我们很多上下游任务并没有容器化， 所以我们在调度这块自研的
+2022-01-24
+​ 回复 ​ 赞
+展开其他 2 条回复 ​
+王JF
+王JF
+请问作者知道怎么在wandb网页上显示tensorboard吗
+2021-07-26
+​ 回复 ​ 赞
+Costa
+Costa
+你可以用 `wandb.init(…, sync_tensorboard=True)` 的方式来用tensorboard. 看起来大概如下
+2021-08-21
+​ 回复 ​ 赞
+金瀛若愚
+金瀛若愚
+作者
+我没做过哈，我感觉wandb比tensorboard好用，二者替代关系
+2021-08-06
+​ 回复 ​ 赞
+Costa
+Costa
+好像W&B的reports feature 可以取代CSV？
+2021-06-25
+​ 回复 ​ 赞
+Costa
+Costa
+金瀛若愚
+懂了👍
+2021-08-21
+​ 回复 ​ 赞
+Costa
+Costa
+金瀛若愚
+好像wandb每个实验都有一个status，直接看是否 “crashed” 不就好了？，你还可以用filter看所有”crashed”的实验。我甚至直接用他们的API 扫描失败的实验，然后直接重新跑： https:// github.com/vwxyzjn/clea nrl/blob/53a3d0ffab83f7b0698479d79cdc0aee94f1f83d/cleanrl/utils/resume.py#L52
+2021-08-20
+​ 回复 ​ 赞
+展开其他 2 条回复 ​
+辰圣
+辰圣
+dvs怎么样？
+2021-06-13
+​ 回复 ​ 赞
+深度眸
+深度眸
+mlflow咋样
+2021-06-12
+​ 回复 ​ 赞
+MJ狂Fan
+MJ狂Fan
+我一直觉得 github action 会是个解决这个的好办法。Issue 关键词触发训练，然后结果直接贴在 issue 里，基本永远不会丢。在服务器端上临时魔改了也好同步回 repo 之后慢慢 clean up。
+2021-06-12
+​ 回复 ​ 赞
+MJ狂Fan
+MJ狂Fan
+金瀛若愚
+一定程度上可以，比如： https:// github.blog/2020-06-17- using-github-actions-for-mlops-data-science/ 。但媒介还是 markdown，搞不了太 fancy。
+2021-06-12
+​ 回复 ​ 1
+金瀛若愚
+金瀛若愚
+作者
+我感觉它只能保存实验记录。但无法方便的对比实验设定和结果。Azure ML这种产品有类似功能但不够
+2021-06-12
+​ 回复 ​ 赞
+知乎用户47VXFs
+知乎用户47VXFs
+请问wandb是不是不会把wandb.log记录的metrics等自动保存在本地，直接就存在云端了？如果需要保存在本地的话需要手动将wandb.run.history保存？
+2022-04-15
+​ 回复 ​ 赞
+知乎用户47VXFs
+知乎用户47VXFs
+金瀛若愚
+谢谢楼主回答。另外想请问下，wandb怎么能否像tensorboard那样可视化网络结构graph呢？
+2022-04-17
+​ 回复 ​ 赞
+金瀛若愚
+金瀛若愚
+作者
+会存在运行code的机器上，并同步到wandb的服务器以网页形式查看
+2022-04-16
+​ 回复 ​ 赞
+评论千万条，友善第一条
+
+文章被以下专栏收录
+
+    Pytorch炼丹
+    Pytorch炼丹
+    我决定要死磕Pytorch了~入迷
+
+推荐阅读
+
+    AI项目流程：从实验到落地
+    AI项目流程：从实验到落地
+    虹膜小马甲 发表于自然语言处...
+    让AI掌握星际争霸微操：中科院提出强化学习+课程迁移学习方法
+    让AI掌握星际争霸微操：中科院提出强化学习+课程迁移学习方法
+    机器之心 发表于机器之心
+    AI 工程化学习资料分享（持续更新）
+    AI 工程化学习资料分享（持续更新）
+    颜挺帅
+    人类早期驯服野生机器学习模型的珍贵资料
+    人类早期驯服野生机器学习模型的珍贵资料
+    字节 发表于Rando...
+

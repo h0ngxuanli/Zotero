@@ -1,0 +1,319 @@
+
+[CSDN首页]
+
+    博客
+    下载
+    学习
+    社区
+    false
+    GitCode
+    InsCode 
+
+搜索
+登录
+会员中心
+历史
+创作中心
+发布
+Python字典的update()方法,常用于深度学习PyTorch中模型参数加载和模型迁移
+最新推荐文章于 2022-11-05 10:04:32 发布
+敲代码的小风 于 2020-12-03 20:50:23 发布 3142 收藏 8
+分类专栏： 零基础学习SSD网络PyTorch实现 Python基础实验 文章标签： python
+版权
+零基础学习SSD网络PyTorch实现 同时被 2 个专栏收录
+293 篇文章 23 订阅
+订阅专栏
+Python基础实验
+232 篇文章 11 订阅
+订阅专栏
+
+参考链接: Python官网:内置类型
+参考链接: Python官网:映射类型 — dict
+
+ update([other]) 使用来自 other 的键/值对更新字典，覆盖原有的键。 返回 None。 update() 接受另一个字典对象，或者一个包含键/值对 （以长度为二的元组或其他可迭代对象表示）的可迭代对象。 如果给出了关键字参数，则会以其所指定的键/值对更新字典: d.update(red=1, blue=2)。
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+
+ 
+
+代码实验演示:
+
+ Python 3.7 .4 ( tags / v3 . 7.4 : e09359112e , Jul 8 2019 , 20 : 34 : 20 ) [ MSC v . 1916 64 bit ( AMD64 ) ] on win32 Type "help" , "copyright" , "credits" or "license()" for more information . >>> d1 = { "浙江" : "杭州" , "江苏" : "nanjing" } >>> d1 { '浙江' : '杭州' , '江苏' : 'nanjing' } >>> d1 . update ( 江苏 = "南京" ) >>> d1 { '浙江' : '杭州' , '江苏' : '南京' } >>> d2 = { "山东" : "济南" , "河北" : "石家庄" } >>> d1 { '浙江' : '杭州' , '江苏' : '南京' } >>> d1 . update ( d2 ) >>> d1 { '浙江' : '杭州' , '江苏' : '南京' , '山东' : '济南' , '河北' : '石家庄' } >>> d3 = { "浙江" : "杭州市*****" } >>> d1 { '浙江' : '杭州' , '江苏' : '南京' , '山东' : '济南' , '河北' : '石家庄' } >>> d1 . update ( d3 ) >>> d1 { '浙江' : '杭州市*****' , '江苏' : '南京' , '山东' : '济南' , '河北' : '石家庄' } >>> >>>
+ 
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+    11
+    12
+    13
+    14
+    15
+    16
+    17
+    18
+    19
+    20
+    21
+    22
+
+ 
+
+总结: d1.update(d2)的作用是,将字典d2的内容合并到d1中,其中d2中的键值对但d1中没有的键值对会增加到d1中去,两者都有的键值对更新为d2的键值对.
+文章知识点与官方知识档案匹配，可进一步学习相关知识
+Python入门技能树 人工智能 深度学习 311952 人正在系统学习中
+敲代码的小风
+关注 关注
+
+    6
+    8
+    觉得还不错? 一键收藏
+    打赏
+    1
+
+专栏目录
+[ pytorch ] pytorch 安装和更新_anaconda更新 pytorch _心心喵的博客-CSDN...
+6-16
+2、使用conda更新 Pytorch 和torchvision 建议将其添加soumith为您的Anaconda(或Miniconda)的源服务器 conda config --add channels soumith 更新 pytorch 和torchvision安装包 conda update pytorch torchvision...
+Pytorch 如何更新版本与卸载,使用pip,conda更新卸载 Pytorch _更新 pytorch ...
+6-4
+一、更新 Pytorch 和torchvision 我们主要讲解如何所以pip,conda更新 Pytorch 和torchvision,这样你就可以使用ubuntu,CentOS,Mac更新 Pytorch 和torchvision 1、使用Pip更新 Pytorch 和torchvision # 列举pip当前可以更新的所有安装包 pip list --outdated ...
+python update ()函数解读
+qq_40178291的博客
+09-11 7083
+函数用法 Python 字典 update () 方法 用于更新 字典 中 的键/值对，可以修改存在的键对应的值，也可以添加新的键/值对到 字典 中 。 代码示例 >>> a={'one': 3,'two':4} >>> a {'one': 3, 'two': 4} >>> a. update ({'three':3,'four':4}) ...
+Pytorch 离线下载 迁移 学习 模型 方法 （VGG，RESNET等）
+12-21
+就拿Resnet18举例 在程序 中 输入 from __future__ import print_function, division from torchvision import models model_ft = models.resnet18(pretrained=True) 然后运行，就会出现如下内容 再将这个网址复制到浏览器 中 ，就可以直接下载Resnet18 模型 。下载结束后，将下载的文件放入你建立的 python 项目 中 ，再运用如下代码就可以调用Resnet18 模型 。 model_ft = models.resnet18(pretrained=False) pre = torc
+...pip安装、更新、查看和卸载重装 Pytorch ?_conda更新 pytorch 版本_唐 ...
+7-4
+然而当你重新把 PyTorch 安装指令,比如我这里是torch11.1的安装指令conda install pytorch torchvision torchaudio cudatoolkit=11.1 -c pytorch -c conda-forge敲进cmd没有反应,现在应该怎么办呢?其实只 update pytorch 和 torchvision的安装包...
+动手学 深度学习 pytorch .pdf
+02-26
+动手学 深度学习 pytorch .全面介绍 深度学习 的动手学习文档。
+基于 pytorch 的保存和 加载 模型 参数 的 方法
+09-18
+今天小编就为大家分享一篇基于 pytorch 的保存和 加载 模型 参数 的 方法 ，具有很好的参考价值，希望对大家有所帮助。一起跟随小编过来看看吧
+Pytorch 深度学习 实战教程（五）：今天，你垃圾分类了吗？
+Jack-Cui
+06-30 1万+
+使用 ResNet 50 训练一个「垃圾分类器」。
+【 pytorch 】Metrics的工作原理
+安安爸Chris的专栏
+09-25 1791
+Metrics是torchmetrics库里的度量类基类，本篇大体介绍一下它是如何工作的 它也是一个Model 由类的定义可以看到，它继承与两个类，一个是我们熟悉的Module，另外一个是ABC，所以它从行为上来说，跟Module一样 class Metric(Module, ABC): 第一步 __call__ 它的行为同Model，所以通过__call__调用。 所以，第一步是Model的__call__ __call__ : Callable[..., Any] = _call_impl __ca
+Pytorch 只更新预训练 模型 的部分 参数
+Willen_的博客
+06-25 1648
+假设有一个训练好的 模型 ，并且我们只想微调部分 参数 。 比如，这里我们只想更新最后一部分的 参数 ： 可以看到，这里的模块叫b4。 我们可以直接通过获取模块的名字来进行更新： 也就是说 只要模块名字包含b4 就会让他跟新网络。 对应的optimizer 的设置如下： 然后直接训练就行。也可以直接 把这些符合条件的 parameters 加入 list 中 ，并传给 optimizer 直接训练就行。##...
+pytorch 使用动量更新方式对 模型 进行更新
+t20134297的博客
+08-31 1032
+在训练 模型 的过程 中 ，有时候我们需要设置两个 模型 ，一个是随着训练数据的加入进行 参数 更新的model，另一个 模型 是作为model的平均 模型 model_ema,对model_ema进行更新的时候，采用的方式为： θtmodel_ema=βθt−1model_ema+(1−β)θtmodel\theta_t^{model\_ema} =\beta\theta_{t-1}^{model\_ema}+(1-\beta)\theta_t^{model}θtmodel_ema​=βθt−1model_ema​+(1−β)θ
+pytorch 更改预训练 模型 网络结构
+wayne980的博客
+11-13 7536
+一个继承nn.module的model它包含一个叫做children()的函数，这个函数可以用来提取出model每一层的网络结构，在此基础上进行修改即可，修改 方法 如下(去除后两层)： resnet_layer = nn.Sequential(*list(model.children())[:-2]) 那么，接下来就可以构建我们的网络了： class Net(nn.Module):     def...
+Pytorch 更新版本与卸载 常用 指令
+最新发布
+厚积而薄发
+11-05 5250
+使用conda安装指定版本。使用pip安装指定版本。
+PyTorch 更新 模型 参数 以及并固定该部分 参数 (一)
+赵凯月的博客
+05-25 8228
+1. PyTorch 预训练 模型 Pytorch 提供了许多 Pre-Trained Model on ImageNet，仅需调用 torchvision.models 即可，具体细节可查看官方文档。 往往我们需要对 Pre-Trained Model 进行相应的修改，以适应我们的任务。这种情况下，我们可以先输出 Pre-Trained Model 的结构，确定好对哪些层修改，或者添加哪些层，接着，再将其修改即可。 比如，我需要将 ResNet-50 的 Layer 3 后的所有层去掉，在分别连接十个分类器
+Pytorch 的更新、卸载、版本查看
+mat_zx的博客
+10-29 1386
+更新 Pytorch 和torchvision pip更新torch和torchvision win + R ————> cmd activate ******* # 进入想要进的环境（激活，比如 pytorch _yolo或tensorflow） # 列举pip当前可以更新的所有安装包 pip list --outdated --format=legacy # 更新torch和torchvision安装包 pip install --upgrade torch torchvision
+Pytorch 遇到的问题及解决方案 - 更新ing
+Tsingzao的博客
+01-17 4万+
+1、安装完成后，不能import torch，提示 ImportError: dlopen: cannot load any more object with static TLS 解决办法：有很多答案都说是将import torch放在import cv2之前，但我试了之后还是不能解决，最后是通过在jupyter notebook 中 可以直接import torch。我是通过mobarxterm...
+Pytorch 加载 模型 权重理解（state_dict load_state_dict update load）
+琥珀川
+05-12 2048
+Pytorch 加载 模型 权重理解（state_dict load_state_dict update load） 一、state_dict特性介绍 在 pytorch 中 ，torch.nn.Module模块 中 的state_dict变量存放训练过程 中 需要学习的权重和偏执系数，state_dict作为 python 的 字典 对象将每一层的 参数 映射成tensor张量，需要注意的是torch.nn.Module模块 中 的state_dict只包含卷积层和全连接层的 参数 ，当网络 中 存在batchnorm时，例如vgg网络结构，t
+PyTorch 预训练 模型 修改、增删特定层
+lavinia_chen007的博客
+03-15 9502
+文章目录 PyTorch 官方 模型 库修改特定层增删特定层 在构建 深度学习 网络的过程 中 ，经常会遇到需要对预训练 模型 进行修改和增删特定层的操作。 torchvision.models提供了丰富的 模型 满足不同任务的选择，因此在构建网络结构时，无需从头开始复现某个网络结构，只需在官方库的基础上进行修改即可。 PyTorch 官方 模型 库 pytorch 提供的 模型 可以通过以下链接查询：https:// pytorch .org/vision/stable/models.html，分为分类、分割、目标检测实例分割与关键点检测和
+Pytorch 如何更新版本与卸载
+wanttifa的博客
+12-01 3万+
+一、更新 Pytorch 和torchvision 使用pip,conda更新 Pytorch 和torchvision
+PyTorch 学习： 加载 模型 和 参数
+热门推荐
+lscelory的博客
+08-07 8万+
+pytorch 的 模型 和 参数 是分开的，可以分别保存或 加载 模型 和 参数 。 pytorch 有两种 模型 保存方式： 一、保存整个神经网络的的结构信息和 模型 参数 信息，save的对象是网络net 二、只保存神经网络的训练 模型 参数 ，save的对象是net.state_dict() 对应两种保存 模型 的方式， pytorch 也有两种 加载 模型 的方式。对应第一种保存方式， 加载 模型 时通过torch.load('.pth...
+Pytorch 学习笔记（五）
+LJR的博客
+01-21 772
+Sequential Module children add_modules grad_zero named_children ModuleList children named_children modules named_modules zero_grad parameters named_parameters state_dict load_state_dict 参数 注册 ParameterDict update clear items keys pop values
+Pytorch 笔记：线性回归、softmax回归
+Mr___WQ的博客
+07-06 868
+线性回归、softmax
+“相关推荐”对你有帮助么？
+
+    非常没帮助
+    没帮助
+    一般
+    有帮助
+    非常有帮助
+
+    关于我们
+    招贤纳士
+    商务合作
+    寻求报道
+    400-660-0108
+    kefu@csdn.net
+    在线客服
+    工作时间 8:30-22:00
+
+    公安备案号11010502030143
+    京ICP备19004658号
+    京网文〔2020〕1039-165号
+    经营性网站备案信息
+    北京互联网违法和不良信息举报中心
+    家长监护
+    网络110报警服务
+    中国互联网举报中心
+    Chrome商店下载
+    账号管理规范
+    版权与免责声明
+    版权申诉
+    出版物许可证
+    营业执照
+    ©1999-2023北京创新乐知网络技术有限公司
+
+敲代码的小风 CSDN认证博客专家 CSDN认证企业博客
+码龄3年 暂无认证
+
+764
+    原创
+
+12万+
+    周排名
+
+4万+
+    总排名
+
+114万+
+    访问
+
+    等级
+
+1万+
+    积分
+
+321
+    粉丝
+
+870
+    获赞
+
+297
+    评论
+
+3150
+    收藏
+
+签到新秀
+GitHub
+笔耕不辍
+阅读者勋章
+分享学徒
+分享小兵
+分享达人
+分享精英
+分享宗师
+持续创作
+1024勋章
+1024超级勋章
+创作能手
+私信
+关注
+热门文章
+
+    torch.exp()的使用举例 36323
+    torch.pow()的使用举例 32718
+    注意力机制（通道注意机制、空间注意力机制、CBAM、SELayer） 32259
+    os.path.expanduser(path)使用举例 27060
+    torch.mul()函数的使用 26281
+
+分类专栏
+
+    牛客网-计算机考研上机复试 155篇
+    PAT乙级考试（Python） 61篇
+    《公务员考试复习笔记》
+    崔庆才《Python3网络爬虫开发实战》阅读笔记 6篇
+    PAT甲级考试（Python） 4篇
+    PAT顶级考试（Python） 1篇
+    零基础学习SSD网络PyTorch实现 293篇
+    Deep-Learning-with-PyTorch 216篇
+    《深度学习之PyTorch实战计算机视觉》 198篇
+    Python基础实验 232篇
+    NumPy学习笔记 44篇
+    opencv-python 4.4.0.46 学习笔记 13篇
+    Matplotlib库学习笔记 11篇
+    莫烦python多进程学习笔记 5篇
+    莫烦Python 多线程学习笔记 7篇
+    Tensorboard在Pytorch中使用的学习笔记 15篇
+    Pillow库学习笔记 14篇
+    Pandas库学习笔记 9篇
+    python爬虫 10篇
+    Python GUI设计 tkinter菜鸟编程 28篇
+
+最新评论
+
+    Python Selenium 抖音直播平台实现自动发送评论
+
+    Desperado_107: 兄弟，你解决问题了吗？
+    Python Selenium 抖音直播平台实现自动发送评论
+
+    RAINYFALL5: 讨论一下吗，兄弟，我也遇到这个问题了
+    class torch.BoolTensor
+
+    502dxceit: 专门登录上来就是给你这种言简意赅的人点赞
+    Python Selenium 抖音直播平台实现自动发送评论
+
+    Desperado_107: 出现了这样的问题，可以正常登录，也可以自动评论，但是自动评论的内容无法被别人看到？如何解决？是不是被抖音给屏蔽了？
+    Python Selenium 抖音直播平台实现自动发送评论
+
+    Desperado_107: 我自己解决了，这跟selenium版本有关系，并且还要需要修改很多行代码
+
+您愿意向朋友推荐“博客详情页”吗？
+
+    强烈不推荐
+    不推荐
+    一般般
+    推荐
+    强烈推荐
+
+最新文章
+
+    KY275 对称平方数
+    KY267 对称平方数1
+    KY271 加法等式
+
+2022年 167篇
+2021年 283篇
+2020年 315篇
+新手引导 客服 举报 返回顶部

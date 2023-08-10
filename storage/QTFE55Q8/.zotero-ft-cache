@@ -1,0 +1,80 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2302.09302
+
+Help | Advanced Search
+Search
+Computer Science > Computation and Language
+(cs)
+[Submitted on 16 Feb 2023]
+Title: Bridge the Gap between Language models and Tabular Understanding
+Authors: Nuo Chen , Linjun Shou , Ming Gong , Jian Pei , Chenyu You , Jianhui Chang , Daxin Jiang , Jia Li
+Download a PDF of the paper titled Bridge the Gap between Language models and Tabular Understanding, by Nuo Chen and 7 other authors
+Download PDF
+
+    Abstract: Table pretrain-then-finetune paradigm has been proposed and employed at a rapid pace after the success of pre-training in the natural language domain. Despite the promising findings in tabular pre-trained language models (TPLMs), there is an input gap between pre-training and fine-tuning phases. For instance, TPLMs jointly pre-trained with table and text input could be effective for tasks also with table-text joint input like table question answering, but it may fail for tasks with only tables or text as input such as table retrieval. To this end, we propose UTP, an approach that dynamically supports three types of multi-modal inputs: table-text, table, and text. Specifically, UTP is pre-trained with two strategies: (1) We first utilize a universal mask language modeling objective on each kind of input, enforcing the model to adapt various inputs. (2) We then present Cross-Modal Contrastive Regularization (CMCR), which utilizes contrastive learning to encourage the consistency between table-text cross-modality representations via unsupervised instance-wise training signals during pre-training. By these means, the resulting model not only bridges the input gap between pre-training and fine-tuning but also advances in the alignment of table and text. Extensive results show UTP achieves superior results on uni-modal input tasks (e.g., table retrieval) and cross-modal input tasks (e.g., table question answering). 
+
+Comments: 	7 pages
+Subjects: 	Computation and Language (cs.CL)
+Cite as: 	arXiv:2302.09302 [cs.CL]
+  	(or arXiv:2302.09302v1 [cs.CL] for this version)
+  	https://doi.org/10.48550/arXiv.2302.09302
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Nuo Chen [ view email ]
+[v1] Thu, 16 Feb 2023 15:16:55 UTC (7,177 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Bridge the Gap between Language models and Tabular Understanding, by Nuo Chen and 7 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.CL
+< prev   |   next >
+new | recent | 2302
+Change to browse by:
+cs
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

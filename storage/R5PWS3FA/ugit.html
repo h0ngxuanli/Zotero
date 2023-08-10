@@ -1,0 +1,117 @@
+<!DOCTYPE html> <html lang=en><!--
+ Page saved with SingleFile 
+ url: https://www.leshenko.net/p/ugit/ 
+ saved date: Thu May 04 2023 20:33:02 GMT+0800 (中国标准时间)
+--><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<style>body{font-family:monospace;color:#bdbdbd;background:#282828;margin:0;height:100vh;display:grid;grid-template-areas:"message diff""footer footer";grid-template-rows:1fr min-content;grid-template-columns:1fr 1fr}@media (max-width:1000px){body{grid-template-areas:"message""diff""footer";grid-template-rows:1fr 1fr min-content;grid-template-columns:1fr}}pre{min-width:min-content}section{padding:0 10px;overflow:auto;background:#282828}@media (max-width:500px){section{padding:0 3px}}section.message{grid-area:message;z-index:0}section.message .message{max-width:600px;line-height:1.5}section.message p code,section.message pre{background:#093309;border:1px solid #229122;border-radius:4px}section.message p code{padding:1px 2px}section.message pre{padding:3px 5px}section.message .comments{max-width:600px}section.message .comments form{border-top:1px solid #555;grid-gap:10px;padding:10px 0}section.message .comments form textarea{height:100px}section.message .comments form input{min-height:25px}section.message .comments form .ok{font-weight:bold;padding:10px 0}section.diff{grid-area:diff;z-index:0}.clone{padding:10px 5px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;grid-gap:5px}.clone .cmd{background:#111;padding:5px}@keyframes cmd-flash{0%{background-color:#666}100%{background-color:#111}}section.file{grid-area:message;z-index:1;grid-template-columns:1fr min-content;grid-template-rows:min-content 1fr;overflow:hidden}.hunk{color:#777;font-style:italic}details{border-left:4px solid #555;padding:.5em .5em 0;margin-bottom:.5em}summary{border:1px solid #555;border-left:none;font-weight:bold;margin:-.5em -.5em 0;padding:.5em;cursor:pointer;user-select:none;outline:none}summary:hover{filter:brightness(1.3)}ul{list-style-type:square}.file-list li{cursor:pointer;margin-bottom:.5em}.file-list li:hover{text-decoration:underline;filter:brightness(1.3)}.file-list li.changed{font-weight:bold;color:#16ac16}footer{grid-area:footer;z-index:0;padding:10px;background:#212121;display:grid;grid-template-columns:repeat(3,min-content) 1fr;grid-gap:10px;align-items:center}@media (max-width:500px){footer{grid-template-columns:min-content 1fr 1fr}footer>.progress{grid-column:1/4}}.progress{display:grid;height:10px;border-radius:4px;cursor:pointer;background:#111}.progress>.fill{grid-column:1;grid-row:1;z-index:0;border-radius:4px;background:#444;transition:0.2s}.progress>.dots{grid-column:1;grid-row:1;z-index:1;border-radius:4px;margin:0 4px;display:flex;align-items:center;justify-content:space-between}.progress>.dots>.dot{height:6px;width:100%;max-width:6px;border-radius:2px;background-color:#212121;transition:0.2s}@media (max-width:1000px){.progress>.dots>.dot{opacity:0}}.progress>.dots>.active{background:white}#loading{grid-area:footer;z-index:1;background:rgba(0,0,0,0.3);align-items:center;justify-content:center}#loading>:first-child{animation-name:spin;animation-duration:1000ms;animation-iteration-count:infinite;animation-timing-function:linear;margin:0 10px}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}button{border:none;margin:0;width:auto;overflow:visible;background:transparent;font:inherit;line-height:normal}button,.button{padding:0.7em 2.5em;border-radius:2px;color:#FFFFFF;background-color:#158215;box-shadow:inset 0-0.6em 0-0.35em rgba(0,0,0,0.3);text-align:center;cursor:pointer;user-select:none}button.narrow,.button.narrow{padding-left:1em;padding-right:1em}button:disabled{filter:grayscale();cursor:wait}button:hover:enabled,.button:hover{filter:brightness(1.3)}.highlight{background:#111111;color:#ffffff}.highlight .k{color:#fb660a;font-weight:bold}.highlight .n{color:#ffffff}.highlight .o{color:#ffffff}.highlight .p{color:#ffffff}.highlight .ch{color:#008800;font-style:italic;background-color:#0f140f}.highlight .kn{color:#fb660a;font-weight:bold}.highlight .nb{color:#ffffff}.highlight .nf{color:#ff0086;font-weight:bold}.highlight .nn{color:#ffffff}.highlight .s1{color:#0086d2}.highlight .line{display:block}.highlight .d-a{background:#093309}.highlight .d-a .d-s{color:#158215}.diff-content .highlight .line{cursor:pointer}.diff-content .highlight .line:hover{filter:brightness(1.3)}</style>
+<title>Git Internals - Learn by Building Your Own Git</title>
+<link rel=icon type=image/png href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAPxQTFRFAAAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAAEEAACennZQAAAFR0Uk5TAA9FXIJNJhRg5/+4KDi7+4MMEM/3x8DfWAqgcEA974AIJNeYlswwIBgESLNQtXhhsJ8at9uP6zzzRL+nfK+Q42jLiGZSZEzDhJQXX6ajnn+HHHczuZLmoAAAAppJREFUeJzdlmt3k0AQhmmrNUyJMQGyNlBCULmkMTVtqhFtWqM2Wu/m//8XZ+lyaQ8Lu+jxHJ0vzC7nffY2uzOK8p/a1vbOnbu7jeX3WipQ29Oa6dv3O3Bt6oNuA31PR6lh9gn9PJTX7w9QaFHPNgGILQ04cMAYuok78qDzSBrwGMB0mW8BONKAJ2wB1Hq4Gr8BIF83FBvUAt/2w6gO0Ep99+YM3PGAOOB4hxO3AvAUYJD6NgIKv6YOi498iBI7wo0bMx8j4ln+Z0aler9PP0P+HI5PAOYJQTsFeJ6P9cKAjjfRgqCF8bF4yZ+CTyMwnrZe0VB8nY3UjQEOw8QdzQHOKhbBrhK1ZZj1tg1w0hPBMdSDCsLonOmtQucFwJvsau0BHFUAlJgBijEwBIizxgrg7W8Blg0AGBMkSBsEnHeyANyYjuUmbvQe4+FYFhBhHC2GiXu5wPOp0pcCkriEgTW2YgPACznSKkB7TkPsHOVAxhxlJUDR1qx/HpTr6gD0KEv7/x5gxtJFbcLhAJKMAbVHwAdYrHtQrqoFaOk1tziyOkDaq9fn3DKAb7LOqveQC+hps0WqN2q3sACIRvZwGcexnr9y7EKJASarbN6ZnfQkACVmCiygCmCK1QtcgC40PhfgTEXWzwWoZyNB+W2ASogXL1uaK6y/ASDLiW1LlinjPGyMmZw0sQsvH/+D4LYXzafP7sdLe0XncSqvv8INUJNwCTEDOlXFTLl9Krx5eBNMacBngC9pHYcJ1XBlAcUyj9aJf7jQFANMU79RqfsVYJ3WQviOq7J6ZRvL/W/XbkhEcsBt28LTh+8/IiXcwXdUl14BjksjcL6OPRqR9TmkxPIM4AikgDLr/iSJ3Gwwf2ZX/maz2d1vrP+37BfwRU81JTJhRAAAAABJRU5ErkJggg=="><style>.sf-hidden{display:none!important}</style><link rel=canonical href=https://www.leshenko.net/p/ugit/><meta http-equiv=content-security-policy content="default-src 'none'; font-src 'self' data:; img-src 'self' data:; style-src 'unsafe-inline'; media-src 'self' data:; script-src 'unsafe-inline' data:; object-src 'self' data:;"><style>img[src="data:,"],source[src="data:,"]{display:none!important}</style></head>
+<body data-new-gr-c-s-check-loaded=14.1107.0 data-gr-ext-installed data-new-gr-c-s-loaded=14.1107.0>
+ <p class="loading-msg sf-hidden">Loading...</p>
+ <section class=message>
+ <h1 class=title>ugit: DIY Git in Python</h1>
+ <div class=message><p>Welcome aboard! We're going to implement Git in Python to learn more about how Git works on the inside.</p>
+<p>This tutorial is different from most Git internals tutorials because we're not going to talk about Git only with words but also with code! We're going to write in Python as we go.</p>
+<p><strong>This is not a tutorial on using Git!</strong> To follow along I advise that you have working knowledge of Git. If you're a newcomer to Git, this tutorial is probably not the best place to start your Git journey. I suggest coming back here after you've used Git a bit and you're comfortable with making commits, branching, merging, pushing and pulling.</p>
+<h2>Why learn Git internals?</h2>
+<p>For most tools that we use daily, we don't really care about their internals. We can use Firefox or Vim without understanding their inner workings.</p>
+<p>At first you shouldn't care about Git internals either. You can use Git as a set of CLI commands that track code history. Run <code>git add</code>, <code>git commit</code> and <code>git push</code> all day long and you'll do fine, as long as you're a sole developer who just commits to one branch.</p>
+<p>But once you start collaborating with multiple people on multiple branches and things like <em>rebase</em> or <em>force push</em> are getting involved, it's easy to become lost if you don't have a good mental model of Git internals.</p>
+<p>From my experience with using Git myself and teaching others, a better way to improve your effectiveness with Git is by understanding how it works behind the scenes and not by learning more "advanced" Git commands. This understanding is what will allow you to solve the kind of problems that multi-user collaborative coding sometimes produce.</p>
+<h2>Introducing: μgit</h2>
+<p><strong>μgit</strong> (ugit) is a small implementation of a Git-like version control system (VCS). It's top goal is simplicity and educational value. ugit is implemented in small incremental steps, with each step explained in detail. Hopefully you will be able to read the small steps (explanation and code) and slowly build a complete picture of the internals.</p>
+<p>ugit is not exactly Git, but it shares the important ideas of Git. ugit is way shorter and doesn't implement irrelevant features. For example, to reduce the complexity of ugit, ugit doesn't compress objects, doesn't save the mode of the files or doesn't save the time of a commit. But the important ideas, like commits, branches, the index, merges and remotes are all present and are very similar to Git. If you know ugit well you will be able to recognize the same ideas in Git.</p>
+<p>This tutorial organized as a series of code changes, each change contains an explanation and the diff of the change. For example, you're now reading the first change, and you can see the code that we've added in this change as a diff on the other side. The code is an empty Python application that prints "hello world".</p>
+<p>In more detail, we created a <em>setup.py</em> file that describes the ugit executable. The executable calls the <code>main()</code> function in <em>cli.py</em> once invoked.</p>
+<p>I also recommend to download the source (or type it yourself) in order to follow along and try the ideas in practice. The source for ugit is hosted in a Git repository and the command to download it can be found in the other window. If you want to run the code, I recommend installing ugit in development mode. Run the following command in the root directory of the project:</p>
+<pre><code>$ python3 setup.py develop --user</code></pre>
+<p>Installing in development mode creates a link to our source code instead of copying it to the installation directory, so we can still edit the source and run it immediately.</p>
+<p>Now we can run <code>ugit</code> and see "Hello, World!" printed out.</p>
+<p>To go to the next change, please press the "Next" button or use the right arrow key.</p>
+<h2>Why learn Git using code?</h2>
+<p>As I mentioned earlier, in this tutorial we will actually implement Git in Python. I believe that for programmers, seeing the concepts implemented in code crystallizes understanding. It's cool to see Git explained in a diagram, but when you see the same concepts in live code that you can fully understand and actually run, a deeper understanding can be achieved. That's because if the code works no details can be omitted from it, unlike an explanation with words.</p>
+<h2>Why not learn Git by reading the real Git code?</h2>
+<p>The real Git code is too complicated to be useful for learning basic concepts with ease. It is production quality code that is optimized for speed. It is written in C. It implements so many advanced Git features. It deals with a lot of edge cases that we don't care about for learning. In this tutorial we will focus on the bare minimum to get the point across.</p>
+<h2>About Me</h2>
+<p>Hi, I'm Nikita and this is a tutorial I've been working on for a long time. If you have any questions or suggestions, please leave a comment on any of the relevant sections.</p>
+</div>
+ <details class=comments>
+ <summary>Comments <span class=count>(26)</span></summary>
+ <div class=content>Loading...</div>
+ <form style=display:none>
+ <label for=comment-body>Leave a comment for this change:</label>
+ <textarea name=comment id=comment-body required></textarea>
+ <label for=comment-name>Name:</label>
+ <input name=name id=comment-name required value>
+ <label for=comment-email>Email:</label>
+ <input name=email type=email id=comment-email required value>
+ <button>Submit</button>
+ <div class=ok style=display:none>
+ Thank you, your comment will be posted shortly!
+ </div>
+ </form>
+ </details>
+ </section>
+ <section class=diff>
+ <h1>Diff</h1>
+ <div class=diff-content><details open data-diff-file=.gitignore><summary>.gitignore</summary> <p class=hunk>@@ -0,0 +1,2 @@</p> <div class=highlight><pre><span></span><code><span class="line d-a" data-line=1><span class=d-s>+ </span>__pycache__
+</span><span class="line d-a" data-line=2><span class=d-s>+ </span>*.egg-info/
+</span></code></pre></div>
+</details><details open data-diff-file=setup.py><summary>setup.py</summary> <p class=hunk>@@ -0,0 +1,12 @@</p> <div class=highlight><pre><span></span><code><span class="line d-a" data-line=1><span class=d-s>+ </span><span class=ch>#!/usr/bin/env python3</span>
+</span><span class="line d-a" data-line=2><span class=d-s>+ </span>
+</span><span class="line d-a" data-line=3><span class=d-s>+ </span><span class=kn>from</span> <span class=nn>setuptools</span> <span class=kn>import</span> <span class=n>setup</span>
+</span><span class="line d-a" data-line=4><span class=d-s>+ </span>
+</span><span class="line d-a" data-line=5><span class=d-s>+ </span><span class=n>setup</span> <span class=p>(</span><span class=n>name</span> <span class=o>=</span> <span class=s1>'ugit'</span><span class=p>,</span>
+</span><span class="line d-a" data-line=6><span class=d-s>+ </span>       <span class=n>version</span> <span class=o>=</span> <span class=s1>'1.0'</span><span class=p>,</span>
+</span><span class="line d-a" data-line=7><span class=d-s>+ </span>       <span class=n>packages</span> <span class=o>=</span> <span class=p>[</span><span class=s1>'ugit'</span><span class=p>],</span>
+</span><span class="line d-a" data-line=8><span class=d-s>+ </span>       <span class=n>entry_points</span> <span class=o>=</span> <span class=p>{</span>
+</span><span class="line d-a" data-line=9><span class=d-s>+ </span>           <span class=s1>'console_scripts'</span> <span class=p>:</span> <span class=p>[</span>
+</span><span class="line d-a" data-line=10><span class=d-s>+ </span>               <span class=s1>'ugit = ugit.cli:main'</span>
+</span><span class="line d-a" data-line=11><span class=d-s>+ </span>           <span class=p>]</span>
+</span><span class="line d-a" data-line=12><span class=d-s>+ </span>       <span class=p>})</span>
+</span></code></pre></div>
+</details><details open data-diff-file=ugit/cli.py><summary>ugit/cli.py</summary> <p class=hunk>@@ -0,0 +1,2 @@</p> <div class=highlight><pre><span></span><code><span class="line d-a" data-line=1><span class=d-s>+ </span><span class=k>def</span> <span class=nf>main</span> <span class=p>():</span>
+</span><span class="line d-a" data-line=2><span class=d-s>+ </span>    <span class=nb>print</span> <span class=p>(</span><span class=s1>'Hello, World!'</span><span class=p>)</span>
+</span></code></pre></div>
+</details><details><summary>All Files (3)</summary><ul class=file-list><li data-diff-file=.gitignore data-line=1 class=changed>.gitignore<li data-diff-file=setup.py data-line=1 class=changed>setup.py<li data-diff-file=ugit/cli.py data-line=1 class=changed>ugit/cli.py</ul></details></div>
+ <details class=clone-details>
+ <summary>Download</summary>
+ <div class=clone>
+ <span>Clone μgit using:</span>
+ <span class=cmd id=clone-cmd>git clone https://www.leshenko.net/p/ugit/repo/ ugit</span>
+ <button type=button class="narrow copy" data-copy-from=clone-cmd>Copy</button>
+ <span>Checkout this commit:</span>
+ <span class=cmd id=checkout-cmd>git checkout 73ae1cd1a42c</span>
+ <button type=button class="narrow copy" data-copy-from=checkout-cmd>Copy</button>
+ </div>
+ </details>
+ </section>
+ <section class=file style=display:none>
+ 
+ 
+ 
+ </section>
+ <footer>
+ <a class="button narrow" id=home-btn>
+ <svg fill=white xmlns=http://www.w3.org/2000/svg viewBox="0 0 24 24" width=14px height=14px>
+ <title>Go Home</title>
+ <path d="M 12 2 L 1 12 L 4 12 L 4 21 L 10 21 L 10 15 L 14 15 L 14 21 L 20 21 L 20 12 L 23 12 L 12 2 z"></path>
+ </svg>
+ </a>
+ <a class=button id=prev-btn>Prev</a>
+ <a class=button id=next-btn>Next</a>
+ <div id=progress-bar class=progress>
+ <div class=fill style=width:1.20944%></div>
+ <div class=dots><span class="dot active"></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span><span class=dot></span></div>
+ </div>
+ </footer>
+ <div id=loading style=display:none>
+ <svg fill=white xmlns=http://www.w3.org/2000/svg viewBox="0 0 10 10" width=12px height=12px>
+ <title>Loading</title>
+ <path d="M 2 0 L 5 3 L 8 0 L 10 2 L 7 5 L 10 8 L 8 10 L 5 7 L 2 10 L 0 8 L 3 5 L 0 2 z"></path>
+ </svg>
+ 
+ </div>
+ 
+<grammarly-desktop-integration data-grammarly-shadow-root=true><template shadowroot=open><style class=sf-hidden>div.grammarly-desktop-integration{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;-moz-user-select:none;-webkit-user-select:none;-ms-user-select:none;user-select:none}div.grammarly-desktop-integration:before{content:attr(data-content)}</style><div aria-label=grammarly-integration role=group tabindex=-1 class=grammarly-desktop-integration data-content='{"mode":"full","isActive":true,"isUserDisabled":false}'></div></template></grammarly-desktop-integration><script data-template-shadow-root>(()=>{document.currentScript.remove();processNode(document);function processNode(node){node.querySelectorAll("template[shadowroot]").forEach(element=>{let shadowRoot = element.parentElement.shadowRoot;if (!shadowRoot) {try {shadowRoot=element.parentElement.attachShadow({mode:element.getAttribute("shadowroot")});shadowRoot.innerHTML=element.innerHTML;element.remove()} catch (error) {} if (shadowRoot) {processNode(shadowRoot)}}})}})()</script>

@@ -1,0 +1,598 @@
+<!DOCTYPE html> <html lang=en style><!--
+ Page saved with SingleFile 
+ url: https://www.kushajveersingh.com/blog/complete-tutorial-on-how-to-use-hydra-in-machine-learning-projects 
+ saved date: Mon Jul 10 2023 20:03:59 GMT+0800 (中国标准时间)
+--><meta charset=utf-8><style>.utterances{position:relative;box-sizing:border-box;width:100%;max-width:760px;margin-left:auto;margin-right:auto}</style>
+<meta http-equiv=X-UA-Compatible content="IE=edge">
+<meta name=viewport content="width=device-width, initial-scale=1">
+<meta name=twitter:card content=summary_large_image>
+<title>Complete tutorial on how to use Hydra in Machine Learning projects | Kushajveer Singh</title>
+<meta name=generator content="Jekyll v4.1.1">
+<meta property=og:title content="Complete tutorial on how to use Hydra in Machine Learning projects">
+<meta property=og:locale content=en_US>
+<meta name=description content="Learn everything you need to know on how to use Hydra in your machine learning projects. All features of Hydra are discussed with a dummy ML example.">
+<meta property=og:description content="Learn everything you need to know on how to use Hydra in your machine learning projects. All features of Hydra are discussed with a dummy ML example.">
+<link rel=canonical href=https://kushajveersingh.github.io/blog/complete-tutorial-on-how-to-use-hydra-in-machine-learning-projects>
+<meta property=og:url content=https://kushajveersingh.github.io/blog/complete-tutorial-on-how-to-use-hydra-in-machine-learning-projects>
+<meta property=og:site_name content="Kushajveer Singh">
+<meta property=og:type content=article>
+<meta property=article:published_time content=2021-03-16T00:00:00-05:00>
+<script type=application/ld+json>{"url":"https://kushajveersingh.github.io/blog/complete-tutorial-on-how-to-use-hydra-in-machine-learning-projects","headline":"Complete tutorial on how to use Hydra in Machine Learning projects","dateModified":"2021-03-16T00:00:00-05:00","datePublished":"2021-03-16T00:00:00-05:00","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://kushajveersingh.github.io/blog/complete-tutorial-on-how-to-use-hydra-in-machine-learning-projects"},"description":"Learn everything you need to know on how to use Hydra in your machine learning projects. All features of Hydra are discussed with a dummy ML example.","@context":"https://schema.org"}</script>
+<style>.highlight .err{color:#a61717;background-color:#e3d2d2}.highlight .k{font-weight:bold}.highlight .o{font-weight:bold}.highlight .c1{color:#998;font-style:italic}.highlight .m{color:#099}.highlight .s{color:#d14}.highlight .na{color:#008080}.highlight .nb{color:#0086B3}.highlight .no{color:#008080}.highlight .nf{color:#900;font-weight:bold}.highlight .nn{color:#555}.highlight .nv{color:#008080}.highlight .mf{color:#099}.highlight .mi{color:#099}.highlight .s2{color:#d14}.highlight .si{color:#d14}.highlight .s1{color:#d14}html{font-size:16px}body,h1,h2,h3,p,blockquote,pre,hr,ul{margin:0;padding:0}body{font:400 16px/1.5 -apple-system,system-ui,BlinkMacSystemFont,"Segoe UI","Segoe UI Symbol","Segoe UI Emoji","Apple Color Emoji",Roboto,Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%;-webkit-font-feature-settings:"kern"1;-moz-font-feature-settings:"kern"1;-o-font-feature-settings:"kern"1;font-feature-settings:"kern"1;font-kerning:normal;display:flex;min-height:100vh;flex-direction:column;overflow-wrap:break-word}blockquote,.highlight{margin-bottom:15px}hr{margin-top:30px;margin-bottom:30px}ul{margin-left:30px}li>ul{margin-bottom:0}a:visited{color:#1756a9}a:hover{color:#111111;text-decoration:underline}.social-media-list a:hover,.pagination a:hover{text-decoration:none}blockquote{color:#828282;border-left:4px solid #e8e8e8;padding-left:15px;font-size:1.125rem;font-style:italic}blockquote>:last-child{margin-bottom:0}pre,code{border:1px solid #e8e8e8;border-radius:3px;background-color:#eeeeff}code{padding:1px 5px}pre{padding:8px 12px;overflow-x:auto}pre>code{border:0;padding-right:0;padding-left:0}.highlight{border-radius:3px}.highlighter-rouge .highlight{background:#eeeeff}.wrapper{max-width:calc(1000px - (30px));margin-right:auto;margin-left:auto;padding-right:15px;padding-left:15px}@media screen and (min-width:1200px){.wrapper{max-width:calc(1000px - (30px*2));padding-right:30px;padding-left:30px}}.wrapper:after{content:"";display:table;clear:both}.orange{color:#f66a0a}.grey{color:#828282}.svg-icon{display:inline-block;fill:currentColor;padding:5px 3px 2px 5px;vertical-align:text-bottom}.site-header{border-top:5px solid #424242;border-bottom:1px solid #e8e8e8;min-height:55.95px;line-height:54px;position:relative}.site-title{font-size:1.625rem;font-weight:300;letter-spacing:-1px;margin-bottom:0;float:left}@media screen and (max-width:800px){.site-title{padding-right:45px}}.site-title,.site-title:visited{color:#424242}.site-nav{position:absolute;top:9px;right:15px;background-color:#fdfdfd;border:1px solid #e8e8e8;border-radius:5px;text-align:right}.site-nav input~.trigger{clear:both;display:none}.site-nav input:checked~.trigger{display:block;padding-bottom:5px}.site-nav .page-link{color:#111111;line-height:1.5;display:block;padding:5px 10px;margin-left:20px}.site-nav .page-link:not(:last-child){margin-right:0}@media screen and (min-width:1000px){.site-nav{position:static;float:right;border:none;background-color:inherit}.site-nav input~.trigger{display:block}.site-nav .page-link{display:inline;padding:0;margin-left:auto}.site-nav .page-link:not(:last-child){margin-right:20px}}.site-footer{border-top:1px solid #e8e8e8;padding:30px 0}.feed-subscribe .svg-icon{padding:5px 5px 2px 0}.social-media-list{list-style:none;margin-left:0}.footer-col-wrapper,.social-links{font-size:0.9375rem;color:#828282}.footer-col{margin-bottom:15px}@media screen and (min-width:1000px){.footer-col-wrapper{display:flex}.footer-col{width:calc(100% - (30px/2));padding:0 15px}.footer-col:first-child{padding-right:15px;padding-left:0}.footer-col:last-child{padding-right:0;padding-left:15px}}.page-content{padding:30px 0;flex:1 0 auto}.post-meta{color:#828282}.post-header{margin-bottom:30px}.post-title{font-size:2.625rem;letter-spacing:-1px;line-height:1.15}@media screen and (min-width:1200px){.post-title{font-size:2.625rem}}.post-content{margin-bottom:30px}.post-content h2,.post-content h3{margin-top:60px}.post-content h2{font-size:1.75rem}@media screen and (min-width:1200px){.post-content h2{font-size:2rem}}.post-content h3{font-size:1.375rem}@media screen and (min-width:1200px){.post-content h3{font-size:1.625rem}}.social-media-list{display:table;margin:0 auto}.social-media-list li{float:left;margin:5px 10px 5px 0}.social-media-list li:last-of-type,.pagination li:last-of-type{margin-right:0}.social-media-list li a{display:block;padding:7.5px;border:1px solid #e8e8e8}.social-media-list li a:hover,.pagination li a:hover{border-color:#dbdbdb}.page-content{-webkit-font-smoothing:antialiased!important;text-rendering:optimizeLegibility!important;font-family:"Segoe UI",SegoeUI,Roboto,"Segoe WP","Helvetica Neue","Helvetica","Tahoma","Arial",sans-serif!important}.post-content p,.post-content li{font-size:20px;color:#515151}h1{margin-top:2.5rem!important}h2{margin-top:2rem!important}h3{margin-top:1.5rem!important}p{margin-top:1rem!important;margin-bottom:1rem!important}h1,h2,h3{font-weight:normal!important;margin-bottom:0.5rem!important}pre{margin-bottom:1.5rem!important}.post-title{margin-top:.5rem!important}.social-media-list .svg-icon{width:25px!important;height:23px!important}.post-meta{margin-top:.25em!important;margin-bottom:.25em!important;font-size:105%}.page-description{margin-top:.5rem!important;margin-bottom:.5rem!important;color:#585858;font-size:115%}::-webkit-scrollbar{width:14px;height:18px}::-webkit-scrollbar-thumb{height:6px;border:4px solid rgba(0,0,0,0);background-clip:padding-box;-webkit-border-radius:7px;background-color:#9D9D9D;-webkit-box-shadow:inset -1px -1px 0px rgba(0,0,0,0.05),inset 1px 1px 0px rgba(0,0,0,0.05)}::-webkit-scrollbar-button{width:0;height:0;display:none}::-webkit-scrollbar-corner{background-color:transparent}.svg-icon.orange{width:30px;height:23px}pre code{font-size:15px!important}</style><link type=application/atom+xml rel=alternate href=https://kushajveersingh.github.io/blog/feed.xml title="Kushajveer Singh">
+<style>/*!
+ * Primer CSS
+ * https://primer.style
+ *
+ * Released under MIT license.
+ *//*!
+ * @primer/css/core
+ * http://primer.style/css
+ *
+ * Released under MIT license. Copyright (c) 2019 GitHub Inc.
+ */.octicon{display:inline-block;fill:currentColor}/*! normalize.css v4.1.1 | MIT License | github.com/necolas/normalize.css */html{font-family:sans-serif;-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}body{margin:0}article,footer,header,main,nav{display:block}a{background-color:transparent}a:active,a:hover{outline-width:0}h1{margin:0.67em 0}svg:not(:root){overflow:hidden}hr{box-sizing:content-box}::-webkit-input-placeholder{color:inherit;opacity:0.54}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";font-size:14px;line-height:1.5;color:#24292e;background-color:#fff}a{color:#0366d6;text-decoration:none}a:hover{text-decoration:underline}strong{font-weight:600}hr{height:0;margin:15px 0;overflow:hidden;background:transparent;border:0;border-bottom:1px solid #dfe2e5}hr::before,.rule::before{display:table;content:""}hr::after,.rule::after{display:table;clear:both;content:""}h1,h2,h3{margin-bottom:0}h1{font-weight:600}h2{font-weight:600}h3{font-weight:600}p{margin-top:0;margin-bottom:10px}blockquote{margin:0}ul{padding-left:0;margin-top:0;margin-bottom:0}code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;font-size:12px}pre{margin-top:0;font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;font-size:12px}.octicon{vertical-align:text-bottom}@supports (-webkit-touch-callout:none){.form-control,.form-select{font-size:16px}@media (min-width:768px){.form-control,.form-select{font-size:14px}}}::placeholder{color:#6a737d;opacity:1}@supports ((-webkit-clip-path:polygon(50%0,100% 50%,50% 100%)) or (clip-path:polygon(50%0,100% 50%,50% 100%))){.pagination .previous_page::before,.pagination .next_page::after{display:inline-block;width:16px;height:16px;vertical-align:text-bottom;content:"";background-color:currentColor}.pagination .previous_page::before{margin-right:4px;-webkit-clip-path:polygon(9.8px 12.8px,8.7px 12.8px,4.5px 8.5px,4.5px 7.5px,8.7px 3.2px,9.8px 4.3px,6.1px 8px,9.8px 11.7px,9.8px 12.8px);clip-path:polygon(9.8px 12.8px,8.7px 12.8px,4.5px 8.5px,4.5px 7.5px,8.7px 3.2px,9.8px 4.3px,6.1px 8px,9.8px 11.7px,9.8px 12.8px)}.pagination .next_page::after{margin-left:4px;-webkit-clip-path:polygon(6.2px 3.2px,7.3px 3.2px,11.5px 7.5px,11.5px 8.5px,7.3px 12.8px,6.2px 11.7px,9.9px 8px,6.2px 4.3px,6.2px 3.2px);clip-path:polygon(6.2px 3.2px,7.3px 3.2px,11.5px 7.5px,11.5px 8.5px,7.3px 12.8px,6.2px 11.7px,9.9px 8px,6.2px 4.3px,6.2px 3.2px)}}@keyframes tooltip-appear{from{opacity:0}to{opacity:1}}@keyframes fade-in{0%{opacity:0}100%{opacity:1}}@keyframes fade-out{0%{opacity:1}100%{opacity:0}}@keyframes fade-up{0%{opacity:0.8;transform:translateY(100%)}100%{opacity:1;transform:translateY(0)}}@keyframes fade-down{0%{opacity:1;transform:translateY(0)}100%{opacity:0.5;transform:translateY(100%)}}@keyframes grow-x{to{width:100%}}@keyframes shrink-x{to{width:0%}}@keyframes scale-in{0%{opacity:0;transform:scale(0.5)}100%{opacity:1;transform:scale(1)}}@keyframes pulse{0%{opacity:0.3}10%{opacity:1}100%{opacity:0.3}}@keyframes pulse-in{0%{transform:scale3d(1,1,1)}50%{transform:scale3d(1.1,1.1,1.1)}100%{transform:scale3d(1,1,1)}}/*!
+ * @primer/css/product
+ * http://primer.style/css
+ *
+ * Released under MIT license. Copyright (c) 2019 GitHub Inc.
+ */@keyframes AnimatedEllipsis-keyframes{0%{transform:translateX(-100%)}}@keyframes SelectMenu-modal-animation{0%{opacity:0;transform:scale(0.9)}}@keyframes SelectMenu-modal-animation--sm{0%{opacity:0;transform:translateY(-16px)}}@keyframes Toast--animateIn{0%{opacity:0;transform:translateY(100%)}}@keyframes Toast--animateOut{100%{pointer-events:none;opacity:0;transform:translateY(100%)}}@keyframes Toast--spinner{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}/*!
+ * @primer/css/marketing
+ * http://primer.style/css
+ *
+ * Released under MIT license. Copyright (c) 2019 GitHub Inc.
+ *//*!
+ * Font Awesome Free 5.14.0 by @fontawesome - https://fontawesome.com
+ * License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License)
+ */@-webkit-keyframes fa-spin{0%{-webkit-transform:rotate(0deg);transform:rotate(0deg)}to{-webkit-transform:rotate(1turn);transform:rotate(1turn)}}@keyframes fa-spin{0%{-webkit-transform:rotate(0deg);transform:rotate(0deg)}to{-webkit-transform:rotate(1turn);transform:rotate(1turn)}}#MathJax_Message{position:fixed;left:1em;bottom:1.5em;background-color:#E6E6E6;border:1px solid #959595;margin:0px;padding:2px 8px;z-index:102;color:black;font-size:80%;width:auto;white-space:nowrap}</style>
+<link rel="shortcut icon" type=image/x-icon href="data:image/vnd.microsoft.icon;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAEG0lEQVRogeWaz4sbZRjHP89ksl2ylWTbzcXW0nQLulGwUIpQevG4B/FW8aAWFDwJ4j+wCF4LiydBhNqCFKEH8dCTeFsQERExelADor3E2mRlYze/Hg8z7+Sdycw6M81mE/xC4Jt3nnnzvM983+d5874jxKBaqz8OXAM2gTpQUVVHRABQVQw/RIyANtAA7gI3Ws3GvahRyItqrb4EvAu8rarLh+1hFojIQ2Ab2Go1G72g3ZBqrX4C+By4rKr2jUA46oYriqiAMEu+A7zQajb+CgbgR/5L4HJSBOIGcITYAZ5vNRu9AsDKavU9VX35KD3KiCdEpNhtt74Qf8L+YjQvImSVkIpnn4fnlhPyEFh38bLNsi2JtPIQvA7FTKUc3O4nE4dl4JoLbNoRRwDrqw3bLnTPEUFENh2gLiJBVILojI2CJxLlJppHxYG6C1R8z8eDiJOQTPJcj366vOKqqjPhaJKErAuaZDRbOA740lhACYkIbiCXxZQQ7kQ2SSEhEWG1UoaU6XYwGLC7+3eobaVU4tjyMb9j5UG7kyuzucYhNCgQIX3HFbLnLl3k05sfeUNSQfzClMSHwxFPX7pC959uUIzufHKDjaeexDNRrr72Bl99/U3mouYa5wyiUYi7VnRdPGoGJ5bNJHecAgXHCYKEQrFYBB2HqugWg/6NTRruxuo9BfLcFv2taB95fHEDaRgJpVgL7XW77O/vpx5Fr9djMBx4XxQQ6HR22e/1/TZlr7vnX84mIVk7uzEXCT0vcktoXuAEctHxJFXV4GOQONHt55eBZ5moB/FcWWieBpFLQhcvPMvtjz8kXJ4fBcrVV1/n2+++z3xnrixUWimxtLTkt4+TUTZuyqbHV0olgtbDLmTGkUfn4TXtzApZv98HprczoQq9fj9Xf7J2dkOzSgigUi5PcwrQ7nR8OiMJPWi3p+R93HhmsBaaF/w/C9kz9Q0+eP964hT48/59XnzplZDjn92+xdrJk7H2Crz51jv88ONPmQeRS0KrlTJnTp+KuCABr1TKExnl/Po5Hjt+3LKf7DOPL05INoT5f29kaTinR6Ti92L5a9koKIKfVsK/o+l5WEJqlRbbODKIkSY57nEdhR1X1GtT217w/pF5gxiNxgHLIiGp1upxoT0QhUKB8+dqiY+82+3y2+9/hNrOnD5FyV8uRKGq/Pxrk+FwmNWVcSFT1WBrxXA0vpBNZXdax9sjqpqb55KQzaeVDme6nJ4nOHingZmyUDT6drZJzTNmmwQ+coG2qp7wPVooCQnSdoGGiFxhMdFw8A6RF1VCdycO+RYF/sH3uuMf32+bvf9F+QDbrWbjnjmd2QJ2FkVCeAfdW2D9KTSvGqhq4mn9PEBEJl81MLBf9sA7h50nHPyyh420r9sc8loo1es2/wJiKJ7PDyH6bgAAAABJRU5ErkJggg=="><style>.sf-hidden{display:none!important}</style><meta http-equiv=content-security-policy content="default-src 'none'; font-src 'self' data:; img-src 'self' data:; style-src 'unsafe-inline'; media-src 'self' data:; script-src 'unsafe-inline' data:; object-src 'self' data:; frame-src 'self' data:;"><style>img[src="data:,"],source[src="data:,"]{display:none!important}</style></head>
+<body><div id=MathJax_Message style=display:none></div><header class=site-header>
+ <div class=wrapper><a class=site-title rel=author href=https://www.kushajveersingh.com/blog/>Kushajveer Singh</a><nav class=site-nav>
+ <input type=checkbox id=nav-trigger class="nav-trigger sf-hidden">
+ <label for=nav-trigger class=sf-hidden>
+ 
+ </label>
+ <div class=trigger><a class=page-link href=https://www.kushajveersingh.com/blog/projects/>Projects</a></div>
+ </nav></div>
+</header>
+<main class=page-content aria-label=Content>
+ <div class=wrapper>
+ <article class="post h-entry" itemscope itemtype=http://schema.org/BlogPosting>
+ <header class=post-header>
+ <h1 class="post-title p-name" itemprop="name headline">Complete tutorial on how to use Hydra in Machine Learning projects</h1><p class=page-description>Learn everything you need to know on how to use Hydra in your machine learning projects. All features of Hydra are discussed with a dummy ML example.<p class="post-meta post-meta-title"><time class=dt-published datetime=2021-03-16T00:00:00-05:00 itemprop=datePublished>
+ Mar 16, 2021
+ </time>
+ • <span class=read-time title="Estimated read time">
+ 
+ 
+ 17 min read
+ 
+</span></p>
+ 
+ </header>
+ <div class="post-content e-content" itemprop=articleBody>
+ <ul class=section-nav>
+<li class="toc-entry toc-h2"><a href=#understanding-hydra-setup-process>Understanding Hydra setup process</a>
+<ul>
+<li class="toc-entry toc-h3"><a href=#how-hydra-handles-different-runs>How hydra handles different runs</a></li>
+<li class="toc-entry toc-h3"><a href=#contents-of-each-subfolder>Contents of each subfolder</a></li>
+<li class="toc-entry toc-h3"><a href=#how-to-use-logging>How to use logging</a></li>
+</ul>
+</li>
+<li class="toc-entry toc-h2"><a href=#quick-omegaconf-overview>Quick OmegaConf overview</a></li>
+<li class="toc-entry toc-h2"><a href=#using-hydra-for-ml-projects>Using Hydra for ML projects</a>
+<ul>
+<li class="toc-entry toc-h3"><a href=#dataset>Dataset</a></li>
+<li class="toc-entry toc-h3"><a href=#model>Model</a></li>
+</ul>
+</li>
+<li class="toc-entry toc-h2"><a href=#random-things>Random things</a>
+<ul>
+<li class="toc-entry toc-h3"><a href=#show-config-file>Show config file</a></li>
+<li class="toc-entry toc-h3"><a href=#multi-run>Multi-run</a></li>
+<li class="toc-entry toc-h3"><a href=#add-color-to-terminal>Add color to terminal</a></li>
+<li class="toc-entry toc-h3"><a href=#specify-help-message>Specify help message</a></li>
+<li class="toc-entry toc-h3"><a href=#output-directory-name>Output directory name</a></li>
+</ul>
+</li>
+</ul><p><a href=https://hydra.cc/>hydra website</a></p>
+<p>In an effort to increase standardization across the PyTorch ecosystem Facebook AI in a recent <a href=https://ai.facebook.com/blog/reengineering-facebook-ais-deep-learning-platforms-for-interoperability/>blog post</a> told that they would be leveraging Facebook’s open source <a href=https://hydra.cc/>Hydra framework</a> to handle configs, and also offer an integration with <a href=https://www.pytorchlightning.ai/>PyTorch Lightning</a>. This post is about Hydra.</p>
+<p>If you are reading this post then I assume you are familiar with what are config files, why are they useful and how they increase reproducibility. And you also know what nightmare is <a href=https://docs.python.org/3/library/argparse.html>argparse</a>. In general, with config files you can pass all the hyperparameters to your model, you can define all the global constants, define dataset splits and … without touching the core code of your project.</p>
+<p>On <a href=https://hydra.cc/docs/intro>Hydra website</a> the following are listed as the key features of Hydra</p>
+<ul>
+ <li>Hierarchical configuration composable from multiple sources</li>
+ <li>Configuration can be specified or overridden from the command line</li>
+ <li>Dynamic command line tab completion</li>
+ <li>Run your application locally or launch it to run remotely</li>
+ <li>Run multiple jobs with different arguments with a single command</li>
+</ul>
+<p>For the rest of the post, I will introduce Hydra features one-by-one with an example of use case. So follow along, it would be a fun ride.</p>
+<h2 id=understanding-hydra-setup-process>
+<a class=anchor href=#understanding-hydra-setup-process aria-hidden=true><span class="octicon octicon-link"></span></a>Understanding Hydra setup process</h2>
+<p>Install Hydra (I am using version <code class="language-plaintext highlighter-rouge">1.0</code>)</p>
+<div class="language-plaintext highlighter-rouge"><div class=highlight><pre class=highlight><code>pip install hydra-core --upgrade
+</code></pre></div></div>
+<p>For this blog post I would assume the following directory structure, where all the configs are stored in a <code class="language-plaintext highlighter-rouge">config</code> folder, with the main config file being named <code class="language-plaintext highlighter-rouge">config.yaml</code>. And for simplicity assume <code class="language-plaintext highlighter-rouge">main.py</code> is all the source code of our project.</p>
+<div class="language-bash highlighter-rouge"><div class=highlight><pre class=highlight><code>src
+├── config
+│&nbsp;&nbsp; └── config.yaml
+└── main.py
+</code></pre></div></div>
+<p>Let’s start with a simple example that will show you the main syntax of using Hydra,</p>
+<div class="language-yaml highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=c1>### config/config.yaml</span>
+
+<span class=na>batch_size</span><span class=pi>:</span> <span class=m>10</span>
+<span class=na>lr</span><span class=pi>:</span> <span class=s>1e-4</span>
+</code></pre></div></div>
+<p>And the corresponding <code class="language-plaintext highlighter-rouge">main.py</code> file</p>
+<div class="language-python highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=c1>### main.py
+</span>
+<span class=kn>import</span> <span class=nn>hydra</span>
+<span class=kn>from</span> <span class=nn>omegaconf</span> <span class=kn>import</span> <span class=n>DictConfig</span>
+
+<span class=o>@</span><span class=n>hydra</span><span class=p>.</span><span class=n>main</span><span class=p>(</span><span class=n>config_path</span><span class=o>=</span><span class=s>"config"</span><span class=p>,</span> <span class=n>config_name</span><span class=o>=</span><span class=s>"config"</span><span class=p>)</span>
+<span class=k>def</span> <span class=nf>func</span><span class=p>(</span><span class=n>cfg</span><span class=p>:</span> <span class=n>DictConfig</span><span class=p>):</span>
+    <span class=n>working_dir</span> <span class=o>=</span> <span class=n>os</span><span class=p>.</span><span class=n>getcwd</span><span class=p>()</span>
+    <span class=k>print</span><span class=p>(</span><span class=s>f"The current working directory is </span><span class=si>{</span><span class=n>working_dir</span><span class=si>}</span><span class=s>"</span><span class=p>)</span>
+
+    <span class=c1># To access elements of the config
+</span>    <span class=k>print</span><span class=p>(</span><span class=s>f"The batch size is </span><span class=si>{</span><span class=n>cfg</span><span class=p>.</span><span class=n>batch_size</span><span class=si>}</span><span class=s>"</span><span class=p>)</span>
+    <span class=k>print</span><span class=p>(</span><span class=s>f"The learning rate is </span><span class=si>{</span><span class=n>cfg</span><span class=p>[</span><span class=s>'lr'</span><span class=p>]</span><span class=si>}</span><span class=s>"</span><span class=p>)</span>
+
+<span class=k>if</span> <span class=n>__name__</span> <span class=o>==</span> <span class=s>"__main__"</span><span class=p>:</span>
+    <span class=n>func</span><span class=p>()</span>
+</code></pre></div></div>
+<p>Running the script would give the following output</p>
+<div class="language-plaintext highlighter-rouge"><div class=highlight><pre class=highlight><code>&gt; python main.py    
+The current working directory is src/outputs/2021-03-13/16-22-21
+
+The batch size is 10
+The learning rate is 0.0001
+</code></pre></div></div>
+<blockquote>
+ <p><strong>Note</strong>: The path is shortened to not include the complete path from root. Also, you can pass either <code class="language-plaintext highlighter-rouge">config.yaml</code> or <code class="language-plaintext highlighter-rouge">config</code> to <code class="language-plaintext highlighter-rouge">config_name</code>.</p>
+</blockquote>
+<p>A lot happened, let’s parse it one by one.</p>
+<ul>
+ <li>
+ <p><code class="language-plaintext highlighter-rouge">omegaconf</code> is installed by default with <code class="language-plaintext highlighter-rouge">hydra</code>. It is only used to provide the type annotation for <code class="language-plaintext highlighter-rouge">cfg</code> argument in <code class="language-plaintext highlighter-rouge">func</code>.</p>
+ </li>
+ <li>
+ <p><code class="language-plaintext highlighter-rouge">@hydra.main(config_path="config", config_name="config")</code> This is the main decorator function that is used when any function requires contents from a configuration file.</p>
+ </li>
+ <li>
+ <p><strong>Current working directory is changed</strong>. <code class="language-plaintext highlighter-rouge">main.py</code> exists in <code class="language-plaintext highlighter-rouge">src/main.py</code> but the output shows the current working directory is <code class="language-plaintext highlighter-rouge">src/outputs/2021-03-13/16-22-21</code>. This is the most important point when using Hydra. An explanation follows below.</p>
+ </li>
+</ul>
+<h3 id=how-hydra-handles-different-runs>
+<a class=anchor href=#how-hydra-handles-different-runs aria-hidden=true><span class="octicon octicon-link"></span></a>How hydra handles different runs</h3>
+<p>Whenever a program is executed using <code class="language-plaintext highlighter-rouge">python main.py</code> Hydra will create a new folder in <code class="language-plaintext highlighter-rouge">outputs</code> directory with the following naming scheme <code class="language-plaintext highlighter-rouge">outputs/YYYY-mm-dd/HH-MM-SS</code> i.e. the data and time at which the file was executed. Think about this for a second. Hydra provides you a way to maintain a log of every run without you having to worry about it.</p>
+<p>The directory structure after executing <code class="language-plaintext highlighter-rouge">python main.py</code> is (Let’s not worry about the contents of each folder for now)</p>
+<div class="language-plaintext highlighter-rouge"><div class=highlight><pre class=highlight><code>src
+├── config
+│&nbsp;&nbsp; └── config.yaml
+├── main.py
+├── outputs
+│&nbsp;&nbsp; └── 2021-03-13
+│&nbsp;&nbsp;     └── 17-14-24
+│&nbsp;&nbsp;         ├── .hydra
+│&nbsp;&nbsp;         │&nbsp;&nbsp; ├── config.yaml
+│&nbsp;&nbsp;         │&nbsp;&nbsp; ├── hydra.yaml
+│&nbsp;&nbsp;         │&nbsp;&nbsp; └── overrides.yaml
+│&nbsp;&nbsp;         ├── main.log
+</code></pre></div></div>
+<p>What happens actually? When you run <code class="language-plaintext highlighter-rouge">src/main.py</code>, hydra moves this file to <code class="language-plaintext highlighter-rouge">src/outputs/2021-03-13/16-22-21/main.py</code> and then runs it. You can verify this by checking the output of <code class="language-plaintext highlighter-rouge">os.getcwd()</code> as shown in the above example. This means if your <code class="language-plaintext highlighter-rouge">main.py</code> relied on some external file, say <code class="language-plaintext highlighter-rouge">test.txt</code>, then you would have to use <code class="language-plaintext highlighter-rouge">../../../test.txt</code> instead, as you are no longer running the program in <code class="language-plaintext highlighter-rouge">src</code> directory. This also means that everything you save to disk would be saved relative to <code class="language-plaintext highlighter-rouge">src/outputs/2021-03-13/16-22-21/</code>.</p>
+<p>Hydra provides two utility functions to handle this situation</p>
+<ul>
+ <li>
+ <p><strong>hydra.utils.get_original_cwd()</strong>: Get the original current working directory i.e. <code class="language-plaintext highlighter-rouge">src</code>.</p>
+ <div class="language-python highlighter-rouge">
+<div class=highlight><pre class=highlight><code>  <span class=n>orig_cwd</span> <span class=o>=</span> <span class=n>hydra</span><span class=p>.</span><span class=n>utils</span><span class=p>.</span><span class=n>get_original_cwd</span><span class=p>()</span>
+  <span class=n>path</span> <span class=o>=</span> <span class=s>f"</span><span class=si>{</span><span class=n>orig_cwd</span><span class=si>}</span><span class=s>/test.txt"</span>
+
+  <span class=c1># path = src/test.txt
+</span></code></pre></div> </div>
+ </li>
+ <li>
+ <p><strong>hydra.utils.to_absolute_path(file_name)</strong>:</p>
+ <div class="language-python highlighter-rouge">
+<div class=highlight><pre class=highlight><code>  <span class=n>path</span> <span class=o>=</span> <span class=n>hydra</span><span class=p>.</span><span class=n>utils</span><span class=p>.</span><span class=n>to_absolute_path</span><span class=p>(</span><span class=s>'test.txt'</span><span class=p>)</span>
+
+  <span class=c1># path = src/test.txt
+</span></code></pre></div> </div>
+ </li>
+</ul>
+<p>Let’s recap this using a short example. Suppose we want to read <code class="language-plaintext highlighter-rouge">src/test.txt</code> and write the output to <code class="language-plaintext highlighter-rouge">output.txt</code>. The corresponding function to do this would be as shown below</p>
+<div class="language-python highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=o>@</span><span class=n>hydra</span><span class=p>.</span><span class=n>main</span><span class=p>(</span><span class=n>config_path</span><span class=o>=</span><span class=s>"config"</span><span class=p>,</span> <span class=n>config_name</span><span class=o>=</span><span class=s>"config"</span><span class=p>)</span>
+<span class=k>def</span> <span class=nf>func</span><span class=p>(</span><span class=n>cfg</span><span class=p>:</span> <span class=n>DictConfig</span><span class=p>):</span>
+    <span class=n>orig_cwd</span> <span class=o>=</span> <span class=n>hydra</span><span class=p>.</span><span class=n>utils</span><span class=p>.</span><span class=n>get_original_cwd</span><span class=p>()</span>
+
+    <span class=c1># Read file
+</span>    <span class=n>path</span> <span class=o>=</span> <span class=s>f"</span><span class=si>{</span><span class=n>orig_cwd</span><span class=si>}</span><span class=s>/test.txt"</span>
+    <span class=k>with</span> <span class=nb>open</span><span class=p>(</span><span class=n>path</span><span class=p>,</span> <span class=s>"r"</span><span class=p>)</span> <span class=k>as</span> <span class=n>f</span><span class=p>:</span>
+        <span class=k>print</span><span class=p>(</span><span class=n>f</span><span class=p>.</span><span class=n>read</span><span class=p>())</span>
+
+    <span class=c1># Write file
+</span>    <span class=n>path</span> <span class=o>=</span> <span class=s>f"output.txt"</span>
+    <span class=k>with</span> <span class=nb>open</span><span class=p>(</span><span class=n>path</span><span class=p>,</span> <span class=s>"w"</span><span class=p>)</span> <span class=k>as</span> <span class=n>f</span><span class=p>:</span>
+        <span class=n>f</span><span class=p>.</span><span class=n>write</span><span class=p>(</span><span class=s>"This is a dog"</span><span class=p>)</span>
+</code></pre></div></div>
+<p>We can check the directory structure again, after running <code class="language-plaintext highlighter-rouge">python main.py</code>.</p>
+<div class="language-bash highlighter-rouge"><div class=highlight><pre class=highlight><code>src
+├── config
+│&nbsp;&nbsp; └── config.yaml
+├── main.py
+├── outputs
+│&nbsp;&nbsp; └── 2021-03-13
+│&nbsp;&nbsp;     └── 17-14-24
+│&nbsp;&nbsp;         ├── .hydra
+│&nbsp;&nbsp;         │&nbsp;&nbsp; ├── config.yaml
+│&nbsp;&nbsp;         │&nbsp;&nbsp; ├── hydra.yaml
+│&nbsp;&nbsp;         │&nbsp;&nbsp; └── overrides.yaml
+│&nbsp;&nbsp;         ├── main.log
+│&nbsp;&nbsp;         └── output.txt
+└── test.txt
+</code></pre></div></div>
+<p>The file was written to the folder created by hydra. This is a good way to save intermediate results when you are developing something. You can use this feature to save the accuracy results of your model with different hyperparameters. Now you do not have to spend time on manually saving the configuration file or the command line arguments you used to run the script and creating a new folder for each run to store the outputs.</p>
+<blockquote>
+ <p><strong>Note</strong>: Each <code class="language-plaintext highlighter-rouge">python main.py</code> is run in a new folder. To keep the above output short I removed all the subfolders of previous runs.</p>
+</blockquote>
+<p>The main point is use <code class="language-plaintext highlighter-rouge">orig_cwd = hydra.utils.get_original_cwd()</code> to get the original working directory path and then you do not have to worry about hydra running your code in different folder.</p>
+<h3 id=contents-of-each-subfolder>
+<a class=anchor href=#contents-of-each-subfolder aria-hidden=true><span class="octicon octicon-link"></span></a>Contents of each subfolder</h3>
+<p>Each subfolder has the following substructure</p>
+<div class="language-bash highlighter-rouge"><div class=highlight><pre class=highlight><code>src/outputs/2021-03-13/17-14-24/
+├── .hydra
+│&nbsp;&nbsp; ├── config.yaml
+│&nbsp;&nbsp; ├── hydra.yaml
+│&nbsp;&nbsp; └── overrides.yaml
+└── main.log
+</code></pre></div></div>
+<ul>
+ <li>
+<code class="language-plaintext highlighter-rouge">config.yaml</code> - Copy of the config file passed to the function (It dosen’t matter if you pass <code class="language-plaintext highlighter-rouge">foo.yaml</code>, this file would still be named <code class="language-plaintext highlighter-rouge">config.yaml</code>)</li>
+ <li>
+<code class="language-plaintext highlighter-rouge">hydra.yaml</code> - Copy of the hydra config file. We will later see how to change some of the defaults used by hydra. (You can specify the message of <code class="language-plaintext highlighter-rouge">python main.py --help</code> here)</li>
+ <li>
+<code class="language-plaintext highlighter-rouge">overrides.yaml</code> - Copy of any argument that you provide through command line and which changes one of the default value would be stored here</li>
+ <li>
+<code class="language-plaintext highlighter-rouge">main.log</code> - Output of logger would be stored here. (For <code class="language-plaintext highlighter-rouge">foo.py</code> this file would be named <code class="language-plaintext highlighter-rouge">foo.log</code>)</li>
+</ul>
+<h3 id=how-to-use-logging>
+<a class=anchor href=#how-to-use-logging aria-hidden=true><span class="octicon octicon-link"></span></a>How to use logging</h3>
+<p>With Hydra you can easily use the <a href=https://docs.python.org/3/library/logging.html>logging</a> package provided by Python in your code without any setup. The output of the log is stored in <code class="language-plaintext highlighter-rouge">main.log</code>. Usage example is shown below</p>
+<div class="language-python highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=kn>import</span> <span class=nn>logging</span>
+
+<span class=n>log</span> <span class=o>=</span> <span class=n>logging</span><span class=p>.</span><span class=n>getLogger</span><span class=p>(</span><span class=n>__name__</span><span class=p>)</span>
+
+<span class=o>@</span><span class=n>hydra</span><span class=p>.</span><span class=n>main</span><span class=p>(</span><span class=n>config_path</span><span class=o>=</span><span class=s>"config"</span><span class=p>,</span> <span class=n>config_name</span><span class=o>=</span><span class=s>"config"</span><span class=p>)</span>
+<span class=k>def</span> <span class=nf>main_func</span><span class=p>(</span><span class=n>cfg</span><span class=p>:</span> <span class=n>DictConfig</span><span class=p>):</span>
+    <span class=n>log</span><span class=p>.</span><span class=n>debug</span><span class=p>(</span><span class=s>"Debug level message"</span><span class=p>)</span>
+    <span class=n>log</span><span class=p>.</span><span class=n>info</span><span class=p>(</span><span class=s>"Info level message"</span><span class=p>)</span>
+    <span class=n>log</span><span class=p>.</span><span class=n>warning</span><span class=p>(</span><span class=s>"Warning level message"</span><span class=p>)</span>
+</code></pre></div></div>
+<p>The log of <code class="language-plaintext highlighter-rouge">python main.py</code> in this case would be (in <code class="language-plaintext highlighter-rouge">main.log</code>)</p>
+<div class="language-plaintext highlighter-rouge"><div class=highlight><pre class=highlight><code>[2021-03-13 17:36:06,493][__main__][INFO] - Info level message
+[2021-03-13 17:36:06,493][__main__][WARNING] - Warning level message
+</code></pre></div></div>
+<p>If you want to include <code class="language-plaintext highlighter-rouge">DEBUG</code> also, then override <code class="language-plaintext highlighter-rouge">hydra.verbose=true</code> or <code class="language-plaintext highlighter-rouge">hydra.verbose=__main__</code> (i.e. <code class="language-plaintext highlighter-rouge">python main.py hydra.version=true</code>). The output in <code class="language-plaintext highlighter-rouge">main.log</code> in this case would be</p>
+<div class="language-plaintext highlighter-rouge"><div class=highlight><pre class=highlight><code>[2021-03-13 17:36:38,425][__main__][DEBUG] - Debug level message
+[2021-03-13 17:36:38,425][__main__][INFO] - Info level message
+[2021-03-13 17:36:38,425][__main__][WARNING] - Warning level message
+</code></pre></div></div>
+<h2 id=quick-omegaconf-overview>
+<a class=anchor href=#quick-omegaconf-overview aria-hidden=true><span class="octicon octicon-link"></span></a>Quick OmegaConf overview</h2>
+<p><a href=https://omegaconf.readthedocs.io/en/latest/index.html>OmegaCong</a> is a YAML based hierarchical configuration system, with support for merging configurations from multiple sources (files, CLI argument, environment variables). You just need to know YAML to use Hydra. OmegaConf is used by Hydra in the background to handle everything for you.</p>
+<p>The main things you need to know are shown in the config file below</p>
+<div class="language-yaml highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=na>server</span><span class=pi>:</span>
+  <span class=na>ip</span><span class=pi>:</span> <span class=s2>"</span><span class=s>127.0.0.1"</span>
+  <span class=na>port</span><span class=pi>:</span> <span class=s>???</span>       <span class=c1># Missing value. Must be provided at command line</span>
+  <span class=na>address</span><span class=pi>:</span> <span class=s2>"</span><span class=s>${server.ip}:${server.port}"</span> <span class=c1># String interpolation</span>
+</code></pre></div></div>
+<p>Now in <code class="language-plaintext highlighter-rouge">main.py</code> you can access the server address as follows</p>
+<div class="language-python highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=o>@</span><span class=n>hydra</span><span class=p>.</span><span class=n>main</span><span class=p>(</span><span class=n>config_path</span><span class=o>=</span><span class=s>"config"</span><span class=p>,</span> <span class=n>config_name</span><span class=o>=</span><span class=s>"config"</span><span class=p>)</span>
+<span class=k>def</span> <span class=nf>main_func</span><span class=p>(</span><span class=n>cfg</span><span class=p>:</span> <span class=n>DictConfig</span><span class=p>):</span>
+    <span class=n>server_address</span> <span class=o>=</span> <span class=n>cfg</span><span class=p>.</span><span class=n>server</span><span class=p>.</span><span class=n>address</span>
+    <span class=k>print</span><span class=p>(</span><span class=s>f"The server address = </span><span class=si>{</span><span class=n>server_address</span><span class=si>}</span><span class=s>"</span><span class=p>)</span>
+
+
+<span class=c1># python main.py server.port=10
+# The server address = 127.0.0.1:10
+</span></code></pre></div></div>
+<p>As you can guess from the above example, if you want some variable to take the same value as another variable you should use the following syntax <code class="language-plaintext highlighter-rouge">address:${server.ip}</code>. We will later see some interesting use cases of this.</p>
+<h2 id=using-hydra-for-ml-projects>
+<a class=anchor href=#using-hydra-for-ml-projects aria-hidden=true><span class="octicon octicon-link"></span></a>Using Hydra for ML projects</h2>
+<p>Now you know the basic working’s of hydra, we can focus on using Hydra to develop a machine learning project. Check the hydra <a href=https://hydra.cc/docs/intro>documentation</a> after this post for some of the things not discussed here. And I do not discuss <em><a href=https://hydra.cc/docs/tutorials/structured_config/intro>Structured Configs</a></em> (alternate to yaml files) in this post as you can get everything done without them also.</p>
+<p>Recall, the <code class="language-plaintext highlighter-rouge">src</code> directory of our project has the following structure</p>
+<div class="language-plaintext highlighter-rouge"><div class=highlight><pre class=highlight><code>src
+├── config
+│&nbsp;&nbsp; └── config.yaml
+└── main.py
+</code></pre></div></div>
+<p>We have a separate folder to store all our config files (<code class="language-plaintext highlighter-rouge">config</code>) and the source code of our project is <code class="language-plaintext highlighter-rouge">main.py</code>. Now let’s get started.</p>
+<h3 id=dataset>
+<a class=anchor href=#dataset aria-hidden=true><span class="octicon octicon-link"></span></a>Dataset</h3>
+<p>Every ML project begins by collecting data and creating a dataset. When working on an image classification project, we use many different datasets like ImageNet, CIFAR10, and more. And each of these datasets will have different hyperparameters associated with them like batch size, the size of input images, the number of classes, the number of layers of the model to use for a particular dataset and many more.</p>
+<p>Instead of using a particular dataset, I use a random dataset as it would make the things general and you can apply the things discussed here on your own datasets. Also, let’s not worry about creating dataloaders, as they are the same thing.</p>
+<p>Before discussing the details, let me show you the code and you can easily guess what is happening. The 4 files involved in this example are</p>
+<ul>
+ <li><code class="language-plaintext highlighter-rouge">src/main.py</code></li>
+ <li><code class="language-plaintext highlighter-rouge">src/config/config.yaml</code></li>
+ <li><code class="language-plaintext highlighter-rouge">src/config/dataset/dataset1.yaml</code></li>
+ <li><code class="language-plaintext highlighter-rouge">src/config/dataset/dataset2.yaml</code></li>
+</ul>
+<div class="language-python highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=c1>### src/main.py ###
+</span>
+<span class=kn>import</span> <span class=nn>torch</span>
+<span class=kn>import</span> <span class=nn>hydra</span>
+<span class=kn>from</span> <span class=nn>omegaconf</span> <span class=kn>import</span> <span class=n>DictConfig</span>
+
+<span class=o>@</span><span class=n>hydra</span><span class=p>.</span><span class=n>main</span><span class=p>(</span><span class=n>config_path</span><span class=o>=</span><span class=s>"config"</span><span class=p>,</span> <span class=n>config_name</span><span class=o>=</span><span class=s>"config.yaml"</span><span class=p>)</span>
+<span class=k>def</span> <span class=nf>get_dataset</span><span class=p>(</span><span class=n>cfg</span><span class=p>:</span> <span class=n>DictConfig</span><span class=p>):</span>
+    <span class=n>name_of_dataset</span> <span class=o>=</span> <span class=n>cfg</span><span class=p>.</span><span class=n>dataset</span><span class=p>.</span><span class=n>name</span>
+    <span class=n>num_samples</span> <span class=o>=</span> <span class=n>cfg</span><span class=p>.</span><span class=n>num_samples</span>
+    
+    <span class=k>if</span> <span class=n>name_of_dataset</span> <span class=o>==</span> <span class=s>"dataset1"</span><span class=p>:</span>
+        <span class=n>feature_size</span> <span class=o>=</span> <span class=n>cfg</span><span class=p>.</span><span class=n>dataset</span><span class=p>.</span><span class=n>feature_size</span>
+        <span class=n>x</span> <span class=o>=</span> <span class=n>torch</span><span class=p>.</span><span class=n>randn</span><span class=p>(</span><span class=n>num_samples</span><span class=p>,</span> <span class=n>feature_size</span><span class=p>)</span>
+        <span class=k>print</span><span class=p>(</span><span class=n>x</span><span class=p>.</span><span class=n>shape</span><span class=p>)</span>
+        <span class=k>return</span> <span class=n>x</span>
+
+    <span class=k>elif</span> <span class=n>name_of_dataset</span> <span class=o>==</span> <span class=s>"dataset2"</span><span class=p>:</span>
+        <span class=n>dim1</span> <span class=o>=</span> <span class=n>cfg</span><span class=p>.</span><span class=n>dataset</span><span class=p>.</span><span class=n>dim1</span>
+        <span class=n>dim2</span> <span class=o>=</span> <span class=n>cfg</span><span class=p>.</span><span class=n>dataset</span><span class=p>.</span><span class=n>dim2</span>
+        <span class=n>x</span> <span class=o>=</span> <span class=n>torch</span><span class=p>.</span><span class=n>randn</span><span class=p>(</span><span class=n>num_samples</span><span class=p>,</span> <span class=n>dim1</span><span class=p>,</span> <span class=n>dim2</span><span class=p>)</span>
+        <span class=k>print</span><span class=p>(</span><span class=n>x</span><span class=p>.</span><span class=n>shape</span><span class=p>)</span>
+        <span class=k>return</span> <span class=n>x</span>
+
+    <span class=k>else</span><span class=p>:</span>
+        <span class=k>raise</span> <span class=nb>ValueError</span><span class=p>(</span><span class=s>"You outplayed the developer"</span><span class=p>)</span>
+
+<span class=k>if</span> <span class=n>__name__</span> <span class=o>==</span> <span class=s>"__main__"</span><span class=p>:</span>
+    <span class=n>get_dataset</span><span class=p>()</span>
+</code></pre></div></div>
+<p>And the corresponding config files are,</p>
+<div class="language-yaml highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=c1>### src/config/config.yaml</span>
+<span class=na>defaults</span><span class=pi>:</span>
+  <span class=pi>-</span> <span class=na>dataset</span><span class=pi>:</span> <span class=s>dataset1</span>
+
+<span class=na>num_samples</span><span class=pi>:</span> <span class=m>2</span>
+</code></pre></div></div>
+<div class="language-yaml highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=c1>### src/config/dataset/dataset1.yaml</span>
+
+<span class=c1># @package _group_</span>
+<span class=na>name</span><span class=pi>:</span> <span class=s>dataset1</span>
+<span class=na>feature_size</span><span class=pi>:</span> <span class=m>5</span>
+</code></pre></div></div>
+<div class="language-yaml highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=c1>### src/config/dataset/dataset1.yaml</span>
+
+<span class=c1># @package _group_</span>
+<span class=na>name</span><span class=pi>:</span> <span class=s>dataset2</span>
+<span class=na>dim1</span><span class=pi>:</span> <span class=m>10</span>
+<span class=na>dim2</span><span class=pi>:</span> <span class=m>20</span>
+</code></pre></div></div>
+<p>To be honest this is pretty much everything you need to use hydra in your projects. Let us see what is actually happening in the above code</p>
+<ul>
+ <li>In <code class="language-plaintext highlighter-rouge">src/main.py</code>, you will see that there are some common variables, namely <code class="language-plaintext highlighter-rouge">cfg.dataset</code> and <code class="language-plaintext highlighter-rouge">cfg.num_samples</code> that are shared across all the datasets. These are defined in our main config file that we pass to hydra using the command <code class="language-plaintext highlighter-rouge">@hydra.main(...)</code>.</li>
+ <li>
+ <p>Next, we need to define some variables specific to every dataset (like number of classes in ImageNet and CIFAR10). To achieve this in hydra, we use the following syntax</p>
+ <div class="language-yaml highlighter-rouge">
+<div class=highlight><pre class=highlight><code>  <span class=na>defaults</span><span class=pi>:</span>
+    <span class=pi>-</span> <span class=na>dataset</span><span class=pi>:</span> <span class=s>dataset1</span>
+</code></pre></div> </div>
+ <p>Here <code class="language-plaintext highlighter-rouge">dataset</code> is the name of the folder that will contain all the corresponding <em>yaml</em> files for each dataset (i.e. <code class="language-plaintext highlighter-rouge">dataset1</code> and <code class="language-plaintext highlighter-rouge">dataset2</code> in our case). So the directory structure would look something like this</p>
+ <div class="language-bash highlighter-rouge">
+<div class=highlight><pre class=highlight><code>  config
+  ├── config.yaml
+  └── dataset
+      ├── dataset1.yaml
+      └── dataset2.yaml
+</code></pre></div> </div>
+ <p>And that is it. Now you can define the variables specific to your every dataset in each of the above files, independent of each other.</p>
+ </li>
+ <li>These are called <a href=https://hydra.cc/docs/tutorials/basic/your_first_app/config_groups>config groups</a>. Every config file is independent of other config files in the folder and we can only choose one of the config files. To define these config groups you need to include a special comment at the beginning of every file <code class="language-plaintext highlighter-rouge"># @package _group_</code>.</li>
+</ul>
+<blockquote>
+ <p>We can only choose one config file out of <code class="language-plaintext highlighter-rouge">dataset1.yaml</code> and <code class="language-plaintext highlighter-rouge">dataset2.yaml</code> as the value of <code class="language-plaintext highlighter-rouge">dataset</code>. And to tell hydra that these are config groups, we need to include the special comment <code class="language-plaintext highlighter-rouge"># @package _group_</code> at the start of these files.</p>
+</blockquote>
+<blockquote>
+ <p><strong>Note</strong>: In Hydra 1.1, <code class="language-plaintext highlighter-rouge">_group_</code> will become the default <code class="language-plaintext highlighter-rouge">package</code> and there will be no need to add the special comment.</p>
+</blockquote>
+<ul>
+ <li>What is <strong>defaults</strong>? In our main config file we need some way to distinguish normal string values from config group values. Like in this case, we want <code class="language-plaintext highlighter-rouge">dataset: dataset1</code> to be interpreted as a config group value rather than a string value. To do this we define all the config groups in <code class="language-plaintext highlighter-rouge">defaults</code>. And as you guessed it you provide a default value to it.
+ <div class="language-yaml highlighter-rouge">
+<div class=highlight><pre class=highlight><code>  <span class=na>defaults</span><span class=pi>:</span>
+    <span class=pi>-</span> <span class=na>dataset</span><span class=pi>:</span> <span class=s>dataset1</span> <span class=c1># By default use `dataset/dataset1.yaml</span>
+
+  <span class=c1>## OR</span>
+
+  <span class=na>defaults</span><span class=pi>:</span>
+    <span class=pi>-</span> <span class=na>dataset</span><span class=pi>:</span> <span class=s>???</span>  <span class=c1># Must be specified at command line</span>
+</code></pre></div> </div>
+ </li>
+</ul>
+<blockquote>
+ <p><strong>Note</strong>: <code class="language-plaintext highlighter-rouge">defaults</code> takes a list as input, so you need to start every name with a <code class="language-plaintext highlighter-rouge">-</code>.</p>
+</blockquote>
+<p>We can check the output for the above code.</p>
+<div class="language-plaintext highlighter-rouge"><div class=highlight><pre class=highlight><code>&gt; python dataset.py
+torch.Size([2, 5])
+</code></pre></div></div>
+<p>and</p>
+<div class="language-plaintext highlighter-rouge"><div class=highlight><pre class=highlight><code>&gt; python dataset.py dataset=dataset2
+torch.Size([2, 10, 20])
+</code></pre></div></div>
+<p>Now pause and think for a second. You can use this same technique to define hyperparameter values for all your optimizers. Just create a new folder called <code class="language-plaintext highlighter-rouge">optimizer</code> and write <code class="language-plaintext highlighter-rouge">sgd.yaml</code>, <code class="language-plaintext highlighter-rouge">adam.yaml</code> files. And in the main <code class="language-plaintext highlighter-rouge">config.yaml</code>, you only need to add one more line</p>
+<div class="language-yaml highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=na>defaults</span><span class=pi>:</span>
+  <span class=pi>-</span> <span class=na>dataset</span><span class=pi>:</span> <span class=s>dataset1</span>
+  <span class=pi>-</span> <span class=na>optimizer</span><span class=pi>:</span> <span class=s>adam</span>
+</code></pre></div></div>
+<p>and you use this to also create config files for learning rate schedulers, models, evaluation metrics and almost everything else without having to actually hard code any of these values in the main codebase. You no longer need to remember which learning rate you used to run that model, as a backup of the config file used to run the python script is always stored in the folder created by hydra.</p>
+<h3 id=model>
+<a class=anchor href=#model aria-hidden=true><span class="octicon octicon-link"></span></a>Model</h3>
+<p>There is one special case that you also need to know. What if you want your ResNet model to have different number of layers when using ImageNet vs CIFAR10. The naive solution would be to add <code class="language-plaintext highlighter-rouge">if-else</code> conditions in your model definition for every dataset, but that is a bad choice. What if tomorrow you add a new dataset. Now you would have to modify your model <code class="language-plaintext highlighter-rouge">if-else</code> condition to handle this new dataset. So instead we define a value <code class="language-plaintext highlighter-rouge">num_layers</code> in the config file and then we can use this value to create how every many layers we want.</p>
+<p>Suppose we use two models, resnet and vgg. Based on the discussion in previous topic, we would have a separate config file for each model. The directory structure of the <code class="language-plaintext highlighter-rouge">config</code> folder would be</p>
+<div class="language-plaintext highlighter-rouge"><div class=highlight><pre class=highlight><code>config
+├── config.yaml
+├── dataset
+│&nbsp;&nbsp; ├── cifar10.yaml
+│&nbsp;&nbsp; └── imagenet.yaml
+└── model
+    ├── resnet.yaml
+    └── vgg.yaml
+</code></pre></div></div>
+<p>Now suppose we want the resnet model to have 34 layers when using CIFAR10 and 50 layers for every other dataset. In this case the <code class="language-plaintext highlighter-rouge">config/model/resnet.yaml</code> file would be</p>
+<div class="language-yaml highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=c1># @package _group_</span>
+<span class=na>name</span><span class=pi>:</span> <span class=s>resnet</span>
+<span class=na>num_layers</span><span class=pi>:</span> <span class=m>50</span> <span class=c1># As 50 is the default value</span>
+</code></pre></div></div>
+<p>Now we want to set the value <code class="language-plaintext highlighter-rouge">num_layers=34</code> when the user specifies CIFAR10 dataset. To do this we can define a new config group in which we can define all the combinations of the special cases. In the main <code class="language-plaintext highlighter-rouge">config/config.yaml</code> we would make the following changes</p>
+<div class="language-yaml highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=na>defaults</span><span class=pi>:</span>
+  <span class=pi>-</span> <span class=na>dataset</span><span class=pi>:</span> <span class=s>imagenet</span>
+  <span class=pi>-</span> <span class=na>model</span><span class=pi>:</span> <span class=s>resnet</span>
+  <span class=pi>-</span> <span class=na>dataset_model</span><span class=pi>:</span> <span class=s>${defaults.0.dataset}_${defaults.1.model}</span>
+    <span class=na>optional</span><span class=pi>:</span> <span class=no>true</span>
+</code></pre></div></div>
+<p>Here we created a new config group named <code class="language-plaintext highlighter-rouge">dataset_model</code> that takes the value specified by <code class="language-plaintext highlighter-rouge">dataset</code> and <code class="language-plaintext highlighter-rouge">model</code> (like <code class="language-plaintext highlighter-rouge">imagenet_resnet</code>, <code class="language-plaintext highlighter-rouge">cifar10_resnet</code>). This is some weird syntax as <code class="language-plaintext highlighter-rouge">defaults</code> is a list, so you need to specify index before the name i.e. <code class="language-plaintext highlighter-rouge">defaults.0.dataset</code>. Now we can define the config file in <code class="language-plaintext highlighter-rouge">dataset_model/cifar10_resnet.yaml</code></p>
+<div class="language-yaml highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=c1># @package _global_</span>
+<span class=na>model</span><span class=pi>:</span>
+  <span class=na>num_layers</span><span class=pi>:</span> <span class=m>5</span>
+</code></pre></div></div>
+<blockquote>
+ <p><strong>Note</strong>: Here we used <code class="language-plaintext highlighter-rouge"># @package _global_</code> instead of <code class="language-plaintext highlighter-rouge"># @package _group_</code>.</p>
+</blockquote>
+<p>We can test the code as follows, where we simply print out the number of features returned by the config file</p>
+<div class="language-python highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=o>@</span><span class=n>hydra</span><span class=p>.</span><span class=n>main</span><span class=p>(</span><span class=n>config_path</span><span class=o>=</span><span class=s>"config"</span><span class=p>,</span> <span class=n>config_name</span><span class=o>=</span><span class=s>"config"</span><span class=p>)</span>
+<span class=k>def</span> <span class=nf>main_func</span><span class=p>(</span><span class=n>cfg</span><span class=p>:</span> <span class=n>DictConfig</span><span class=p>):</span>
+    <span class=k>print</span><span class=p>(</span><span class=s>f"Num features = </span><span class=si>{</span><span class=n>cfg</span><span class=p>.</span><span class=n>model</span><span class=p>.</span><span class=n>num_layers</span><span class=si>}</span><span class=s>"</span><span class=p>)</span>
+</code></pre></div></div>
+<div class="language-plaintext highlighter-rouge"><div class=highlight><pre class=highlight><code>&gt; python main.py dataset=imagenet
+Num features = 50
+
+&gt; python main.py dataset=cifar10
+Num features = 34
+</code></pre></div></div>
+<p>We have to specify <code class="language-plaintext highlighter-rouge">optional: true</code>, as without it we would need to specify all combinations of <code class="language-plaintext highlighter-rouge">dataset</code> and <code class="language-plaintext highlighter-rouge">model</code> (if a user enters a value of <code class="language-plaintext highlighter-rouge">dataset</code> and <code class="language-plaintext highlighter-rouge">model</code> such that we have no config file for that option, then Hydra will throw an error for missing config file).</p>
+<p><a href=https://hydra.cc/docs/patterns/specializing_config>documentation</a> of this topic.</p>
+<p>The rest of the process is same, create separate config groups for optimizer, learning rate scheduler, callbacks, evaluation metrics, losses, training scripts. In terms of creating config files and using them in your project this is all you need to know.</p>
+<h2 id=random-things>
+<a class=anchor href=#random-things aria-hidden=true><span class="octicon octicon-link"></span></a>Random things</h2>
+<h3 id=show-config-file>
+<a class=anchor href=#show-config-file aria-hidden=true><span class="octicon octicon-link"></span></a>Show config file</h3>
+<p>Prints the config file that is being passed to a function without running the function. Usage <code class="language-plaintext highlighter-rouge">--cfg [OPTION]</code> Valid <code class="language-plaintext highlighter-rouge">OPTION</code> are</p>
+<ul>
+ <li>
+<code class="language-plaintext highlighter-rouge">job</code>: Your config file</li>
+ <li>
+<code class="language-plaintext highlighter-rouge">hydra</code>: Hydra’s config</li>
+ <li>
+<code class="language-plaintext highlighter-rouge">all</code> : <code class="language-plaintext highlighter-rouge">job</code> + <code class="language-plaintext highlighter-rouge">hydra</code>
+</li>
+</ul>
+<p>This is useful for quick debugging when you want to check what is being passed to a function. Example,</p>
+<div class="language-plaintext highlighter-rouge"><div class=highlight><pre class=highlight><code>&gt; python main.py --cfg job
+# @package _global_
+num_samples: 2
+dataset:
+  name: dataset1
+  feature_size: 5
+</code></pre></div></div>
+<h3 id=multi-run>
+<a class=anchor href=#multi-run aria-hidden=true><span class="octicon octicon-link"></span></a>Multi-run</h3>
+<p>This is a very useful feature of hydra. Check the <a href=https://hydra.cc/docs/tutorials/basic/running_your_app/multi-run>docs</a> for more details. The main idea is you can run your model for different values of learning rate, different values of weight decay using a single command. An example is shown below</p>
+<div class="language-python highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=err>❯</span> <span class=n>python</span> <span class=n>main</span><span class=p>.</span><span class=n>py</span> <span class=n>lr</span><span class=o>=</span><span class=mf>1e-3</span><span class=p>,</span><span class=mf>1e-2</span> <span class=n>wd</span><span class=o>=</span><span class=mf>1e-4</span><span class=p>,</span><span class=mf>1e-2</span> <span class=o>-</span><span class=n>m</span>
+<span class=p>[</span><span class=mi>2021</span><span class=o>-</span><span class=mi>03</span><span class=o>-</span><span class=mi>15</span> <span class=mi>04</span><span class=p>:</span><span class=mi>18</span><span class=p>:</span><span class=mi>57</span><span class=p>,</span><span class=mi>882</span><span class=p>][</span><span class=n>HYDRA</span><span class=p>]</span> <span class=n>Launching</span> <span class=mi>4</span> <span class=n>jobs</span> <span class=n>locally</span>
+<span class=p>[</span><span class=mi>2021</span><span class=o>-</span><span class=mi>03</span><span class=o>-</span><span class=mi>15</span> <span class=mi>04</span><span class=p>:</span><span class=mi>18</span><span class=p>:</span><span class=mi>57</span><span class=p>,</span><span class=mi>882</span><span class=p>][</span><span class=n>HYDRA</span><span class=p>]</span>        <span class=c1>#0 : lr=0.001 wd=0.0001
+</span><span class=p>[</span><span class=mi>2021</span><span class=o>-</span><span class=mi>03</span><span class=o>-</span><span class=mi>15</span> <span class=mi>04</span><span class=p>:</span><span class=mi>18</span><span class=p>:</span><span class=mi>58</span><span class=p>,</span><span class=mi>016</span><span class=p>][</span><span class=n>HYDRA</span><span class=p>]</span>        <span class=c1>#1 : lr=0.001 wd=0.01
+</span><span class=p>[</span><span class=mi>2021</span><span class=o>-</span><span class=mi>03</span><span class=o>-</span><span class=mi>15</span> <span class=mi>04</span><span class=p>:</span><span class=mi>18</span><span class=p>:</span><span class=mi>58</span><span class=p>,</span><span class=mi>149</span><span class=p>][</span><span class=n>HYDRA</span><span class=p>]</span>        <span class=c1>#2 : lr=0.01 wd=0.0001
+</span><span class=p>[</span><span class=mi>2021</span><span class=o>-</span><span class=mi>03</span><span class=o>-</span><span class=mi>15</span> <span class=mi>04</span><span class=p>:</span><span class=mi>18</span><span class=p>:</span><span class=mi>58</span><span class=p>,</span><span class=mi>275</span><span class=p>][</span><span class=n>HYDRA</span><span class=p>]</span>        <span class=c1>#3 : lr=0.01 wd=0.01
+</span></code></pre></div></div>
+<p>Hydra will run your script with all combinations of <code class="language-plaintext highlighter-rouge">lr</code> and <code class="language-plaintext highlighter-rouge">wd</code>. The output will be stored in a new folder called <code class="language-plaintext highlighter-rouge">multirun</code> (instead of <code class="language-plaintext highlighter-rouge">outputs</code>). This folder also follows the same syntax of storing the contents in a date and time subfolder. The directory structure after running the above command is shown below</p>
+<div class="language-bash highlighter-rouge"><div class=highlight><pre class=highlight><code>multirun
+└── 2021-03-15
+    └── 04-21-32
+        ├── 0
+        │&nbsp;&nbsp; ├── .hydra
+        │&nbsp;&nbsp; └── main.log
+        ├── 1
+        │&nbsp;&nbsp; ├── .hydra
+        │&nbsp;&nbsp; └── main.log
+        ├── 2
+        │&nbsp;&nbsp; ├── .hydra
+        │&nbsp;&nbsp; └── main.log
+        ├── 3
+        │&nbsp;&nbsp; ├── .hydra
+        │&nbsp;&nbsp; └── main.log
+        └── multirun.yaml
+</code></pre></div></div>
+<p>It is same as <code class="language-plaintext highlighter-rouge">outputs</code> except four folders are created here for the run instead of one. You can check the <a href=https://hydra.cc/docs/tutorials/basic/running_your_app/multi-run>documentation</a> on different ways of specifying the value of the variables to run the script on (these are called <em>sweeps</em>).</p>
+<p>Also, this would run your script locally and sequentially. If you want to run your script in parallel across multiple nodes or run it on AWS, you can check the documentation for the following plugins</p>
+<ul>
+ <li>
+<a href=https://hydra.cc/docs/plugins/joblib_launcher>Joblib</a> - Uses <a href=https://joblib.readthedocs.io/en/latest/parallel.html>Joblib.Parallel</a>
+</li>
+ <li>
+<a href=https://hydra.cc/docs/plugins/ray_launcher>Ray</a> - Run jobs on aws cluster or local cluster</li>
+ <li><a href=https://hydra.cc/docs/plugins/rq_launcher>RQ</a></li>
+ <li><a href=https://hydra.cc/docs/plugins/submitit_launcher>Submitit</a></li>
+</ul>
+<h3 id=add-color-to-terminal>
+<a class=anchor href=#add-color-to-terminal aria-hidden=true><span class="octicon octicon-link"></span></a>Add color to terminal</h3>
+<p>You can add color to the output of terminal output of Hydra by installing this plugin</p>
+<div class="language-python highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=n>pip</span> <span class=n>install</span> <span class=n>hydra_colorlog</span> <span class=o>--</span><span class=n>upgrade</span>
+</code></pre></div></div>
+<p>and then changing these defaults in your config file</p>
+<div class="language-yaml highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=na>defaults</span><span class=pi>:</span>
+  <span class=pi>-</span> <span class=s>hydra/job_logging</span><span class=pi>:</span> <span class=s>colorlog</span>
+  <span class=pi>-</span> <span class=s>hydra/hydra_logging</span><span class=pi>:</span> <span class=s>colorlog</span>
+</code></pre></div></div>
+<h3 id=specify-help-message>
+<a class=anchor href=#specify-help-message aria-hidden=true><span class="octicon octicon-link"></span></a>Specify help message</h3>
+<p>You can check the logs of one of your runs (under <code class="language-plaintext highlighter-rouge">.hydra/hydra.yaml</code> and then going to <code class="language-plaintext highlighter-rouge">help.template</code>) to see the default help message printed by hydra. But you can modify that message in your main config file as follows</p>
+<div class="language-yaml highlighter-rouge"><div class=highlight><pre class=highlight><code><span class=c1>### config.yaml</span>
+
+<span class=na>hydra</span><span class=pi>:</span>
+  <span class=na>help</span><span class=pi>:</span>
+    <span class=na>template</span><span class=pi>:</span>
+      <span class=s1>'</span><span class=s>This</span><span class=nv> </span><span class=s>is</span><span class=nv> </span><span class=s>the</span><span class=nv> </span><span class=s>help</span><span class=nv> </span><span class=s>message'</span>
+</code></pre></div></div>
+<div class="language-plaintext highlighter-rouge"><div class=highlight><pre class=highlight><code>&gt; python main.py --help
+This is the help message
+</code></pre></div></div>
+<h3 id=output-directory-name>
+<a class=anchor href=#output-directory-name aria-hidden=true><span class="octicon octicon-link"></span></a>Output directory name</h3>
+<p>If you want something more specific, than the <strong>DATE/TIME</strong> naming scheme using by hydra to store the output of all your runs, you can specify the folder name at command line</p>
+<div class="language-plaintext highlighter-rouge"><div class=highlight><pre class=highlight><code>python main.py hydra.run.dir=outputs/my_run
+
+OR
+
+python main.py lr=1e-2,1e-3 hydra.sweep.dir=multirun/my_run -m  
+</code></pre></div></div>
+<hr>
+<p>That would be it for today. Hope this helps you in using Hydra in your projects.</p>
+<p><a href=https://twitter.com/Kkushaj>twitter</a>, <a href=https://www.linkedin.com/in/kushaj/>linkedin</a>, <a href=https://github.com/KushajveerSingh>github</a></p>
+ </div>
+<div class=utterances style=height:518px>
+ 
+ </div><a class="u-url sf-hidden" href=https://www.kushajveersingh.com/blog/complete-tutorial-on-how-to-use-hydra-in-machine-learning-projects hidden></a>
+</article>
+ </div>
+ </main><footer class="site-footer h-card">
+ <data class=u-url href=/blog/></data>
+ <div class=wrapper>
+ <div class=footer-col-wrapper>
+ <div class=footer-col>
+ <p class=feed-subscribe>
+ <a href=https://www.kushajveersingh.com/blog/feed.xml>
+ <svg class="svg-icon orange"><symbol id=rss fill-rule=evenodd clip-rule=evenodd stroke-linejoin=round stroke-miterlimit=1.414><path d="M12.8 16C12.8 8.978 7.022 3.2 0 3.2V0c8.777 0 16 7.223 16 16h-3.2zM2.194 11.61c1.21 0 2.195.985 2.195 2.196 0 1.21-.99 2.194-2.2 2.194C.98 16 0 15.017 0 13.806c0-1.21.983-2.195 2.194-2.195zM10.606 16h-3.11c0-4.113-3.383-7.497-7.496-7.497v-3.11c5.818 0 10.606 4.79 10.606 10.607z"></path></symbol>
+ <use xlink:href=#rss></use>
+ </svg><span>Subscribe</span>
+ </a>
+ </p>
+ </div>
+ <div class=footer-col>
+ <p>Software Engineer working in Full Stack Development, Computer Vision, and Graph Machine Learning.</p>
+ </div>
+ </div>
+ <div class=social-links><ul class=social-media-list><li><a rel=me href=https://github.com/KushajveerSingh target=_blank title=KushajveerSingh><svg class="svg-icon grey"><symbol id=github fill-rule=evenodd clip-rule=evenodd stroke-linejoin=round stroke-miterlimit=1.414><path d="M8 0C3.58 0 0 3.582 0 8c0 3.535 2.292 6.533 5.47 7.59.4.075.547-.172.547-.385 0-.19-.007-.693-.01-1.36-2.226.483-2.695-1.073-2.695-1.073-.364-.924-.89-1.17-.89-1.17-.725-.496.056-.486.056-.486.803.056 1.225.824 1.225.824.714 1.223 1.873.87 2.33.665.072-.517.278-.87.507-1.07-1.777-.2-3.644-.888-3.644-3.953 0-.873.31-1.587.823-2.147-.09-.202-.36-1.015.07-2.117 0 0 .67-.215 2.2.82.64-.178 1.32-.266 2-.27.68.004 1.36.092 2 .27 1.52-1.035 2.19-.82 2.19-.82.43 1.102.16 1.915.08 2.117.51.56.82 1.274.82 2.147 0 3.073-1.87 3.75-3.65 3.947.28.24.54.73.54 1.48 0 1.07-.01 1.93-.01 2.19 0 .21.14.46.55.38C13.71 14.53 16 11.53 16 8c0-4.418-3.582-8-8-8"></path></symbol><use xlink:href=#github></use></svg></a><li><a rel=me href=https://twitter.com/Kkushaj target=_blank title=Kkushaj><svg class="svg-icon grey"><symbol id=twitter fill-rule=evenodd clip-rule=evenodd stroke-linejoin=round stroke-miterlimit=1.414><path d="M16 3.038c-.59.26-1.22.437-1.885.517.677-.407 1.198-1.05 1.443-1.816-.634.37-1.337.64-2.085.79-.598-.64-1.45-1.04-2.396-1.04-1.812 0-3.282 1.47-3.282 3.28 0 .26.03.51.085.75-2.728-.13-5.147-1.44-6.766-3.42C.83 2.58.67 3.14.67 3.75c0 1.14.58 2.143 1.46 2.732-.538-.017-1.045-.165-1.487-.41v.04c0 1.59 1.13 2.918 2.633 3.22-.276.074-.566.114-.865.114-.21 0-.41-.02-.61-.058.42 1.304 1.63 2.253 3.07 2.28-1.12.88-2.54 1.404-4.07 1.404-.26 0-.52-.015-.78-.045 1.46.93 3.18 1.474 5.04 1.474 6.04 0 9.34-5 9.34-9.33 0-.14 0-.28-.01-.42.64-.46 1.2-1.04 1.64-1.7z" fill-rule=nonzero></path></symbol><use xlink:href=#twitter></use></svg></a></ul>
+</div>
+ </div>
+</footer>

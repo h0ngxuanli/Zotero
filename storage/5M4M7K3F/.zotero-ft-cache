@@ -1,0 +1,64 @@
+depends-on-the-definition logo
+epends on the definition
+
+    TLDR; just give me the code
+    Why would you add new tokens to the vocabulary?
+    Detailed step by step guide to extend the vocabulary
+    Summary 
+
+#NLP | #shorts
+2022-05-12 | Tobias Sterbak
+
+How to add new tokens to huggingface transformers vocabulary
+
+In this short article, you’ll learn how to add new tokens to the vocabulary of a huggingface transformer model.
+TLDR; just give me the code
+Copy
+
+ from transformers import AutoTokenizer, AutoModel # pick the model type model_type = " roberta-base " tokenizer = AutoTokenizer . from_pretrained(model_type) model = AutoModel . from_pretrained(model_type) # new tokens new_tokens = [ " new_token " ] # check if the tokens are already in the vocabulary new_tokens = set (new_tokens) - set (tokenizer . vocab . keys()) # add the tokens to the tokenizer vocabulary tokenizer . add_tokens( list (new_tokens)) # add new, random embeddings for the new tokens model . resize_token_embeddings( len (tokenizer))  
+
+Why would you add new tokens to the vocabulary?
+
+In most cases, you won’t train a large language model from scratch, but fine-tune an existing model on new data. Often, the new dataset and natural language task uses new or different domain-specific vocabulary . Examples include legal or medical documents. While the current subword tokenizers used with transformer models are able to handle basically arbitrary tokens this is not optimal. These tokenizers handle unknown tokens by splitting them up in smaller subtokens. This allows for the text to be processed, but the special meaning of the token might be hard to capture for the model this way. Also splitting words up in many subtokens leads to longer sequences of tokens that needs to be processed, hence reducing the efficiency of the model. So adding new, domain-specific tokens to the tokenizer and the model, allows for faster fine-tuning as well as capturing the information in the data better.
+Detailed step by step guide to extend the vocabulary
+
+First, we need to define and load the transformer model from huggingface.
+Copy
+
+ from transformers import AutoTokenizer, AutoModel model_type = " roberta-base " tokenizer = AutoTokenizer . from_pretrained(model_type) model = AutoModel . from_pretrained(model_type)  
+
+At the next step, we need to prepare the set of new tokens and check if they are already in the vocabulary of our tokenizer. We have access to the vocabulary mapping of the tokenizer with tokenizer.vocab . This is a dictionary with tokens as keys and indices as values. So we do it like this:
+Copy
+
+ new_tokens = [ " new_token " ] new_tokens = set (new_tokens) - set (tokenizer . vocab . keys())  
+
+Now we can use the add_tokens method of the tokenizer to add the tokens and extend the vocabulary .
+Copy
+
+ tokenizer . add_tokens( list (new_tokens))  
+
+As a final step, we need to add new embeddings to the embedding matrix of the transformer model. We can do that by invoking the resize_token_embeddings method of the model with the number of tokens (including the new tokens added) in the vocabulary.
+Copy
+
+ model . resize_token_embeddings( len (tokenizer))  
+
+Note, that increasing the size of the embedding matrix will add newly initialized vectors at the end. Using these new embeddings untrained might already be useful, but usually at least some steps of fine-tuning are required.
+Summary
+
+So we saw, why and how you can extend the vocabulary of a transformer model like roBERTa or BERT . Let me know why you needed it and how it worked out for you.
+Buy Me A Coffee
+Similar articles:
+
+    How to test error messages with pytest
+    Learning unsupervised embeddings for textual similarity with transformers
+    The missing guide on data preparation for language modeling
+    Data augmentation with transformer models for named entity recognition
+    How to approach almost any real-world NLP problem 
+
+Join the newsletter :
+
+Privacy • Imprint • RSS
+
+© depends-on-the-definition 2017-2022
+Buy Me A Coffee
+Support me

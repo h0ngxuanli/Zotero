@@ -1,0 +1,84 @@
+
+menu
+Skip to
+content
+Kaggle
+Create
+
+    explore
+
+    Home
+    emoji_events
+
+    Competitions
+    table_chart
+
+    Datasets
+    tenancy
+
+    Models
+    code
+
+    Code
+    comment
+
+    Discussions
+    school
+
+    Learn
+    expand_more
+
+    More
+
+auto_awesome_motion
+0
+
+View Active Events
+search
+Andrada · 5mo ago · 6,036 views
+arrow_drop_up 79
+Copy & Edit 68
+gold medal
+more_vert
+🧨img2text: Image Generator using 🤗diffusers
+Python · Image2text: Generated Texts , Stable Diffusion - Image to Prompts
+🧨img2text: Image Generator using 🤗diffusers
+Notebook
+Input
+Output
+Logs
+Comments (8)
+Profile picture for undefined
+Competition Notebook
+
+Stable Diffusion - Image to Prompts
+Run
+
+934.4s - GPU P100
+history Version 5 of 5
+GPU
+Table of Contents
+chevron_right
+Text2Image - but make it backwards
+Gentle Intro to Stable Diffusion
+1. Kaggle Sample Data Explore
+2. Generate Images using HuggingFace's diffuser
+3. Generating the text for the images
+License
+
+This Notebook has been released under the Apache 2.0 open source license.
+Continue exploring
+
+    Input
+    2 files
+    arrow_right_alt
+    Output
+    71 files
+    arrow_right_alt
+    Logs
+    934.4 second run - successful
+    arrow_right_alt
+    Comments
+    8 comments
+    arrow_right_alt
+

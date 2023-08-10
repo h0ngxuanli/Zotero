@@ -1,0 +1,82 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2306.03600
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 6 Jun 2023]
+Title: Avoid Adversarial Adaption in Federated Learning by Multi-Metric Investigations
+Authors: Torsten Krauß (1), Alexandra Dmitrienko (1) ((1) University of Würzburg)
+Download a PDF of the paper titled Avoid Adversarial Adaption in Federated Learning by Multi-Metric Investigations, by Torsten Krau{\ss} (1) and Alexandra Dmitrienko (1) ((1) University of W\"urzburg)
+Download PDF
+
+    Abstract: Federated Learning (FL) trains machine learning models on data distributed across multiple devices, avoiding data transfer to a central location. This improves privacy, reduces communication costs, and enhances model performance. However, FL is prone to poisoning attacks, which can be untargeted aiming to reduce the model performance, or targeted, so-called backdoors, which add adversarial behavior that can be triggered with appropriately crafted inputs. Striving for stealthiness, backdoor attacks are harder to deal with.
+    Mitigation techniques against poisoning attacks rely on monitoring certain metrics and filtering malicious model updates. However, previous works didn't consider real-world adversaries and data distributions. To support our statement, we define a new notion of strong adaptive adversaries that can simultaneously adapt to multiple objectives and demonstrate through extensive tests, that existing defense methods can be circumvented in this adversary model. We also demonstrate, that existing defenses have limited effectiveness when no assumptions are made about underlying data distributions.
+    To address realistic scenarios and adversary models, we propose Metric-Cascades (MESAS) a new defense that leverages multiple detection metrics simultaneously for the filtering of poisoned model updates. This approach forces adaptive attackers into a heavy multi-objective optimization problem, and our evaluation with nine backdoors and three datasets shows that even our strong adaptive attacker cannot evade MESAS's detection. We show that MESAS outperforms existing defenses in distinguishing backdoors from distortions originating from different data distributions within and across the clients. Overall, MESAS is the first defense that is robust against strong adaptive adversaries and is effective in real-world data scenarios while introducing a low overhead of 24.37s on average. 
+
+Comments: 	23 pages, 12 figures, 27 tables, 11 equations
+Subjects: 	Machine Learning (cs.LG)
+Cite as: 	arXiv:2306.03600 [cs.LG]
+  	(or arXiv:2306.03600v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2306.03600
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Torsten Krauß [ view email ]
+[v1] Tue, 6 Jun 2023 11:44:42 UTC (1,290 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Avoid Adversarial Adaption in Federated Learning by Multi-Metric Investigations, by Torsten Krau{\ss} (1) and Alexandra Dmitrienko (1) ((1) University of W\"urzburg)
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2306
+Change to browse by:
+cs
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

@@ -1,15 +1,15 @@
 {
 	"translatorID": "e40a27bc-0eef-4c50-b78b-37274808d7d2",
+	"translatorType": 4,
 	"label": "J-Stage",
 	"creator": "Sebastian Karcher",
 	"target": "^https?://www\\.jstage\\.jst\\.go\\.jp/",
 	"minVersion": "3.0",
-	"maxVersion": "",
+	"maxVersion": null,
 	"priority": 100,
 	"inRepository": true,
-	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-06-15 19:04:11"
+	"lastUpdated": "2023-04-28 11:15:00"
 }
 
 /*
@@ -35,7 +35,8 @@
 */
 
 function detectWeb(doc, url) {
-	if (url.includes("/article/")) {
+	// don't detect on PDF pages
+	if (url.includes("/article/") && !url.includes("/_pdf")) {
 		return "journalArticle";
 	}
 	else if ((url.includes("/result/") || url.includes("/browse/"))

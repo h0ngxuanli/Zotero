@@ -1,0 +1,79 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2302.01503
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 3 Feb 2023]
+Title: LazyGNN: Large-Scale Graph Neural Networks via Lazy Propagation
+Authors: Rui Xue , Haoyu Han , MohamadAli Torkamani , Jian Pei , Xiaorui Liu
+Download a PDF of the paper titled LazyGNN: Large-Scale Graph Neural Networks via Lazy Propagation, by Rui Xue and 4 other authors
+Download PDF
+
+    Abstract: Recent works have demonstrated the benefits of capturing long-distance dependency in graphs by deeper graph neural networks (GNNs). But deeper GNNs suffer from the long-lasting scalability challenge due to the neighborhood explosion problem in large-scale graphs. In this work, we propose to capture long-distance dependency in graphs by shallower models instead of deeper models, which leads to a much more efficient model, LazyGNN, for graph representation learning. Moreover, we demonstrate that LazyGNN is compatible with existing scalable approaches (such as sampling methods) for further accelerations through the development of mini-batch LazyGNN. Comprehensive experiments demonstrate its superior prediction performance and scalability on large-scale benchmarks. LazyGNN also achieves state-of-art performance on the OGB leaderboard. 
+
+Subjects: 	Machine Learning (cs.LG)
+Cite as: 	arXiv:2302.01503 [cs.LG]
+  	(or arXiv:2302.01503v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2302.01503
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Rui Xue [ view email ]
+[v1] Fri, 3 Feb 2023 02:33:07 UTC (375 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled LazyGNN: Large-Scale Graph Neural Networks via Lazy Propagation, by Rui Xue and 4 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2302
+Change to browse by:
+cs
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

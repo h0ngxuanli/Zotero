@@ -1,0 +1,1387 @@
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+arXiv:2103.05045v2 [cs.LG] 6 Jul 2021
+
+Beatrice Bevilacqua * 1 Yangze Zhou * 2 Bruno Ribeiro 1
+
+Abstract
+In general, graph representation learning methods assume that the train and test data come from the same distribution. In this work we consider an underexplored area of an otherwise rapidly developing ﬁeld of graph representation learning: The task of out-of-distribution (OOD) graph classiﬁcation, where train and test data have different distributions, with test data unavailable during training. Our work shows it is possible to use a causal model to learn approximately invariant representations that better extrapolate between train and test data. Finally, we conclude with synthetic and real-world dataset experiments showcasing the beneﬁts of representations that are invariant to train/test distribution shifts.
+1. Introduction
+In general, graph representation learning methods assume that the train and test data come from the same distribution. Unfortunately, this assumption is not always valid in real-world deployments (Hu et al., 2020; Koh et al., 2020; D’Amour et al., 2020). When the test distribution is different from training, the test data is described as out of distribution (OOD). Differences in train/test distribution may be due to environmental factors such as those related to the way the data is collected or processed.
+Particularly, in graph classiﬁcation tasks, where G is the graph and Y its label, we often see different graph sizes and/or distinct arrangements of vertex attributes associated with the same target label. How should we learn a graph representation for out-of-distribution inductive tasks (extrapolations), where the graphs in training and test (deployment) have distinct characteristics (i.e., Ptr(G) = Pte(G))? Are inductive graph neural networks (GNNs) robust to distribution shifts between Ptr(G) and Pte(G)? If not, is it possible
+*Equal contribution 1Department of Computer Science, and 2Department of Statistics, Purdue University, West Lafayette, Indiana, USA. Correspondence to: Beatrice Bevilacqua <bbevilac@purdue.edu>.
+Proceedings of the 38 th International Conference on Machine Learning, PMLR 139, 2021. Copyright 2021 by the author(s).
+
+Train Environment
+# vertices train
+
+Graphon Model
+Target Label
+
+Test Environment
+# vertices test
+
+Train graph
+
+Test graph
+
+Figure 1. The twin network DAG (Balke & Pearl, 1994) of our structural causal model (SCM). Gray (resp. white) vertices represent observed (resp. hidden) random variables.
+to design a graph classiﬁer that is robust to such OOD shifts without access to samples from Pte(G)?
+In this work we consider an OOD graph classiﬁcation task with different train and test distributions based on graph sizes and vertex attributes. Our work focuses on simple (no self-loops) undirected graphs with discrete vertex attributes. We make the common assumption of independence between cause and mechanisms (Bengio et al., 2020; Besserve et al., 2018; Johansson et al., 2016; Louizos et al., 2017; Raj et al., 2020; Scho¨lkopf, 2019; Arjovsky et al., 2019), which states that P(Y |G) remains the same between train and test. We also assume we do not have access to samples from Pte(G), hence covariate shift adaptation methods (such as Yehudai et al. (2021)) are unﬁt for our scenario. In our setting we need to learn to extrapolate from a causal model.
+Contributions. Our contributions are as follows:
+1. We provide a causal model that formally describes a class of graph classiﬁcation tasks where the training (Ptr(G)) and test (Pte(G)) graphs have different size and vertex attribute distributions.
+2. Assuming Independence between Cause and Mechanism (ICM) (Louizos et al., 2017; Shajarisales et al., 2015), we introduce a graph representation method based on the work of Lova´sz & Szegedy (2006) and Graph Neural
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+Networks (GNNs) (Kipf & Welling, 2017; Hamilton et al., 2017; You et al., 2019) that is invariant to the train/test distribution shifts of our causal model. Unlike existing invariant representations, this representation can perform extrapolations from single training environment (e.g., all training graphs have the same size).
+3. Our empirical results show that, in most experiments, neither Invariant Risk Minimization (IRM) (Arjovsky et al., 2019) nor the GNN extrapolation modiﬁcations proposed by Xu et al. (2021) are able to perform well in graph classiﬁcation tasks over the OOD test data.
+2. Graph Classiﬁcation: A Causal Model Based on Random Graphs
+Out-of-distribution (OOD) shift. For any joint distribution P(Y, G) of graphs G and labels Y , there are inﬁnitely many causal models that give the same joint distribution (Pearl, 2009). This phenomenon is known as model underspeciﬁcation. Hence, if the training data distribution Ptr(Y, G) does not have the same support as the test distribution Pte(Y, G), a model trained with samples drawn from Ptr(Y, G) needs to be able to extrapolate in order to correctly predict Pte(Y |G). In this work, we assume Independence between Cause and Mechanism (ICM): Ptr(Y |G) = Pte(Y |G), which is a common assumption in the causal deep learning literature (Bengio et al., 2020; Besserve et al., 2018; Johansson et al., 2016; Louizos et al., 2017; Raj et al., 2020; Scho¨lkopf, 2019; Arjovsky et al., 2019).
+In inductive graph classiﬁcation tasks, ICM implies that the shift between train and test distributions Ptr(Y, G) = Pte(Y, G) comes from Ptr(G) = Pte(G), since Ptr(Y |G) = Pte(Y |G). And because our task is inductive, i.e., no data from Pte(G) or a proxy variable, we must make assumptions about the causal mechanisms in order to extrapolate.
+Causal model. A graph representation that is robust (invariant) to shifts in Pte(G) must know how the distribution shifts. Either we are given some examples from Pte(G) (a.k.a. covariate shift adaptation (Sugiyama et al., 2007)) or we are given a causal structure that describes how the test distribution can shift. Our paper focuses on the latter by giving a Structural Causal Model (SCM) for the data generation process in Deﬁnitions 1 and 2. The deﬁnition of the Structural Causal Model (SCM) is needed since the observational probability itself does not provide any causal information (see observational equivalence in Pearl (2009, Theorem 1.2.8)). Figure 1 depicts the Directed Acyclic Graph (DAG) of our causal model. It uses the twin network DAGs structure ﬁrst proposed by Balke & Pearl (1994) (see Pearl (2009, Chapter 7.1.4)) in order to deﬁne how the test distribution can change.
+
+In what follows we detail the SCM in Deﬁnitions 1 and 2. Our causal model is inspired by Stochastic Block Models (SBMs) (Diaconis & Freedman, 1981; Snijders & Nowicki, 1997) and their connection to graphon random graph models (Airoldi et al., 2013; Lova´sz & Szegedy, 2006): Deﬁnition 1 (Training Graph GNtr tr ). The training graph SCM is depicted at the left side of the twin network DAG in Figure 1.
+• The training graph is characterized by a graphon W ∼ P(W ), where W : [0, 1]2 → [0, 1] is a random symmetric measurable function (Lova´sz & Szegedy, 2006) sampled (according to some distribution) from DW , the set of all symmetric measurable functions on [0, 1]2 → [0, 1]. W deﬁnes both the graph’s target label and some of its structural and attribute characteristics, but W is unknown.
+• The training environment Etr ∼ Ptr(E) is a hidden environment variable that represents speciﬁc graph properties that change between the training and test. Etr ∈ E for some properly deﬁned environment space E.
+• The graph’s size is determined by its environment N tr := η(Etr), where η is an unknown deterministic function.
+• The graph’s target label is given by Y := h(W, ZY ), Y ∈ Y, with Y some properly deﬁned discrete target space. ZY is an independent random noise variable and h is a deterministic function on the input space DW × R.
+• The vertices are numbered V tr = {1, . . . , N tr}. Each vertex v ∈ V tr has an associated hidden variable Uv ∼ Uniform(0, 1) sampled i.i.d.. The graph is undirected and its adjacency matrix Atr ∈ {0, 1}Ntr×Ntr is deﬁned by
+Atur,v := 1(Zu,v > W (Uu, Uv)), ∀u, v ∈ V tr, u = v. (1)
+The diagonals are set to 0 because there is no selfloop. Here 1 is an indicator function, and {Zu,v = Zv,u}u,v∈V tr are independent uniform noises on [0, 1].
+• The graph may contain discrete vertex attributes Xtr ∈ XNtr deﬁned as
+Xvtr := gX (Etr, W (Uv, Uv)), ∀v ∈ V tr,
+where Xvtr ∈ X, and X is some properly deﬁned attribute space. gX is a deterministic function that determines a vertex attribute using W (Uv, Uv) ∈ [0, 1] via, say, inverse sampling (Tweedie, 1945) the vertex attribute distribution.
+• Then, the training graph is
+GNtr tr := (Atr, Xtr).
+The test data comes from the following (coupled) distribution, that is, the model uses some of the same random variables of the training graph model, effectively only replacing Etr by Ete, as shown in the DAG of Figure 1.
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+Deﬁnition 2 (Test Graph GNte te ). The SCM of the test graph is given by the right side of the twin network DAG in Figure 1, changing the following variables from Deﬁnition 1:
+• The test environment Ete ∼ Pte(E), and Ete ∈ E belongs to the same space as Etr. It represents speciﬁc properties of the graphs that change between the test and training data. Denote supp(·) := {x|P(x) > 0} as the support of a random variable. The supports of Ete and Etr may not overlap (i.e., supp(Ete) ∩ supp(Etr) = ∅).
+• The change in environment from Etr to Ete may change the graph’s size as N te := η(Ete), where η is the same unknown deterministic function as in Deﬁnition 1.
+• The vertices are numbered V te = {1, . . . , N te}. The adjacency matrix Ate ∈ {0, 1}Nte×Nte is deﬁned as in Equation (1).
+• The graph may contain discrete vertex attributes Xte ∈ XNte deﬁned as
+Xvte := gX (Ete, W (Uv, Uv)), ∀v ∈ V te,
+with gX as given in Deﬁnition 1.
+• Then, the test graph is
+GNte te := (Ate, Xte).
+Our SCM has a direct connection with graphon random graph model (Lova´sz & Szegedy, 2006), and extends it by considering vertex attributes. Now we introduce examples of our graph classiﬁcation tasks based on Deﬁnitions 1 and 2 using two classic random graph models.
+Notation: (GN* * , E*, A*, V *, X*) In what follows we use the superscript * as a wildcard to describe both train and test random variables. For instance, GN* * is a variable that is a wildcard for referring to either GNtr tr or GNte te . Also, from now on we deﬁne Pte(G) = P(GNte te ) and Ptr(G) = P(GNtr tr ).
+Erdo˝s-Re´nyi example. Consider a random training environment Etr such that N tr = η(Etr) is the number of vertices for graphs in our training data. Let p be the probability that any two distinct vertices of the graph have an edge. Deﬁne W as a constant function that always outputs p. Sample independent uniform noises Zu,v ∼ Uniform(0, 1) (for each possible edge, Zu,v = Zv,u). An Erdo˝s-Re´nyi graph can be deﬁned as a graph whose adjacency matrix Atr is Atur,v = 1(Zu,v > W (Uu, Uv)) = 1(Zu,v > p), ∀u, v ∈ V tr, u = v. Here vertex attributes are not considered and we can deﬁne Xvtr = Ø, ∀v ∈ V tr as the null attribute.
+In the test data, we have a different environment Ete and graph size N te = η(Ete), with supp(N te) ∩ supp(N tr) =
+
+∅. The variable {Zu,v}u,v∈{1,...,max(supp(Ntr)∪supp(Nte))} can be thought as the seed of a random number generator to determine if two distinct vertices u and v are connected by an edge. The above deﬁnes our training and test data as a set of Erdo˝s-Re´nyi random graphs of sizes N tr and N te with probability p. The targets of the Erdo˝s-Re´nyi graphs can be, for instance, the value Y = p in Deﬁnition 1, which is determined by W and invariant to graph sizes.
+
+Stochastic Block Model (SBM) (Snijders & Nowicki,
+1997). An SBM can be seen as a generalization of Erdo˝s-
+Re´nyi graphs. SBMs partition the vertex set into disjoint
+subsets S1, S2, ..., Sr (known as blocks or communities) with an associated r × r symmetric matrix P , where the
+probability of an edge (u, v), u ∈ Si and v ∈ Sj is Pij, for i, j ∈ {1, . . . , r}. In the training and test data, we
+still have i.i.d sampled Zu,v = Zv,u and different environments Etr, Ete. Divide the interval [0, 1] into disjoint
+convex sets [t0, t1), [t1, t2), . . . , [tr−1, tr], where t0 = 0 and tr = 1, such that if Uv ∼ Uniform(0, 1) satisﬁes Uv ∈ [ti−1, ti), then vertex v belongs to block Si. Thus W (Uu, Uv) = i,j∈{1,...,r} Pij 1(Uu ∈ [ti−1, ti))1(Uv ∈ [tj−1, tj)). An SBM graph in training or test can be deﬁned as a graph whose adjacency matrix A* is A*u,v = 1(Zu,v > W (Uu, Uv)), ∀u, v ∈ V *, u = v. Now we have a set of SBM random graphs of sizes N tr and N te with P . Consider
+if there are only two blocks, the target Y can be P1,2 which is the probability of an edge connecting vertices between
+the blocks, determined by W and invariant to graph sizes.
+
+SBM with vertex attributes. For the SBM, assume the
+
+vertex attributes are tied to blocks, and are distinct for each
+
+block. The environment variable operates on changing the
+
+distributions of attributes assigned in each block. Con-
+
+sider the following SBM example with two blocks: Deﬁne
+
+W (Uv, Uv)
+
+=
+
+Uv 2t1
+
+1(Uv
+
+∈
+
+[0,
+
+t1))
+
++
+
+(
+
+1 2
+
++
+
+Uv −t1 2(1−t1 )
+
+)1(Uv
+
+∈
+
+[t1, 1]).
+
+So
+
+W (Uv, Uv)
+
+<
+
+1 2
+
+if
+
+and
+
+only
+
+if
+
+v
+
+belongs
+
+to
+
+the
+
+ﬁrst block. We only change the values of W for points on a
+
+zero-measure space. Let gX be such that it deﬁnes constants
+
+as
+
+0
+
+<
+
+αE*,1
+
+<
+
+1 2
+
+<
+
+αE*,2
+
+<
+
+1,
+
+and
+
+vertex
+
+attributes
+
+as
+
+1(W (Uv, Uv) ∈ [0, αE*,1)) 
+
+Xv*
+
+=
+
+gX
+
+(E
+
+*,
+
+W
+
+(Uv
+
+,
+
+Uv
+
+))
+
+=11((WW
+
+(Uv (Uv
+
+, ,
+
+Uv Uv
+
+) )
+
+∈ ∈
+
+[[α.5E, α*,1E, *.,52)))),
+
+1(W (Uv, Uv) ∈ [αE*,2, 1])
+
+where the attribute of vertex v, Xv*, is one-hot encoded to represent 4 colors: red and blue (if v is in block 1) and green
+and yellow (if v is in block 2).
+
+3. E-Invariant Graph Representations
+In this section we discuss shortcomings of traditional graph representation methods for out-of-distribution (OOD) graph
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+classiﬁcation tasks. We will base our discussion on our Structural Causal Model (SCM) (described in Deﬁnitions 1 and 2 and Figure 1). We show that there is an approximately environment-invariant graph representation that is able to extrapolate to OOD test data.
+The shortcomings of standard graph representation methods. Figure 1 shows that our target variable Y is a function only of the graphon variable W , rather than the training or test environments, Etr and Ete, respectively. However, Y is not independent of Etr given GNtr tr , since both Etr and W affect Atr and Xtr (which are colliders), and Y depends on W . Hence, traditional graph representation learning methods can pick up this easy spurious correlation in the training data (via shortcut learning (Geirhos et al., 2020)), which would prevent the model learning the correct OOD test predictor.
+To address the challenge of correctly predicting Y in our OOD test data, regardless of spurious correlations between the variables, we need an estimator that can account for it. In what follows we focus on environment-invariant (E-invariant) graph representations. To show the ability of E-invariant representations to extrapolate to OOD test data, we introduce the deﬁnition and the effect on downstream OOD classiﬁcation tasks in the following proposition.
+Proposition 1. [E-invariant Representation’s Effect on OOD Classiﬁcation] Consider a permutation-invariant graph representation Γ : ∪∞ n=1{0, 1}n×n × Xn → Rd, d ≥ 1, and a downstream function ρ : Y × Rd → [0, 1] (e.g., a feedforward neural network (MLP) with softmax outputs) such that, for some , δ > 0, the generalization error over the training distribution is: ∀y ∈ Y,
+P( |P(Y = y|GNtr tr ) − ρ(y, Γ(GNtr tr ))| ≤ ) ≥ 1 − δ,
+Γ is said to be environment-invariant (E-invariant) if ∀e ∈ supp(Etr), ∀e† ∈ supp(Ete),
+Γ(GNtr tr |Etr = e) = Γ(GNte te |Ete = e†).
+If Γ is E-invariant, then the OOD test error is the same as the generalization error over the training distribution, i.e., ∀y ∈ Y,
+P(|P(Y = y|GNte te ) − ρ(y, Γ(GNte te ))| ≤ ) ≥ 1 − δ. (2)
+Proposition 1 shows that an E-invariant representation will perform no worse on the OOD test data (extrapolation samples from (Y, GNte te )) than on a test dataset having the same environment distribution as the training data (samples from (Y, GNtr tr )). Our task now becomes ﬁnding an E-invariant graph representation Γ that can be used to predict Y .
+The shortcomings of Invariant Risk Minimization (IRM). Invariant Risk Minimization (IRM) (Arjovsky
+
+et al., 2019) aims to learn a representation that is invariant across all training environments, ∀e ∈ supp(Etr), by adding a regularization penalty on the empirical risk. However, IRM will fail if: (i) supp(Ete) ⊆ supp(Etr), since the penalty provides no guarantee that the representation will still be invariant w.r.t. e† ∈ supp(Ete)\supp(Etr) if the representation is a nonlinear function of the input (Rosenfeld et al., 2020); and (ii) if the training data only contains a single environment, i.e., supp(Etr) = {e}. For instance, the training data may contain only graphs of a single size. In this case, we are unable to apply IRM for size extrapolations. Our experiments show that the IRM procedure does not seem to work for graph representation learning.
+In what follows we leverage the stability of subgraph densities (more precisely, induced homomorphism densities) in graphon random graph models (Lova´sz & Szegedy, 2006) to learn E-invariant representations for the SCM deﬁned in Deﬁnitions 1 and 2, whose DAG is illustrated in Figure 1.
+
+3.1. An Approximately E-Invariant Graph Representations for Our Model
+
+Let GN* * denote either an N tr-sized train or N te-sized test graph from the SCM in Deﬁnitions 1 and 2. For a given k-
+vertex graph Fk (k < N *), let ind(Fk, GN* * ) be the number of induced homomorphisms of Fk into GN* * , informally, the number of mappings from V (Fk) to V (GN* * ) such that the corresponding subgraph induced in GN* * is isomorphic to Fk. The induced homomorphism density is deﬁned as
+
+tind(Fk, GN* * )
+
+=
+
+ind(Fk, GN* * ) , N *!/(N * − k)!
+
+(3)
+
+where the denominator is the number of possible mappings.
+Let F≤k be the set of all connected vertex-attributed graphs
+of size k ≤ k. Using the subgraph densities (induced homomorphism densities) {tind(Fk , GN* * )}Fk ∈F≤k we will construct a (feature vector) representation for GN* * , similar to Hancock & Khoshgoftaar (2020); Pinar et al. (2017),
+
+Γ1-hot(GN* * ) =
+
+tind(Fk , GN* * )1one-hot{Fk , F≤k}, (4)
+
+Fk ∈F≤k
+
+where 1one-hot{Fk , F≤k} assigns a unique one-hot vector to each distinct graph Fk in F≤k. For instance, for k = 4, the one-hot vectors could be (1,0,. . . ,0)= , (0,1,. . . ,0)= , (0,0,. . . ,1,. . . ,0)= , (0,0,. . . ,1)= , etc.. In Section 3.2 we show that the (feature vector) representation in Equation (4) is approximately environment-invariant in our SCM model.
+
+An alternative approach is to replace the one-hot vector representation with learnable graph representation models. We ﬁrst use Graph Neural Networks (GNNs) (Kipf & Welling, 2017; Hamilton et al., 2017; You et al., 2019) to learn representations that can capture information from vertex attributes. Simply speaking, GNNs proceed by vertices
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+passing messages, amongst each other, through a learnable function such as an MLP, and repeating L ∈ Z≥1 layers.
+Consider the following simple GNN example. Let V * be the set of vertices. At each iteration l ∈ {1, 2, . . . , L}, all vertices v ∈ V * are associated with a learned vector h(vl). Speciﬁcally, we begin by initializing a vector as h(v0) = Xv for every vertex v ∈ V *. Then, we recursively compute an update such as the following ∀v ∈ V *,
+h(vl) = MLP(l) h(vl−1), READOUTNeigh((h(ul−1))u∈N(v)) , (5)
+where N (v) ⊆ V * denotes the neighborhood set of v in the graph, READOUTNeigh is a permutation-invariant function (e.g. sum) of the neighborhood learned vectors, MLP(l) denotes a multi-layer perceptron and whose superscript l indicates that the MLP at each recursion layer may have different learnable parameters. There are other alternatives to Equation (5) that we will also test in our experiments.
+Then, we arrive to the following representation of GN* * :
+ΓGNN(GN* * ) =
+tind(Fk , GN* * )READOUTΓ(GNN(Fk )), (6)
+Fk ∈F≤k
+where READOUTΓ is a permutation-invariant function that maps the vertex-level outputs of a GNN to a graph-level representation (e.g. by summing all vertex embeddings). Unfortunately, GNNs are not most-expressive representations of graphs (Morris et al., 2019; Murphy et al., 2019; Xu et al., 2019) and thus ΓGNN(·) is less expressive than Γ1-hot(·). A representation with greater expressive power is
+ΓGNN+ (GN* * ) = tind(Fk , GN* * )READOUTΓ(GNN+(Fk )), (7)
+Fk ∈F≤k
+where GNN+ is a most-expressive k -vertex graph representation, which can be achieved by any of the methods of Vignac et al. (2020); Maron et al. (2019a); Murphy et al. (2019). Since GNN+ is most expressive, GNN+ can ignore attributes and map each Fk to a one-hot vector 1one-hot{Fk , F≤k}; therefore, ΓGNN+ (·) generalizes Γ1-hot(·) of Equation (4). But note that greater expressiveness does not imply better extrapolation.
+More importantly, GNN and GNN+ representations allow us to increase their E-invariance by adding a penalty for having different representations of two graphs Fk and Hk with the same topology but different vertex attributes (say, Fk = and Hk = ), as long as these differences do not signiﬁcantly impact downstream model accuracy in the training data. Note that this is more powerful than simply masking vertex attributes, since it allows same-topology
+
+graphs with distinct vertex attributes to have different representations if it is important to distinguish them for the target prediction (see Section 5.2). We will discuss more about these theoretical underpinnings in the next section. Hence, for each k -sized vertex-attributed graph Fk , we consider the set H(Fk ) of all k -sized vertex-attributed graphs having the same underlying topology as Fk but with all possible different vertex attributes. We then deﬁne the regularization penalty
+
+1 |F≤k| Fk ∈F≤k EHk ∈H(Fk )
+
+READOUTΓ(GNN∗(Fk ))
+
+− READOUTΓ(GNN∗(Hk )) 2 ,
+
+(8)
+
+where GNN∗ = GNN if we choose the representation ΓGNN, or GNN∗ = GNN+ if we choose the representation ΓGNN+ . In practice, we assume Hk is uniformly sampled from H(Fk ) and we sample one Hk for each Fk in order to obtain an unbiased estimator of Equation (8).
+
+Practical considerations. Efﬁcient algorithms exist to obtain induced homomorphism densities over all possible connected k-vertex subgraphs (Ahmed et al., 2016; Bressan et al., 2017; Chen & Lui, 2018; Chen et al., 2016; Rossi et al., 2019; Wang et al., 2014). For unattributed graphs and k ≤ 5, we use ESCAPE (Pinar et al., 2017) to obtain exact densities. For attributed graphs or unattributed graphs with k > 5, exact counting becomes intractable, so we use RGPM (Teixeira et al., 2018) to obtain unbiased estimates of densities. Finally, Proposition 2 in Appendix C shows that certain biased estimators can also be used if READOUTΓ is the sum of vertex embeddings.
+
+3.2. Theoretical Description of our E-Invariant Graph Representations
+
+In this section, we show that the graph representations seen in the previous section are approximately environmentinvariant in our SCM model under mild assumptions.
+Theorem 1 (Approximately E-invariant Graph Representation). Let GNtr tr and GNte te be two samples of graphs of sizes N tr and N te from the training and test distributions, respectively, both deﬁned over the same graphon variable W and satisfying Deﬁnitions 1 and 2. Assume the vertex attribute function gX (·, ·) of Deﬁnitions 1 and 2 is invariant to Etr and Ete (the reason for this assumption will be clear later). Let || · ||∞ denote the L-inﬁnity norm. For any integer k ≤ min(N tr, N te), and any constant 0 < < 1,
+
+P( Γ1-hot(GNtr tr ) − Γ1-hot(GNte te ) ∞ > ) ≤
+
+2N tr
+
+2N te
+
+2|F≤k|(exp(− 8k2 ) + exp(− 8k2 )). (9)
+
+Theorem 1 shows how the graph representations given in Equation (4) are approximately E-invariant. Note that for
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+unattributed graphs, we can deﬁne gX (·, ·) = Ø as the null attribute, which is invariant to any environment by construction. For graphs with attributed vertices, gX (·, ·) being invariant to Etr and Ete means that for any two environments e ∈ supp(Etr), e† ∈ supp(Ete), gX (e, ·) = gX (e†, ·).
+Theorem 1 shows that for k min(N tr, N te), the representations Γ1-hot(·) of two possibly different-sized graphs with the same W are nearly identical, indicating Γ1-hot(GN* * ) is an approximately E-invariant representation.
+Theorem 1 also exposes a trade-off, however. If the observed graphs tend to be relatively small, the required k for approximately E-invariant representations can be small, and then the expressiveness of Γ1-hot(·) gets compromised. That is, the ability of Γ1-hot(GN* * ) to extract information about W from GN* * reduces as k decreases. Finally, this guarantees that for appropriate k, passing the representation Γ1-hot(GN* * ) to a downstream classiﬁer provably approximates the classiﬁer in Equation (2) of Proposition 1.
+Note that when the vertex attributes are not invariant to the environment variable, Γ1-hot(·) is not E-invariant and we can not extrapolate using Γ1-hot(·). Thankfully, for the GNNbased graph representations ΓGNN(GN* * ) and ΓGNN+ (GN* * ) in Equations (6) and (7), respectively, the regularization penalty in Equation (8) pushes the graph representation to be more E-invariant, making it more likely to satisfy the conditions of E-invariance in Theorem 1. Equation (8) is inspired by the asymmetry learning procedure of Mouli & Ribeiro (2021), which induces symmetry priors in the neural network, which can be broken (making the neural network asymmetric) only when imposing the symmetry signiﬁcantly increases the training loss.
+To understand the effect of our asymmetry learning in regularizing towards topology, consider the attributed SBM example in Section 2. The environment operates by changing the distributions of attributes assigned within each block. If we are going to achieve E-invariance (and correctly predict cross-block edge probabilities in the test data (see Section 5.2)), we need graph representations that treat attributes assigned to the same block as equivalent. By regularizing the GNN-based graph representations towards focusing only on topology rather than vertex attributes, the regularization forces the GNN to treat all within-block vertex attributes as equivalent, and achieve an approximately E-invariant representation in this setting. And since treating the across-block vertex attributes as equivalent hurts the training loss in this setting, these will not be considered equivalent by the GNN.
+4. Related Work
+This section presents an overview of the related work. Due to space constraints, a more in-depth discussion with further references is given in Appendix E.
+
+OOD extrapolation in graph classiﬁcation and size extrapolation in GNNs. Our work ascertains a causal relationship between graphs and their target labels. We are unaware of existing work on this topic. Xu et al. (2021) is interested on a geometric (non-causal) deﬁnition of extrapolation for a class of graph algorithms. Hu et al. (2020) introduces a large graph dataset presenting signiﬁcant challenges of OOD extrapolation, however, their shift is on the two-dimensional structural framework distribution of the molecules, and no causal model is provided. The parallel work of Yehudai et al. (2021) improves size extrapolation in GNNs using self-supervised and semi-supervised learning on both the training and test domain, which is orthogonal to our problem. Previous works also examine empirically the ability of graph neural networks to extrapolate in various applications, such as physics (Battaglia et al., 2016; Sanchez-Gonzalez et al., 2018), mathematical and abstract reasoning (Santoro et al., 2018; Saxton et al., 2019), and graph algorithms (Bello et al., 2017; Nowak et al., 2017; Battaglia et al., 2018; Joshi et al., 2020; Velicˇkovic´ et al., 2020; Tang et al., 2020). These works do not provide guarantees of test extrapolation performance, a causal model, or a proof that the tasks require extrapolation over different environments.
+Causal reasoning and invariances. Recent efforts have brought counterfactual inference to machine learning models, including Independence of causal mechanism (ICM) methods (Bengio et al., 2020; Besserve et al., 2018; Johansson et al., 2016; Louizos et al., 2017; Parascandolo et al., 2018; Raj et al., 2020; Scho¨lkopf, 2019), Causal Discovery from Change (CDC) methods (Tian & Pearl, 2001), and representation disentanglement methods (Bengio et al., 2020; Goudet et al., 2017; Locatello et al., 2019). Invariant risk minimization (IRM) (Arjovsky et al., 2019) is a type of ICM (Scho¨lkopf, 2019). Risk Extrapolation (REx) (Krueger et al., 2021) optimizes by focusing on the training environments that have the largest impact on training.
+Broadly, the above efforts look for representations (or mechanism descriptions) that are invariant across multiple environments observed in the training data. In our work, we are interested in techniques that can work with a single training environment and when the test support is not a subset of the train support — a common case in graph data. To the best of our knowledge, the only representation learning work considering single environment extrapolations is Mouli & Ribeiro (2021). However, none of these methods is speciﬁcally designed for graphs, and it is unclear how they can be efﬁciently adapted for graph tasks. Finally, we also note that domain adaptation techniques and recent work on domainpredictors (Chuang et al., 2020) aim to learn invariances that can be used for the predictions. However, these require access to test data during training, which is not our scenario.
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+Graph classiﬁcation using induced homomorphisms. A related set of works looks at induced homomorphism densities as graph features for a kernel (Shervashidze et al., 2009; Yanardag & Vishwanathan, 2015; Wale et al., 2008). These methods can perform poorly in some tasks (Kriege et al., 2018). Recent work has also shown an interest in induced subgraphs, which are used to improve predictions of GNNs (Bouritsas et al., 2020) or treated as inputs for newly-proposed architectures (Toenshoff et al., 2021). Also note that the graph representations ΓGNN(·) and ΓGNN+ (·) in Equations (6) and (7) respectively, have similarities to k-ary Relational Pooling (Murphy et al., 2019) with the main difference being that the subgraph representations are weighted in our case. None of these methods focus on invariant representations or extrapolations.
+Expressiveness of graph representations. The expressiveness of a graph representation method is a measure of model family bias (Morris et al., 2019; Xu et al., 2019; Ga¨rtner et al., 2003; Maron et al., 2019a; Murphy et al., 2019). That is, given enough training data, a neural network from a more expressive family can achieve smaller generalization error over the training distribution than a neural network from a less expressive family, assuming appropriate optimization. However, this power is a measure of generalization capability over the training distribution, not OOD extrapolation. Hence, the question of representation expressiveness is orthogonal to our work.
+5. Empirical Results
+This section is dedicated to the empirical evaluation of our theoretical claims, including the ability of the representations in Equations (4), (6) and (7) to extrapolate as predicted by Proposition 1 for tasks that abide by Deﬁnitions 1 and 2. Due to space constraints, our results are summarised here, while further details are relegated to Appendix F. Our code is also available1.
+We explore the extrapolation power of Γ1-hot, ΓGIN and ΓRPGIN of Equations (4), (6) and (7) using the Graph Isomorphism Network (GIN) (Xu et al., 2019) as our base GNN model, and Relational Pooling GIN (RPGIN) (Murphy et al., 2019) as a more expressive GNN. The graph representations are then passed to a L-hidden layer feedforward neural network (MLP) with softmax outputs that give the predicted classes, L ∈ {0, 1}. As described in Section 3.1, we obtain induced homomorphism densities of connected graphs. For practical reasons, we focus only on densities of graphs of size exactly k, which is treated as a hyperparameter. Note that the number of parameters for our ΓGNN and ΓGNN+ does not depend on k (for Γ1-hot it does), and the forward pass on
+1https://github.com/PurdueMINDS/ size-invariant-GNNs
+
+the k-sized graphs can be performed in parallel.
+Baselines. Our baselines include the Graphlet Counting kernel (GC Kernel) (Shervashidze et al., 2009), which uses the Γ1-hot representation as input to a downstream classiﬁer. We report Γ1-hot separately from GC Kernel since Γ1-hot differs from GC Kernel in that we add the same feedforward neural network (MLP) classiﬁer used in the ΓGNN model. We also include GIN (Xu et al., 2019), GCN (Kipf & Welling, 2017) and PNA (Corso et al., 2020), considering the sum, mean, and max READOUTs as proposed by Xu et al. (2021) for extrapolations (which we denote as XUREADOUT to not confuse with our READOUTΓ). We also examine a more-expressive GNN, RPGIN (Murphy et al., 2019), and the WL Kernel (Shervashidze et al., 2011). We do not use the method of Yehudai et al. (2021) as a baseline since it is a covariate shift adaptation approach that requires samples from P(GNte te ), which are not available in our setting.
+Experiments with single and multiple graph sizes in training. Our single-environment experiments consist of a single graph size in training, and different sizes in test (different from the training size). Whenever multiple environments are available in training —multiple environments implies different graph sizes—, we employ Invariant Risk Minimization (IRM), considering the penalty proposed by Arjovsky et al. (2019) for each environment (deﬁned empirically as a range of training examples with similar graph sizes).
+For each task, we report (a) training accuracy (b) validation accuracy, which are new examples sampled from P(Y, GNtr tr ); and (c) extrapolation test accuracy, which are new OOD examples sampled from P(Y, GNte te ). In our experiments we perform early stopping as per Hu et al. (2020).
+5.1. Size extrapolation tasks for unattributed graphs
+Schizophrenia task. We use the fMRI brain graph data on 71 schizophrenic patients and 74 controls for classifying individuals with schizophrenia (De Domenico et al., 2016). Vertices represent brain regions (voxels) with edges as functional connectivity. We process the graph differently between training and test data, where training graphs have exactly 264 vertices (a single environment) and controlgroup graphs in test have around 40% fewer vertices. We employ a 5-fold cross-validation for hyperparameter tuning.
+Erdo˝s-Re´nyi task. We simulate Erdo˝s-Re´nyi graphs (Gilbert, 1959; Erdo˝s & Re´nyi, 1959) as a simple graphon random graph model. The task is to classify the edge probability p ∈ {0.2, 0.5, 0.8} of the generated graph. First we consider a single-environment version of the task, where we train and validate on graphs of size 80 and extrapolate to graphs with size 140 in test. We also consider another experiment with training/validation graph sizes uniformly selected from
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+Table 1. Extrapolation performance over unattributed graphs shows clear advantage of our environment-invariant representations, with or without GNN, over standard methods or IRM in extrapolation test accuracy. Table shows mean (standard deviation) accuracy. Bold emphasises the best test average. NA value indicates IRM is not applicable (when training data has a single graph size).
+
+PNA PNA (MEAN XU-READOUT) PNA (MAX XU-READOUT) PNA + IRM GCN GCN (MEAN XU-READOUT) GCN (MAX XU-READOUT) GCN + IRM GIN GIN (MEAN XU-READOUT) GIN (MAX XU-READOUT) GIN + IRM RPGIN WL KERNEL GC KERNEL Γ1-HOT ΓGIN ΓRPGIN
+
+ACCURACY IN SCHIZOPHRENIA TASK
+
+TRAINING HAS A SINGLE GRAPH SIZE
+
+TRAIN
+
+[P
+
+(Y,
+
+GTR
+N TR
+
+)]
+
+VAL.
+
+[P
+
+(Y,
+
+GTR
+N TR
+
+)]
+
+TEST
+
+(↑)
+
+[P
+
+(Y,
+
+GTE
+N TE
+
+)]
+
+0.99 (0.00) 0.99 (0.00) 0.99 (0.00)
+NA 0.74 (0.04) 0.72 (0.04) 0.86 (0.07)
+NA 0.72 (0.02) 0.78 (0.02) 0.85 (0.02)
+NA 0.70 (0.02) 1.00 (0.00) 0.61 (0.00) 0.71 (0.01) 0.75 (0.05) 0.69 (0.01)
+
+0.76 (0.08) 0.77 (0.07) 0.75 (0.07)
+NA 0.74 (0.08) 0.73 (0.08) 0.75 (0.07)
+NA 0.74 (0.05) 0.72 (0.05) 0.72 (0.05)
+NA 0.74 (0.05) 0.63 (0.07) 0.61 (0.06) 0.72 (0.05) 0.70 (0.04) 0.71 (0.06)
+
+0.61 (0.08) 0.53 (0.10) 0.42 (0.06)
+NA 0.55 (0.09) 0.65 (0.08) 0.54 (0.06)
+NA 0.36 (0.09) 0.43 (0.05) 0.35 (0.06)
+NA 0.37 (0.06) 0.40 (0.00) 0.60 (0.00) 0.72 (0.04) 0.68 (0.07) 0.71 (0.03)
+
+ACCURACY IN ERDO˝ S-RE´ NYI TASK
+
+TRAINING HAS A SINGLE GRAPH SIZE
+
+TRAINING HAS TWO GRAPH SIZES
+
+TRAIN
+
+[P
+
+(Y,
+
+GTR
+N TR
+
+)]
+
+VAL.
+
+[P
+
+(Y,
+
+GTR
+NT
+
+R
+
+)]
+
+TEST
+
+(↑)
+
+[P (Y,
+
+GTE
+N TE
+
+)]
+
+TRAIN
+
+[P (Y,
+
+GTR
+NT
+
+R
+
+)]
+
+VAL.
+
+[P
+
+(Y,
+
+GTR
+N TR
+
+)]
+
+TEST
+
+(↑)
+
+[P
+
+(Y,
+
+GTE
+N TE
+
+)]
+
+1.00 (0.00) 1.00 (0.00) 1.00 (0.00)
+NA 0.99 (0.01) 0.99 (0.01) 0.99 (0.01)
+NA 1.00 (0.00) 1.00 (0.00) 0.99 (0.01)
+NA 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00)
+
+1.00 (0.00) 1.00 (0.00) 1.00 (0.00)
+NA 1.00 (0.00) 1.00 (0.00) 1.00 (0.00)
+NA 1.00 (0.00) 1.00 (0.00) 1.00 (0.00)
+NA 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00)
+
+0.65 (0.12) 0.62 (0.12) 0.59 (0.16)
+NA 0.88 (0.10) 0.79 (0.15) 0.90 (0.07)
+NA 0.64 (0.12) 0.63 (0.09) 0.65 (0.12)
+NA 0.61 (0.16) 0.01 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00)
+
+1.00 (0.00) 1.00 (0.00) 0.99 (0.01) 1.00 (0.00) 0.98 (0.01) 0.98 (0.02) 0.96 (0.04) 0.98 (0.02) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00)
+
+1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00)
+
+0.64 (0.12) 0.51 (0.19) 0.57 (0.15) 0.65 (0.13) 0.87 (0.10) 0.75 (0.20) 0.87 (0.09) 0.88 (0.08) 0.65 (0.12) 0.61 (0.09) 0.65 (0.07) 0.66 (0.08) 0.60 (0.16) 0.30 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00)
+
+Table 2. Extrapolation performance over attributed graphs shows clear advantage of environment-invariant representations with GNNs and the attribute regularization in Equation (8). Table shows mean (standard deviation) accuracy. Bold emphasises the best test average. NA value indicates IRM is not applicable (when training data has a single graph size).
+
+PNA PNA (MEAN XU-READOUT) PNA (MAX XU-READOUT) PNA + IRM GCN GCN (MEAN XU-READOUT) GCN (MAX XU-READOUT) GCN + IRM GIN GIN (MEAN XU-READOUT) GIN (MAX XU-READOUT) GIN + IRM RPGIN WL KERNEL GC KERNEL Γ1-HOT ΓGIN ΓRPGIN
+
+TRAINING HAS A SINGLE GRAPH SIZE 20
+
+TRAIN
+
+[P
+
+(Y,
+
+GTR
+N TR
+
+)]
+
+VAL.
+
+[P
+
+(Y,
+
+GTR
+N TR
+
+)]
+
+TEST
+
+(↑)
+
+[P
+
+(Y,
+
+GTE
+N TE
+
+)]
+
+1.00 (0.00) 1.00 (0.00) 0.99 (0.01)
+NA 0.99 (0.01) 0.94 (0.03) 0.99 (0.01)
+NA 0.97 (0.02) 1.00 (0.00) 0.95 (0.02)
+NA 0.98 (0.02) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00)
+
+1.00 (0.00) 1.00 (0.00) 0.97 (0.02)
+NA 0.98 (0.02) 0.99 (0.01) 1.00 (0.00)
+NA 1.00 (0.00) 1.00 (0.00) 0.97 (0.03)
+NA 1.00 (0.00) 0.95 (0.00) 0.90 (0.00) 0.90 (0.00) 1.00 (0.00) 1.00 (0.00)
+
+0.65 (0.10) 0.86 (0.13) 0.83 (0.13)
+NA 0.62 (0.09) 0.61 (0.12) 0.76 (0.07)
+NA 0.64 (0.17) 0.85 (0.14) 0.67 (0.18)
+NA 0.49 (0.15) 0.57 (0.00) 0.43 (0.00) 0.50 (0.07) 0.98 (0.02) 1.00 (0.00)
+
+TRAINING HAS TWO GRAPH SIZES: 14 AND 20
+
+TRAIN
+
+[P
+
+(Y,
+
+GTR
+N TR
+
+)]
+
+VAL.
+
+[P
+
+(Y,
+
+GTR
+NT
+
+R
+
+)]
+
+TEST
+
+(↑)
+
+[P (Y,
+
+GTE
+N TE
+
+)]
+
+0.96 (0.06) 0.97 (0.02) 0.94 (0.04) 0.95 (0.05) 0.95 (0.02) 0.93 (0.05) 0.95 (0.04) 0.93 (0.05) 0.95 (0.03) 0.97 (0.01) 0.93 (0.06) 0.95 (0.03) 0.96 (0.03) 0.99 (0.00) 1.00 (0.00) 0.97 (0.03) 0.96 (0.02) 0.97 (0.03)
+
+0.94 (0.03) 0.95 (0.02) 0.93 (0.03) 0.94 (0.03) 0.96 (0.02) 0.94 (0.02) 0.98 (0.02) 0.97 (0.03) 0.96 (0.04) 0.99 (0.01) 0.94 (0.03) 0.97 (0.04) 0.99 (0.01) 0.90 (0.00) 0.80 (0.00) 0.85 (0.05) 0.95 (0.01) 0.95 (0.02)
+
+0.57 (0.19) 0.64 (0.11) 0.80 (0.12) 0.58 (0.19) 0.55 (0.17) 0.69 (0.20) 0.61 (0.17) 0.65 (0.19) 0.66 (0.20) 0.75 (0.18) 0.67 (0.17) 0.64 (0.19) 0.54 (0.12) 0.62 (0.00) 0.43 (0.00) 0.50 (0.07) 0.95 (0.06) 0.95 (0.05)
+
+TRAINING HAS TWO GRAPH SIZES: 20 AND 30
+
+TRAIN
+
+[P (Y,
+
+GTR
+NT
+
+R
+
+)]
+
+VAL.
+
+[P
+
+(Y,
+
+GTR
+N TR
+
+)]
+
+TEST
+
+(↑)
+
+[P
+
+(Y,
+
+GTE
+N TE
+
+)]
+
+0.99 (0.01) 0.99 (0.01) 0.95 (0.05) 0.99 (0.01) 1.00 (0.00) 1.00 (0.00) 0.98 (0.02) 1.00 (0.00) 0.98 (0.02) 0.99 (0.01) 0.99 (0.01) 0.98 (0.02) 0.99 (0.01) 1.00 (0.00) 0.99 (0.00) 0.98 (0.00) 1.00 (0.00) 1.00 (0.00)
+
+1.00 (0.00) 1.00 (0.00) 0.95 (0.05) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 1.00 (0.00) 0.90 (0.00) 0.96 (0.02) 1.00 (0.00) 1.00 (0.00)
+
+0.69 (0.19) 0.70 (0.15) 0.80 (0.15) 0.70 (0.20) 0.73 (0.17) 0.84 (0.13) 0.70 (0.20) 0.84 (0.17) 0.74 (0.19) 0.80 (0.15) 0.69 (0.15) 0.75 (0.19) 0.50 (0.13) 0.57 (0.00) 0.43 (0.00) 0.45 (0.05) 0.88 (0.12) 0.93 (0.05)
+
+{70, 80} (so we can use IRM), with the test data same as before (graphs of size 140 in test).
+Results. Table 1 shows that all methods perform well in validation (generalization over the training distribution). However, only Γ1-hot (GC Kernel and our simple classiﬁer), ΓGIN, ΓRPGIN are able to extrapolate, while displaying very similar —often identical— accuracies in validation (sampled from P(GNtr tr )) and test (sampled from P(GNte te )) in all experiments, as predicted by combining the theoretical results in Proposition 1 and Theorem 1. Using IRM in the Erdo˝sRe´nyi task shows no improvement over not using IRM in the multi-environment setting.
+5.2. Size/attribute extrapolation for attributed graphs
+We now deﬁne a Stochastic Block Model (SBM) task with vertex attributes. The SBM has two blocks. Our goal is to classify the cross-block edge probability P1,2 = P2,1 ∈ {0.1, 0.3} of a sampled graph. Vertex attribute distributions depend on the blocks. In block 1 vertices are randomly assigned red and blue attributes, while in block 2 vertices are randomly assigned green and yellow attributes (see SBM with vertex attributes in Section 2).
+The change in environments between training and test introduces a joint attribute-and-size distribution shift: In training,
+
+the vertices are 90% red (resp. green) and 10% blue (resp. yellow) in block 1 (resp. block 2). While in test, the distribution is ﬂipped and vertices are 10% red (resp. green) and 90% blue (resp. yellow) in block 1 (resp. block 2). We consider three scenarios, with the same test data made of graphs of size 40: (a) A single-environment case, where all training graphs have size 20; (b) A multi-environment case, where training graphs have sizes 14 and 20; (c) A multi-environment case, where training graphs have sizes 20 and 30. These differences in training data will check whether having graphs of sizes closer to the test graph sizes improves the performance of traditional graph representation methods.
+Results. Table 2 shows how traditional graph representations and Γ1-hot (both GC Kernel and our neural classiﬁer) tap into the easy correlation between Y and the density of red and green vertex attributes in the training graphs, while ΓGIN and ΓRPGIN, with their attribute regularization (Equation (8)), are approximately E-invariant, resulting in higher test accuracy that more closely matches their validation accuracy. Moreover, applying IRM has no beneﬁcial impact, while adding larger graphs in training (closer to test graph sizes) increases the extrapolation accuracy of most methods.
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+Table 3. Extrapolation performance over real-world graph datasets with OOD tasks violating Deﬁnitions 1 and 2 and conditions of Theorem 1. Always one of our E-invariant representations ΓGIN and ΓRPGIN is amongst the top 4 best methods in all datasets except NCI109. Table shows mean (standard deviation) Matthews correlation coefﬁcient (MCC) of the classiﬁers over the OOD test data. Bold emphasises the top-4 models (in average MCC) for each dataset.
+
+DATASETS
+RANDOM PNA PNA (MEAN XU-READOUT) PNA (MAX XU-READOUT) PNA + IRM GCN GCN (MEAN XU-READOUT) GCN (MAX XU-READOUT) GCN + IRM GIN GIN (MEAN XU-READOUT) GIN (MAX XU-READOUT) GIN + IRM RPGIN WL KERNEL GC KERNEL Γ1-HOT ΓGIN ΓRPGIN
+
+NCI1
+0.00 (0.00) 0.21 (0.06) 0.12 (0.05) 0.16 (0.05) 0.21 (0.07) 0.20 (0.06) 0.20 (0.04) 0.20 (0.04) 0.12 (0.05) 0.25 (0.06) 0.16 (0.05) 0.15 (0.08) 0.18 (0.08) 0.15 (0.04) 0.39 (0.00) 0.02 (0.00) 0.17 (0.08) 0.24 (0.04) 0.26 (0.05)
+
+NCI109
+0.00 (0.00) 0.24 (0.06) 0.21 (0.04) 0.18 (0.07) 0.27 (0.08) 0.15 (0.06) 0.15 (0.09) 0.19 (0.07) 0.22 (0.06) 0.18 (0.05) 0.14 (0.05) 0.18 (0.08) 0.16 (0.04) 0.19 (0.05) 0.21 (0.00) 0.01 (0.00) 0.25 (0.06) 0.18 (0.04) 0.20 (0.04)
+
+PROTEINS
+0.00 (0.00) 0.26 (0.08) 0.25 (0.06) 0.20 (0.05) 0.26 (0.10) 0.21 (0.09) 0.23 (0.07) 0.20 (0.14) 0.20 (0.07) 0.23 (0.05) 0.24 (0.05) 0.28 (0.11) 0.26 (0.06) 0.24 (0.09) 0.00 (0.00) 0.29 (0.00) 0.12 (0.09) 0.29 (0.11) 0.25 (0.12)
+
+DD
+0.00 (0.00) 0.24 (0.10) 0.29 (0.08) 0.12 (0.14) 0.26 (0.08) 0.23 (0.05) 0.19 (0.06) 0.09 (0.08) 0.23 (0.07) 0.25 (0.09) 0.27 (0.12) 0.19 (0.07) 0.21 (0.09) 0.22 (0.09) 0.00 (0.00) 0.00 (0.00) 0.23 (0.08) 0.28 (0.06) 0.20 (0.05)
+
+5.3. Experiments with real-world datasets that violate our causal model
+Finally, we test our E-invariant representations on datasets that violate Deﬁnitions 1 and 2 and the conditions of Theorem 1. We consider four vertex-attributed datasets (NCI1, NCI109, DD, PROTEINS) from Morris et al. (2020), and split the data as proposed by Yehudai et al. (2021). As mentioned earlier, Yehudai et al. (2021) is not part of our baselines since it requires samples from the test distribution P(GNte te ).
+Training and test data are created as follows: Graphs with sizes smaller than the 50-th percentile are assigned to training, while graphs with sizes larger than the 90-th percentile are assigned to test. A validation set for hyperparameter tuning consists of 10% held out examples from training.
+Results. Table 3 shows the test results using the Matthews correlation coefﬁcient (MCC) — MCC was chosen due to signiﬁcant class imbalances in the OOD shift of our test data, see Appendix F for more details. We observe that always one of our E-invariant representations ΓGIN and ΓRPGIN is amongst the top 4 best methods in all datasets except NCI109. We also note that the WL KERNEL performs really well at NCI1 and very poorly (random) on PROTEINS and DD, showcasing the importance of consistency across datasets.
+Comments on Table 3. Counterfactual-driven extrapolations have their representation methods tailored to a speciﬁc extrapolation mechanism. Unlike in-distribution tasks (and covariate shift adaptation tasks, where one sees test distribution examples of the input graphs), counterfactual-driven
+
+extrapolations rely on being robust to the distribution-shift mechanism given by the causal model. Hence, it is expected that the causal extrapolation mechanism that works for a molecular task may not work as well for a social network (unless they share a universal graph-formation mechanism). The schizophrenia task (Section 5.1) has the same mechanism as our causal model (hence, good performance). Further research may show that every single dataset in this subsection has its own distinct extrapolation mechanism. We think that although these datasets violate our assumptions, this subsection is important (and we hope will be copied by future work) to show which datasets may need different extrapolation mechanisms.
+6. Conclusions
+In this work we looked at the task of out-of-distribution (OOD) graph classiﬁcation, where train and test data have different distributions. By introducing a structural causal model inspired by graphon models (Lova´sz & Szegedy, 2006), we deﬁned a representation that is approximately invariant to the train/test distribution changes of our causal model, empirically showing its beneﬁts on both synthetic and real-world datasets against standard graph classiﬁcation baselines. Finally, our work contributed a blueprint for deﬁning graph extrapolation tasks through causal models.
+Acknowledgements
+This work was funded in part by the National Science Foundation (NSF) awards CAREER IIS-1943364 and CCF1918483, the Frederick N. Andrews Fellowship, and the Wabash Heartland Innovation Network. Any opinions, ﬁndings and conclusions or recommendations expressed in this material are those of the authors and do not necessarily reﬂect the views of the sponsors. We would like to thank our reviewers, who gave excellent suggestions to improve the paper. Further, we would like to thank Ryan Murphy for many insightful discussions, and Mayank Kakodkar and Carlos H. C. Teixeira for their invaluable help with the subgraph function estimation.
+References
+Abuoda, G., Morales, G. D. F., and Aboulnaga, A. Link prediction via higher-order motif features. In Joint European Conference on Machine Learning and Knowledge Discovery in Databases, pp. 412–429. Springer, 2019.
+Ahmed, N. K., Willke, T. L., and Rossi, R. A. Estimation of local subgraph counts. In 2016 IEEE International Conference on Big Data (Big Data), pp. 586–595. IEEE, 2016.
+Airoldi, E. M., Costa, T. B., and Chan, S. H. Stochastic blockmodel approximation of a graphon: Theory and
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+consistent estimation. In Advances in Neural Information Processing Systems, pp. 692–700, 2013.
+Aldous, D. J. Representations for partially exchangeable arrays of random variables. Journal of Multivariate Analysis, 11(4):581–598, 1981.
+Alon, U. Network motifs: theory and experimental approaches. Nature Reviews Genetics, 8(6):450–461, 2007.
+Anonymous. Incremental learning on growing graphs. In Submitted to International Conference on Learning Representations, 2021. under review.
+Arjovsky, M., Bottou, L., Gulrajani, I., and LopezPaz, D. Invariant risk minimization. arXiv preprint arXiv:1907.02893, 2019.
+Armstrong, J. S., Collopy, F., and Yokum, J. T. Decomposition by causal forces: a procedure for forecasting complex time series. International Journal of forecasting, 21(1):25–36, 2005.
+Arvind, V., Fuhlbru¨ck, F., Ko¨bler, J., and Verbitsky, O. On weisfeiler-leman invariance: subgraph counts and related graph properties. Journal of Computer and System Sciences, 2020.
+Atwood, J. and Towsley, D. Diffusion-convolutional neural networks. In Advances in Neural Information Processing Systems, pp. 1993–2001, 2016.
+Balke, A. and Pearl, J. Probabilistic evaluation of counterfactual queries. In Proceedings of AAAI, 1994.
+Bascompte, J. and Melia´n, C. J. Simple trophic modules for complex food webs. Ecology, 86(11):2868–2873, 2005.
+Battaglia, P., Pascanu, R., Lai, M., Rezende, D. J., et al. Interaction networks for learning about objects, relations and physics. In Advances in neural information processing systems, pp. 4502–4510, 2016.
+Battaglia, P. W., Hamrick, J. B., Bapst, V., SanchezGonzalez, A., Zambaldi, V., Malinowski, M., Tacchetti, A., Raposo, D., Santoro, A., Faulkner, R., et al. Relational inductive biases, deep learning, and graph networks. arXiv preprint arXiv:1806.01261, 2018.
+Belkin, M. and Niyogi, P. Laplacian eigenmaps and spectral techniques for embedding and clustering. In Advances in neural information processing systems, pp. 585–591, 2002.
+Bello, I., Pham, H., Le, Q. V., Norouzi, M., and Bengio, S. Neural combinatorial optimization with reinforcement learning. In International Conference on Learning Representations, 2017.
+
+Bengio, Y., Deleu, T., Rahaman, N., Ke, N. R., Lachapelle, S., Bilaniuk, O., Goyal, A., and Pal, C. A meta-transfer objective for learning to disentangle causal mechanisms. In International Conference on Learning Representations, 2020.
+Benson, A. R., Gleich, D. F., and Leskovec, J. Higher-order organization of complex networks. Science, 353(6295): 163–166, 2016.
+Besserve, M., Shajarisales, N., Scho¨lkopf, B., and Janzing, D. Group invariance principles for causal generative models. In International Conference on Artiﬁcial Intelligence and Statistics, pp. 557–565, 2018.
+Borgwardt, K. M. and Kriegel, H.-P. Shortest-path kernels on graphs. In Fifth IEEE international conference on data mining (ICDM’05), pp. 8–pp. IEEE, 2005.
+Borgwardt, K. M., Ong, C. S., Scho¨nauer, S., Vishwanathan, S., Smola, A. J., and Kriegel, H.-P. Protein function prediction via graph kernels. Bioinformatics, 21(suppl 1): i47–i56, 2005.
+Bouritsas, G., Frasca, F., Zafeiriou, S., and Bronstein, M. M. Improving graph neural network expressivity via subgraph isomorphism counting. arXiv preprint arXiv:2006.09252, 2020.
+Bressan, M., Chierichetti, F., Kumar, R., Leucci, S., and Panconesi, A. Counting graphlets: Space vs time. In Proceedings of the Tenth ACM International Conference on Web Search and Data Mining (WSDM’17), pp. 557– 566. ACM, 2017.
+Chami, I., Ying, Z., Re´, C., and Leskovec, J. Hyperbolic graph convolutional neural networks. In Advances in neural information processing systems, pp. 4868–4879, 2019.
+Chami, I., Abu-El-Haija, S., Perozzi, B., Re´, C., and Murphy, K. Machine learning on graphs: A model and comprehensive taxonomy. arXiv preprint arXiv:2005.03675, 2020.
+Chen, L., Qu, X., Cao, M., Zhou, Y., Li, W., Liang, B., Li, W., He, W., Feng, C., Jia, X., et al. Identiﬁcation of breast cancer patients based on human signaling network motifs. Scientiﬁc reports, 3:3368, 2013.
+Chen, X. and Lui, J. C. Mining graphlet counts in online social networks. ACM Transactions on Knowledge Discovery from Data (TKDD), 12(4):1–38, 2018.
+Chen, X., Li, Y., Wang, P., and Lui, J. A general framework for estimating graphlet statistics via random walk. VLDB Endowment, 2016.
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+Chen, Z., Chen, L., Villar, S., and Bruna, J. Can graph neural networks count substructures? In Advances in Neural Information Processing Systems, 2020.
+Chuang, C.-Y., Torralba, A., and Jegelka, S. Estimating generalization under distribution shifts via domain-invariant representations, 2020.
+Corso, G., Cavalleri, L., Beaini, D., Lio, P., and Velicˇkovic´, P. Principal neighbourhood aggregation for graph nets. In Advances in Neural Information Processing Systems, 2020.
+D’Amour, A., Heller, K., Moldovan, D., Adlam, B., Alipanahi, B., Beutel, A., Chen, C., Deaton, J., Eisenstein, J., Hoffman, M. D., et al. Underspeciﬁcation presents challenges for credibility in modern machine learning. arXiv preprint arXiv:2011.03395, 2020.
+De Domenico, M., Sasai, S., and Arenas, A. Mapping multiplex hubs in human functional brain networks. Frontiers in neuroscience, 10:326, 2016.
+Dey, A. K., Gel, Y. R., and Poor, H. V. What network motifs tell us about resilience and reliability of complex networks. Proceedings of the National Academy of Sciences, 116(39):19368–19373, 2019.
+Diaconis, P. and Freedman, D. On the statistics of vision: the julesz conjecture. Journal of Mathematical Psychology, 24(2):112–138, 1981.
+Duvenaud, D. K., Maclaurin, D., Iparraguirre, J., Bombarell, R., Hirzel, T., Aspuru-Guzik, A., and Adams, R. P. Convolutional networks on graphs for learning molecular ﬁngerprints. In Advances in neural information processing systems, pp. 2224–2232, 2015.
+Eckles, D., Karrer, B., and Ugander, J. Design and analysis of experiments in networks: Reducing bias from interference. Journal of Causal Inference, 5(1), 2016.
+Erdo˝s, P. and Re´nyi, A. On random graphs i. Publ. math. debrecen, 6(290-297):18, 1959.
+Fey, M. and Lenssen, J. E. Fast graph representation learning with PyTorch Geometric. In ICLR Workshop on Representation Learning on Graphs and Manifolds, 2019.
+Gao, J. and Ribeiro, B. On the equivalence between temporal and static graph representations for observational predictions. arXiv preprint arXiv:2103.07016, 2021.
+Garg, V. K., Jegelka, S., and Jaakkola, T. Generalization and representational limits of graph neural networks. In Proceedings of the 37th International Conference on Machine Learning, Proceedings of Machine Learning Research. PMLR, 2020.
+
+Ga¨rtner, T., Flach, P., and Wrobel, S. On graph kernels: Hardness results and efﬁcient alternatives. In Learning theory and kernel machines, pp. 129–143. Springer, 2003.
+Geirhos, R., Jacobsen, J.-H., Michaelis, C., Zemel, R., Brendel, W., Bethge, M., and Wichmann, F. A. Shortcut learning in deep neural networks. Nature Machine Intelligence, 2(11):665–673, 2020.
+Gilbert, E. N. Random graphs. The Annals of Mathematical Statistics, 30(4):1141–1144, 1959.
+Gilmer, J., Schoenholz, S. S., Riley, P. F., Vinyals, O., and Dahl, G. E. Neural message passing for quantum chemistry. In Precup, D. and Teh, Y. W. (eds.), Proceedings of the 34th International Conference on Machine Learning, volume 70 of Proceedings of Machine Learning Research, pp. 1263–1272, International Convention Centre, Sydney, Australia, 06–11 Aug 2017. PMLR.
+Goodfellow, I. J., Shlens, J., and Szegedy, C. Explaining and harnessing adversarial examples. In International Conference on Learning Representations (ICLR), 2015.
+Goudet, O., Kalainathan, D., Caillou, P., Guyon, I., LopezPaz, D., and Sebag, M. Causal generative neural networks. arXiv preprint arXiv:1711.08936, 2017.
+Grover, A. and Leskovec, J. node2vec: Scalable feature learning for networks. In Proc. of KDD, pp. 855–864. ACM, 2016.
+Haffner, P. Escaping the convex hull with extrapolated vector machines. In Advances in Neural Information Processing Systems, pp. 753–760, 2002.
+Hagberg, A. A., Schult, D. A., and Swart, P. J. Exploring network structure, dynamics, and function using networkx. In Varoquaux, G., Vaught, T., and Millman, J. (eds.), Proceedings of the 7th Python in Science Conference, pp. 11 – 15, Pasadena, CA USA, 2008.
+Hagmann, P., Kurant, M., Gigandet, X., Thiran, P., Wedeen, V. J., Meuli, R., and Thiran, J.-P. Mapping human wholebrain structural networks with diffusion mri. PloS one, 2 (7):e597, 2007.
+Hamilton, W., Ying, Z., and Leskovec, J. Inductive representation learning on large graphs. In Advances in Neural Information Processing Systems, pp. 1024–1034, 2017.
+Hamilton, W. L. Graph representation learning. Synthesis Lectures on Artiﬁcial Intelligence and Machine Learning, 14(3):1–159, 2020.
+Hancock, J. T. and Khoshgoftaar, T. M. Survey on categorical data for neural networks. Journal of Big Data, 7:1–41, 2020.
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+Hastie, T., Tibshirani, R., and Friedman, J. The elements of statistical learning, volume 1. Springer series in statistics, 2012.
+Hemminger, R. L. On reconstructing a graph. Proceedings of the American Mathematical Society, 20(1):185–187, 1969.
+Herna´ndez-Garc´ıa, A. and Ko¨nig, P. Data augmentation instead of explicit regularization. arXiv preprint arXiv:1806.03852, 2018.
+Hoover, D. N. Relations on probability spaces and arrays of random variables. Technical Report, Institute for Advanced Study, Princeton, NJ, 2, 1979.
+Hu, W., Fey, M., Zitnik, M., Dong, Y., Ren, H., Liu, B., Catasta, M., and Leskovec, J. Open graph benchmark: Datasets for machine learning on graphs. In Advances in Neural Information Processing Systems, 2020.
+Johansson, F., Shalit, U., and Sontag, D. Learning representations for counterfactual inference. In International conference on machine learning, pp. 3020–3029, 2016.
+Joshi, C. K., Cappart, Q., Rousseau, L.-M., Laurent, T., and Bresson, X. Learning tsp requires rethinking generalization. arXiv preprint arXiv:2006.07054, 2020.
+Kallenberg, O. Probabilistic symmetries and invariance principles. Springer Science & Business Media, 2006.
+Kashima, H., Tsuda, K., and Inokuchi, A. Marginalized kernels between labeled graphs. In Proceedings of the 20th international conference on machine learning (ICML-03), pp. 321–328, 2003.
+Kazemi, S. M., Goel, R., Jain, K., Kobyzev, I., Sethi, A., Forsyth, P., and Poupart, P. Representation learning for dynamic graphs: A survey. Journal of Machine Learning Research, 21(70):1–73, 2020.
+Kelly, P. J. et al. A congruence theorem for trees. Paciﬁc Journal of Mathematics, 7(1):961–968, 1957.
+King, G. and Zeng, L. The dangers of extreme counterfactuals. Political Analysis, 14(2):131–159, 2006.
+Kipf, T. and Welling, M. Semi-supervised classiﬁcation with graph convolutional networks. In International Conference on Learning Representations, 2017.
+Kipf, T. N. and Welling, M. Variational graph auto-encoders. NIPS Workshop on Bayesian Deep Learning, 2016.
+Klicpera, J., Groß, J., and Gu¨nnemann, S. Directional message passing for molecular graphs. In International Conference on Learning Representations, 2020.
+
+Koh, P. W., Sagawa, S., Marklund, H., Xie, S. M., Zhang, M., Balsubramani, A., Hu, W., Yasunaga, M., Phillips, R. L., Beery, S., et al. Wilds: A benchmark of in-thewild distribution shifts. arXiv preprint arXiv:2012.07421, 2020.
+Kriege, N. M., Morris, C., Rey, A., and Sohler, C. A property testing framework for the theoretical expressivity of graph kernels. In IJCAI, pp. 2348–2354, 2018.
+Kriege, N. M., Johansson, F. D., and Morris, C. A survey on graph kernels. Applied Network Science, 5(1):1–42, 2020.
+Krueger, D., Caballero, E., Jacobsen, J.-H., Zhang, A., Binas, J., Zhang, D., Priol, R. L., and Courville, A. Outof-distribution generalization via risk extrapolation (rex), 2021.
+Kumar, S., Zhang, X., and Leskovec, J. Predicting dynamic embedding trajectory in temporal interaction networks. In Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, KDD ’19, pp. 1269–1278, New York, NY, USA, 2019. Association for Computing Machinery. ISBN 9781450362016.
+Lample, G. and Charton, F. Deep learning for symbolic mathematics. In International Conference on Learning Representations, 2020.
+Lee, J. B., Rossi, R. A., Kong, X., Kim, S., Koh, E., and Rao, A. Higher-order graph convolutional networks. arXiv preprint arXiv:1809.07697, 2018.
+Li, X., Wei, W., Feng, X., Liu, X., and Zheng, Z. Representation learning of graphs using graph convolutional multilayer networks based on motifs. arXiv preprint arXiv:2007.15838, 2020.
+Liu, Q., Nickel, M., and Kiela, D. Hyperbolic graph neural networks. In Advances in Neural Information Processing Systems, pp. 8230–8241, 2019.
+Locatello, F., Bauer, S., Lucic, M., Raetsch, G., Gelly, S., Scho¨lkopf, B., and Bachem, O. Challenging common assumptions in the unsupervised learning of disentangled representations. In international conference on machine learning, pp. 4114–4124, 2019.
+Louizos, C., Shalit, U., Mooij, J. M., Sontag, D., Zemel, R., and Welling, M. Causal effect inference with deep latentvariable models. In Advances in Neural Information Processing Systems, pp. 6446–6456, 2017.
+Lova´sz, L. Large networks and graph limits, volume 60. American Mathematical Soc., 2012.
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+Lova´sz, L. and Szegedy, B. Limits of dense graph sequences. Journal of Combinatorial Theory, Series B, 96(6):933– 957, 2006.
+Mangan, S. and Alon, U. Structure and function of the feedforward loop network motif. Proceedings of the National Academy of Sciences, 100(21):11980–11985, 2003.
+Maron, H., Ben-Hamu, H., Serviansky, H., and Lipman, Y. Provably powerful graph networks. In Advances in Neural Information Processing Systems, pp. 2156–2167, 2019a.
+Maron, H., Ben-Hamu, H., Shamir, N., and Lipman, Y. Invariant and equivariant graph networks. In International Conference on Learning Representations, 2019b.
+McKay, B. D. Small graphs are reconstructible. Australasian Journal of Combinatorics, 15:123–126, 1997.
+Meng, C., Mouli, S. C., Ribeiro, B., and Neville, J. Subgraph pattern neural networks for high-order graph evolution prediction. In AAAI, pp. 3778–3787, 2018.
+Milo, R., Shen-Orr, S., Itzkovitz, S., Kashtan, N., Chklovskii, D., and Alon, U. Network motifs: simple building blocks of complex networks. Science, 298(5594): 824–827, 2002.
+Morris, C., Ritzert, M., Fey, M., Hamilton, W. L., Lenssen, J. E., Rattan, G., and Grohe, M. Weisfeiler and leman go neural: Higher-order graph neural networks. In Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 33, pp. 4602–4609, 2019.
+Morris, C., Kriege, N. M., Bause, F., Kersting, K., Mutzel, P., and Neumann, M. Tudataset: A collection of benchmark datasets for learning with graphs. In ICML 2020 Workshop on Graph Representation Learning and Beyond (GRL+ 2020), 2020.
+Mouli, S. C. and Ribeiro, B. Neural networks for learning counterfactual g-invariances from single environments. ICLR, 2021.
+Munch, E. A user’s guide to topological data analysis. Journal of Learning Analytics, 4(2):47–61, 2017.
+Murphy, R., Srinivasan, B., Rao, V., and Ribeiro, B. Relational pooling for graph representations. In Proceedings of the 36th International Conference on Machine Learning, 2019.
+Neyman, J. Sur les applications de la theorie des probabilites aux experiences agricoles: essai des principes (masters thesis); justiﬁcation of applications of the calculus of probabilities to the solutions of certain questions in agricultural experimentation. excerpts english translation (reprinted). Stat Sci, 5:463–472, 1923.
+
+Niepert, M., Ahmed, M., and Kutzkov, K. Learning convolutional neural networks for graphs. In International conference on machine learning, pp. 2014–2023, 2016.
+Nowak, A., Villar, S., Bandeira, A. S., and Bruna, J. A note on learning algorithms for quadratic assignment with graph neural networks. In Proceeding of the 34th International Conference on Machine Learning (ICML), volume 1050, pp. 22, 2017.
+Orbanz, P. and Roy, D. M. Bayesian models of graphs, arrays and other exchangeable random structures. IEEE transactions on pattern analysis and machine intelligence, 37(2):437–461, 2014.
+Ou, M., Cui, P., Pei, J., Zhang, Z., and Zhu, W. Asymmetric transitivity preserving graph embedding. In Proceedings of the 22nd ACM SIGKDD international conference on Knowledge discovery and data mining, pp. 1105–1114, 2016.
+Papernot, N., McDaniel, P., Goodfellow, I., Jha, S., Celik, Z. B., and Swami, A. Practical black-box attacks against machine learning. In Proceedings of the 2017 ACM on Asia conference on computer and communications security, pp. 506–519, 2017.
+Parascandolo, G., Kilbertus, N., Rojas-Carulla, M., and Scho¨lkopf, B. Learning independent causal mechanisms. In International Conference on Machine Learning, pp. 4036–4044. PMLR, 2018.
+Paszke, A., Gross, S., Massa, F., Lerer, A., Bradbury, J., Chanan, G., Killeen, T., Lin, Z., Gimelshein, N., Antiga, L., Desmaison, A., Kopf, A., Yang, E., DeVito, Z., Raison, M., Tejani, A., Chilamkurthy, S., Steiner, B., Fang, L., Bai, J., and Chintala, S. Pytorch: An imperative style, high-performance deep learning library. In Wallach, H., Larochelle, H., Beygelzimer, A., d'Alche´-Buc, F., Fox, E., and Garnett, R. (eds.), Advances in Neural Information Processing Systems 32, pp. 8024–8035. Curran Associates, Inc., 2019.
+Pearl, J. Causality. Cambridge university press, 2009.
+Pedregosa, F., Varoquaux, G., Gramfort, A., Michel, V., Thirion, B., Grisel, O., Blondel, M., Prettenhofer, P., Weiss, R., Dubourg, V., Vanderplas, J., Passos, A., Cournapeau, D., Brucher, M., Perrot, M., and Duchesnay, E. Scikit-learn: Machine learning in Python. Journal of Machine Learning Research, 12:2825–2830, 2011.
+Perozzi, B., Al-Rfou, R., and Skiena, S. Deepwalk: Online learning of social representations. In Proceedings of the 20th ACM SIGKDD international conference on Knowledge discovery and data mining, pp. 701–710, 2014.
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+Pinar, A., Seshadhri, C., and Vishal, V. Escape: Efﬁciently counting all 5-vertex subgraphs. In Proceedings of the 26th International Conference on World Wide Web, pp. 1431–1440, 2017.
+
+Saxton, D., Grefenstette, E., Hill, F., and Kohli, P. Analysing mathematical reasoning abilities of neural models. In International Conference on Learning Representations, 2019.
+
+Przˇulj, N. Biological network comparison using graphlet degree distribution. Bioinformatics, 23(2):e177–e183, 2007.
+Qiu, J., Dong, Y., Ma, H., Li, J., Wang, K., and Tang, J. Network embedding as matrix factorization: Unifying deepwalk, line, pte, and node2vec. In Proceedings of the Eleventh ACM International Conference on Web Search and Data Mining, pp. 459–467, 2018.
+Raj, A., Bauer, S., Soleymani, A., Besserve, M., and Scho¨lkopf, B. Causal feature selection via orthogonal search. arXiv preprint arXiv:2007.02938, 2020.
+Rieck, B., Bock, C., and Borgwardt, K. A persistent weisfeiler-lehman procedure for graph classiﬁcation. In Chaudhuri, K. and Salakhutdinov, R. (eds.), Proceedings of the 36th International Conference on Machine Learning, volume 97 of Proceedings of Machine Learning Research, pp. 5448–5458, Long Beach, California, USA, 09–15 Jun 2019. PMLR.
+Rosenfeld, E., Ravikumar, P., and Risteski, A. The risks of invariant risk minimization. arXiv preprint arXiv:2010.05761, 2020.
+Rossi, R. A., Ahmed, N. K., and Koh, E. Higher-order network representation learning. In Companion Proceedings of the The Web Conference 2018, pp. 3–4, 2018.
+Rossi, R. A., Ahmed, N. K., Carranza, A., Arbour, D., Rao, A., Kim, S., and Koh, E. Heterogeneous network motifs. arXiv preprint arXiv:1901.10026, 2019.
+Rubin, D. B. Estimating causal effects of treatments in randomized and nonrandomized studies. Journal of educational Psychology, 66(5):688, 1974.
+Sanchez-Gonzalez, A., Heess, N., Springenberg, J. T., Merel, J., Riedmiller, M. A., Hadsell, R., and Battaglia, P. Graph networks as learnable physics engines for inference and control. In International Conference on Machine Learning, 2018.
+Santoro, A., Hill, F., Barrett, D., Morcos, A., and Lillicrap, T. Measuring abstract reasoning in neural networks. In International Conference on Machine Learning, pp. 4477– 4486, 2018.
+Sato, R. A survey on the expressive power of graph neural networks. arXiv preprint arXiv:2003.04078, 2020.
+
+Scho¨lkopf, B. Causality for machine learning. arXiv preprint arXiv:1911.10500, 2019.
+Scott Armstrong, J. and Collopy, F. Causal forces: Structuring knowledge for time-series extrapolation. Journal of Forecasting, 12(2):103–115, 1993.
+Shajarisales, N., Janzing, D., Schoelkopf, B., and Besserve, M. Telling cause from effect in deterministic linear dynamical systems. In International Conference on Machine Learning, pp. 285–294. PMLR, 2015.
+Shen-Orr, S. S., Milo, R., Mangan, S., and Alon, U. Network motifs in the transcriptional regulation network of escherichia coli. Nature genetics, 31(1):64–68, 2002.
+Shervashidze, N., Vishwanathan, S., Petri, T., Mehlhorn, K., and Borgwardt, K. Efﬁcient graphlet kernels for large graph comparison. In Artiﬁcial Intelligence and Statistics, pp. 488–495, 2009.
+Shervashidze, N., Schweitzer, P., Leeuwen, E. J. v., Mehlhorn, K., and Borgwardt, K. M. Weisfeiler-lehman graph kernels. Journal of Machine Learning Research, 12(Sep):2539–2561, 2011.
+Sitawarin, C., Bhagoji, A. N., Mosenia, A., Mittal, P., and Chiang, M. Rogue signs: Deceiving trafﬁc sign recognition with malicious ads and logos. CoRR, abs/1801.02780, 2018.
+Snijders, T. A. and Nowicki, K. Estimation and prediction for stochastic blockmodels for graphs with latent block structure. Journal of classiﬁcation, 14(1):75–100, 1997.
+Sporns, O. and Ko¨tter, R. Motifs in brain networks. PLoS biology, 2(11):e369, 2004.
+Stone, L. and Roberts, A. Competitive exclusion, or species aggregation? Oecologia, 91(3):419–424, 1992.
+Stone, L., Simberloff, D., and Artzy-Randrup, Y. Network motifs and their origins. PLoS computational biology, 15 (4):e1006749, 2019.
+Sugiyama, M., Krauledat, M., and Mu¨ller, K.-R. Covariate shift adaptation by importance weighted cross validation. Journal of Machine Learning Research, 8(5), 2007.
+Sugiyama, M., Ghisu, M. E., Llinares-Lo´pez, F., and Borgwardt, K. graphkernels: R and python packages for graph comparison. Bioinformatics, 34(3):530–532, 2017.
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+Sun, H., Dhingra, B., Zaheer, M., Mazaitis, K., Salakhutdinov, R., and Cohen, W. Open domain question answering using early fusion of knowledge bases and text. In Proceedings of the 2018 Conference on Empirical Methods in Natural Language Processing, pp. 4231–4242, Brussels, Belgium, October-November 2018. Association for Computational Linguistics.
+Tang, H., Huang, Z., Gu, J., Lu, B.-L., and Su, H. Towards scale-invariant graph-related problem solving by iterative homogeneous gnns. In Advances in Neural Information Processing Systems, volume 33, pp. 15811–15822, 2020.
+Teixeira, C. H., Cotta, L., Ribeiro, B., and Meira, W. Graph pattern mining and learning through user-deﬁned relations. In 2018 IEEE International Conference on Data Mining (ICDM), pp. 1266–1271. IEEE, 2018.
+Teru, K. K., Denis, E., and Hamilton, W. L. Inductive relation prediction by subgraph reasoning. In Proceedings of the 37th International Conference on Machine Learning, Proceedings of Machine Learning Research. PMLR, 2020.
+Tian, J. and Pearl, J. Causal discovery from changes. UAI, 2001.
+Toenshoff, J., Ritzert, M., Wolf, H., and Grohe, M. Graph learning with 1d convolutions on random walks. arXiv preprint arXiv:2102.08786, 2021.
+Tweedie, M. C. Inverse statistical variates. Nature, 155 (3937):453–453, 1945.
+Ulam, S. M. A collection of mathematical problems. Wiley, New York, 29, 1960.
+Velicˇkovic´, P., Cucurull, G., Casanova, A., Romero, A., Lio, P., and Bengio, Y. Graph attention networks. ICLR, 2018.
+Velicˇkovic´, P., Ying, R., Padovano, M., Hadsell, R., and Blundell, C. Neural execution of graph algorithms. In International Conference on Learning Representations (ICLR), 2020.
+Vignac, C., Loukas, A., and Frossard, P. Building powerful and equivariant graph neural networks with structural message-passing. In Advances in Neural Information Processing Systems, 2020.
+Wale, N., Watson, I. A., and Karypis, G. Comparison of descriptor spaces for chemical compound retrieval and classiﬁcation. Knowledge and Information Systems, 14 (3):347–375, 2008.
+Wang, L., Zhao, H., Li, J., Xu, Y., Lan, Y., Yin, W., Liu, X., Yu, L., Lin, S., Du, M. Y., et al. Identifying functions and prognostic biomarkers of network motifs marked by
+
+diverse chromatin states in human cell lines. Oncogene, 39(3):677–689, 2020a.
+Wang, P., Lui, J. C., Ribeiro, B., Towsley, D., Zhao, J., and Guan, X. Efﬁciently estimating motif statistics of large networks. ACM Transactions on Knowledge Discovery from Data (TKDD), 9(2):1–27, 2014.
+Wang, Y., Wang, W., Liang, Y., Cai, Y., and Hooi, B. Graphcrop: Subgraph cropping for graph classiﬁcation. arXiv preprint arXiv:2009.10564, 2020b.
+Wedeen, V. J., Hagmann, P., Tseng, W.-Y. I., Reese, T. G., and Weisskoff, R. M. Mapping complex tissue architecture with diffusion spectrum magnetic resonance imaging. Magnetic resonance in medicine, 54(6):1377–1386, 2005.
+Wu, Z., Pan, S., Chen, F., Long, G., Zhang, C., and Philip, S. Y. A comprehensive survey on graph neural networks. IEEE Transactions on Neural Networks and Learning Systems, 2020.
+Xu, K., Li, C., Tian, Y., Sonobe, T., Kawarabayashi, K.i., and Jegelka, S. Representation learning on graphs with jumping knowledge networks. volume 80 of Proceedings of Machine Learning Research, pp. 5453–5462, Stockholmsma¨ssan, Stockholm Sweden, 10–15 Jul 2018. PMLR.
+Xu, K., Hu, W., Leskovec, J., and Jegelka, S. How powerful are graph neural networks? In International Conference on Learning Representations, 2019.
+Xu, K., Zhang, M., Li, J., Du, S. S., Kawarabayashi, K.-I., and Jegelka, S. How neural networks extrapolate: From feedforward to graph neural networks. In International Conference on Learning Representations, 2021.
+Yanardag, P. and Vishwanathan, S. Deep graph kernels. In Proceedings of the 21th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, pp. 1365–1374. ACM, 2015.
+Ye, W., Askarisichani, O., Jones, A., and Singh, A. Deepmap: Learning deep representations for graph classiﬁcation. arXiv preprint arXiv:2004.02131, 2020.
+Yehudai, G., Fetaya, E., Meirom, E., Chechik, G., and Maron, H. From local structures to size generalization in graph neural networks. arXiv preprint arXiv:2010.08853, 2021.
+You, J., Ying, R., and Leskovec, J. Position-aware graph neural networks. volume 97 of Proceedings of Machine Learning Research, pp. 7134–7143, Long Beach, California, USA, 09–15 Jun 2019. PMLR.
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+Yu, W., Zheng, C., Cheng, W., Aggarwal, C. C., Song, D., Zong, B., Chen, H., and Wang, W. Learning deep network representations with adversarially regularized autoencoders. In Proc. of AAAI, pp. 2663–2671. ACM, 2018.
+Zhang, M. and Chen, Y. Link prediction based on graph neural networks. In Advances in Neural Information Processing Systems, pp. 5165–5175, 2018.
+Zhang, Z., Cui, P., and Zhu, W. Deep learning on graphs: A survey. IEEE Transactions on Knowledge and Data Engineering, 2020.
+
+Supplementary Material
+
+A. Proof of Proposition 1
+Proposition 1. [E-invariant Representation’s Effect on OOD Classiﬁcation] Consider a permutation-invariant graph representation Γ : ∪∞ n=1{0, 1}n×n × Xn → Rd, d ≥ 1, and a downstream function ρ : Y × Rd → [0, 1] (e.g., a feedforward neural network (MLP) with softmax outputs) such that, for some , δ > 0, the generalization error over the training distribution is: ∀y ∈ Y,
+P( |P(Y = y|GNtr tr ) − ρ(y, Γ(GNtr tr ))| ≤ ) ≥ 1 − δ,
+Γ is said to be environment-invariant (E-invariant) if ∀e ∈ supp(Etr), ∀e† ∈ supp(Ete),
+Γ(GNtr tr |Etr = e) = Γ(GNte te |Ete = e†).
+If Γ is E-invariant, then the OOD test error is the same as the generalization error over the training distribution, i.e., ∀y ∈ Y,
+P(|P(Y = y|GNte te ) − ρ(y, Γ(GNte te ))| ≤ ) ≥ 1 − δ. (2)
+Proof. First note that Y is only a function of W and an independent random noise (following Deﬁnitions 1 and 2, depicted in Figure 1). Therefore, Y is E-invariant, and thus
+P(Y |GNte te = GtNe te ) = P(Y |GNtr tr = GtNr tr ),
+since the observed graphs in test (GtNe te ) and training (GtNr tr ) only differ due to the change of environments while sharing the same graphon variable W and the other random variables. The deﬁnition of E-invariance states that ∀e ∈ supp(Etr), ∀e† ∈ supp(Ete),
+Γ(GNtr tr |Etr = e) = Γ(GNte te |Ete = e†).
+So, the E-invariance of Γ yields
+ρ(y, Γ(GNtr tr )) = ρ(y, Γ(GNte te )),
+concluding our proof.
+B. Proof of Theorem 1
+Theorem 1 (Approximately E-invariant Graph Representation). Let GNtr tr and GNte te be two samples of graphs of sizes N tr and N te from the training and test distributions, respectively, both deﬁned over the same graphon variable W and
+
+satisfying Deﬁnitions 1 and 2. Assume the vertex attribute function gX (·, ·) of Deﬁnitions 1 and 2 is invariant to Etr and Ete (the reason for this assumption will be clear later).
+Let || · ||∞ denote the L-inﬁnity norm. For any integer k ≤ min(N tr, N te), and any constant 0 < < 1,
+
+P( Γ1-hot(GNtr tr ) − Γ1-hot(GNte te ) ∞ > ) ≤
+
+2N tr
+
+2N te
+
+2|F≤k|(exp(− 8k2 ) + exp(− 8k2 )). (9)
+
+Proof. We ﬁrst replace tind by tinj, which is deﬁned by
+
+tinj(Fk, GN* * )
+
+=
+
+inj(Fk, GN* * ) , N *!/(N * − k)!
+
+(10)
+
+where inj(Fk, GN* * ) is the number of injective homomorphisms of Fk into GN* * . Then, we know from Lova´sz & Szegedy (2006, Theorem 2.5) that for unattributed graphs GN* * ,
+2
+P(|tinj(Fk, GN* * ) − t(Fk, W )| > ) ≤ 2 exp(− 2k2 N *), (11)
+where W is the graphon function as illustrated in Deﬁnitions 1 and 2. As deﬁned in Lova´sz & Szegedy (2006),
+
+t(Fk, W ) =
+
+W (xi, xj)dx1 · · · dxk,
+
+[0,1]k ij∈E(Fk)
+
+where E(Fk) denotes the edge set of Fk. This bound shows that tinj(Fk, GN* * ) converges to t(Fk, W ) as N * → ∞. Actually, we can get similar bounds for tind using a similar proof technique. Although the value it converges to is dif-
+ferent, the difference between values is preserved as it will
+be proved in the following text. More importantly, it can
+be extended to vertex-attributed graphs under our SCM as-
+sumptions depicted in Deﬁnitions 1 and 2.
+
+We can have this extension because, for the vertex-attributed graphs in Deﬁnitions 1 and 2, gX operates on attributed graphs similarly as the graphon does on unattributed graphs. We can consider the graph generation procedure as ﬁrst generating the underlying structure, and then adding vertex attribute accordingly to its corresponding random graphon value Uv ∈ Uniform(0, 1) and graphon W . gX (·, ·) being invariant to Etr and Ete means for any two environments e ∈ supp(Etr), e† ∈ supp(Ete), gX (e, ·) = gX (e†, ·).
+Then for a given vertex-attributed graph Fk with k vertices, and a given (whole) graph size N *, we can deﬁne φ as an
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+induced map φ : [k] → [N *], which can be thought about
+
+as how the k vertices in Fk are mapped to the vertices in
+GN* * . Deﬁne Cφ = 1 if φ is a homomorphism from Fk to the W -random graph GN* * , otherwise Cφ = 0. We deﬁne Gm* as the subgraph of GN* * induced by vertices {1, ..., m}. Note here m has two meanings. First, it represents the m-th
+
+vertex. Second, it indicates the size of the subgraph. We
+
+deﬁne Bm
+
+=
+
+1
+
+(N * k
+
+)
+
+φ P(Cφ = 1|Gm* ), 0 ≤ m ≤ N * as
+
+the expected induced homomorphism densities once we
+
+observe
+
+the
+
+subgraph
+
+Gm* .
+
+Here
+
+B0
+
+=
+
+1
+
+(N * k
+
+)
+
+φ P(Cφ = 1)
+
+denotes the expectation before we observe any vertices.
+
+Bm is a martingale for unattributed graphs (Lova´sz & Szegedy, 2006, Theorem 2.5). And since in Deﬁnitions 1 and 2 we also use the graphon W and gX operates on attributed graphs using the graphon W and Uv, it is also a martingale for vertex-attributed graphs based on our def-
+initions. We do not need to care about the environment variable E* here because the function gX is invariant to E* and, therefore, it can be treated as a constant. Then,
+
+|Bm − Bm−1|
+
+1 = N* |
+
+P(Cφ = 1|Gm* ) − P(Cφ = 1|Gm* −1)|
+
+kφ
+
+1 ≤ N*
+
+|P(Cφ = 1|Gm* ) − P(Cφ = 1|Gm* −1)|.
+
+kφ
+
+Here, for each φ : [k] → [N *] that does not contain the value
+m in its image (which means no vertex in Fk is mapped to the m-th vertex in GN* * ), the difference is 0. For all other terms, the terms are at most 1. Thus,
+
+|Bm − Bm−1| ≤
+
+N *−1 k−1 N*
+k
+
+k =.
+n
+
+By deﬁnition, B0
+
+=
+
+1
+
+(N * k
+
+)
+
+φ P(Cφ = 1) = t*(Fk, W ),
+
+and BN*
+
+=
+
+1
+(N * k
+
+)
+
+ind(Fk
+
+,
+
+GN*
+
+*
+
+)
+
+=
+
+tind(Fk, GN* * ), where
+
+t*(Fk, W ) is deﬁned as B0, is the expected induced ho-
+
+momorphism densities if we only know the graphon W and
+
+we did not observe any vertex in the graph.
+
+Then, we can use Azuma’s inequality for Martingales,
+
+2
+P(BN* − B0 > ) ≤ exp(− 2N *(k/N *)2 )
+2
+= exp(− 2k2 N *).
+
+Since BN* = tind(Fk, GN* * ), and B0 = t*(Fk, W ), we get the similar bound as in Equation (11),
+
+2
+P(|tind(Fk, GN* * ) − t*(Fk, W )| > ) ≤ 2 exp(− 2k2 N *).
+
+Since |tind(Fk, GNtr tr ) − t*(Fk, W )| ≤ 2 , |tind(Fk, GNte te ) − t*(Fk, W )| ≤ 2 imply |tind(Fk, GNtr tr ) − tind(Fk, GNte te )| ≤ , we have,
+
+P(|tind(Fk, GNtr tr ) − tind(Fk, GNte te )| > ) = 1 − P(|tind(Fk, GNtr tr ) − tind(Fk, GNte te )| ≤ )
+
+≤
+
+1
+
+−
+
+P(|tind(Fk, GNtr tr )
+
+−
+
+t*(Fk, W )|
+
+≤
+
+) 2
+
+·
+
+P(|tind(Fk, GNte te ) − t*(Fk, W )|
+
+≤
+
+) 2
+
+2
+
+2
+
+≤ 1 − (1 − 2 exp(− 8k2 N tr))(1 − 2 exp(− 8k2 N te))
+
+2
+
+2
+
+= 2(exp(− 8k2 N tr) + exp(− 8k2 N te))
+
+2
+− 4 exp(− 8k2 (N tr + N te))
+
+2
+
+2
+
+≤ 2(exp(− 8k2 N tr) + exp(− 8k2 N te)).
+
+(12)
+
+Then we know,
+
+P(||Γ1-hot(GNtr tr ) − Γ1-hot(GNte te )||∞ ≤ ) = P(|tind(Fk , GNtr tr ) − tind(Fk , GNte te )| ≤ , ∀Fk ∈ F≤k)
+
+≥1−
+
+P(|tind(Fk , GNtr tr ) − tind(Fk , GNte te )| > )
+
+Fk ∈F≤k
+
+2N tr
+
+2N te
+
+≥ 1 − 2|F≤k|(exp(− 8k2 ) + exp(− 8k2 )).
+
+(13)
+
+It follows from the Bonferroni inequality that P(∩Ni=1Ai) ≥
+
+1−
+
+N i=1
+
+P(A˜ i),
+
+where
+
+Ai
+
+and
+
+its
+
+complement
+
+A˜i
+
+are
+
+any
+
+events. Therefore,
+
+P(||Γ1-hot(GNtr tr ) − Γ1-hot(GNte te )||∞ > )
+
+2N tr
+
+2N te
+
+≤ 2|F≤k|(exp(− 8k2 ) + exp(− 8k2 )),
+
+concluding the proof.
+
+C. Biases in estimating induced homomorphism densities
+
+Induced (connected) homomorphism densities of a given
+graph Fk over all possible k -vertex (k ≤ k) connected graphs for an N *-vertex graph GN* * are deﬁned as
+
+ω(Fk , GN* * ) =
+
+Fk
+
+ind(Fk , GN* * ) ∈F≤k ind(Fk ,
+
+GN* * ) .
+
+This is a slightly different deﬁnition from the induced homomorphism densities in Equation (3). In the main text, the denominator is the total number of possible mappings (which can include mappings that are disconnected). Here we consider the total numbers of induced mappings that are connected as is common practice.
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+Achieving unbiased estimates for induced (connected) ho-
+momorphism densities usually requires sophisticated meth-
+ods and signiﬁcant amount of time. We show that a biased estimator can also work for the GNN+ in Equation (7) if
+the bias is multiplicative and the READOUTΓ is simply the sum of the vertex embeddings. We formalize it as follows.
+Proposition 2. Assume ωˆ(Fk , GN* * ) is a biased estimator for ω(Fk , GN* * ) for any k and k -sized connected graphs Fk in a N *-vertex GN* * , such that E(ωˆ(Fk , GN* * )) = β(Fk )ω(Fk , GN* * ), where β(Fk ) (β(·) > 0) is the bias related to the graph Fk , and the expectation is over the sampling procedure. The expected learned representation E( Fk ∈F≤k ωˆ(Fk , GN* * )1T(GNN+(Fk ))) can be the same as using the true induced (connected) homomorphism densities ω(Fk , GN* * ), ∀Fk ∈ F≤k.
+
+Proof. W.L.O.G, assume GNN+0 (Fk ) is the representation we can learn from the true induced (connected) homomorphism densities ω(Fk , GN* * ), ∀Fk ∈ F≤k. When only using the biased estimators, if we are able to learn the representation GNN+(Fk ) = GNN+0 (Fk )/β(Fk ) for all Fk ∈ F≤k, then we can still get the graph representation in
+Equation (7) the same as using the true induced (connected) homomorphism densities. This is possible because GNN+
+is proven to be a most expressive k -vertex graph represen-
+tation, thus it is able to learn any function on the graph Fk .
+Then,
+
+
+
+
+
+E
+
+ωˆ(Fk , GN* * )1T(GNN+(Fk )) =
+
+Fk ∈F≤k
+
+ω(Fk , GN* * )1T(GNN+0 (Fk )), (14)
+Fk ∈F≤k
+
+where 1T(GNN+(Fk )) is the sum of the vertex embeddings given by the GNN+ if it is an equivariant representa-
+tion of the graph.
+
+D. Review of Graph Neural Networks
+Graph Neural Networks (GNNs) constitute a popular class of methods for learning representations of vertices in a graph or graph-wide representations (Kipf & Welling, 2017; Atwood & Towsley, 2016; Hamilton et al., 2017; Gilmer et al., 2017; Velicˇkovic´ et al., 2018; Xu et al., 2019; Morris et al., 2019; You et al., 2019; Liu et al., 2019; Chami et al., 2019). Graph-wide representations can also be obtained by applying GNNs to the connected induced subgraphs in a larger graph and then averaging the resulting subgraph representations. That is, in our work, we have applied GNNs to connected induced subgraphs in a graph, and then aggregated (averaged) them to obtain the representation of the graph. We brieﬂy summarize the idea, but more details
+
+can be found in texts such as by Hamilton (2020) and reviews by Wu et al. (2020) and Zhang et al. (2020) and the references therein.
+
+Suppose we have a graph G with vertex set V = {1, . . . , N }, and each vertex in our data may carry some vertex attribute (also called a feature). For instance, in a molecule, vertices may represent atoms, edges may represent bonds, and features may indicate the atomic number (Duvenaud et al., 2015). These vertex features can be stored in an N × d matrix X, where d is the dimension of the vertex feature vector. In particular, row v ∈ V of Xv holds the attribute associated with vertex v.
+
+Roughly speaking, GNNs proceed by passing messages
+among vertices, later passing the result through a learnable function such as an MLP, and repeating T ∈ Z≥1 times. At each iteration t = {1, 2, . . . , T }, all vertices v ∈ V are associated with a learned vector h(t). Speciﬁcally, we begin by initializing a vector as h(v0) = Xv for every vertex v ∈ V . Then, we recursively compute an update such as the
+following
+
+h(vt) = MLP(t) h(vt−1),
+
+h(ut−1) , ∀v ∈ V, (15)
+
+u∈N (v)
+
+where N (v) ⊆ V denotes the neighborhood set of v in the graph, MLP(t) denotes a multi-layer perceptron, and whose superscript t indicates that the MLP at each recursion layer may have different learnable parameters. We can replace the summation with any permutation-invariant function of the neighborhood. We see that GNNs recursively update vertex states with states from their neighbors and their state from the previous recursion layer. Additionally, we can sample from the neighborhood set rather than aggregating over every neighbor. Generally speaking there is much research into the variations of this recursion step and we refer the reader to aforementioned references for details.
+
+To learn a graph representation, we can aggregate the vertex representations using a so-called READOUT function deﬁned to be permutation-invariant over the labels. A graph representation hG by a GNN is then
+
+hG = READOUT h(vt) v,t∈V ×{1...,T } ,
+
+where the vertex features h(vt) are as in Equation (15). READOUT may or may not contain learnable weights. We denote it as XU-READOUT to not confuse with our notation READOUTΓ.
+The entire function is differentiable and can be learned endto-end. These models are thus typically trained with variants of Stochastic Gradient Descent. In our work, we apply this scheme over connected induced subgraphs in the graph, making them a differentiable module in our end-to-end representation scheme.
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+E. Further Related Work
+This section provides a more in-depth discussion placing our work in the context of existing literature. We explain why existing state-of-the-art graph learning methods will struggle to extrapolate, subgraph methods, and more in Graph Neural Networks literature.
+Extrapolation. Geometrically, extrapolation can be thought as reasoning beyond a convex hull of a set of training points (Hastie et al., 2012; Haffner, 2002; King & Zeng, 2006; Xu et al., 2021). However, for neural networks— and their arbitrary representation mappings—this geometric interpretation is insufﬁcient to describe a truly broad range of tasks. Rather, extrapolations are better described through counterfactual reasoning (Neyman, 1923; Rubin, 1974; Pearl, 2009; Scho¨lkopf, 2019).
+As shown in Geirhos et al. (2020), the ability of deep neural networks to capture shortcuts for predictions tends to results in poor extrapolation performances. Therefore, speciﬁc methods or strategies must be adopted to obtain extrapolation abilities.
+There are other approaches for conferring models with extrapolation abilities. These ideas have started to permeate graph literature, which we touch on here, but remain outside the scope of our systematic counterfactual modeling framework.
+Incorporating domain knowledge is an intuitive approach to learn a function that predicts adequately outside of the training distribution, data collection environment, and heuristic curation. This has been used, for example, in time series forecasting (Scott Armstrong & Collopy, 1993; Armstrong et al., 2005). This can come in the form of re-expressing phenomena in a way that can be adequately and accurately represented by machine learning methods (Lample & Charton, 2020) or speciﬁcally augmenting existing general-purpose methods to task (Klicpera et al., 2020). In the context of graphs, it has been used to pre-process the graph input to make a learned graph neural network model a less complex function and thus extend beyond training data (Xu et al., 2021), although this does not necessarily fall into the framework we consider here.
+Another way of moving beyond the training data is robustness. Relevant for deep learning systems are adversarial attacks (Papernot et al., 2017). Neural networks can be highly successful classiﬁers on the training data but become wildly inaccurate with small perturbations of those training examples (Goodfellow et al., 2015). This is important, say, in self-driving cars (Sitawarin et al., 2018), which can become confused by grafﬁti. This becomes particularly problematic when we deploy systems to real-world environments outside the training data. Learning to defend against
+
+adversarial attacks is in a way related to performing well outside the environment and curation heuristics encountered in training. An interesting possibility for future work is to explore the relationships between the two approaches.
+Overﬁtting will compromise even in-distribution generalization. Regularization schemes such as explicit penalties are a well known and broadly applicable strategy (Hastie et al., 2012). Another implicit approach is data augmentation (Herna´ndez-Garc´ıa & Ko¨nig, 2018), and the recent GraphCrop method proposes a scheme for graphs that randomly extracts subgraphs from certain graphs in a minibatch during training (Wang et al., 2020b). These directions differ from our own in that we seek a formulation for extrapolation even when overﬁtting is not necessarily a problem. Still these two approaches are both useful in the toolbox of representation learning.
+We would like to point out that representation learning on dynamic graphs (Kazemi et al., 2020), including tasks like link prediction on growing graphs (Anonymous, 2021), is a mostly separate research direction from what we consider here (although it is now understood that temporal and static graph representations are equivalent for observational predictions (Gao & Ribeiro, 2021)). In these scenarios, there is a direct expectation that the process we model will change and evolve. For instance, knowledge bases – a form of graph encoding facts and relationships – are inevitably incomplete (Sun et al., 2018). Simply put, developments in information and society move faster than they can be curated. Another important example is recommendation systems (Kumar et al., 2019) based on evolving user-item networks. These concepts are related to the counterfactuals on graphs (Eckles et al., 2016) that we discuss. This is fundamentally different from our work where we do graphwide learning and representation of a dataset of many graphs rather than one constantly evolving graph.
+Subgraph methods and Graphlet Counting Kernels. A foundational principle of our work is that, by exploiting subgraphs, we confer graph classiﬁcations models with both the ability to ﬁt the training data and to extrapolate to graphs from a different distribution (OOD generalization). As detailed in Section 3.2, this insight follows from the Aldous-Hoover representation of jointly exchangeable distributions (graphs) (Hoover, 1979; Aldous, 1981; Kallenberg, 2006; Orbanz & Roy, 2014) and work on graph limits (Lova´sz, 2012). We now discuss the larger literature that uses subgraphs in machine learning.
+Counting kernels (Shervashidze et al., 2009) measures the similarity between two graphs by the dot product of their normalized counts of connected induced subgraphs (graphlet). This can be used for classiﬁcation via kernelized methods like Support Vector Machines (SVM).
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+Yanardag & Vishwanathan (2015) argues that the dot product does not capture dependence between subgraphs and extend to a general bilinear form over a learned similarity matrix. These approaches are related to the Reconstruction Conjecture, which posits graphs can be determined through knowledge of their subgraphs (Kelly et al., 1957; Ulam, 1960; Hemminger, 1969; McKay, 1997). It is known that computing a maximally expressive graph kernel, or one that is injective over the class of graphs, is as hard as the Graph Isomorphism problem, and thus intractable in general (Ga¨rtner et al., 2003; Kriege et al., 2020). Kriege et al. (2018) shows graph properties that subgraph counting kernels fail to predict. The work then proposes a method to make them more expressive, but only for graphs without vertex attributes.
+Most applications of graphlet counting do not exploit vertex attributes, and even those that do (e.g. Wale et al. (2008)) are likely to fail under a distribution shift over attributes; this is because counting each type of attributed subgraph (e.g. red clique, blue clique) is sensitive to distribution shift. In comparison, our use of GNNs confers our framework with the ability learn a compressed representation of different attributed subgraphs, tailored for the task, and extrapolate even under attribute shift. We demonstrate this in Table 2. Last, a recent work (Ye et al., 2020) proposes to pass the attributed subgraph counts to a downstream neural network model to better compress and represent the high dimensional feature space. However, with attribute shifts, it may be that the downstream layers did not see enough attributed subgraph of certain types in training to learn how to correctly represent them. We feel that it is better to compress the attributed signal in the process of representing the graph to handle these vertex features, the approach we take in this work.
+There are many graph kernel methods that do not leverage subgraph counts but other features to measure graph similarity, such as the count of matching walks, e.g. Kashima et al. (2003); Borgwardt et al. (2005); Borgwardt & Kriegel (2005). The WL Kernel uses the WL algorithm to compare graphs (Shervashidze et al., 2011) and will inherit the limitations of WL GNNs like inability to represent cycles. Rieck et al. (2019) propose a persistent WL kernel that uses ideas from Topological Data Analysis (Munch, 2017) to better capture such structures when comparing graphs. Methods that do not count subgraphs will not inherit properties regarding a graph-size environment change – from our analysis of asymptotic graph theory – but all extrapolation tasks require an assumption and our framework can be applied to studying the ability of various kernel methods to extrapolate under different scenarios. Those relying on attributes to build similarities are also likely to suffer from attribute shift.
+
+Subgraphs are studied to understand underlying mechanisms of graphs like gene regulatory networks, food webs, and the vulnerability of networks to attack, and sometimes used prognostically. A popular example investigates motifs, subgraphs that appear more frequently than under chance (Stone & Roberts, 1992; Shen-Orr et al., 2002; Milo et al., 2002; Mangan & Alon, 2003; Sporns & Ko¨tter, 2004; Bascompte & Melia´n, 2005; Alon, 2007; Chen et al., 2013; Benson et al., 2016; Stone et al., 2019; Dey et al., 2019; Wang et al., 2020a). Although the study of motifs is along a different direction and often focus on one-graph datasets, our framework learns rich latent representations of subgraphs. Another line of work uses subgraph counts as graph similarity measures, an example being matching real-world graphs to their most similar random graph generation models (Przˇulj, 2007).
+Other machine learning methods based on subgraphs have also been proposed. Methods like mGCMN (Li et al., 2020), HONE (Rossi et al., 2018), and MCN (Lee et al., 2018) learn representations for vertices by extending classical methods over edges to a new neighborhood structure based on subgraphs; for instance, mGCMN runs a GNN on the new graph. These methods do not exploit all subgraphs of size k and will not learn subgraph representations in a manner consistent with our extrapolation framework. Teru et al. (2020) uses subgraphs around vertices to predict missing facts in a knowledge base. Further examples include the Subgraph Prediction Neural network (Meng et al., 2018) that predicts subgraph classes in one dynamic heterogeneous graph; counting the appearance of edges in each type of subgraph for link prediction tasks (Abuoda et al., 2019); and SEAL (Zhang & Chen, 2018) runs a GNN over subgraphs extracted around candidate edges to predict whether an edge exists. While these methods exploit small subgraphs for their effective balance between rich graph information and computational tractability, they are along an orthogonal research direction.
+Graph Neural Networks. Among the many approaches for graph representation learning and classiﬁcation, which include methods for vertex embeddings that are subsequently read-out into graph representations (Belkin & Niyogi, 2002; Perozzi et al., 2014; Niepert et al., 2016; Ou et al., 2016; Kipf & Welling, 2016; Grover & Leskovec, 2016; Yu et al., 2018; Qiu et al., 2018; Maron et al., 2019b;a; Wu et al., 2020; Hamilton, 2020; Chami et al., 2020), we focus our discussion and modeling on Graph Neural Network (GNN) methods (Kipf & Welling, 2017; Atwood & Towsley, 2016; Hamilton et al., 2017; Gilmer et al., 2017; Velicˇkovic´ et al., 2018; Xu et al., 2019; Morris et al., 2019; You et al., 2019; Liu et al., 2019; Chami et al., 2019). GNNs are trained end-to-end, can straightforwardly provide latent graph representations for graphs of any size, easily handle
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+vertex/edge attributes, are computationally efﬁcient, and constitute a state-of-the-art method. However, GNNs lack extrapolation capabilities due also to their inability to learn latent representations that capture the topological structure of the graph (Xu et al., 2019; Morris et al., 2019; Garg et al., 2020; Sato, 2020). Relevantly, many cannot count the number of subgraphs such as triangles (3-cliques) in a graph (Arvind et al., 2020; Chen et al., 2020). In general, our theory of extrapolating in graph tasks requires properly capturing graph structure. In our work we consider GIN (Xu et al., 2019), GCN (Kipf & Welling, 2017) and PNA (Corso et al., 2020) as baseline GNN models. GIN and GCN are some of the most widely used models in literature. PNA generalizes different GNN models by considering multiple neighborhood aggregation schemes. Note that since we compare against PNA we do not need to consider other neighborhood aggregation schemes in GNNs, as those studied in Velicˇkovic´ et al. (2020). To test whether more expressive models are able to extrapolate, we employ RPGIN (Murphy et al., 2019). In our experiments, we show that these stateof-the-art methods are expressive in-distribution but fail to extrapolate.
+F. Experiments
+In this appendix we present the details of the experimental section, discussing the hyperparameters that have been tuned. Training was performed on NVIDIA GeForce RTX 2080 Ti, GeForce GTX 1080 Ti, TITAN V, and TITAN Xp GPUs.
+F.1. Model implementation
+All neural network approaches, including the models proposed in this paper, are implemented in PyTorch (Paszke et al., 2019) and Pytorch Geometric (Fey & Lenssen, 2019).
+Our GIN (Xu et al., 2019), GCN (Kipf & Welling, 2017) and PNA (Corso et al., 2020) implementations are based on their Pytorch Geometric implementations. We consider sum, mean, and max READOUTs as proposed by Xu et al. (2021) for extrapolations (denoted by XU-READOUT). For RPGIN (Murphy et al., 2019), we implement the permutation and concatenation with one-hot identiﬁers (of dimension 10) and use GIN as before. Other than a few hyperparameters and architectural choices, we use standard choices (e.g. Hu et al. (2020)) for neural network architectures. If the graphs are unattributed, we follow convention and assign a constant 1 dummy feature to every vertex.
+We use the WL graph kernel implementations provided by the graphkernels package (Sugiyama et al., 2017). All kernel methods use a Support Vector Machine on scikitlearn (Pedregosa et al., 2011).
+The Graphlet Counting kernel (GC kernel), as well as our
+
+own procedure, relies on being able to efﬁciently count attributed or unattributed connected induced homomorphisms within the graph. We use ESCAPE (Pinar et al., 2017) and R-GPM (Teixeira et al., 2018) as described in the main text. The source code of ESCAPE is available online and the authors of Teixeira et al. (2018) provided us their code. We pre-process each graph beforehand and save the obtained estimated induced homomorphism densities. Note that RGPM takes around 20 minutes per graph in the worst case considered, but graphs can be pre-processed in parallel. ESCAPE takes up to one minute per graph.
+All the models learn graph representations Γ(GN* * ), which we pass to a L-hidden layer feedforward neural network (MLP) with softmax outputs (L ∈ {0, 1} depending on the task) to obtain the prediction. For ΓGIN, and ΓRPGIN, we use respectively GIN and RPGIN as our base models to obtain latent representations for each k-sized connected induced subgraph. Then, we sum over the latent representations, each weighted by its corresponding induced homomorphism density, to obtain the graph representation. For Γ1-hot, the representation Γ1-hot(GN* * ) is a vector containing densities of each (possibly attributed) k-sized connected subgraph. To map this into a graph representation, we apply Γ1-hot(GN* * )TW where W is a learnable weight matrix whose rows are subgraph representations. Note that this effectively learns a unique weight vector for each subgraph type.
+We use the Adam optimizer to optimize all the neural network models. When an in-distribution validation set is available (see below), we use the weights that achieve best validation-set performance for prediction. Otherwise, we train for a ﬁxed number of epochs.
+The speciﬁcs of hyperparameter grids and downstream architectures are discussed in each section below.
+F.2. Schizophrenia Task: Size extrapolation
+The results of these experiments are reported in Table 1 (left). The data was graciously provided by the authors of De Domenico et al. (2016), which they pre-processed from publicly available data from The Center for Biomedical Research Excellence. There are 145 graphs which represent the functional connectivity brain networks of 71 schizophrenic patients and 74 healthy controls. Each graph has 264 vertices representing spherical regions of interest (ROIs). Edges represent functional connectivity. Originally, edges reﬂected a time-series coherence between regions. If the coherence between signals from two regions was above a certain threshold, the authors created a weighted edge. Otherwise, there is no edge. For simplicity, we converted these to unweighted edges. Extensive pre-processing must be done over fMRI data to create brain graphs. This includes discarding signals from certain ROIs. As described
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+by the authors, these choices make highly signiﬁcant impacts on the resulting graph. We refer the reader to the paper (De Domenico et al., 2016). Note that there are numerous methods for constructing a brain graph, and in ways that change the number of vertices. The measurement strategy taken by the lab can result in measuring about 500 ROIs, 1000 ROIs, or 264 as in the case we consider (Hagmann et al., 2007; Wedeen et al., 2005; De Domenico et al., 2016).
+For our purposes, we wish to create an extrapolation task, where a change in environment leads to an extrapolation set that contains smaller graphs. For this, we randomly select 20 of the 145 graphs in the dataset, balanced among the healthy and schizophrenic patients, to be used as test. For each healthy-group graph in these 20 graphs, we sample (with replacement) 0.4 × 264 vertices to be removed. In average, the new size for the healthy-group graphs in these 20 graphs is 178.2.
+We hold out the test graphs that are later used to assess the extrapolation capabilities. Over the remaining data, we use a stratiﬁed 5-fold cross-validation to choose the hyperparameters and to report the validation accuracy.
+Once the best hyperparameters are chosen, we re-train the model on the entire training data using 10 different initialization seeds, and predict on the test.
+For ΓGIN and ΓRPGIN, in their GNNs, the aggregation MLP of Equation (15) has hidden neurons chosen among {32, 64, 128, 256} and number of layers (i.e. recursions of message-passing) among {1, 2}. The learning rate is chosen in {0.001, 0.0001}. The value of k is treated as a hyperparameter chosen in {4, 5}.
+For Γ1-hot, recall that we wish to learn the matrix W whose rows are subgraph representations. We choose the dimension of the representations among {32, 64, 128, 256} and the learning rate in {0.001, 0.0001}. The value of k is treated as a hyperparameter chosen in {4, 5}.
+For the GNNs, we tune the learning rate in {0.01, 0.001}, the number of hidden neurons of the MLP in Equation (15) in {32, 64, 128}, the number of layers among {1, 2, 3}.
+For all these models, we use a batch size of 32 graphs and a single ﬁnal linear layer with a softmax activation as the downstream classiﬁer. We optimize for 400 epochs.
+For the graph kernels, following Kriege et al. (2020), we tune the regularization hyperparameter C in SVM over the set {10−3, 10−2, 10−1, 1, 10, 102, 103}. We tune the number of Weisfeiler-Lehman iterations of the WL kernel to be in {1, 2, 3, 4} (see Kriege et al. (2020, Section 3.1)).
+
+F.3. Erdo˝s-Re´nyi Connection Probability: Size Extrapolation
+We simulated Erdo˝s-Re´nyi graphs (Gnp model) using NetworkX (Hagberg et al., 2008). The task is to classify the edge probability p ∈ {0.2, 0.5, 0.8} of the generated graph. Table 1 shows results for a single environment task (middle), where graphs in training have all size 80, and a multiple environment task (right), where training graphs have sizes in {70, 80} chosen uniformly at random. In both cases, the test is composed of graphs of size 140. The training, validation, and test sets are ﬁxed. The number of graphs in training, validation, and test are 80, 40, and 100, respectively. The induced homomorphism densities are obtained for subgraphs of a ﬁxed size k = 5.
+For Γ1-hot, we hyperparameter tune the dimension of the subgraph representations in {32, 64, 128, 256} and the learning rate in {0.1, 0.01, 0.001}.
+For the GNNs and for ΓGIN, and ΓRPGIN, we hyperparameter tune the number of hidden neurons in the MLP of the GNN (Equation (15)) in {32, 64, 128, 256} (GNN is used to learn the representation for k-sized subgraph for ΓGIN, and ΓRPGIN). The number of layers is also a hyperparameter in {1, 2, 3} (3 layers only for the GNNs), and the learning rate in {0.1, 0.01, 0.001}. We also hyperparameter tune the presence or absence of the Jumping Knowledge mechanism from Xu et al. (2018).
+For IRM, we consider the two distinct graph sizes to be the two training environments. We tune the regularizer λ (Arjovsky et al., 2019, Section 3) in {4, 8, 16, 32}, stopping at 32 because increasing its value decreased performances.
+We train all neural models for 500 epochs with batch size equal to the full training data. The downstream classiﬁer is composed by a single linear layer with softmax activations. We perform early stopping as per Hu et al. (2020). The hyperparameter search is performed by training all models with 10 different initialization seeds and selecting the conﬁguration that achieved the highest mean accuracy on the validation data. Then, we report the mean (and standard deviation) accuracy over the training, the validation, and the test data in Table 1 (right).
+For the graph kernels, following Kriege et al. (2020), we tune the regularization hyperparameter C in SVM over the set {10−3, 10−2, 10−1, 1, 10, 102, 103}. We tune the number of Weisfeiler-Lehman iterations of the WL kernel to be among {1, 2, 3, 4} (see Kriege et al. (2020, Section 3.1)).
+F.4. Extrapolation performance over SBM attributed graphs
+We sample Stochastic Block Model graphs (SBM) using NetworkX (Hagberg et al., 2008). Each graph has two
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+blocks, having a within-block edge probability of P1,1 = P2,2 = 0.2. The cross-block edge probability is P1,2 = P2,1 ∈ {0.1, 0.3}. The label of a graph is its cross-block edge probability, i.e., Y = P1,2.
+Vertex color distributions change with train and test environments. In training, vertices in the ﬁrst block are either red or blue, with probabilities {0.9, 0.1}, respectively, while vertices in the second block are either green or yellow, with probabilities {0.9, 0.1}, respectively. In test, the probability distributions are reversed: Vertices in the ﬁrst block are either red or blue, with probabilities {0.1, 0.9}, respectively, and vertices in the second block are green or yellow with probabilities {0.1, 0.9}, respectively.
+Table 2 shows results for the three scenarios we considered: 1. A single environment, where training graphs are of size 20 (left), 2. A multiple environment, where training graphs have size 14 or 20, chosen uniformly at random (middle), 3. A multiple environment, where training graphs are of size 20 or 30, chosen uniformly at random (right). The test is the same in all cases, and contains graphs of size 40. The number of graphs in training, validation, and test are 80, 20, and 100, respectively. We obtain the induced homomorphism densities for ΓGIN, ΓRPGIN, Γ1-hot for a ﬁxed subgraph size k = 5.
+For the GNNs and for ΓGIN and ΓRPGIN, we choose the number of hidden neurons in the MLP of the GNN (Equation (15)) in {32, 64, 128, 256}, the number of layers in {1, 2, 3} (3 layers only for the GNNs) and hyperparameter tune the presence or absence of the Jumping Knowledge mechanism from Xu et al. (2018). We add the regularization penalty in Equation (8) for ΓGIN and ΓRPGIN in this experiments. For ΓGIN and ΓRPGIN, we choose the learning rate in {0.01, 0.001} and the regularization weight in {0.1, 0.15}. For the GNNs we choose the learning rate in {0.1, 0.01, 0.001}.
+For IRM, we consider the two distinct graph sizes to be the two training environments. We can not treat vertex attributes as environment here since we only have a single vertex-attribute distribution in training. We tune the regularizer λ (Arjovsky et al., 2019, Section 3) in {4, 8, 16, 32}, stopping at 32 because increasing its value decreased performances.
+For Γ1-hot, we hyperparameter tune the dimension of the subgraph representations in {32, 64, 128, 256} and the learning rate in {0.01, 0.001}.
+We optimize all neural models for 500 epochs with batch size equal to the full training data. We use a single layer with softmax outputs as the downstream classiﬁer. We perform early stopping as per Hu et al. (2020). The hyperparameter search is performed by training all models with 10 different initialization seeds and selecting the conﬁguration that
+
+achieved the highest mean accuracy on the validation data. Then, we report the mean (and standard deviation) accuracy over the training, the validation, and the test data in Table 2.
+For the graph kernels, following Kriege et al. (2020), we tune the regularization hyperparameter C in SVM over the set {10−3, 10−2, 10−1, 1, 10, 102, 103}. We tune the number of Weisfeiler-Lehman iterations of the WL kernel to be among {1, 2, 3, 4} (see Kriege et al. (2020, Section 3.1)).
+F.5. Extrapolation performance in real world tasks that violate our causal model
+The results on graphs that violate our causal model are reported in Table 3. We use the datasets from Morris et al. (2020), split into train, validation and test as proposed by Yehudai et al. (2021). In particular, train is obtained by considering the graphs with sizes smaller than the 50-th percentile, and test those with sizes larger than the 90-th percentile. Additionally, 10% of the training graphs is held out from training and used as validation. For statistics on the datasets and corresponding splits, see Yehudai et al. (2021).
+We obtain the homomorphism densities for a ﬁxed subgraph size k = 4. We observed that larger subgraph sizes, k ≥ 5, implies a larger number of distinct subgraphs and consequently a smaller proportion of shared subgraphs in different graphs. To further reduce the number of distinct subgraphs seen by the models, we only consider the most common subgraphs in training and validation when necessary. Speciﬁcally, for NCI1 and NCI109, we only use the top 100 subgraphs (out of a total of around 300), and for DD only the 30k most common (out of a total of around 200k). For PROTEINS we keep all the distinct subgraphs (which are around 180).
+For the GNNs, we follow the setup proposed in Yehudai et al. (2021), where all the GNNs have 3 layers and a ﬁnal classiﬁer composed of a feedforward neural network (MLP) with 1 hidden layer and softmax outputs. We also use a dropout of 0.3. We tune the batch size in {64, 128}, the learning rate in {0.01, 0.005, 0.001} and the network width in {32, 64}. For ΓGIN and ΓRPGIN, the setup is the same, except for the number of GNN layers that is set to 2. For DD we use a ﬁxed batch size of 256 to reduce the number of times the subgraphs are passed to the network, in order to speed up training.
+For Γ1-hot, we choose the batch size in {64, 128}, the learning rate in {0.01, 0.005, 0.001} and the dimension of the subgraph representations in {32, 64}.
+For IRM we tune the regularizer λ (Arjovsky et al., 2019, Section 3) in {8, 32, 128, 512}. The two environments are considered to be graphs with size smaller than the median size in the training graphs and larger than the median size in the training graphs, respectively.
+
+Size-Invariant Graph Representations for Graph Classiﬁcation Extrapolations
+
+Table 4. Dataset statistics, Table from Yehudai et al. (2021).
+
+CLASS A CLASS B NUM OF GRAPHS AVG GRAPH SIZE
+
+ALL
+49.95% 50.04%
+4110 29
+
+NCI1 SMALLEST 50%
+62.30% 37.69%
+2157 20
+
+LARGEST 10% 19.17% 80.82% 412 61
+
+ALL
+49.62% 50.37%
+4127 29
+
+NCI109 SMALLEST 50%
+62.04% 37.95%
+2079 20
+
+LARGEST 10% 21.37% 78.62% 421 61
+
+CLASS A CLASS B NUM OF GRAPHS AVG GRAPH SIZE
+
+ALL
+59.56% 40.43%
+1113 39
+
+PROTEINS
+
+SMALLEST 50% LARGEST 10%
+
+41.97%
+
+90.17%
+
+58.02%
+
+9.82%
+
+567
+
+112
+
+15
+
+138
+
+ALL
+58.65% 41.34%
+1178 284
+
+DD SMALLEST 50%
+35.47% 64.52%
+592 144
+
+LARGEST 10% 79.66% 20.33% 118 746
+
+To mitigate the imbalance between classes in training, we reweight the classes in the loss with the training proportions for each class. We train all neural models for 1000 epochs using early stopping as per Hu et al. (2020). We test the models on the epoch achieving the highest mean Matthew Correlation Coefﬁcient on validation because of the signiﬁcant class imbalance in the test, see Table 4.
+For the graph kernels, following Kriege et al. (2020), we tune the regularization hyperparameter C in SVM over the set {10−3, 10−2, 10−1, 1, 10, 102, 103}. We ﬁx the number of Weisfeiler-Lehman iterations of the WL kernel to 3 (see Kriege et al. (2020, Section 3.1)), which is comparable to the 3 GNN layers.
+

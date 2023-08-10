@@ -1,0 +1,266 @@
+
+pathlib库，文件与文件夹处理的 "四大天王" 之一，贼好用！
+Original 黄伟呢 数据分析与统计学之美
+2021-08-24 08:01 Posted on
+
+Image
+大家好，我是黄同学🚀
+下面是我写的系列文章，只为了帮助大家系统学习知识。为了防止大家找不到，这里提供一个入口，戳对应链接即可进入。
+
+ 
+
+ 
+本公众号原创系列文章【入口】
+Python基础系列N讲
+MySQL基础学习N讲
+Numpy、Pandas、Matplotlib三剑客系列N讲
+做数据分析，到底要不要掌握Linux系列N讲
+知识对比系列N讲
+Excel应该掌握这些
+ 
+
+ 
+
+概述
+今天介绍的 pathlib模块 ，是一位粉丝留言建议的。其实，这个库我很早就见过，但是没研究，确实有很多好用的方法，值得我们去使用。
+Image
+pathlib模块 ，与 os模块 、 shutil模块 、 glob模块 ，可以称得上 文件/文件夹处理的 "四大天王" ，它们搭配使用，威力无穷。
+关于 os模块 、 shutil模块 、 glob模块 ，我分别都写过各自的使用方法，相应文章如下：
+
+    ① os模块使用详解；
+    ② shutil模块使用详解；
+    ③ glob模块使用详解；
+
+好了，废话不多说，直接开始 pathlib模块 的讲解吧！在使用之前，需要提前导入pathlib库。
+
+ 
+from  pathlib  import  Path
+ 
+
+最重要的Path对象
+Path对象是这个库的核心，里面有着超级多好用的 文件、文件夹 处理方法，供我们调用。
+① 当前路径下的Path对象
+
+ 
+p = Path.cwd()
+p
+ 
+
+结果如下：
+Image
+② 任意指定路径下的Path对象
+
+ 
+p = Path( 'C:/Users/Administrator/Desktop/python三剑客/pathlib库/抽奖.txt' )
+p
+ 
+
+结果如下：
+Image
+从上图可以看出，Path对象既可以是一个 文件对象 ，也可以是一个 文件夹对象 。根据不同对象，调用相应方法，就可以很便捷的处理文件或文件夹。
+获取文件的具体信息
+我们既然针对某个文件操作，所以首先应该获取到文件的Path对象。
+
+ 
+p = Path( "抽奖.txt" )
+p.stat()
+ 
+
+结果如下：
+Image
+路径拼接
+进行路径拼接，直接使用一个 / 斜杠即可。
+
+ 
+p = Path( 'C:/Users/Administrator/Desktop/python三剑客' )
+p1 = p/ 'pathlib库'
+p1
+ 
+
+结果如下：
+Image
+获取上级目录
+
+ 
+p = Path.cwd()
+p.parent
+p.parent.parent
+ 
+
+结果如下：
+Image
+获取文件的具体信息
+我们先获取到文件的Path对象。
+
+ 
+p = Path( "抽奖.txt" )
+p.stat()
+ 
+
+结果如下：
+Image
+获取指定路径下所有文件/文件夹的路径信息
+以当前工作目录为例： 在当前工作目录下，有下方这些文件。
+Image
+如何获取每个文件对应的路径信息呢？
+
+ 
+p = Path.cwd()
+for  i  in  p.iterdir():
+    print(i)
+ 
+
+结果如下：
+Image
+注意： iterdir()方法返回的是直接子文件或子文件夹【不考虑嵌套文件夹中的文件】。
+获取指定路径下"符合条件"文件的路径信息
+仅想要获取直接子文件的路径信息，使用的是glob()方法。
+
+ 
+p = Path.cwd()
+file_list = p.glob( '*.txt' )
+for  file  in  file_list:
+    print(file)
+ 
+
+结果如下：
+Image
+由于需求改变，我不仅想要获取直接子文件的信息，而且还要递归所有文件夹，找到所有符合条件的文件信息？这里有两种办法：
+① 方法一
+
+ 
+p = Path.cwd()
+file_list = p.glob( '**/*.txt' )
+for  file  in  file_list:
+    print(file)
+ 
+
+结果如下：
+Image
+② 方法二
+
+ 
+p = Path.cwd()
+file_list = p.rglob( '*.txt' )
+for  file  in  file_list:
+    print(file)
+ 
+
+结果如下：
+Image
+综上所述：
+
+    Ⅰ 不考虑嵌套文件夹中的文件，使用glob()方法；
+    Ⅱ 考虑嵌套文件夹中的文件，使用rglob()方法；
+
+限制递归次数，访问嵌套文件夹
+一个粉丝留言问我： 如果你有一个嵌套文件夹，嵌套次数很深。但是我们并不需要一直访问到最后一层，应该怎么办呢？
+① 不限制递归次数
+
+ 
+p = Path.cwd()
+file_list = p.rglob( '*.txt' )
+
+for  file  in  file_list:
+    print(file)
+ 
+
+结果如下：
+Image
+② 限制递归次数
+
+ 
+p = Path.cwd()
+file_list = p.rglob( '*.txt' )
+
+for  i,file  in  enumerate(file_list):
+     if  i <=  2 :
+        print(file)
+ 
+
+结果如下：
+Image
+判断当前路径是否存在某个文件或者文件夹
+这个需求很有用，比如我们做文件分类的时候，我们需要创建新的文件夹，用于存放文件。此时，我们需要判断，创建的文件夹是否是不存在的，只有不存在，我们才去创建这个文件夹。
+
+ 
+p = Path.cwd()
+
+for  i  in  p.iterdir():
+    print(i)
+ 
+
+结果如下：
+Image
+如果有这么些文件，如何判断文件或文件夹，是否存在呢？
+Image
+创建文件夹
+上面我们如果已经判断了不存在 b 这个文件，那现在我们就来创建它。
+
+ 
+p = Path.cwd()
+p1 = p/ 'b'
+
+if   not  Path( 'C:/Users/Administrator/Desktop/python三剑客/pathlib库/b' ).exists():
+    p1.mkdir()
+ 
+
+结果如下：
+Image
+上述我们已经为大家创建了单个文件夹，现在我们来创建一个递归文件夹，这里一定要使用 parents=True 参数。
+
+ 
+p = Path.cwd()
+p1 = p/ '嵌套第一层' / '嵌套第二层'
+p1.mkdir(parents= True )
+ 
+
+判断某个路径是文件，还是文件夹
+
+ 
+p = Path( 'C:/Users/Administrator/Desktop/python三剑客/pathlib库/抽奖.txt' )
+p.is_dir()
+p.is_file()
+ 
+
+结果如下：
+Image
+文件/文件夹重命名
+
+ 
+p = Path( '3.gif' )
+p.rename( "重命名_3.gif" )
+ 
+
+获取文件的文件名和后缀
+这个功能真的很赞，超级好用。
+
+ 
+p = Path( 'C:/Users/Administrator/Desktop/python三剑客/pathlib库/抽奖.txt' )
+p.name
+p.suffix
+ 
+
+结果如下：
+Image
+Image
+预览时标签不可点
+People who liked this content also liked
+YYDS，用Python实现了个人手机定位！
+YYDS，用Python实现了个人手机定位！
+ 
+数据分析与统计学之美
+不喜欢
+总结了20个超级好用的Numpy函数，解决工作中90%的难题。
+总结了20个超级好用的Numpy函数，解决工作中90%的难题。
+ 
+数据分析与统计学之美
+不喜欢
+Openpyxl给同个单元格的不同文字"上色"！
+Openpyxl给同个单元格的不同文字"上色"！
+ 
+数据分析与统计学之美
+不喜欢
+
+Scan to Follow
+: ， .   Video Mini Program Like ，轻点两下取消赞 Wow ，轻点两下取消在看 

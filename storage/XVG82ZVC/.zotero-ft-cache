@@ -1,0 +1,352 @@
+
+Stack Overflow
+
+    About
+    Products
+    For Teams
+
+    Log in
+    Sign up
+
+    Home
+        Public
+        Questions
+        Tags
+        Users
+        Companies
+        Collectives
+        Explore Collectives
+    Teams
+    Stack Overflow for Teams – Start collaborating and sharing organizational knowledge. Create a free Team Why Teams?
+
+Pandas DataFrame concat vs append
+Ask Question
+Asked 10 years, 3 months ago
+Modified 10 months ago
+Viewed 241k times
+Report this ad
+This question shows research effort; it is useful and clear
+115
+This question does not show any research effort; it is unclear or not useful
+Save this question.
+Show activity on this post.
+
+I have a list of 4 pandas dataframes containing a day of tick data that I want to merge into a single data frame. I cannot understand the behavior of concat on my timestamps. See details below:
+
+ data [< class 'pandas.core.frame.DataFrame' > DatetimeIndex: 35228 entries, 2013 -03- 28 00 : 00 : 07.089000 +02: 00 to 2013 -03- 28 18 : 59 : 20.357000 +02: 00 Data columns: Price 4040 non-null values Volume 4040 non-null values BidQty 35228 non-null values BidPrice 35228 non-null values AskPrice 35228 non-null values AskQty 35228 non-null values dtypes: float64( 6 ), < class 'pandas.core.frame.DataFrame' > DatetimeIndex: 33088 entries, 2013 -04-01 00 :03: 17.047000 +02: 00 to 2013 -04-01 18 : 59 : 58.175000 +02: 00 Data columns: Price 3969 non-null values Volume 3969 non-null values BidQty 33088 non-null values BidPrice 33088 non-null values AskPrice 33088 non-null values AskQty 33088 non-null values dtypes: float64( 6 ), < class 'pandas.core.frame.DataFrame' > DatetimeIndex: 50740 entries, 2013 -04-02 00 :03: 27.470000 +02: 00 to 2013 -04-02 18 : 59 : 58.172000 +02: 00 Data columns: Price 7326 non-null values Volume 7326 non-null values BidQty 50740 non-null values BidPrice 50740 non-null values AskPrice 50740 non-null values AskQty 50740 non-null values dtypes: float64( 6 ), < class 'pandas.core.frame.DataFrame' > DatetimeIndex: 60799 entries, 2013 -04-03 00 :03: 06.994000 +02: 00 to 2013 -04-03 18 : 59 : 58.180000 +02: 00 Data columns: Price 8258 non-null values Volume 8258 non-null values BidQty 60799 non-null values BidPrice 60799 non-null values AskPrice 60799 non-null values AskQty 60799 non-null values dtypes: float64( 6 )]  
+
+Using append I get:
+
+ pd.DataFrame().append(data) < class 'pandas.core.frame.DataFrame' > DatetimeIndex: 179855 entries, 2013 -03- 28 00 : 00 : 07.089000 +02: 00 to 2013 -04-03 18 : 59 : 58.180000 +02: 00 Data columns: AskPrice 179855 non-null values AskQty 179855 non-null values BidPrice 179855 non-null values BidQty 179855 non-null values Price 23593 non-null values Volume 23593 non-null values dtypes: float64( 6 )  
+
+Using concat I get:
+
+ pd.concat(data) < class 'pandas.core.frame.DataFrame' > DatetimeIndex: 179855 entries, 2013 -03- 27 22 : 00 : 07.089000 +02: 00 to 2013 -04-03 16 : 59 : 58.180000 +02: 00 Data columns: Price 23593 non-null values Volume 23593 non-null values BidQty 179855 non-null values BidPrice 179855 non-null values AskPrice 179855 non-null values AskQty 179855 non-null values dtypes: float64( 6 )  
+
+Notice how the index changes when using concat . Why is that happening and how would I go about using concat to reproduce the results obtained using append ? (Since concat seems so much faster; 24.6 ms per loop vs 3.02 s per loop)
+
+    python
+    pandas 
+
+Share
+Follow
+Follow this question to receive notifications
+edited Jan 20, 2017 at 15:46
+CDspace's user avatar
+CDspace
+2,629 18 18 gold badges 30 30 silver badges 36 36 bronze badges
+asked Apr 4, 2013 at 18:37
+JPBelanger's user avatar
+JPBelanger JPBelanger
+1,183 2 2 gold badges 8 8 silver badges 6 6 bronze badges
+0
+Add a comment  | 
+4 Answers 4
+Sorted by: Reset to default
+This answer is useful
+181
+This answer is not useful
+Save this answer.
+Show activity on this post.
+Pandas concat vs append vs join vs merge
+
+    Concat gives the flexibility to join based on the axis( all rows or all columns)
+
+    Append is the specific case(axis=0, join='outer') of concat ( being deprecated use concat)
+
+    Join is based on the indexes (set by set_index) on how variable =['left','right','inner','couter']
+
+    Merge is based on any particular column each of the two dataframes, this columns are variables on like 'left_on', 'right_on', 'on'
+
+Share
+Follow
+Follow this answer to receive notifications
+edited May 25, 2022 at 17:36
+imbr's user avatar
+imbr
+5,968 4 4 gold badges 52 52 silver badges 65 65 bronze badges
+answered Jul 20, 2018 at 6:13
+Mohsin Mahmood's user avatar
+Mohsin Mahmood Mohsin Mahmood
+3,190 3 3 gold badges 20 20 silver badges 25 25 bronze badges
+1
+
+    What about stack?
+    –  skan
+    Dec 29, 2022 at 12:02
+
+Add a comment  | 
+Report this ad
+This answer is useful
+66
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+So what are you doing is with append and concat is almost equivalent. The difference is the empty DataFrame. For some reason this causes a big slowdown, not sure exactly why, will have to look at some point. Below is a recreation of basically what you did.
+
+I almost always use concat (though in this case they are equivalent, except for the empty frame); if you don't use the empty frame they will be the same speed.
+
+ In [ 17 ]: df1 = pd.DataFrame( dict (A = range ( 10000 )),index=pd.date_range( '20130101' ,periods= 10000 ,freq= 's' )) In [ 18 ]: df1 Out[ 18 ]: < class 'pandas.core.frame.DataFrame' > DatetimeIndex: 10000 entries, 2013 -01-01 00 : 00 : 00 to 2013 -01-01 02: 46 : 39 Freq: S Data columns (total 1 columns): A 10000 non-null values dtypes: int64( 1 ) In [ 19 ]: df4 = pd.DataFrame() The concat In [ 20 ]: %timeit pd.concat([df1,df2,df3]) 1000 loops, best of 3 : 270 us per loop This is equavalent of your append In [ 21 ]: %timeit pd.concat([df4,df1,df2,df3]) 10 loops, best of 3 : 56.8 ms per loop  
+
+Share
+Follow
+Follow this answer to receive notifications
+answered Apr 4, 2013 at 22:25
+Jeff's user avatar
+Jeff Jeff
+125k 21 21 gold badges 220 220 silver badges 186 186 bronze badges
+2
+
+    Thanks for the reply, that explains the difference in computational times. Any pointers as to why my index suddenly randomly changes?
+    –  JPBelanger
+    Apr 5, 2013 at 0:52
+    3
+    hmm looks like a time zone issue, will file a bug report
+    –  Jeff
+    Apr 5, 2013 at 1:34
+
+Add a comment  | 
+This answer is useful
+58
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+tl;dr Always use concat since
+
+    there is no significant difference between concat and append (see benchmark below) and
+    append is deprecated anyway.
+
+I cannot reproduce your results: I have implemented a tiny benchmark (please find the code on Gist ) to evaluate the pandas' concat and append . I updated the code snippet and the results after the comment by ssk08 - thanks a lot!
+
+The benchmark ran on a Mac OS X 10.13 system with Python 3.6.2 and pandas 0.20.3.
+
+ +--------+---------------------------------+---------------------------------+
+|        | ignore_index=False              | ignore_index=True               |
++--------+---------------------------------+---------------------------------+
+| size   | append | concat | append/concat | append | concat | append/concat |
++--------+--------+--------+---------------+--------+--------+---------------+
+| small  | 0.4635 | 0.4891 | 94.77 %       | 0.4056 | 0.3314 | 122.39 %      |
++--------+--------+--------+---------------+--------+--------+---------------+
+| medium | 0.5532 | 0.6617 | 83.60 %       | 0.3605 | 0.3521 | 102.37 %      |
++--------+--------+--------+---------------+--------+--------+---------------+
+| large  | 0.9558 | 0.9442 | 101.22 %      | 0.6670 | 0.6749 | 98.84 %       |
++--------+--------+--------+---------------+--------+--------+---------------+
+
+Using ignore_index=False append is slightly faster, with ignore_index=True concat is slightly faster.
+Share
+Follow
+Follow this answer to receive notifications
+edited Sep 12, 2022 at 7:12
+answered Jan 9, 2018 at 12:17
+Michael Dorner's user avatar
+Michael Dorner Michael Dorner
+17.2k 13 13 gold badges 87 87 silver badges 116 116 bronze badges
+2
+
+    10
+    Actually, this is a wrong assessment. Your concat code (pd.concat([df_small], ignore_index=True)) does not concatenate anything - this is why we see a 2x improvement. Try your calculations with pd.concat([df_small, df_small], axis=0, ignore_index=True) - which is what append does, and your performance improvement vanishes.
+    –  ssk08
+    May 1, 2018 at 13:32
+    8
+    @ssk08 Thank you very much for your contribution! I updated my answer accordingly - you were completely right!
+    –  Michael Dorner
+    May 1, 2018 at 18:38
+
+Add a comment  | 
+This answer is useful
+16
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+One more thing you have to keep in mind that the APPEND() method in Pandas doesn't modify the original object. Instead it creates a new one with combined data. Because of involving creation and data buffer, its performance is not well. You'd better use CONCAT() function when doing multi-APPEND operations.
+Share
+Follow
+Follow this answer to receive notifications
+answered Jul 13, 2019 at 7:21
+nhanhoangle's user avatar
+nhanhoangle nhanhoangle
+305 2 2 silver badges 6 6 bronze badges
+Add a comment  | 
+Your Answer
+
+Draft saved
+Draft discarded
+Sign up or log in
+Sign up using Google
+Sign up using Facebook
+Sign up using Email and Password
+Submit
+Post as a guest
+Name
+Email
+
+Required, but never shown
+Post as a guest
+Name
+Email
+
+Required, but never shown
+Post Your Answer Discard
+
+By clicking “Post Your Answer”, you agree to our terms of service and acknowledge that you have read and understand our privacy policy and code of conduct .
+Not the answer you're looking for? Browse other questions tagged
+
+    python
+    pandas 
+
+or ask your own question .
+
+    The Overflow Blog
+    Exploring the infrastructure and code behind modern edge functions
+    Jamstack is evolving toward a composable web (Ep. 588)
+    Featured on Meta
+    Starting the Prompt Design Site: A New Home in our Stack Exchange Neighborhood
+    Colors update: A more detailed look
+    Temporary policy: Generative AI (e.g., ChatGPT) is banned
+    Conclusions from Stack Exchange’s experiments with title-drafting and...
+    Launching 2 new collectives: PHP and NLP
+
+Report this ad
+Visit chat
+Linked
+0
+Is pd.append() the quickest way to join two dataframes?
+318
+Appending to an empty DataFrame in Pandas?
+106
+Pandas version of rbind
+58
+merging 2 dataframes vertically
+23
+PerformanceWarning: DataFrame is highly fragmented. This is usually the result of calling `frame.insert` many times, which has poor performance
+5
+Efficient solutions insert or update row pandas
+2
+Reduce the memory used loading huge pandas dataframe from MongoDB
+0
+Merging series of pandas dataframe into single dataframe
+0
+How can I efficiently convert (start_time,[time_deltas]) to (start_time, end_time)?
+0
+Pandas Dataframe concat: is it correct to understand append as a simplified version of concat with few kwargs and can only operate on axis=0
+See more linked questions
+Related
+4
+Pandas append perfomance concat/append using "larger" DataFrames
+1
+Performance consideration pandas concat append
+1
+More efficient way of appending dataframe
+4
+Why and when use append() instead of concat() in Pandas?
+5
+Using pd.concat instead of df.append with pandas 1.4
+22
+Appending row to dataframe with concat()
+4
+How to append rows with concat to a Pandas DataFrame
+0
+Pandas DataFrame: concat instead of append
+1
+replacing df.append with pd.concat when building a new dataframe from file read
+0
+How can pandas concat function duplicate behavior of append function in pandas,
+Hot Network Questions
+
+    Measure the Diamond Road
+    Why do I lose clipboard data after copying a file?
+    Product recommendation: A "Starter" Responsa Set
+    Sitting or standing during _Kedusha deSidrah_
+    Calculating standard deviation
+    Inserting a Pause into a Mapping Using the PubMed Service Request
+    Serial communication baud rate issue
+    Would a nebula cause resistance and disrupt sensors on a space ship?
+    I think my electrician compromised a loadbearing stud
+    Can independent Brownian motions hit zero at the same time?
+    Why are communism and anarcho-communism not seen as extreme-reactionary?
+    Categorical variable in simple linear regression
+    In CV, how to mention articles published only in arxiv?
+    Does bonus damage from Thrown Weapon Fighting affect the ability Deflect Missiles?
+    How practical is mid-air cargo transfer?
+    What are the advantages of having a set number of fixed sized integers versus defining the exact number of bits in every integer?
+    Is it possible to play in D-tuning (guitar) on keyboards?
+    Cat may have spent a week locked in a drawer - how concerned should I be?
+    What are some reasons for the population of a small, relatively unremarkable area to suddenly boom?
+    Why is Singapore placed so low in the democracy index?
+    Can two different kind of aggregates in Domain Driven Design have actually the same unique Id?
+    Post-apocalyptic automotive fuel for a cold world?
+    What is the ship called that transports Yoda and the clones into the arena in Episode II?
+    Modern firearms in D&D 5e
+
+Question feed
+Subscribe to RSS
+Question feed
+
+To subscribe to this RSS feed, copy and paste this URL into your RSS reader.
+lang-py
+Stack Overflow
+
+    Questions
+    Help
+
+Products
+
+    Teams
+    Advertising
+    Collectives
+    Talent
+
+Company
+
+    About
+    Press
+    Work Here
+    Legal
+    Privacy Policy
+    Terms of Service
+    Contact Us
+    Cookie Settings
+    Cookie Policy
+
+Stack Exchange Network
+
+    Technology
+    Culture & recreation
+    Life & arts
+    Science
+    Professional
+    Business
+    API
+    Data
+
+    Blog
+    Facebook
+    Twitter
+    LinkedIn
+    Instagram
+
+Site design / logo © 2023 Stack Exchange Inc; user contributions licensed under CC BY-SA . rev 2023.7.12.43528
+ 

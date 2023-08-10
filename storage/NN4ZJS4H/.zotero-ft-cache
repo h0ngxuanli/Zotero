@@ -1,0 +1,274 @@
+
+Stack Overflow
+
+    About
+    Products
+    For Teams
+
+    Log in
+    Sign up
+
+    Home
+        Public
+        Questions
+        Tags
+        Users
+        Companies
+        Collectives
+        Explore Collectives
+    Teams
+    Stack Overflow for Teams – Start collaborating and sharing organizational knowledge. Create a free Team Why Teams?
+
+Disable file output of hydra
+Ask Question
+Asked 2 years, 7 months ago
+Modified 10 months ago
+Viewed 6k times
+This question shows research effort; it is useful and clear
+2
+This question does not show any research effort; it is unclear or not useful
+Save this question.
+Show activity on this post.
+
+I'm using hydra to log hyperparameters of experiments.
+
+ @hydra.main( config_name= "config" , config_path= "../conf" ) def evaluate_experiment ( cfg: DictConfig ) -> None : print (OmegaConf.to_yaml(cfg)) ...  
+
+Sometimes I want to do a dry run to check something. For this I don't need any saved parameters, so I'm wondering how I can disable the savings to the filesystem completely in this case?
+
+    fb-hydra
+    omegaconf 
+
+Share
+Improve this question
+Follow
+Follow this question to receive notifications
+edited Dec 6, 2020 at 15:03
+kielnino
+asked Dec 2, 2020 at 7:54
+kielnino's user avatar
+kielnino kielnino
+150 1 1 silver badge 7 7 bronze badges
+4
+
+    I don't understand what you mean by "this logs the parameters again".
+    –  Omry Yadan
+    Dec 3, 2020 at 2:00
+    Sorry for beeing unspecific. I've updated the question. The main question is "How to disable the logging to the filesystem completely when using hydra."
+    –  kielnino
+    Dec 4, 2020 at 6:57
+    Your question is wrong. using compose does not configure the logging. If you think it does please open an issue with a minimal repro.
+    –  Omry Yadan
+    Dec 5, 2020 at 7:05
+    @OmryYadan You are absolutely right. I made a mistake and updated the question. But the main question remains the same.
+    –  kielnino
+    Dec 6, 2020 at 15:05
+
+Add a comment  | 
+2 Answers 2
+Sorted by: Reset to default
+This answer is useful
+10
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+The answer from Omry Yadan works well if you want to solve this using the CLI. However, you can also add these flags to your config file such that you don't have to type them every time you run your script. If you want to go this route, make sure you add the following items in your root config file:
+
+ defaults: - _self_ - override hydra/hydra_logging: disabled - override hydra/job_logging: disabled hydra: output_subdir: null run: dir: .  
+
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+answered Jan 19, 2022 at 20:28
+J smit's user avatar
+J smit J smit
+101 2 2 silver badges 5 5 bronze badges
+1
+
+    1
+    Hello, thank you very much for the clarification. In my particular case, I would like the logging to appear in the terminal but not to create the files. Also, I would like the log to be coloured. The hydra field would be tha same but the defaults will be set as colorlog. Is that correct?
+    –  Javier Naranjo Alcázar
+    Jul 15, 2022 at 10:37
+
+Add a comment  | 
+Report this ad
+This answer is useful
+7
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+There is an enhancement request aimed at Hydra 1.1 to support disabling working directory management. Working directory management is doing many things:
+
+    Creating a working directory for the run
+    Changing the working directory to the created dir.
+
+There are other related features:
+
+    Saving log files
+    Saving files like config.yaml and hydra.yaml into .hydra in the working directory.
+
+Different features has different ways to disable them:
+
+    To prevent the creation of a working directory, you can override hydra.run.dir to . .
+    To prevent saving the files into .hydra, override hydra.output_subdir to null .
+    To prevent the creation of logging files, you can disable logging output of hydra/hydra_logging and hydra/job_logging , see this .
+
+A complete example might look like:
+
+ $ python foo.py hydra.run.dir=. hydra.output_subdir=null hydra/job_logging=disabled hydra/hydra_logging=disabled  
+
+Note that as always you can also override those config values through your config file.
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+edited Aug 15, 2022 at 13:48
+answered Dec 6, 2020 at 19:13
+Omry Yadan's user avatar
+Omry Yadan Omry Yadan
+30.9k 18 18 gold badges 64 64 silver badges 87 87 bronze badges
+1
+
+    the links you posted are now broken
+    –  thesofakillers
+    Aug 15, 2022 at 10:56
+
+Add a comment  | 
+Your Answer
+
+Draft saved
+Draft discarded
+Sign up or log in
+Sign up using Google
+Sign up using Facebook
+Sign up using Email and Password
+Submit
+Post as a guest
+Name
+Email
+
+Required, but never shown
+Post as a guest
+Name
+Email
+
+Required, but never shown
+Post Your Answer Discard
+
+By clicking “Post Your Answer”, you agree to our terms of service and acknowledge that you have read and understand our privacy policy and code of conduct .
+Not the answer you're looking for? Browse other questions tagged
+
+    fb-hydra
+    omegaconf 
+
+or ask your own question .
+
+    The Overflow Blog
+    Why on earth are people paying for digital real estate? (Ep. 587)
+    The Overflow #185: The hardest part of software is requirements
+    Featured on Meta
+    Starting the Prompt Design Site: A New Home in our Stack Exchange Neighborhood
+    Colors update: A more detailed look
+    Temporary policy: Generative AI (e.g. ChatGPT) is banned
+    Testing native, sponsored banner ads on Stack Overflow (starting July 6)
+
+Report this ad
+Related
+4
+How to do file over-rides in hydra?
+1
+How to make the hydra output directory configurable from configuration?
+2
+Hydra remove default via config file
+1
+Restrict possible values in hydra structured configs
+4
+Hydra: access name of config file from code
+0
+Cannot customize logging behaviour in Hydra (fb-hydra)
+0
+Is it possible to import just a single configuration parameter, not all in Hydra?
+3
+What is the correct way of accessing Hydra's current output directory?
+0
+How to access all file names in hydra config
+1
+is there a way to modify log directory in hydra?
+Hot Network Questions
+
+    Why does Gaussian elimination sometimes work in rings where it should not?
+    Nodal analysis: negative answers vs book's positive solutions
+    YA / children's SF story / book from the late 70s set on a dry planet with a nemesis called "sork"
+    Landmine Number II
+    In this circuit, please explain why the voltage of Zener diode drops
+    How to draw this figure with pure tikz?
+    The neuroscientist says "Baby approved!" What does that mean?
+    Can I still have hopes for an offer as a software developer
+    Eligibility criteria to become the prime minister of India and what is "office of profit"?
+    Are there ethnically non-Chinese members of the CCP right now?
+    What happens under NATO Article 5 if a state involved in a war (like Ukraine) joins NATO?
+    QGIS does not load Luxembourg TIF/TFW file
+    Is there any potential negative effect of adding something to the PATH variable that is not yet installed on the system?
+    Generate all linked chains
+    Why add an increment/decrement operator when compound assignments exist?
+    GPL and Linking Exceptions
+    Trying to calculate "Emphasis roll" on anydice.com
+    Deriving the formulae for energy
+    Is it legal to intentionally wait before filing a copyright lawsuit to maximize profits?
+    How to dissolve "Reroute" nodes with python?
+    Find radius of circle in the following circle.
+    With a software engineering bachelor's (BE), how can I work on finding a cure for cancer?
+    What is the palace on the floor of the great sea Haloisi Velike in Tolkien's early drawing "I vene kemen"
+    Can an applied (e.g. applied computer-science) postdoc compensate for pure PhD (e.g. Pure Mathematics)
+
+Question feed
+Subscribe to RSS
+Question feed
+
+To subscribe to this RSS feed, copy and paste this URL into your RSS reader.
+Stack Overflow
+
+    Questions
+    Help
+
+Products
+
+    Teams
+    Advertising
+    Collectives
+    Talent
+
+Company
+
+    About
+    Press
+    Work Here
+    Legal
+    Privacy Policy
+    Terms of Service
+    Contact Us
+    Cookie Settings
+    Cookie Policy
+
+Stack Exchange Network
+
+    Technology
+    Culture & recreation
+    Life & arts
+    Science
+    Professional
+    Business
+    API
+    Data
+
+    Blog
+    Facebook
+    Twitter
+    LinkedIn
+    Instagram
+
+Site design / logo © 2023 Stack Exchange Inc; user contributions licensed under CC BY-SA . rev 2023.7.7.43526
+ 

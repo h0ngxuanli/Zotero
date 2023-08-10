@@ -1,0 +1,78 @@
+写文章
+点击打开要爆了的主页
+tqdm的常见用法以及参数详解
+tqdm的常见用法以及参数详解
+Jasper
+Jasper
+​
+​ 关注他
+创作声明: 内容包含剧透
+50 人赞同了该文章
+
+tqdm是 python的一个关于进度条的扩展包，在深度学习进程中可以将训练过程用进度条的形式展现出来，会让训练界面更加的美观。下面介绍一下常见的tqdm的函数以及使用方式。
+
+参考自 官方文档 ，tqdm的常见参数有：
+
+desc（'str'）: 传入进度条的前缀
+
+mininterval（float）：最小的更新时间 [default: 0.1] seconds
+
+maxinterval（float）：最大的更新时间 [default: 10] seconds. 只有在dynamic_miniters
+
+miniters（int or float）：最小的展示更新进度，如果设置为0或者是dynamic_miniters程序会自动的调整去让miniterval与它项适应
+
+ascii（bool or str）：如果调整为True的话会使用ASCII（美国信息交换标准代码）码，默认为False会使用unicode
+
+ncols（int）：整个输出信息的宽度
+
+nrows（int）：进度条的高速
+
+dynamic_ncols(bool):会在环境中持续改变ncols和nrows
+
+smoothing（float）：会平均移动因素和预计的时间
+
+bar_format(str)：可以自己定义一个
+
+position（int）：设置打印进度条的位置，可以设置多个bar
+
+colour（str）：进度条的颜色
+
+set_postfix : 设置信息
+
+ from tqdm import tqdm , trange from random import random , randint from time import sleep #trange 是tqdm（range）的简用方式： for i in trange ( int ( 1e8 )): pass for i in trange ( int ( 1e8 ), miniters = int ( 1e6 ), ascii = True , desc = 'bar' , colour = 'blue' , mininterval = 0.5 ): pass with trange ( 10 ) as t : for i in t : # Description will be displayed on the left t . set_description ( 'GEN %i ' % i ) # Postfix will be displayed on the right, # formatted automatically based on argument's datatype t . set_postfix ( loss = random (), gen = randint ( 1 , 999 ), str = 'h' , lst = [ 1 , 2 ]) sleep ( 0.1 ) with tqdm ( total = 10 , bar_format = "{postfix[0]} {postfix[1][value]:>8.2g}" , postfix = [ "Batch" , dict ( value = 0 )]) as t : for i in range ( 10 ): sleep ( 0.1 ) t . postfix [ 1 ][ "value" ] = i / 2 t . update ()  
+
+发布于 2021-06-03 19:09
+Python
+Python 编程
+深度学习（Deep Learning）
+​ 赞同 50 ​ ​ 1 条评论
+​ 分享
+​ 喜欢 ​ 收藏 ​ 申请转载
+​
+评论千万条，友善第一条
+
+1 条评论
+默认
+最新
+南淮
+南淮
+
+[酷]
+2022-12-14
+​ 回复 ​ 赞
+推荐阅读
+
+    “杂事有点多！”流体仿真要如何与 SCDM 软件完美结合
+    “杂事有点多！”流体仿真要如何与 SCDM 软件完美结合
+    可乐
+    将tqdm应用到深度学习中！
+    将tqdm应用到深度学习中！
+    Jasper
+    从零开始搭建OFDM系统（1）
+    从零开始搭建OFDM系统（1）
+    KEJI3... 发表于keji3...
+    一体化闭环步进电机在AGV小车上的应用
+
+    一、AGV小车简述 AGV小车(Automated Guided Vehicle，简称AGV).指装备有电磁或光学等自动导引装置，能够沿规定的导引路径行驶，具有安全保护以及各种移载功能的运输车，工业应用中不需驾驶…
+    扛枪闯天涯
+

@@ -1,0 +1,80 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2303.07810
+
+Help | Advanced Search
+Search
+Computer Science > Information Retrieval
+(cs)
+[Submitted on 14 Mar 2023]
+Title: Disentangled Graph Social Recommendation
+Authors: Lianghao Xia , Yizhen Shao , Chao Huang , Yong Xu , Huance Xu , Jian Pei
+Download a PDF of the paper titled Disentangled Graph Social Recommendation, by Lianghao Xia and 4 other authors
+Download PDF
+
+    Abstract: Social recommender systems have drawn a lot of attention in many online web services, because of the incorporation of social information between users in improving recommendation results. Despite the significant progress made by existing solutions, we argue that current methods fall short in two limitations: (1) Existing social-aware recommendation models only consider collaborative similarity between items, how to incorporate item-wise semantic relatedness is less explored in current recommendation paradigms. (2) Current social recommender systems neglect the entanglement of the latent factors over heterogeneous relations (e.g., social connections, user-item interactions). Learning the disentangled representations with relation heterogeneity poses great challenge for social recommendation. In this work, we design a Disentangled Graph Neural Network (DGNN) with the integration of latent memory units, which empowers DGNN to maintain factorized representations for heterogeneous types of user and item connections. Additionally, we devise new memory-augmented message propagation and aggregation schemes under the graph neural architecture, allowing us to recursively distill semantic relatedness into the representations of users and items in a fully automatic manner. Extensive experiments on three benchmark datasets verify the effectiveness of our model by achieving great improvement over state-of-the-art recommendation techniques. The source code is publicly available at: this https URL . 
+
+Comments: 	Accepted by IEEE ICDE 2023
+Subjects: 	Information Retrieval (cs.IR)
+Cite as: 	arXiv:2303.07810 [cs.IR]
+  	(or arXiv:2303.07810v1 [cs.IR] for this version)
+  	https://doi.org/10.48550/arXiv.2303.07810
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Lianghao Xia [ view email ]
+[v1] Tue, 14 Mar 2023 11:28:53 UTC (2,109 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Disentangled Graph Social Recommendation, by Lianghao Xia and 4 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.IR
+< prev   |   next >
+new | recent | 2303
+Change to browse by:
+cs
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

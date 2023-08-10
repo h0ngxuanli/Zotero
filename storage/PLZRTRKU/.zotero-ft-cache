@@ -1,0 +1,79 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2303.09782
+
+Help | Advanced Search
+Search
+Computer Science > Computer Vision and Pattern Recognition
+(cs)
+[Submitted on 17 Mar 2023]
+Title: High Accurate and Explainable Multi-Pill Detection Framework with Graph Neural Network-Assisted Multimodal Data Fusion
+Authors: Anh Duy Nguyen , Huy Hieu Pham , Huynh Thanh Trung , Quoc Viet Hung Nguyen , Thao Nguyen Truong , Phi Le Nguyen
+Download a PDF of the paper titled High Accurate and Explainable Multi-Pill Detection Framework with Graph Neural Network-Assisted Multimodal Data Fusion, by Anh Duy Nguyen and 5 other authors
+Download PDF
+
+    Abstract: Due to the significant resemblance in visual appearance, pill misuse is prevalent and has become a critical issue, responsible for one-third of all deaths worldwide. Pill identification, thus, is a crucial concern needed to be investigated thoroughly. Recently, several attempts have been made to exploit deep learning to tackle the pill identification problem. However, most published works consider only single-pill identification and fail to distinguish hard samples with identical appearances. Also, most existing pill image datasets only feature single pill images captured in carefully controlled environments under ideal lighting conditions and clean backgrounds. In this work, we are the first to tackle the multi-pill detection problem in real-world settings, aiming at localizing and identifying pills captured by users in a pill intake. Moreover, we also introduce a multi-pill image dataset taken in unconstrained conditions. To handle hard samples, we propose a novel method for constructing heterogeneous a priori graphs incorporating three forms of inter-pill relationships, including co-occurrence likelihood, relative size, and visual semantic correlation. We then offer a framework for integrating a priori with pills' visual features to enhance detection accuracy. Our experimental results have proved the robustness, reliability, and explainability of the proposed framework. Experimentally, it outperforms all detection benchmarks in terms of all evaluation metrics. Specifically, our proposed framework improves COCO mAP metrics by 9.4% over Faster R-CNN and 12.0% compared to vanilla YOLOv5. Our study opens up new opportunities for protecting patients from medication errors using an AI-based pill identification solution. 
+
+Comments: 	Under review by Plos ONE journal
+Subjects: 	Computer Vision and Pattern Recognition (cs.CV)
+Cite as: 	arXiv:2303.09782 [cs.CV]
+  	(or arXiv:2303.09782v1 [cs.CV] for this version)
+  	https://doi.org/10.48550/arXiv.2303.09782
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Huy Hieu Pham [ view email ]
+[v1] Fri, 17 Mar 2023 05:48:26 UTC (42,181 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled High Accurate and Explainable Multi-Pill Detection Framework with Graph Neural Network-Assisted Multimodal Data Fusion, by Anh Duy Nguyen and 5 other authors
+    PDF
+    Other formats 
+
+Current browse context:
+cs.CV
+< prev   |   next >
+new | recent | 2303
+Change to browse by:
+cs
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

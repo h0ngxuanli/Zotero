@@ -1,0 +1,82 @@
+
+Skip to main content
+Cornell University
+We are hiring
+
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2204.07288
+
+Help | Advanced Search
+Search
+Computer Science > Computation and Language
+(cs)
+[Submitted on 15 Apr 2022]
+Title: Characterizing the Efficiency vs. Accuracy Trade-off for Long-Context NLP Models
+Authors: Phyllis Ang , Bhuwan Dhingra , Lisa Wu Wills
+Download a PDF of the paper titled Characterizing the Efficiency vs. Accuracy Trade-off for Long-Context NLP Models, by Phyllis Ang and 2 other authors
+Download PDF
+
+    Abstract: With many real-world applications of Natural Language Processing (NLP) comprising of long texts, there has been a rise in NLP benchmarks that measure the accuracy of models that can handle longer input sequences. However, these benchmarks do not consider the trade-offs between accuracy, speed, and power consumption as input sizes or model sizes are varied. In this work, we perform a systematic study of this accuracy vs. efficiency trade-off on two widely used long-sequence models - Longformer-Encoder-Decoder (LED) and Big Bird - during fine-tuning and inference on four datasets from the SCROLLS benchmark. To study how this trade-off differs across hyperparameter settings, we compare the models across four sequence lengths (1024, 2048, 3072, 4096) and two model sizes (base and large) under a fixed resource budget. We find that LED consistently achieves better accuracy at lower energy costs than Big Bird. For summarization, we find that increasing model size is more energy efficient than increasing sequence length for higher accuracy. However, this comes at the cost of a large drop in inference speed. For question answering, we find that smaller models are both more efficient and more accurate due to the larger training batch sizes possible under a fixed resource budget. 
+
+Comments: 	Accepted at NLP Power! Workshop on Efficient Benchmarking in NLP at ACL2022
+Subjects: 	Computation and Language (cs.CL) ; Machine Learning (cs.LG)
+Cite as: 	arXiv:2204.07288 [cs.CL]
+  	(or arXiv:2204.07288v1 [cs.CL] for this version)
+  	https://doi.org/10.48550/arXiv.2204.07288
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Phyllis Ang [ view email ]
+[v1] Fri, 15 Apr 2022 01:52:45 UTC (4,329 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Characterizing the Efficiency vs. Accuracy Trade-off for Long-Context NLP Models, by Phyllis Ang and 2 other authors
+    PDF
+    Other formats 
+
+Current browse context:
+cs.CL
+< prev   |   next >
+new | recent | 2204
+Change to browse by:
+cs
+cs.LG
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Reddit logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

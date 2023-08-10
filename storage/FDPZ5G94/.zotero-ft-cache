@@ -1,0 +1,340 @@
+
+
+    blog
+    介绍
+    Mac 相关
+        MacOSX 清空 DNS 缓存命令
+        Mac OSX 系统下快速创建大文件
+        Mac 下安装和使用 node 版本管理工具 nvm 和 smart-npm
+        切换 Homestead 源
+        在 MacOSX 上使用 iOS 模拟器调试 web 站点
+    开发工具
+        SublimeText 相关
+            Sublime Text 3 安装和使用 Package Control 包管理
+            Sublime Text 3 主题以及编辑器配置
+            修改 Sublime Text 3 的侧边栏字体大小
+            Sublime 插件之 SideBarEnhancements 右键菜单增强插件
+            Sublime 插件之 GitGutter 代码差异管理
+            Sublime 插件之 PHPCompanion 自动补全类命名空间
+            Sublime 插件之 DocBlockr 注释的快速生成
+            Sublime 插件之 AdvancedNewFile 更快的创建文件或目录
+            Sublime 插件之 SnippetMaker 自定义代码片段
+            Sublime 插件之 SublimeLinter 和 PHP 代码检测与自动修复
+            Sublime 插件之 ProjectManager 项目管理
+            Sublime 插件之 Emmet 快速编写 HTML/CSS
+            Sublime 插件之 Sublime​Linter 和 Sublimelinter-contrib-eslint 检查代码规范
+            Sublime 插件之 HTML-CSS-JS Prettify 格式化前端代码
+            Sublime 快捷键
+            Sublime Text 3 恢复到新安装状态
+        PhpStorm 相关
+            PhpStorm 下载安装和简单配置
+            PhpStorm 配置主题和颜色
+            PHPStorm 如何配置 PHP-Code-Sniffer 和 PHP-CS-Fixer 让 PHP 代码支持 PSR2 规范
+            PhpStorm 快捷键
+            PHPStorm 对 JS 或者 Vue 文件中导入路径别名识别
+        Atom 的基本使用
+        Google Deveoloer Tools 必备调试技巧
+            调试窗口的切换
+            快速切换 PC 与手机端进行测试
+            页面元素的快速调试技巧
+            如何保持元素的状态
+            元素状态改变的监控方法
+            样式的快速调试和修改
+            查看元素样式的盒模型
+            查看元素最终的样式
+            Console 控制台
+            查看被打包压缩的 CSS 和 JS 文件
+            编辑源文件并同步到本地文件中
+            如何让浏览器阻止请求某些资源
+            如何对站点下所有的资源进行全部搜索
+        Vagrant 相关
+            Mac 系统安装 Vagrant
+            使用 Vagrant 和 LANMP 环境搭建
+            Vagrant 常用命令
+            Vagrant 端口转发和文件共享
+        Valet 开发环境
+            Mac 开发环境 Laravel Valet 实践
+            让 Valet 支持 ThinkPHP3
+            让 Valet 支持 ThinkPHP5
+        Homestead 开发环境
+            Homestead 安装 phpredis 扩展
+        Docker 相关
+            使用 Docker Compose 方式安装 Gitlab 服务
+        如何在各大平台上免费翻"墙"
+        在 Nginx 或者 Apache 服务器中配置 SSI 支持
+    Javascript
+        webpack2 相关
+            webpack2 介绍与安装
+            配置 webpack 和命令快捷方式
+            webpack-dev-server 完成代码更改自动刷新
+            配置 ESLint 实现代码规范自动测试
+            加载 CSS 的相关配置
+            自动分离 CSS 到独立文件
+            文件压缩
+            生成源代码的 SourceMap
+            分离项目代码和组件代码
+            使用可视化图标统计分析打包过程
+            配置多页面编译
+        Ajax 文件上传 jQuery 插件 simpleUpload.js 的使用
+        使用 bootstrap-fileStyle 改变 BootStrap 默认的文件选择框样式
+        Javascript 中的 Promise
+    Vue 相关
+        如何将 vue 项目发布到 github 的 pages
+        使用 mixins 重构代码
+        VeeValidate 相关
+            在 Vue 中使用 vee-validate
+            使用 vee-validate 显示简体中文错误提示
+            如何使用 vee-validate 自定义错误提示
+            如何使用 vee-validate 自定义验证规则
+            使用 vee-validate 时使用数据绑定
+            VeeValidate 光标离开输入框焦点就验证
+            获取第一个错误信息并自动焦点到该表单字段
+    WordPress 相关
+        WordPress 创建主题
+    Git 相关
+        Git 命令清单
+        Git 合并特定 commits 到另一个分支
+        Git 合并其他分支的个别文件或文件夹
+        Git 更新远程代码到本地仓库
+        Git 拉取远程分支到本地
+        Git 服务器上使用 SSH 协议授权免密码登录
+        Git 获取仓库指定目录或文件
+        Git 记住用户名和密码
+    Laravel 开发
+        Laravel 项目初始化 README 模版
+        使用 Laravel + adminlte + vue.js 构建项目
+        Laravel Eloquent 的提示和技巧 1
+        Laravel Eloquent 的提示和技巧 2
+        使用预加载（Eager loading）来优化 Laravel Eloquent 查询
+        在 Laravel 应用中使用 pjax 进行页面加速
+        Laravel5 确认框从数据库示例中删除记录
+        使用 laravel-sms 构建短信验证码发送校验模块
+        API 开发
+            对 API 资源的第一印象 - Laravel5.5
+            嵌套关系的可重用 API 资源 - Laravel5.5
+            动态的隐藏 API 字段 - Laravel5.5
+        Laravel 测试
+            Laravel 中针对 API 的 TDD 步骤
+        Laravel Nova
+            安装 laravel nova
+            使用 laravel nova 定义资源
+            使用 laravel nova 定义字段
+            使用 laravel nova 关联资源
+            使用 laravel nova 验证字段
+            使用 laravel nova 对资源进行权限控制
+            使用 laravel nova 对资源搜索
+            使用 laravel nova 过滤资源
+            使用 laravel nova Lenses
+    Laravel 拓展
+        使用 laravel-query-cache 来缓存数据库的 SELECT 请求
+    CentOS
+        Centos 7 服务器初始化
+        如何在 CentOS 上创建 sudo 用户
+        防止远程 Linux 主机自动断开 SSH 连接
+        CentOS7 中 firewalld 防火墙的使用
+        使用 supervisord 管理进程
+        CentOS7 下 LNMP 安装配置
+            CentOS7 使用 yum 方式安装和配置 Nginx
+            CentOS7 使用 yum 方式安装和配置 php-fpm
+            CentOS7 使用 yum 方式安装和配置 MySQL
+        Linux 下使用定时任务每隔 N 秒钟执行任务
+        CentOS7 下安装配置 shadowsocks
+        CentOS 下安装 PHP 拓展 Swoole
+        如何在 CentOS 7 上安装和配置 GitLab CE
+        如何在 CentOS 上使用 Deployer 自动部署 Laravel 应用程序
+    Ubuntu
+        Ubuntu 下快速搭建 LNMP 环境
+        如何在 Ubuntu 上使用 Deployer 自动部署 Laravel 应用程序
+    Go 学习
+        Go 安装
+            如何在 CentOS 7 上安装 Go
+            如何在 MacOSX 上安装 Go
+    其他
+        SSH 登陆远程主机后进入指定目录或执行命令
+        scp 跨机远程拷贝
+        使用 docker 部署私有 Gogs 服务
+        申请 Let's Encrypt 通配符 HTTPS 证书
+        使用 ssh-copy-id 建立与远端 Linux 服务器的信任
+        Linux 禁止 root 用户直接登录 sshd 并修改默认端口
+        修改 Composer 镜像下载地址
+        安装和使用 Oh-My-Zsh
+            Oh-My-Zsh 常用插件
+                autojump 自动跳转
+                zsh-autosuggestion 终端提示
+                zsh-syntax-highlighting 语法高亮
+        九九乘法表
+
+Powered by GitBook
+Git 命令清单
+Git命令清单
+
+Git作为常用的版本控制工具之一，我们应该在平时的开发中多了解、总结一些命令，将能在遇到一些实际使用过程中省去很多时间。
+
+下面这张图是比较好的一张：
+
+关于git，首先需要了解几个名词，如下
+
+    Working Directory // 工作区
+
+    Index / Stage Area // 暂存区
+
+    Repository // 仓库区（或本地仓库）
+
+    Remote // 远程仓
+
+在 Git 里，主要可以分成「工作区（Working Directory）」、「暂存区（Staging Area）」以及「储存区（Repository）」三个区块，通过不同的 Git 指令，可以把文件移到不同的区域：
+
+    git add 指令把文件从工作目录移至暂存区（或索引）。
+
+    git commit 指令把暂存区的內容移至仓库区。
+
+配置
+
+Git的设置文件为 .gitconfig ，它可以在用户主目录下（全局配置），也可以在项目目录下（项目配置）。
+
+配置文件的优先级是： /etc/gitconfig 、 ~/.gitconfig 和 当前项目目录的config文件（即 .git/config 文件）。
+
+这三个文件的优先级依次增高，每个级别重写前一个级别的值。因此，在 .git/config 中的值覆盖了在 /etc/gitconfig 中的同一个配置值。
+
+ // 显示当前的Git配置 git config --list // 编辑Git配置文件，不指定默认是 --local git config -e [--system|--global|--local] // 设置提交代码时的用户信息 git config [--global] user.name "[name]" git config [--global] user.email "[email address]"  
+
+新建仓库
+
+ // 在当前目录新建一个Git仓库 git init // 新建一个目录，并将其初始化为Git仓库 git init [project-name] // 下载一个项目和它的整个代码历史 git clone [ssh/https/file:///]  
+
+增加/删除文件
+
+ // 添加指定文件到暂存区 git add [file1] [file2] ... // 添加指定目录到暂存区，包括子目录 git add [dir] // 添加当前目录的所有文件到暂存区 git add . // 添加每个变化前，都会要求确认 // 对于同一个文件的多处变化，可以实现分次提交 git add -p // 删除工作区文件，并且将这次删除放入暂存区（相当于 rm [file1] [file2]，再执行 git add 命令结果） git rm [file1] [file2] // 停止追踪指定文件，但该文件会保留在工作区，通常是在文件曾经被git管理过，现在不需要被git接管的时候使用【不删除物理文件，仅将该文件从缓存中删除】 git rm --cached [file] // 将误删除的文件恢复 git checkout -- file // 改名文件，并且将这个改名放入暂存区 git mv [file-original] [file-renamed]  
+
+提交文件
+
+ // 空文件提交到版本 // 空的 Commit 出來，基本上没什么意义，有时可以不用新增文件而快速产生 Commit 來git相关的操作 git commit --allow-empty -m "空的" // 提交暂存区文件到仓库区 git commit -m [message] // 提交暂存区的指定文件到仓库区 git commit [file1] [file2] ... -m [message] // 提交工作区自上次commit之后的变化，直接到仓库区 git commit -a // 提交时显示所有diff信息 git commit -v // 使用一次新的commit，替代上一次提交 // 如果代码没有任何新变化，则用来改写上一次commit的提交信息 git commit --amend -m [message] // 重做上一次commit，并包括指定文件的新变化 git commit --amend [file1] [file2]  
+
+忽略文件
+强制添加存在于 .gitignore 的文件
+
+ git add -f file.class  
+
+分支操作
+查看
+
+ // 列出所有本地分支 git branch // 列出所有远程分支 git branch -r // 列出所有本地分支和远程分支 git branch -a // 指定本地work1和远程work1分支的连接关系 git branch --set-upstream work1 origin/work1  
+
+新建
+
+ // 新建一个分支，但依然停留在当前分支 git branch [branch-name] // 新建一个分支，并切换到该分支 git checkout -b [branch] // 新建一个分支，指向指定的commit git branch [branch] [commit] // 新建一个分支，与指定的远程分支建立追踪关系 git branch --track [branch] [remote-branch]  
+
+修改
+
+ // 将master分支改名为slave git branch -m master slave  
+
+删除
+
+ // 删除分支 git branch -d [branch-name] // 删除远程分支 git push origin --delete [branch-name] git branch -dr [remote/branch]  
+
+其他
+
+ // 切换到指定分支，并更新工作区 git checkout [branch-name] // 切换到上一个分支 git checkout - // 放弃当前所有修改会退到上一提交 git checkout . // 建立追踪关系，在现有分支与指定的远程分支之间 git branch --set-upstream [branch] [remote-branch] // 合并指定分支到当前分支 git merge [branch] // 选择一个commit，合并进当前分支 git cherry-pick [commit]  
+
+标签
+
+ // 列出所有tag git tag // 新建一个tag在当前commit git tag [tag] // 新建一个tag在指定commit git tag [tag] [commit] // 删除本地tag git tag -d [tag] // 删除远程tag git push origin :refs/tags/[tagName] // 查看tag信息 git show [tag] // 提交指定tag git push [remote] [tag] // 提交所有tag git push [remote] --tags // 新建一个分支，指向某个tag git checkout -b [branch] [tag]  
+
+查看日志
+
+ // 显示当前分支的版本历史 git log // 简略查看信息 git log --pretty=oneline // 查看分支信息 git log --graph --pretty=oneline --abbrev-commit // 显示commit历史，以及每次commit发生变更的文件 git log --stat // 搜索提交历史，根据关键词 git log -S [keyword] // 显示某个commit之后的所有变动，每个commit占据一行 git log [tag] HEAD --pretty=format:%s // 显示某个commit之后的所有变动，其"提交说明"必须符合搜索条件 git log [tag] HEAD --grep feature // 显示某个文件的版本历史，包括文件改名 git log --follow [file] git whatchanged [file] // 显示指定文件相关的每一次diff git log -p [file] // 显示过去5次提交 git log -5 --pretty --oneline // 显示所有提交过的用户，按提交次数排序 git shortlog -sn // 找某个人或某些人的 Commit git log --author="curder" git log --author="curder\|test" // 按照提交的 Message 获取对应的提交 git log --grep="css" // 找出某行文件内容谁写的 git blame file_name git blame -L 2,8 file_name  
+
+文件差异对比
+
+ // 显示暂存区和工作区的差异 git diff // 工作区与暂存区比较 git diff filepath // 显示暂存区和上一个commit的差异 git diff --cached [file] // 显示工作区与当前分支最新commit之间的差异 git diff HEAD // 工作区与HEAD ( 当前工作分支) 比较 git diff HEAD filepath // 显示两次提交之间的差异 git diff [first-branch]...[second-branch] // 显示当前用户今天写了多少行代码 git diff --shortstat "@{0 day ago}" // 暂存区与HEAD比较 git diff --staged 或 --cached filepath // 当前分支的文件与branchName 分支的文件进行比较 git diff branchName filepath // 与某一次提交进行比较 git diff commitId filepath  
+
+查看信息
+
+ // 显示有变更的文件 git status // 显示指定文件是什么人在什么时间修改过 git blame [file] // 显示某次提交的元数据和内容变化 git show [commit] // 显示某次提交发生变化的文件 git show --name-only [commit] // 显示某次提交时，某个文件的内容 git show [commit]:[filename] // 显示当前分支的最近几次提交 git reflog  
+
+远程同步
+
+ // 下载远程仓库的所有变动 git fetch [remote] // 显示所有远程仓库 git remote -v // 显示某个远程仓库的信息 git remote show [remote] // 增加一个新的远程仓库，并命名 git remote add [shortname] [url] // 取回远程仓库的变化，并与本地分支合并 git pull [remote] [branch] // 上传本地指定分支到远程仓库 git push [remote] [branch] // 强行推送当前分支到远程仓库，即使有冲突 git push [remote] --force // 推送所有分支到远程仓库 git push [remote] --all  
+
+撤销
+
+ // 恢复暂存区的指定文件到工作区 git checkout [file] // 恢复某个commit的指定文件到暂存区和工作区 git checkout [commit] [file] // 恢复暂存区的所有文件到工作区 git checkout . // 撤销添加到暂存区的文件，这样文件就回到了工作区 git reset HEAD file // 重置暂存区的指定文件，与上一次commit保持一致，但工作区不变 git reset [file] // 重置暂存区与工作区，与上一次commit保持一致 git reset --hard // 返回上一版本，丢弃当前提交的一个版本，如果错误的删除了，可以使用 git reflog 获取到最后的提交hash值，然后使用 git merge hash_code 回退到上一个提交 git reset --hard HEAD^ // 重置当前分支的指针为指定commit，同时重置暂存区，但工作区不变 git reset [commit] // 重置当前分支的HEAD为指定commit，同时重置暂存区和工作区，与指定commit一致 git reset --hard [commit] // 重置当前HEAD为指定commit，但保持暂存区和工作区不变 git reset --keep [commit] // 新建一个commit，用来撤销指定commit // 后者的所有变化都将被前者抵消，并且应用到当前分支 git revert [commit] // 撤销上一个提交，使用 git revert 当作撤销已经提交的更改，而 git reset HEAD 用来撤销没有提交的更改。 git revert HEAD  
+
+Reset 的模式
+
+git reset 指令可以搭配参数使用，常见的三个参数，分别是 --mixed 、 --soft 以及 --hard ，不同的参数执行之后会有稍微不太一样的结果。
+mixed 模式
+
+--mixed 是默认的参数，如果没有特别的参数， git reset 指令将会使用 --mixed 模式。这个模式会把暂存区的档案丟掉，但不會动到工作目录的档案，也就是说 Commit 拆出來的档案会留在工作目录，但不会留在暂存区。
+soft 模式
+
+--soft 模式下的 reset，工作目录跟暂存区的档案都不会被丟掉，所以看起來就只有 HEAD 的移动而已。也因此 Commit 拆出來的文件会直接放在暂存区。
+hard 模式
+
+--hard 模式下，不管是工作目录以及暂存区的文件都会丟掉。 该模式不建议在公共分支下操作。 如下表格：
+模式 	mixed 模式（预设） 	soft 模式 	hard 模式
+工作目录 	不变 	不变 	丟掉
+暂存区 	丟掉 	不变 	丟掉
+
+如果上面的说明不容易想像到底发生什么事，只要记住这些不同的模式，将会决定「Commit 拆出來的那些文件何去何从」。
+模式 	mixed 模式（预设） 	soft 模式 	hard 模式
+Commit 拆出來的文件 	丟回工作目录 	丟回暂存区 	直接丟掉
+储藏工作区
+
+工作途中，我们在A分支工作，当前任务未完成，没有添加到暂存区，但是需要紧急修复bug，使用
+
+ git stash  
+
+储藏现场，然后切换到需要修复bug的分支B。接着，创建修复bug的分支C，完成修复任务，回到B分支，合并C分支，删除C分支。
+
+回到我们正在工作的A分支：
+
+ git checkout A  
+
+查看工作现场
+
+ git stash list  
+
+使用下面的命令恢复工作现场
+
+ git stash pop  
+
+此时会恢复并且删除stash的内容。
+
+不删除stash内容？
+
+ git stash apply <指定stash，可以多次stash>  
+
+只执行恢复操作。
+
+但是以后想删除？
+
+ git stash drop  
+
+执行删除stash内容的操作。
+文件打包
+查看帮助
+
+ git archive [options] <tree-ish> [<path>...] --format <fmt> archive format --prefix <prefix> prepend prefix to each pathname in the archive -o, --output <file> write the archive to this file -0 store only -1 compress faster -9 compress better -l, --list list supported archive formats  
+
+查看支持的归档格式
+
+ git archive --list  
+
+运行完上面的命令，可以看到支持的归档格式有： tar 、 tgz 、 tar.gz 和 zip 。
+导出
+
+创建一个包含当前最新提交内容的 tar.gz 归档文件分支，并将其解压到 /tmp/projectName 目录中。
+
+ git archive --format=tar.gz --prefix=projectName/ HEAD | (cd /tmp/ && tar xf -)  
+
+ // 导出最新的版本库 git archive -o ../latest.zip HEAD // 通过hash值导出指定提交记录 git archive -o ../git-1.4.0.tar hashCode // 导出一个目录 git archive -o ../git-1.4.0-docs.zip HEAD:Documentation/ // 导出为tar.gz格式 git archive 8996b47 | gzip > ../git-1.4.0.tar.gz // 导出最后一次提交修改过的文件 git archive -o ../updated.zip HEAD $(git diff --name-only HEAD^) // 导出tag git archive --format=tar.gz 1.0 | gzip > v1.0.tar.gz  
+
+参考链接
+
+    Git进阶使用笔记
+
+    為你自己學 Git
+
+    Git 菜单
+

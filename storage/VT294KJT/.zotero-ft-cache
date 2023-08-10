@@ -1,0 +1,922 @@
+
+[CSDN首页]
+
+    博客
+    下载
+    学习
+    社区
+    falsefalse
+    GitCode
+    InsCode 
+
+搜索
+登录
+会员中心
+历史
+创作中心
+发布
+yaml中使用记录及环境变量的交互
+jaffe—fly 于 2021-09-28 22:34:23 发布 3241 收藏 7
+分类专栏： 笔记 文章标签： python hydra
+版权
+笔记 专栏收录该内容
+42 篇文章 5 订阅
+订阅专栏
+
+hydra， yaml
+
+    yaml配合hydra，omegaconf
+        使用环境变量
+        查看系统环境变量
+        notebook 中加载环境变量 
+    hydra 配置框架用法详解
+        1
+        2
+        3
+        4
+        5 tab 补全
+        6 ConfigStore
+        7 ConfigStore 组配置
+        8 配置继承
+        9 只读的config
+        10 [hydra config 的结构](https://github.com/facebookresearch/hydra/blob/main/hydra/conf/__init__.py)
+        11 帮助
+        12 插件
+        13 hydra术语
+        14 hydra 对象实例化
+        15 组合
+        16 应用安装示例
+        17 Callbacks 
+
+yaml配合hydra，omegaconf
+使用环境变量
+
+ name : &name "Citrinet-512-8x-Stride" model : sample_rate : &sample_rate 16000 train_ds : manifest_filepath : "${oc.env:train_data_dir}/train_manifest.json"
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+
+ 
+
+查看系统环境变量
+
+在命令行输入以下命令
+
+ printenv
+ 
+
+    1
+
+ 
+
+查看PATH环境变量
+
+ printenv PATH
+ 
+
+    1
+
+ 
+
+查看sehll变量
+
+ set
+ 
+
+    1
+
+ 
+
+命令行新增shell变量
+
+ TEST_VAR='Hello World !'
+ 
+
+    1
+
+ 
+
+查看刚刚新增的变量
+
+ set | grep TEST_VAR
+ 
+
+    1
+
+ 
+
+可以查看环境变量中是否有这个变量
+
+ printenv | grep TEST_VAR #没有输出
+ 
+
+    1
+
+ 
+
+notebook 中加载环境变量
+
+ %dotenv -v print(os.environ.get('train_data_dir'))
+ 
+
+    1
+    2
+
+ 
+
+或者指定一个env文件
+
+ %dotenv /ntt/path/to/.env
+ 
+
+    1
+
+ 
+
+python dotenv加载的环境变量，是不能在shell中读取到的
+
+shell 中设置环境变量，创建 env.sh 输入
+
+ export qqqq=123123
+ 
+
+    1
+
+ 
+
+命令行输入 source env.sh
+shell脚本中的路径拼接 echo $train_data_dir"/train_manifest.json"
+
+以指定环境变量运行python 脚本
+
+ train_data_dir=/ntt/aldata python app.py
+ 
+
+    1
+
+ 
+
+hydra 配置框架用法详解
+1
+
+创建config.yaml
+
+ model : sample_rate : &sample_rate 16000 train_ds : manifest_filepath : ? ? ? sample_rate : 16000 batch_size : 32 trim_silence : false max_duration : 16.7 shuffle : true is_tarred : false tarred_audio_filepaths : null use_start_end_token : false defaults : - _self_ #放在- foo: bar的前面优先使用defaults下面的- foo: bar中的值 - foo : bar #- _self_ #放在- foo: bar的后面优先使用defaults外面的- foo: bar中的值
+ 
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+    11
+    12
+    13
+    14
+    15
+    16
+    17
+    18
+
+ 
+
+同级目录下创建test.py
+
+ from omegaconf import DictConfig , OmegaConf import hydra from nemo . core . config import hydra_runner # @hydra.main(config_path='.',config_name="config") @hydra_runner ( config_path = '.' , config_name = "config" ) def my_app ( cfg : DictConfig ) - > None : print ( OmegaConf . to_yaml ( cfg ) ) if __name__ == "__main__" : my_app ( )
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+    11
+
+ 
+
+命令行执行
+
+ python3 test.py model.train_ds.sample_rate=$sample_rate model.train_ds.manifest_filepath=/home/hydra/train_manifest.json +model.val_ds.sample_rate=44444 ++model.train_ds.batch_size=545 ~foo
+ 
+
+    1
+
+ 
+
+解释 + 新增（yaml文件中不存在）， ~ 删除（yaml文件中存在的某个键值对）， ++ (yaml文件中)存在则覆盖，不存在则新增
+2
+
+ from hydra . utils import get_original_cwd , to_absolute_path @hydra . main ( ) def my_app ( _cfg : DictConfig ) - > None : print ( f"Current working directory : { os . getcwd ( ) } " ) print ( f"Orig working directory : { get_original_cwd ( ) } " ) print ( f"to_absolute_path('foo') : { to_absolute_path ( 'foo' ) } " ) print ( f"to_absolute_path('/foo') : { to_absolute_path ( '/foo' ) } " )
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+
+ 
+
+3
+
+命令行中 hydra.verbose=true 可以输出DEBUG级别的日志信息，
+相似的还有 hydra/job_logging=disabled 关闭log输出
+
+ import logging from omegaconf import DictConfig import hydra # A logger for this file log = logging . getLogger ( __name__ ) @hydra . main ( ) def my_app ( _cfg : DictConfig ) - > None : log . info ( "Info level message" ) log . debug ( "Debug level message" ) if __name__ == "__main__" : my_app ( )
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+    11
+    12
+    13
+    14
+
+ 
+
+ python3 test . py hydra . verbose = true python my_app . py hydra . verbose = [ __main__ , hydra ]
+ 
+
+    1
+    2
+
+ 
+
+4
+
+--cfg 可选的有 job，hydra，all
+
+ python my_app . py - - cfg job
+ 
+
+    1
+
+ 
+
+类似有
+您可以使用 --package 或 -p 来显示配置的子集
+--info 标志可以提供有关 Hydra 和您的应用程序的各个方面的信息
+
+    --info all
+    --info config
+    --info defaults
+    --info defaults-tree
+    --info plugins 
+
+5 tab 补全
+
+shell有多种，比如bash、zsh、csh、ksh、sh、tcsh等
+Zsh与现有bash完全兼容
+
+ eval " $( python my_app.py -sc install = bash ) "
+ 
+
+    1
+
+ 
+
+6 ConfigStore
+
+ from dataclasses import dataclass import hydra from hydra . core . config_store import ConfigStore @dataclass class MySQLConfig : host : str = "localhost" port : int = 3306 cs = ConfigStore . instance ( ) # Registering the Config class with the name 'config'. cs . store ( name = "config" , node = MySQLConfig ) @hydra . main ( config_path = None , config_name = "config" ) def my_app ( cfg : MySQLConfig ) - > None : # pork should be port! if cfg . pork == 80 : print ( "Is this a webserver?!" ) if __name__ == "__main__" : my_app ( )
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+    11
+    12
+    13
+    14
+    15
+    16
+    17
+    18
+    19
+    20
+    21
+    22
+
+ 
+
+7 ConfigStore 组配置
+
+ @dataclass class MySQLConfig : driver : str = "mysql" host : str = "localhost" port : int = 3306 @dataclass class PostGreSQLConfig : driver : str = "postgresql" host : str = "localhost" port : int = 5432 timeout : int = 10 @dataclass class Config : # We will populate db using composition. db : Any # Create config group `db` with options 'mysql' and 'postgreqsl' cs = ConfigStore . instance ( ) cs . store ( name = "config" , node = Config ) cs . store ( group = "db" , name = "mysql" , node = MySQLConfig ) cs . store ( group = "db" , name = "postgresql" , node = PostGreSQLConfig ) @hydra . main ( config_path = None , config_name = "config" ) def my_app ( cfg : Config ) - > None : print ( OmegaConf . to_yaml ( cfg ) )
+ 
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+    11
+    12
+    13
+    14
+    15
+    16
+    17
+    18
+    19
+    20
+    21
+    22
+    23
+    24
+    25
+    26
+    27
+
+ 
+
+8 配置继承
+
+将 MISSING 分配给字段以指示它没有默认值。 这相当于 ???
+
+ from omegaconf import MISSING @dataclass class DBConfig : host : str = "localhost" port : int = MISSING driver : str = MISSING @dataclass class MySQLConfig ( DBConfig ) : driver : str = "mysql" port : int = 3306 @dataclass class PostGreSQLConfig ( DBConfig ) : driver : str = "postgresql" port : int = 5432 timeout : int = 10 @dataclass class Config : # We can now annotate db as DBConfig which # improves both static and dynamic type safety. db : DBConfig
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+    11
+    12
+    13
+    14
+    15
+    16
+    17
+    18
+    19
+    20
+    21
+    22
+    23
+    24
+
+ 
+
+9 只读的config
+
+ @dataclass ( frozen = True ) class SerialPort : baud_rate : int = 19200 data_bits : int = 8 stop_bits : int = 1 cs = ConfigStore . instance ( ) cs . store ( name = "config" , node = SerialPort ) @hydra . main ( config_name = "config" ) def my_app ( cfg : SerialPort ) - > None : print ( cfg ) if __name__ == "__main__" : my_app ( )
+ 
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+    11
+    12
+    13
+    14
+    15
+    16
+    17
+    18
+
+ 
+
+10 hydra config 的结构
+
+环境变量设置
+
+ hydra : job : env_copy : # 复制已有的环境变量 - AWS_KEY env_set : RANK : $ { hydra : job.num } # 设置环境变量rank
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+
+ 
+
+ defaults : - override hydra/job_logging : custom
+ 
+
+    1
+    2
+
+ 
+
+配置输出路径
+
+ hydra : run : dir : ./outputs/$ { now : %Y - %m - %d } /$ { now : %H - %M - %S } #dir: outputs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S} #dir: outputs/${now:%Y-%m-%d_%H-%M-%S}/opt:${optimizer.type}
+ 
+
+    1
+    2
+    3
+    4
+    5
+
+ 
+
+11 帮助
+
+ python my_app.py - - help python my_app.py - - hydra - help
+ 
+
+    1
+    2
+
+ 
+
+12 插件
+
+带颜色的log
+
+ pip install hydra_colorlog --upgrade
+ 
+
+    1
+
+ 
+
+ defaults : - override hydra/job_logging : colorlog - override hydra/hydra_logging : colorlog
+ 
+
+    1
+    2
+    3
+
+ 
+
+其他插件
+13 hydra术语
+
+1， Input Configs
+2， Config files
+3， Structured Config
+4， Other configs
+
+    Primary Config
+    Output Config 
+
+5， Overrides
+6， Defaults List
+7， Config Group
+8， Config Group Option
+9， Package
+10， Config Search Path 类似 PYTHONPATH
+11， Plugins
+14 hydra 对象实例化
+
+1，在一个my_app.py中创建
+
+ class Optimizer : algo : str lr : float def __init__ ( self , algo : str , lr : float ) - > None : self . algo = algo self . lr = lr
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+
+ 
+
+2，yaml 文件中按如下写 _target_
+
+ optimizer : _target_ : my_app.Optimizer algo : SGD lr : 0.01
+ 
+
+    1
+    2
+    3
+    4
+
+ 
+
+3，实例化
+
+ opt = instantiate ( cfg . optimizer ) print ( opt ) # Optimizer(algo=SGD,lr=0.01) # override parameters on the call-site opt = instantiate ( cfg . optimizer , lr = 0.2 ) print ( opt ) # Optimizer(algo=SGD,lr=0.2)
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+
+ 
+
+4， 递归实例化参考这儿
+5，禁用递归 _recursive_=False
+
+ optimizer = instantiate ( cfg . trainer , _recursive_ = False ) print ( optimizer )
+ 
+
+    1
+    2
+
+ 
+
+15 组合
+
+ from hydra import compose , initialize from omegaconf import OmegaConf if __name__ == "__main__" : # context initialization with initialize ( config_path = "conf" , job_name = "test_app" ) : cfg = compose ( config_name = "config" , overrides = [ "db=mysql" , "db.user=me" ] ) print ( OmegaConf . to_yaml ( cfg ) ) # global initialization initialize ( config_path = "conf" , job_name = "test_app" ) cfg = compose ( config_name = "config" , overrides = [ "db=mysql" , "db.user=me" ] ) print ( OmegaConf . to_yaml ( cfg ) )
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+    11
+    12
+    13
+
+ 
+
+16 应用安装示例
+
+ $ python examples/advanced/hydra_app_example/hydra_app/main.py dataset: name: imagenet path: /datasets/imagenet
+ 
+
+    1
+    2
+    3
+    4
+
+ 
+
+ $ pip install examples/advanced/hydra_app_example .. . Successfully installed hydra-app-0.1
+ 
+
+    1
+    2
+    3
+
+ 
+
+ $ hydra_app dataset: name: imagenet path: /datasets/imagenet
+ 
+
+    1
+    2
+    3
+    4
+
+ 
+
+17 Callbacks
+
+ from hydra . experimental . callback import Callback class MyCallback ( Callback ) : def __init__ ( self , bucket : str , file_path : str ) - > None : self . bucket = bucket self . file_path = file_path def on_job_end ( self , config : DictConfig , ** kwargs : Any ) - > None : print ( f"Job ended,uploading..." ) # uploading... @hydra . main ( config_path = "conf" , config_name = "config" ) def my_app ( cfg : DictConfig ) - > None : print ( OmegaConf . to_yaml ( cfg ) ) if __name__ == "__main__" : my_app ( )
+ 
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+    11
+    12
+    13
+    14
+    15
+    16
+    17
+    18
+
+ 
+
+文章知识点与官方知识档案匹配，可进一步学习相关知识
+Python入门技能树 首页 概览 314557 人正在系统学习中
+jaffe—fly
+关注 关注
+
+    3
+    7
+    觉得还不错? 一键收藏
+    打赏
+    0
+
+专栏目录
+shell脚本解析 yaml 文件变量工具
+09-08
+原文：https://editor.csdn.net/md/?articleId=120167145
+YAML 文件(.yml) 中 的键(key)通过变量引用来设置
+酸奶盖儿的博客
+07-15 3649
+1. 通过变量引用设置配置量的【值(value)】 在 YAML 文件 中 ，一个配置量的 值 可以通过引用另一个变量来设置。例如： default-db: port: 3306 user-db: port: ${default-db.port} 但是，如果想通过变量引用设置键，通过${}是做不到的。例如： site: url: user: www.user.net shop: www.shop.net site: slogan: ${site.url.user}: e
+pytest接口自动化如何设置 yaml 格式的 环境变量 _pytest yaml 的变量{}_勒...
+6-27
+1、需要对 yaml 文件进行增、删、改、查需要导入模块`: 先导入模块 import yaml fromruamelimport yaml # pip install ruamel. yaml 2、比如新增&编辑(遇到相同key会进行覆盖): import yaml fromruamelimport yaml # pip install ruamel. yaml defadd_e...
+JAVA yaml 或properties配置文件 中 使用 环境变量 (docker部署)
+7-7
+当我们部署服务时候,希望 yaml 、properties 中 的一些配置参数(如数据库、端口号等)从外界获取而非写死。这样做的好处是,当你想部署在别的机器上就不需要再修改或者帮甲方上线的时候只需要修改 环境变量 就可以了。 Linux下添加 环境变量 很简单...
+python 通过 yaml 文件来实现环境配置
+最新发布
+weixin_45471729的博客
+04-27 597
+python 通过 yaml 文件来实现环境配置
+bash- yaml ：读取 yaml 文件并在bash 中 创建变量
+01-30
+bash- yaml ：读取 yaml 文件并在bash 中 创建变量
+...Nginx反向代理,Docker部署功能_ yaml 环境变量 配置_匍匐前进の...
+7-8
+Docker Compose 定义和运行多个 Docker 容器   创建docker-compose. yaml 文件,代码如下(示例): version:"3.7"services:# 对于不是自定义镜像,可直接从线上(dockerhub)拉取redis:image:redis:latest# 镜像名:版本container_name:ruoyi...
+【K8S】 环境变量 _k8s yaml 环境变量 _SunAlwaysOnline的博客
+7-6
+1、基于 YAML 文件创建一个Pod: kubectl apply -f https://k8s.io/examples/pods/inject/envars. yaml 2、获取一下当前正在运行的Pods信息: kubectlgetpods -l purpose=demonstrate-envars ...
+python 中 yaml 配置文件模块的 使用 详解
+01-20
+简述 和GNU一样， YAML 是一个递归着说“不”的名字。不同的是，GNU对UNIX说不， YAML 说不的对象是XML。 YAML 不是XML。 为什么不是XML呢？因为： YAML 的可读性好。 YAML 和脚本语言的 交互 性好。 YAML 使用 实现语言的数据类型。 YAML 有一个一致的信息模型。 YAML 易于实现。 上面5条也就是XML不足的地方。同时， YAML 也有XML的下列优点： YAML 可以基于流来处理； YAML 表达能力强，扩展性好。 总之， YAML 试图用一种比XML更敏捷的方式，来完成XML所完成的任务。 更多的内容及规范参见http://www. yaml .org
+通过 yaml 为json 中 的某个变量赋值
+06-28
+通过标准的json格式，生成 yaml 文件，然后再读取 yaml 文件修改里面的某（多）个变量值，然后再生成新的json，json格式前后都一样，就是为了修改里面的某些变量值，所以用 yaml 作为 中 间桥梁
+YAML 语法规则简介_ yaml 变量规范_weixin_47431806的博客
+7-10
+YAML 语法规则简介 用途: 1.用于做配置文件 配置全局的数据: 环境变量 ,数据库信息,账号信息,日志格式,日志报告名称。 2.用于写测试用例(接口自动化测试用例)–用于数据驱动 一、 yaml 简介 yaml 是一种数据格式(json),支持注释,换行,多行...
+windows编译 yaml -cpp_ yaml -cpp 环境变量 _ningdr的博客
+7-7
+添加到 path 环境变量 里面。注销账户或者重启一下命令行、powershell窗口,让 环境变量 生效。 3、下载 yaml -cpp >gitclone https://github.com/jbeder/ yaml -cpp.git>cd yaml -cpp>gitcheckout yaml -cpp-0.7.0 ...
+JAVA yaml 或properties配置文件 中 使用 环境变量 (docker部署)
+aaabbcq的博客
+05-10 4400
+当我们部署服务时候，希望 yaml 、properties 中 的一些配置参数(如数据库、端口号等)从外界获取而非写死。这样做的好处是，当你想部署在别的机器上就不需要再修改或者帮甲方上线的时候只需要修改 环境变量 就可以了。 Linux下添加 环境变量 很简单，无非是修改一些文件。 修改profile文件，输入vi/etc/profile 再结尾输入想添加的变量，如：export HOST=127.0.0.1 修改.bashrc文件，输入vi/root/.bashrc (profile与bashrc具体两者有什么区
+YAML 配置文件 中 配置变量
+巴卡巴卡哇的博客
+12-07 2076
+YAML 配置文件 中 配置变量，类型包括基础类型，对象类型，List等
+Yaml 基本语法及读取配置的方法
+wjfhq的博客
+02-20 140
+Yaml 基本语法及读取配置的方法
+【Idea】application. yaml 中 定义的 环境变量 无法解析
+12Dong的博客
+08-17 1518
+能够正常启动的项目突然报错application. yaml 中 定义的 环境变量 无法解析，并有如下报错 2021-08-17 11:12:47,623 ERROR [org.springframework.boot.SpringApplication] - Application startup failed org.springframework.beans.factory.BeanDefinitionStoreException: Invalid bean definition with name 'Acc
+SpringBoot项目在yml或者properties文件 中 使用 环境变量
+丶自定义
+03-19 4898
+当我们在SpringBoot打包的服务时，一些参数需要从外界获取，而非写死在properties文件里，可以通过以下两步方式配置： 1.在配置文件 中 配置 环境变量 spring: datasource: driverClassName: com.mysql.cj.jdbc.Driver url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:table}?useUnicode=true&char
+python 使用 yaml 管理selenium元素的示例
+01-21
+作者：做梦的人（小姐姐） 出处：https://www.cnblogs.com/chongyou/ 1.所有元素都在PageElement下的. yaml ,如图 login_page. yaml 文件： username:   dec: 登录页   type: xpath   value: //input[@class='custom-text'] password:   dec: 密码输入框   type: xpath   value: //input[@class='custom-text password']   loginbtn:   dec: 登录按钮   type: xpath  
+在Qt 中 使用 yaml -cpp库对yml文件进行读写
+07-08
+这是一个用Qt实现的利用 yaml -cpp库对yml文件进行读写的小demo，内含所需要的库文件和头文件以及测试文件
+spring boot 中 yaml 简介以及语法
+qq_26347463的博客
+09-20 5404
+Spring Boot 使用 一个全局的配置文件（配置文件名是固定的） a) application.properties b) application.yml 配置文件放在src/main/resources目录或者类路径/config/下 .yml是 YAML （ YAML Ain’t Markup Language）语言的文件，以数据为 中 心，比json/xml等更适合做配置文件 全局配置文件可以对一...
+spring 读取 yaml 配置文件
+weixin_33700350的博客
+03-28 1680
+  从Spring框架4.1.0增加了对 YAML 的支持，Spring框架4.1.0 maven POM具有Snake yaml 依赖性  。 您可以在Spring Boot应用 中 使用 两种方式加载 YAML ： 1、 使用 Java配置类 　@Bean public static PropertySourcesPlaceholderConfigurer properties() { ...
+Kubernetes之 yaml 文件详解(汇总-详细）
+热门推荐
+BigData_Mining的博客
+03-13 4万+
+一、 YAML 基础 YAML 是专门用来写配置文件的语言，非常简洁和强大， 使用 比json更方便。它实质上是一种通用的数据串行化格式。 YAML 语法规则： 大小写敏感 使用 缩进表示层级关系 缩进时不允许 使用 Tal键，只允许 使用 空格 缩进的空格数目不重要，只要相同层级的元素左侧对齐即可 ”#” 表示注释，从这个字符一直到行尾，都会被解析器忽略　　 在Kubernetes 中 ，只需要知道两种结构类型即可： ...
+yml 文件 中 使用 环境变量
+weixin_30735391的博客
+08-16 7600
+Spring Boot 中 可以用 spring.profiles.active 参数来指定系统环境，让系统加载不同的配置文件。 　　可以在程序启动的时候加上参数来指定需要的配置 java -Dspring.profiles.active="dev" -jar user.jar 当然我们也可以事先设置好系统的 环境变量 expoer SERVER...
+Ruby yaml 文件 中 使用 环境变量 ENV
+WoBenZiYou的专栏
+12-02 1146
+项目代码需要连接多个数据库， 数据库配置 使用 了自定义的 yaml 文件，而如果需要在 yaml 文件 中 像在html 中 使用 <%= %>的方式注入ruby代码，则需要 使用 ERB class来处理（如果是类似于database.yml这种gem自带的配置文件，是可以直接 使用 <%= %>的方式加入ruby代码的） 使用 方式如下( 使用 了自定义的config/master_da...
+springboot相关注解学习
+SugarCharlotter的博客
+10-12 111
+1.@controller 作用于类上 用于controller层，声明该类为controller配置类。 2.@ResponseBody .作用在方法上：表示该方法返回json类型数据； .作用在类上：表示该类 中 的所有方法返回值都为json数据类型 3.@RestController; 作用于类上 组合注解；同等于@controller+@ResponseBody ...
+Python pytest+ yaml 文件，如何 使用 yaml 文件 中 的变量
+03-25
+A：在pytest 中 使用 yaml 文件 中 的变量，可以 使用 Py YAML 库读取 yaml 文件，然后将其转换为字典，再通过pytest.fixture传递给测试用例。 以下是一些示例代码： 1.创建一个名为config. yaml 的 yaml 文件，包含变量test_url和test_data： test_url: "http://example.com" test_data: username: "testuser" password: "testpassword" 2.在conftest.py文件 中 ， 使用 Py YAML 库读取 yaml 文件，并将其转换为字典： import yaml def pytest_addoption(parser): parser.addoption("--config", action="store", default="config. yaml ", help="path to config file") @pytest.fixture(scope="session") def config(request): with open(request.config.getoption("--config"), 'r') as file: config = yaml .safe_load(file) return config 3.在测试用例 中 ， 使用 @pytest.mark.parametrize装饰器传递从config字典 中 读取的变量： import requests import pytest @pytest.mark.parametrize('username,password', [(config['test_data']['username'], config['test_data']['password'])]) def test_login(config, username, password): response = requests.post(config['test_url'], data={'username': username, 'password': password}) assert response.status_code == 200 在这个示例 中 ，我们从config字典 中 读取了test_data 中 的用户名和密码变量，并将其传递给测试用例test_login。
+“相关推荐”对你有帮助么？
+
+    非常没帮助
+    没帮助
+    一般
+    有帮助
+    非常有帮助
+
+    关于我们
+    招贤纳士
+    商务合作
+    寻求报道
+    400-660-0108
+    kefu@csdn.net
+    在线客服
+    工作时间 8:30-22:00
+
+    公安备案号11010502030143
+    京ICP备19004658号
+    京网文〔2020〕1039-165号
+    经营性网站备案信息
+    北京互联网违法和不良信息举报中心
+    家长监护
+    网络110报警服务
+    中国互联网举报中心
+    Chrome商店下载
+    账号管理规范
+    版权与免责声明
+    版权申诉
+    出版物许可证
+    营业执照
+    ©1999-2023北京创新乐知网络技术有限公司
+
+jaffe—fly CSDN认证博客专家 CSDN认证企业博客
+码龄4年 暂无认证
+
+73
+    原创
+
+29万+
+    周排名
+
+16万+
+    总排名
+
+15万+
+    访问
+
+    等级
+
+1525
+    积分
+
+20
+    粉丝
+
+64
+    获赞
+
+33
+    评论
+
+188
+    收藏
+
+分享学徒
+求知
+受益良多
+博客之星–参与
+签到新秀
+持续创作
+笔耕不辍
+创作能手
+技术圈认证
+阅读者勋章
+知无不言
+私信
+关注
+热门文章
+
+    VMware虚拟机如何为GPU直通启用 32639
+    [enforce fail at inline_container.cc:145] . PytorchStreamReader failed reading zip archive: failed f 9519
+    区块链学习（3） 9206
+    关于paddlepaddle使用推理模式时CUDA error:out of memory错误的解决办法 7725
+    AX210 PCIE网卡 安装记录（linux） 6803
+
+分类专栏
+
+    LINUX 2篇
+    MLOPS 3篇
+    k8s 6篇
+    笔记 42篇
+    区块链 2篇
+    前端 1篇
+    CV 6篇
+    pytorch lightning 1篇
+    数据处理 1篇
+    Cmake 1篇
+    OpenCV 1篇
+    python初学 6篇
+
+最新评论
+
+    PX4 docker gazebo 安装踩坑记
+
+    Mokeyy: 遇见你太晚了，555。早看到我就不会被卡两周了。大赞👍🏻👍🏻👍🏻👍🏻
+    比较Dask，Ray，Modin，Vaex和RAPIDS
+
+    Brainor: 原文章 https://www.datarevenue.com/en-blog/pandas-vs-dask-vs-vaex-vs-modin-vs-rapids-vs-ray
+    kubeflow 1.6.1 单机搭建
+
+    jaffe—fly: 你用1.24吧，不要适配那么高的，我也遇到过 这个报错，但是不知道怎么解决
+    kubeflow 1.6.1 单机搭建
+
+    Relay Time: 你好，我这个部署完之后，training-operator一直是CrashLoopBackOff，其他pod都是ok的，查看log也没明显报错，请问遇到过吗 [code=plain] 1.6690869152823596e+09 INFO Starting Controller {"controller": "mxjob-controller"} I1122 03:15:16.378733 1 trace.go:205] Trace[535296393]: "DeltaFIFO Pop Process" ID:kubeflow/argo-role,Depth:15,Reason:slow event handlers blocking the queue (22-Nov-2022 03:15:16.081) (total time: 297ms): Trace[535296393]: [297.332355ms] [297.332355ms] END [/code]
+    k8s学习（2）- 虚拟机搭建搭建Kubernetes集群（1.24.2）
+
+    CSDN-Ada助手: 书山有路勤为径，学海无涯苦作舟，加油！
+
+您愿意向朋友推荐“博客详情页”吗？
+
+    强烈不推荐
+    不推荐
+    一般般
+    推荐
+    强烈推荐
+
+最新文章
+
+    kubeflow 1.6.1 单机搭建
+    python 接口自动化测试
+    书籍《Continuous Machine Learning with Kubeflow》
+
+2022年 31篇
+2021年 22篇
+2020年 22篇
+2019年 1篇
+目录
+
+    hydra，yaml
+    yaml配合hydra，omegaconf
+        使用环境变量
+        查看系统环境变量
+        notebook 中加载环境变量 
+    hydra 配置框架用法详解
+        1
+        2
+        3
+        4
+        5 tab 补全
+        6 ConfigStore
+        7 ConfigStore 组配置
+        8 配置继承
+        9 只读的config
+        10 hydra config 的结构
+        11 帮助
+        12 插件
+        13 hydra术语
+        14 hydra 对象实例化
+        15 组合
+        16 应用安装示例
+        17 Callbacks 
+
+新手引导 客服 举报 返回顶部
+评论 笔记

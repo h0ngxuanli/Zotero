@@ -1,0 +1,486 @@
+Interpretable Self-Aware Neural Networks for Robust Trajectory Prediction
+Masha Itkina and Mykel J. Kochenderfer Department of Aeronautics and Astronautics, Stanford University
+{mitkina,mykel}@stanford.edu
+Abstract: Although neural networks have seen tremendous success as predictive models in a variety of domains, they can be overly conﬁdent in their predictions on out-of-distribution (OOD) data. To be viable for safety-critical applications, like autonomous vehicles, neural networks must accurately estimate their epistemic or model uncertainty, achieving a level of system self-awareness. Techniques for epistemic uncertainty quantiﬁcation often require OOD data during training or multiple neural network forward passes during inference. These approaches may not be suitable for real-time performance on high-dimensional inputs. Furthermore, existing methods lack interpretability of the estimated uncertainty, which limits their usefulness both to engineers for further system development and to downstream modules in the autonomy stack. We propose the use of evidential deep learning to estimate the epistemic uncertainty over a low-dimensional, interpretable latent space in a trajectory prediction setting. We introduce an interpretable paradigm for trajectory prediction that distributes the uncertainty among the semantic concepts: past agent behavior, road structure, and social context. We validate our approach on real-world autonomous driving data, demonstrating superior performance over state-of-the-art baselines. Our code is available at: https://github.com/sisl/InterpretableSelfAwarePrediction.
+Keywords: Autonomous vehicles, trajectory prediction, distribution shift
+1 Introduction
+Deep learning techniques have had success across a multitude of domains, including human trajectory prediction in the context of autonomous vehicles (AVs) [1, 2]. However, a key challenge in deploying these systems is their lack of self-awareness about the quality of their predictions. Deep learning models often overestimate their conﬁdence in unfamiliar situations [3–9]. For robots deployed in human environments, this over-conﬁdence could result in dangerous maneuvers and safety concerns. Flagging unfamiliar situations encountered in the real world could be helpful to downstream autonomy stack components, such as path planners to execute a fail-safe maneuver, and to engineers for further system development.
+Real-world systems are subject to aleatoric and epistemic uncertainty. The former is irreducible data uncertainty, which, for trajectory prediction, could be represented as a distribution over future trajectories given past observations (e.g., turning or continuing straight given a straight past trajectory). Aleatoric uncertainty can be modelled explicitly during training of learning-based systems, for example, using variational approaches [10–16]. Epistemic uncertainty reﬂects what the model does not know, which can arise due to the limited ability of a model to represent data and data distribution shift. Neural networks often fail to correctly calibrate this uncertainty, resulting in unreliable predictions for out-of-distribution (OOD) inputs [3–9]. In this paper, we focus on epistemic uncertainty quantiﬁcation for trajectory prediction.
+There has been growing interest in estimating epistemic uncertainty for deep learning models [17]. Most existing methods consider small benchmark datasets or require OOD data for training [18– 23]. A few recent papers (e.g., [24–31]) have began exploring epistemic uncertainty estimation for learning-based robot perception and prediction. Identifying OOD inputs for tasks like trajectory prediction is difﬁcult due to the high dimensionality of the data. Since it is impossible to foresee
+6th Conference on Robot Learning (CoRL 2022), Auckland, New Zealand.
+
+[v, a, h] x
+Backbone Input Represenation
+
+Encoder Agent
+
+zagent
+
+Normalizing Flows Agent
+
+αagent
+
+Dir(αagent)
+
+Encoder HD Map
+
+Decoder Agent
+
+zmap
+
+Normalizing Flows αmap HD Map
+
+Dir(αmap)
+
+Decoder HD Map
+
+Encoder
+
+zsc Normalizing Flows αsc
+
+Social Context
+
+Social Context
+
+Dir(αsc)
+
+Decoder Social Context
+
+Dir(α)
+
+Prediction 1 Prediction 2 Prediction 3
+
+Figure 1: Interpretable self-aware prediction (ISAP) system overview. ISAP learns the uncertainty distributed over semantically interpretable latent concepts: the agent’s past behavior, map, and social context. The network outputs parameters αagent, αmap, and αsc for the corresponding Dirichlet distributions, learned using normalizing ﬂows, which can then be combined to form the output Dirichlet distribution, Dir(α). The aleatoric uncertainty for the trajectory prediction task is modeled by the expected value of the Dirichlet parameters α and can be used to make trajectory predictions (three most likely predictions are shown), while their sum α0 is an indicator of epistemic uncertainty. A high α0 indicates evidence for an input, and corresponds to low epistemic uncertainty.
+
+all possible scenarios encountered on the road, an OOD dataset cannot be manually curated for training. Moreover, successful epistemic uncertainty estimation techniques, such as ensembles [32] and Monte Carlo (MC) dropout [18], require multiple forward passes during inference, potentially hindering real-time performance. Finally, most methods output a single value for epistemic uncertainty. In a cluttered, dynamic setting (e.g., urban driving), where there are multiple possible sources of uncertainty, this value could be challenging to interpret. For example, it may be unclear whether high epistemic uncertainty stems from an unfamiliar trajectory maneuver, new intersection type, or strange behavior of surrounding agents due to an external disturbance (e.g., road construction).
+Modeling epistemic uncertainty for trajectory prediction has three key challenges: (1) lack of explicit OOD data during training, (2) efﬁciency requirements during inference, and (3) interpretability of the computed uncertainty. This paper addresses these challenges for trajectory prediction through an evidential deep learning approach that estimates the epistemic uncertainty in one-shot with only a single forward pass through the model and requires no OOD data for training. We allocate this uncertainty among interpretable, low-dimensional latent variables. Evidential deep learning estimates parameters for a second-order distribution (e.g., a Dirichlet distribution) to capture the epistemic uncertainty [19, 20, 33]. To avoid OOD data for training, normalizing ﬂows may be used to constrain the learned Dirichlet distribution parameters by enforcing the densities for each class to integrate to the number of training samples in that class, as in the Posterior Network (PostNet) architecture [34].
+In trajectory prediction, human behavior is often modeled using discrete modes that can represent high-level maneuvers like accelerating, braking, and turning [12, 35–39]. We apply ideas from PostNet [34] for modeling epistemic uncertainty to trajectory prediction architectures with discrete modes. To address interpretability in the learned epistemic uncertainty, we propose the following semantic insight. High epistemic uncertainty for trajectory prediction may originate from unfamiliar input behaviors, road structures, or social contexts. We distribute the learned epistemic uncertainty over these categories encoded in a low-dimensional latent space, thus encouraging tractability. Hence, we introduce a trajectory prediction paradigm that is self-aware of its prediction conﬁdence and able to provide rich, interpretable information to downstream autonomy stack components and to engineers for development. We call this paradigm Interpretable Self-Aware Prediction (ISAP).
+Our key contributions are: 1) We propose a novel application of evidential deep learning to the task of epistemic uncertainty quantiﬁcation for trajectory prediction. 2) We introduce interpretability into the uncertainty estimate by distributing it over interpretable, low-dimensional latent variables. The epistemic uncertainty source is decomposed as coming from unfamiliar agent behavior, road conﬁguration, or social context. 3) We demonstrate superior uncertainty estimation performance of our ISAP framework over state-of-the-art (SOTA) approaches on the real-world NuScenes dataset [40].
+2
+
+2 Related Work
+Interpretable Trajectory Prediction. One way to encourage interpretability in trajectory prediction architectures is through discrete modes [12, 36–39, 41]. For example, Chai et al. [37], Mangalam et al. [42], and Hu et al. [43] induce interpretability by learning distributions over discrete intention goals. Kothari et al. [41] learn a probability distribution over possibilities in an interpretable discrete choice model. Due to the ubiquity of discrete modes in trajectory prediction literature, we develop an epistemic uncertainty quantiﬁcation approach assuming the presence of discrete modes in the architecture. Another common method for facilitating interpretability in a latent space is through an encoder-decoder structure. Neumeier et al. [44] use a decoder with expert knowledge to produce an interpretable latent space in a trajectory prediction model. Inspired by this idea, we enforce the epistemic uncertainty to be learned over three separate latent encodings that correspond to observed agent behavior, road conﬁguration, and social context. This interpretable structure is achieved by using decoder components that are learned through self-supervised signals.
+Epistemic Uncertainty for Learning-Based Perception and Prediction. Gawlikowski et al. [17] survey modern uncertainty quantiﬁcation methods. A common approach to compute epistemic uncertainty in learning-based autonomous systems is to use MC dropout [18] due to its simple implementation and because it does not require OOD data for training. This approach is used in tasks like trajectory prediction [45, 46], pedestrian bounding box prediction [47], semantic segmentation and depth regression [48], and inverse sensor model learning [49]. However, MC dropout requires multiple forward passes during inference and is less robust to distribution shift than ensembles [50]. Moreover, MC dropout requires a dropout architecture element, which may not always be desirable. Ensembles [32] are regarded as a robust epistemic uncertainty estimation technique, but can be expensive to train and perform inference, limiting their use in robotics. One-shot evidential uncertainty estimation methods, such as deep evidential regression, have recently shown promising results in perception tasks, like depth estimation [24, 25]. In this work, we explore the use of the PostNet evidential deep learning technique [34] within a trajectory prediction task. PostNet does not require OOD data during training and only needs one forward pass during inference to obtain both the model output and the epistemic uncertainty estimate. We are interested in how this technique scales to high-dimensional data necessary for trajectory prediction.
+
+3 Methods
+
+Problem Deﬁnition. We consider the following trajectory prediction setting. We assume the input representation x consists of a combination of the road structure (e.g., a high-deﬁnition (HD) map), the past trajectory and current state for the agent of interest, and the past trajectory information for the surrounding agents. The agent’s state consists of speed v, acceleration a, and heading change rate h. The goal of the trajectory prediction task is to predict a 2D position vector y ∈ R2×T for a time horizon of T time steps into the future. We assume that the trajectory prediction architecture has a set of discrete anchors with ground truth labels d ∈ {1, . . . , C}. For example, the MultiPath [37] architecture uses k-means to cluster trajectories into a discrete latent space and the CoverNet [38] model constructs a set of possible trajectories with a speciﬁed level of coverage.
+
+Posterior Network (PostNet). To estimate epistemic uncertainty in the trajectory prediction setting, we use ideas from PostNet [34]. PostNet is an evidential deep learning approach [19, 20] that
+
+uses normalizing ﬂows [51] to learn a closed-form posterior distribution over predicted probabilities. We analyze its performance as applied to the discrete anchor space of the trajectory prediction task. PostNet’s posterior distribution encompasses both aleatoric and epistemic uncertainties without requiring OOD data during training. The uncertainty is represented by a Dirichlet distribution, the conjugate prior of the categorical distribution. This approach is one-shot as it takes one network pass to compute the epistemic distribution q(i) and the aleatoric distribution p¯(i) for an input x(i),
+
+q(i) = Dir(α(i))
+
+and
+
+p¯(i) = Cat(ξ¯(i))
+
+with
+
+ξ¯c(i)
+
+=
+
+Eq(i) [ξ(i)]c
+
+=
+
+αc(i) α0(i)
+
+,
+
+(1)
+
+where i is the dataset index, c is the anchor class, α(i) ∈ RC+ are the Dirichlet parameters, and
+
+α0(i) =
+
+C c=1
+
+αc(i)
+
+is
+
+the
+
+total
+
+amount
+
+of
+
+evidence
+
+allocated
+
+to
+
+the
+
+input
+
+(higher
+
+α0
+
+indicates
+
+lower
+
+epistemic uncertainty). The parameters ξ(i) ∈ [0, 1]C | c ξc(i) = 1 of a categorical distribution
+
+3
+
+p(i) = Cat(ξ(i)) can be sampled from the epistemic distribution: ξ(i) ∼ q(i). An anchor predic-
+tion dˆ(i) is made according to: dˆ(i) = arg maxc ξ¯c(i). The Dirichlet parameters α(i) are constructed as α(i) = βprior + β(i), where βprior ∈ RC+ is a ﬁxed prior and β(i) ∈ RC+ represents learned pseudocounts as evidence for an input x(i). Following Charpentier et al. [34], we use an uninformative prior with βprior = 1. With lower conﬁdence (smaller α parameters), we want the learned distribution to
+be close to the uninformative prior parameterized by βprior. The pseudo-counts β(i) are deﬁned as,
+
+βc(i) = Nc · r(z(i) | c; φ),
+
+(2)
+
+where z is a low-dimensional continuous latent space, φ contains the network parameters, and Nc reﬂects the ground truth count for an anchor class c, serving as a per class certainty budget. The probability density r(z(i) | c; φ) is learned over the low-dimensional latent space z to encourage
+
+tractability and scaling of the algorithm to high-dimensional inputs. First, a neural network encodes
+the input x(i) into the latent space, z(i) = fθ(x(i)). Then, due to its representational capacity, a
+normalizing ﬂow is used to learn the distribution over this latent space [51, 52]. It is important that
+r(z(i) | c; φ) be a normalized density to encourage the α0(i) parameters to be high for high-density, in-distribution (ID) regions (low epistemic uncertainty) and low for low-density, OOD regions (high
+epistemic uncertainty). As r(z(i) | c; φ) goes to zero, the α(i) parameters reduce to the uninformative prior βprior = 1. To optimize PostNet, we use the evidence lower bound (ELBO) loss [53],
+
+1 LELBO = N
+
+N
+
+−Eq(i)
+
+log p(i)(d(i))
+
++ KL(q(i) || Dir(1)).
+
+(3)
+
+i=1
+
+Interpretable Self-Aware Prediction (ISAP). The PostNet approach to uncertainty quantiﬁcation naturally transfers to trajectory prediction models with supervised, discrete latent anchors. However, to make the uncertainty estimates more informative in complex settings (e.g., urban scenes), we infuse interpretability into the latent space z, forming the proposed ISAP approach. We encode the input x into three separate latent variables: zagent, zmap, and zsc, representing the agent’s past behavior, the road structure map, and the social context surrounding the agent of interest, respectively. Such a decomposition has been shown to be effective at the input level for trajectory prediction, supporting our choice of interpretable structure [54]. These semantic concepts are encoded into the latent space using accompanying decoder components. The decoders are self-supervised with the input x split into the agent’s past trajectory, the road structure representation, and the past trajectories of other agents. The decoder weights are learned through associated reconstruction losses.
+
+The ISAP network then outputs parameters for three Dirichlet distributions corresponding to the three semantic concepts. These Dirichlet distributions are combined through an equally weighted average of their parameters, signifying a uniform prior over the three categories,
+
+α = (αagent + αmap + αsc)/3.
+
+(4)
+
+These α parameters are used to construct the distributions in Eq. (1). The predicted trajectory is the most likely anchor trajectory according to the aleatoric categorical distribution p¯(i). The Dirichlet distribution q(i) deﬁnes the epistemic uncertainty of the prediction. The full ISAP loss is then,
+
+L = LELBO + λagentLrec,agent + λmapLrec,map + λscLrec,sc,
+
+(5)
+
+where λagent, λmap, and λsc are scaling coefﬁcients for each reconstruction loss term. Additional details on the reconstruction loss terms can be found in Appendix A. Postels et al. [27, 55] demon-
+
+strate that regularization of the latent space in terms of reconstruction capability improves epistemic uncertainty estimation. These ﬁndings further support our choice of interpretable architecture for the epistemic uncertainty quantiﬁcation task. The full ISAP architecture is illustrated in Fig. 1.
+
+4 Experiments
+We empirically validate the epistemic uncertainty estimation and OOD detection capabilities of our ISAP paradigm. All models are trained on a single NVIDIA GeForce RTX 2080 Ti GPU. Further details are provided in Appendices A and B.
+Data. We test ISAP on the NuScenes [40] autonomous driving dataset. The predictions are made for 6 s in the future based on 1 s of past data collected at 2 Hz, following Phan-Minh et al. [38]. The
+
+4
+
+input representation x ∈ [0, 1]500×500×3 combines the agent’s past trajectory, HD map, and past trajectories of other agents into a bird’s-eye view rendering of the scene (see Fig. 1). The agent’s state [v, a, h] serves as input to each network branch. We consider two OOD data splits. First, we split the data according to the agent’s past trajectory. ID input trajectories are chosen to be slower than OOD ones. We use the 2 distance between the oldest and most recent waypoints as a heuristic for trajectory ‘speed’. We threshold the ID data to have an 2 distance of less than 10 m, leaving faster trajectories for OOD data. We also consider an OOD data split according to the map structure. ID data is taken from Singapore (left-side driving) and does not contain ‘roundabout’ or ‘big street’ in the description. OOD data is from Boston (right-hand driving) with ‘roundabout’ in the description. Since the metadata refers to the scene and not the current local map, some straight roads exist in the OOD data as well. We verify that our chosen OOD splits are difﬁcult to generalize to for a trajectory prediction model and, thus, important for OOD detection in Appendix C.
+
+Architecture Details. For our trajectory prediction architecture, we employ the CoverNet [38] model, which is the baseline technique for the NuScenes prediction task. This model is convenient because it frames trajectory prediction as classiﬁcation over a predeﬁned set of trajectories. Thus, we can directly integrate our ISAP approach with this architecture. For our experiments, we use a trajectory anchor set of size 64 for classiﬁcation [38]. The latent variables zagent, zmap, and zsc are set to be four-dimensional, as this low dimensionality results in good uncertainty estimation and computational efﬁciency for the normalizing ﬂows. The probability density r(z(i) | c; φ) for each of the three latent variables is modeled with radial normalizing ﬂows consisting of eight layers as done by Charpentier et al. [34]. The map and social context decoders take as input features one layer upstream of zmap and zsc of dimension 4, 096 to enable higher representational capacity. We modify the ELBO loss to use CoverNet’s constant lattice loss in the reconstruction term. The classiﬁcation labels are the trajectory anchor classes with the smallest 2 distance to the ground truth trajectories.
+Baselines. We consider three baselines to our approach: CoverNet [38], Post-CoverNet, and ensembles [32]. We benchmark against CoverNet for trajectory prediction and calibration performance without our modiﬁcations. Post-CoverNet is an ablation of our ISAP approach without the interpretability element, instead having a single, non-interpretable latent variable z. Finally, ensembles are SOTA for estimating epistemic uncertainty for neural network models. Gustafsson et al. [26] show that ensembles [32] consistently outperform MC dropout. Thus, we baseline against the more performant of the two approaches with N = 5 and N = 10 models in the ensemble.
+
+Metrics. We employ a variety of metrics to investigate how well ISAP (1) estimates epistemic uncertainty and (2) maintains trajectory prediction performance. To measure trajectory prediction performance, we use standard trajectory prediction metrics [38]: minimum average displacement error over the most likely k modes (minADEk) and ﬁnal displacement error (FDE). Lower is better.
+
+We then evaluate the uncertainty estimation performance. Following Charpentier et al. [34], we use
+
+the area under the receiver operating characteristic (AUROC) and average precision (APR) to com-
+
+pute the conﬁdence calibration in the predictions (higher is better). We want the network to output
+
+high conﬁdence for correct predictions (labeled 1) and low conﬁdence for incorrect ones (labeled 0).
+
+The scores to compute the aleatoric conﬁdence are maxc ξ¯c(i). For epistemic conﬁdence, the scores
+
+are maxc αc for Post-CoverNet and ISAP and 1/V arc for ensembles where V arc is the empirical
+
+variance of the predicted class probability across the ensemble. The expected calibration error (ECE)
+
+compares the output distribution to model accuracy. The Brier score is another calibration metric:
+
+1 N
+
+N i=1
+
+ξ¯(i) − d(i)
+
+where d(i) are one-hot labels. Lower is better for these metrics.
+
+To evaluate OOD detection performance, we use AUROC and APR with labels 0 for OOD and 1
+for ID data (higher is better). For OOD detection based on aleatoric uncertainty, the scores are maxc ξ¯c(i). When based on epistemic uncertainty, the scores are α0(i) for Post-CoverNet and ISAP and 1/V arc for ensembles. To provide further intuition for Post-CoverNet and ISAP, we also report the ratio of the average sums of the Dirichlet parameters for ID and OOD data α¯0,OOD/α¯0,ID (lower is better). Finally, we consider entropy as an OOD detection indicator in Appendix D.
+
+5 Results
+Quantitative Results. The trajectory prediction performance is reported in Table 1 on ID test data. As could be expected, the best performing approaches are the ensemble baselines. Ensembles tend to be more robust than their single network counterparts, in this case represented by CoverNet [38].
+
+5
+
+Table 1: Trajectory prediction metrics (lower is better) on ID test data. The best performance is highlighted in bold. Our methods perform comparably to ensembles and the original CoverNet model.
+
+minADE1 minADE5 minADE10 minADE15 FDE
+minADE1 minADE5 minADE10 minADE15 FDE
+
+CoverNet [38]
+4.327 1.885 1.545 1.413 9.474
+4.732 2.115 1.731 1.578 10.590
+
+Ensemble [32] Ensemble [32] Post-CoverNet
+
+(N = 5)
+
+(N = 10)
+
+(Ours)
+
+Input Past Trajectory Experiment
+
+4.241 1.867 1.529 1.421 9.270
+
+4.246 1.859 1.539 1.423 9.293
+
+4.529 1.951 1.581 1.440 10.009
+
+Map-Based Experiment
+
+4.227 2.053 1.686 1.556 9.344
+
+4.227 2.019 1.689 1.555 9.318
+
+4.726 2.069 1.719 1.583 10.531
+
+ISAP (Ours)
+4.711 2.004 1.599 1.474 10.177
+4.822 2.149 1.737 1.600 10.503
+
+Interestingly, the smaller ensemble (N = 5) slightly outperforms the bigger ensemble (N = 10) for the input past trajectory experiment, indicating that the higher variability among models may cause a small drop in performance. As Post-CoverNet and ISAP add competing terms to the trajectory prediction objective, it is not surprising that the trajectory prediction performance is mildly compromised as a result. However, it is encouraging that the performance drop is only slight.
+The focus of our work is on accurately estimating the epistemic uncertainty of the trajectory prediction model. The uncertainty quantiﬁcation results are presented in Table 2. The ISAP model outperforms the baseline approaches across almost all metrics for the input past trajectory experiment. We make two interesting observations. The ﬁrst is that ISAP outperforms Post-CoverNet in epistemic uncertainty estimation. It appears that the interpretability encoded into the latent space within ISAP helps its performance, particularly in OOD data detection. We hypothesize that distributing the uncertainty over simpler, interpretable latent variables makes the uncertainty estimation task easier. The second observation is that ISAP outperforms ensembles in OOD detection. Ensembles are often the canonical method for OOD detection; however, ISAP and Post-CoverNet outperform the smaller ensemble by a large margin. The bigger ensemble approaches Post-CoverNet performance, but ISAP still outperforms. This result supports similar ﬁndings by Charpentier et al. [34] for the PostNet architecture on smaller classiﬁcation tasks.
+The results for the map-based experiment largely follow the trends observed in the input past trajectory experiment. ISAP outperforms the ensembles in OOD detection. Generally, we did not ﬁnd the conﬁdence metrics or the Brier and ECE scores to be reﬂective of the OOD detection performance. The map-based experiment is overall more challenging than the input past trajectory experiment since the ﬁlters used to differentiate map characteristics describe scenes rather than local maps, resulting in straight roads appearing in OOD data. As such, the ID and OOD split is not as clear-cut as in the input past trajectory experiment. Nevertheless, we observe similar trends in performance across the methods for both experiments. ISAP consistently outperforms the baselines in OOD detection, while remaining performant in trajectory prediction.
+We investigate how well the learned pseudo-counts α0 reﬂect the true data distribution for the input past trajectory experiment in Fig. 2. We plot the true data distribution as a histogram over the 2 distance between the oldest and most recent waypoints in the agent’s past trajectory. We distinguish between ID (green) and OOD (orange) examples. The data peaks at 0 m (stopped) and at around 5 m (18 km/h), and then slopes off for OOD data. The learned α0,agent parameters reﬂect these trends. As the ID and OOD difference is less obvious for the map and social context latent variables, the α0,map and α0,sc trends are more ﬂat across both data types, although α0,map still shows a clear distinction. We hypothesize that the road conﬁguration (e.g., multi-lane highway versus roundabout) is correlated with agent speed, while the social context may not always reﬂect the agent’s speed.
+Qualitative Results. Fig. 3 presents qualitative results for ISAP on ID and OOD examples. The ﬁgure shows the input to the network, the decoded latent variables, and their associated α0 values. In the input past trajectory experiment, the ID example has a slower (shorter) input trajectory than the OOD example. The ISAP network produces a clear distinction between the ID and OOD examples in the Dirichlet parameter reﬂecting the agent’s past trajectory, as expected. The ID α0,agent value is much higher (lower uncertainty) than that for OOD. The OOD α0,agent value reaches almost total
+6
+
+Table 2: Uncertainty estimation metrics. If there are two numbers, they are for ID (OOD) test data. Otherwise, the data is detailed in Section 4. The best performance is in bold. Our methods outperform across most metrics.
+
+Alea. Conf. (AUROC) ↑ Epi. Conf. (AUROC) ↑ Alea. Conf. (APR) ↑ Epi. Conf. (APR) ↑ ECE ↓ Brier Score ↓ Alea. OOD (APR) ↑ Epi. OOD (APR) ↑ Alea. OOD (AUROC) ↑ Epi. OOD (AUROC) ↑ α¯0,OOD /α¯0,ID ↓
+Alea. Conf. (AUROC) ↑ Epi. Conf. (AUROC) ↑ Alea. Conf. (APR) ↑ Epi. Conf. (APR) ↑ ECE ↓ Brier Score ↓ Alea. OOD (APR) ↑ Epi. OOD (APR) ↑ Alea. OOD (AUROC) ↑ Epi. OOD (AUROC) ↑ α¯0,OOD /α¯0,ID ↓
+
+CoverNet [38]
+0.638 (0.430) –
+0.525 (0.171) –
+0.021 (0.339) 0.837 (1.011)
+0.542 –
+0.241 – –
+0.594 (0.415) –
+0.399 (0.126) –
+0.056 (0.200) 0.873 (0.985)
+0.906 –
+0.690 – –
+
+Ensemble [32] Ensemble [32] Post-CoverNet
+
+(N = 5)
+
+(N = 10)
+
+(Ours)
+
+Input Past Trajectory Experiment
+
+0.638 (0.399) 0.455 (0.648) 0.551 (0.180) 0.089 (0.001) 0.045 (0.317) 0.835 (1.007)
+0.530 0.810 0.218 0.693
+–
+
+0.636 (0.419) 0.434 (0.991) 0.542 (0.179) 0.086 (0.034) 0.056 (0.280) 0.840 (1.000)
+0.538 0.961 0.240 0.913
+–
+
+0.630 (0.721) 0.573 (0.789) 0.465 (0.262) 0.408 (0.293) 0.017 (0.198) 0.857 (0.963)
+0.833 0.960 0.652 0.919 0.171
+
+Map-Based Experiment
+
+0.629 (0.636) 0.582 (0.618) 0.531 (0.225) 0.103 (0.043) 0.080 (0.118) 0.845 (0.964)
+0.946 0.876 0.786 0.552
+–
+
+0.631 (0.616) 0.635 (0.681) 0.525 (0.292) 0.129 (0.164) 0.092 (0.087) 0.852 (0.949)
+0.941 0.875 0.777 0.553
+–
+
+0.610 (0.593) 0.610 (0.647) 0.452 (0.222) 0.463 (0.284) 0.046 (0.132) 0.871 (0.973)
+0.913 0.941 0.724 0.756 0.502
+
+ISAP (Ours)
+0.652 (0.733) 0.621 (0.745) 0.486 (0.281) 0.451 (0.316) 0.048 (0.053) 0.850 (0.960)
+0.930 0.976 0.871 0.955 0.145
+0.582 (0.630) 0.575 (0.707) 0.428 (0.187) 0.425 (0.281) 0.113 (0.102) 0.868 (0.968)
+0.956 0.968 0.806 0.838 0.245
+
+uncertainty as the uniform prior over 64 possible anchors would produce α0 = 64. The α0,map and α0,sc values are also lower for the OOD input than the ID one. We hypothesize that intersections are more likely in the ID data, where the agent of interest is traveling at a slow speed, than large fourlane roads that resemble highways as in the OOD example. A surprising observation in Fig. 3 is that the OOD α0,sc value is quite high, suggesting low epistemic uncertainty. In both the ID and OOD examples, the agent of interest is traveling in trafﬁc with many cars on the road. Such scenarios are likely common for the slow-speed training data, indicating ID characteristics. Thus, our ISAP paradigm provides insight into the interpretable sources of epistemic uncertainty.
+In the map-based experiment, the ID agent of interest is traveling at a moderate speed along a straight, two-lane road with a car ahead. This scenario is pretty likely according to our expectations and the learned α0 pseudocounts. In the OOD data input, the map shows a roundabout, which should not be present in the ID data. As expected, the OOD α0,map value is signiﬁcantly lower than that of the ID example as the network has not seen this intersection type during training.
+6 Conclusions
+In this paper, we propose a new trajectory prediction paradigm called Interpretable Self-Aware Prediction (ISAP). ISAP learns the aleatoric and epistemic uncertainty over a discrete set of supervised anchors in a trajectory prediction architecture. These uncertainties are estimated in one-shot by using ideas from evidential deep learning. We introduce interpretability into the epistemic uncertainty
+
+True Data Count α0,agent α0,map α0,sc
+
+Distance (m)
+
+Distance (m)
+
+Distance (m)
+
+Distance (m)
+
+Figure 2: Learned α0,agent, α0,map, and α0,sc pseudocounts (3 right plots) in comparison to a histogram of the true data counts (left plot). All data is from the ID and OOD test sets, aside from the histogram ID data, which reﬂects the training distribution. Outliers with large α0 values are omitted for visualization. The 2 distance (in meters) between the oldest and most recent 2D waypoints is a proxy for input trajectory speed. The α0,agent parameters accurately reﬂect the trends in the true data distribution with increasing input trajectory speed.
+
+7
+
+Input Past Trajectory Experiment
+
+0
+
+ID
+
+−10
+
+Input Representation
+
+−20 −5 0 5
+α0,agent = 8137
+
+0
+
+OOD
+
+−10
+
+Input Representation
+
+−20 −5 0 5
+α0,agent = 69
+
+α0,map = 1060 α0,map = 117
+
+α0,sc = 1883 α0,sc = 815
+
+0
+
+Map-Based Experiment
+
+ID
+
+−10
+
+Input Representation
+
+−20 −5 0 5
+α0,agent = 1983
+
+α0,map = 13929
+
+α0,sc = 8016
+
+0
+
+OOD
+
+−10
+
+Input Representation
+
+−20 −5 0 5
+α0,agent = 2197
+
+α0,map = 259
+
+α0,sc = 908
+
+Figure 3: Qualitative results for our ISAP framework on ID and OOD examples. Plot axes for the decoded input trajectories are in meters. In the input past trajectory experiment, the OOD example has a faster input trajectory than the ID one. Thus, the learned epistemic uncertainty in the agent behavior latent variable is higher (α0,agent is lower) for the OOD case than the ID case. In the map-based experiment, the OOD example portrays a roundabout, while the ID one shows a straight, two-lane road. Roundabouts should not be present in the ID data. Thus, the learned epistemic uncertainty in the map latent variable is higher (α0,map is lower) for the OOD case than the ID case.
+
+estimate by subdividing the uncertainty into the semantic concepts: past agent behavior, road structure map, and social context. Our approach maintains comparable trajectory prediction performance to an unmodiﬁed trajectory prediction architecture and outperforms established techniques, like ensembles, in uncertainty estimation while requiring only a single network pass during inference.
+Limitations. Although we show that normalizing ﬂows in the ISAP framework are performant for uncertainty estimation, they can be brittle and slow to train. They also struggle to scale to large latent spaces, restricting the representational capacity of the latent space. Moreover, by design, we impose an inductive bias on our ISAP framework for trajectory prediction in the context of AVs. For other applications, like assistive robotics, the interpretable structure may need to be adapted (e.g., to include task-level concepts, such as cooking or cleaning). Lastly, although the drop in trajectory prediction metrics is small with the addition of epistemic uncertainty estimation, it is prudent to consider how this gap could be closed in future work.
+Future Work. Another promising avenue for future work is extending our ISAP paradigm to map-centric environment prediction [56–58]. In map-centric prediction, the inputs and outputs are sequences of occupancy grids, which are higher dimensional than inputs and outputs in traditional, object-centric trajectory prediction. Map-centric representations are robust to partial occlusions, can handle an arbitrary number of agents in the scene, and do not require signiﬁcant preprocessing. Thus, scaling epistemic uncertainty estimation to these settings is an exciting open research problem.
+
+8
+
+Acknowledgments
+This work was supported by funding from Waymo. We thank Ben Sapp and Dragomir Anguelov for insightful discussions throughout the project. We thank Spencer M. Richards and Ransalu Senanayake for their invaluable feedback.
+References
+[1] A. Rudenko, L. Palmieri, M. Herman, K. M. Kitani, D. M. Gavrila, and K. O. Arras. Human motion trajectory prediction: A survey. International Journal of Robotics Research, 39(8): 895–935, 2020.
+[2] F. Leon and M. Gavrilescu. A review of tracking and trajectory prediction methods for autonomous driving. Mathematics, 9(6):660, 2021.
+[3] N. Su¨nderhauf, O. Brock, W. Scheirer, R. Hadsell, D. Fox, J. Leitner, B. Upcroft, P. Abbeel, W. Burgard, M. Milford, et al. The limits and potentials of deep learning for robotics. International Journal of Robotics Research, 37(4-5):405–420, 2018.
+[4] D. Hendrycks and K. Gimpel. A baseline for detecting misclassiﬁed and out-of-distribution examples in neural networks. International Conference on Learning Representations (ICLR), 2017.
+[5] A. Nguyen, J. Yosinski, and J. Clune. Deep neural networks are easily fooled: High conﬁdence predictions for unrecognizable images. In Computer Society Conference on Computer Vision and Pattern Recognition (CVPR), pages 427–436. IEEE, 2015.
+[6] K. Nguyen and B. O’Connor. Posterior calibration and exploratory analysis for natural language processing models. In Conference on Empirical Methods in Natural Language Processing (EMNLP), 2015.
+[7] J. Provost Foster, F. Tom, and K. Ron. The case against accuracy estimation for comparing induction algorithms. In International Conference on Machine Learning (ICML), pages 445– 453, 1998.
+[8] D. Yu, J. Li, and L. Deng. Calibration of conﬁdence measures in speech recognition. IEEE Transactions on Audio, Speech, and Language Processing, 19(8):2461–2473, 2011.
+[9] J. Nitsch, M. Itkina, R. Senanayake, J. Nieto, M. Schmidt, R. Siegwart, M. J. Kochenderfer, and C. Cadena. Out of distribution detection for automotive perception. In International Conference on Intelligent Transportation Systems (ITSC). IEEE, 2021.
+[10] J. Walker, C. Doersch, A. Gupta, and M. Hebert. An uncertain future: Forecasting from static images using variational autoencoders. In European Conference on Computer Vision (ECCV), pages 835–851. Springer, 2016.
+[11] M. Babaeizadeh, C. Finn, D. Erhan, R. H. Campbell, and S. Levine. Stochastic variational video prediction. In International Conference on Learning Representations (ICLR), 2018.
+[12] T. Salzmann, B. Ivanovic, P. Chakravarty, and M. Pavone. Trajectron++: Dynamically-feasible trajectory forecasting with heterogeneous data. In European Conference on Computer Vision (ECCV), 2020.
+[13] M. Itkina, B. Ivanovic, R. Senanayake, M. J. Kochenderfer, and M. Pavone. Evidential sparsiﬁcation of multimodal latent spaces in conditional variational autoencoders. In Advances in Neural Information Processing Systems (NeurIPS), volume 33, 2020.
+[14] P. Chen, M. Itkina, R. Senanayake, and M. J. Kochenderfer. Evidential softmax for sparse multimodal distributions in deep generative models. In Advances in Neural Information Processing Systems (NeurIPS), volume 34, 2021.
+[15] H. Cheng, W. Liao, M. Y. Yang, B. Rosenhahn, and M. Sester. AMENet: Attentive maps encoder network for trajectory prediction. ISPRS Journal of Photogrammetry and Remote Sensing, 172:253–266, 2021.
+9
+
+[16] M. Itkina, Y.-J. Mun, K. Driggs-Campbell, and M. J. Kochenderfer. Multi-agent variational occlusion inference using people as sensors. In International Conference on Robotics and Automation (ICRA). IEEE, 2022.
+[17] J. Gawlikowski, C. R. N. Tassi, M. Ali, J. Lee, M. Humt, J. Feng, A. Kruspe, R. Triebel, P. Jung, R. Roscher, et al. A survey of uncertainty in deep neural networks. arXiv, 2021.
+[18] Y. Gal and Z. Ghahramani. Dropout as a Bayesian approximation: Representing model uncertainty in deep learning. In International Conference on Machine Learning (ICML), pages 1050–1059, 2016.
+[19] M. Sensoy, L. Kaplan, and M. Kandemir. Evidential deep learning to quantify classiﬁcation uncertainty. In Advances in Neural Information Processing Systems (NeurIPS), pages 3179– 3189, 2018.
+[20] A. Malinin and M. Gales. Predictive uncertainty estimation via prior networks. In Advances in Neural Information Processing Systems (NeurIPS), pages 7047–7058, 2018.
+[21] Q. Yu and K. Aizawa. Unsupervised out-of-distribution detection by maximum classiﬁer discrepancy. In International Conference on Computer Vision (ICCV), pages 9518–9526. IEEE, 2019.
+[22] J. Ren, P. J. Liu, E. Fertig, J. Snoek, R. Poplin, M. Depristo, J. Dillon, and B. Lakshminarayanan. Likelihood ratios for out-of-distribution detection. In Advances in Neural Information Processing Systems (NeurIPS), volume 32, pages 14707–14718, 2019.
+[23] A. Vyas, N. Jammalamadaka, X. Zhu, D. Das, B. Kaul, and T. L. Willke. Out-of-distribution detection using an ensemble of self supervised leave-out classiﬁers. In European Conference on Computer Vision (ECCV), pages 550–564, 2018.
+[24] A. Amini, W. Schwarting, A. Soleimany, and D. Rus. Deep evidential regression. In Advances in Neural Information Processing Systems (NeurIPS), 2020.
+[25] A. Malinin, S. Chervontsev, I. Provilkov, and M. Gales. Regression prior networks. arXiv, 2020.
+[26] F. K. Gustafsson, M. Danelljan, and T. B. Schon. Evaluating scalable Bayesian deep learning methods for robust computer vision. In IEEE/CVF Conference on Computer Vision and Pattern Recognition Workshops, pages 318–319, 2020.
+[27] J. Postels, M. Segu, T. Sun, L. Van Gool, F. Yu, and F. Tombari. On the practicality of deterministic epistemic uncertainty. arXiv, 2021.
+[28] R. McAllister, G. Kahn, J. Clune, and S. Levine. Robustness to out-of-distribution inputs via task-aware generative uncertainty. In International Conference on Robotics and Automation (ICRA), pages 2083–2089. IEEE, 2019.
+[29] A. Filos, P. Tigkas, R. McAllister, N. Rhinehart, S. Levine, and Y. Gal. Can autonomous vehicles identify, recover from, and adapt to distribution shifts? In International Conference on Machine Learning (ICML), pages 3145–3153. PMLR, 2020.
+[30] A. Farid, S. Veer, and A. Majumdar. Task-driven out-of-distribution detection with statistical guarantees for robot learning. In Conference on Robot Learning (CoRL), pages 970–980. PMLR, 2021.
+[31] J. Lee, J. Feng, M. Humt, M. G. Mu¨ller, and R. Triebel. Trust your robots! Predictive uncertainty estimation of neural networks with sparse Gaussian processes. In Conference on Robot Learning (CoRL), pages 1168–1179. PMLR, 2021.
+[32] B. Lakshminarayanan, A. Pritzel, and C. Blundell. Simple and scalable predictive uncertainty estimation using deep ensembles. In Advances in Neural Information Processing Systems (NeurIPS), volume 30, 2017.
+[33] M. Sensoy, L. Kaplan, F. Cerutti, and M. Saleki. Uncertainty-aware deep classiﬁers using generative models. In Conference on Artiﬁcial Intelligence. AAAI, 2020.
+10
+
+[34] B. Charpentier, D. Zu¨gner, and S. Gu¨nnemann. Posterior network: Uncertainty estimation without OOD samples via density-based pseudo-counts. In Advances in Neural Information Processing Systems (NeurIPS), volume 33, pages 1356–1367, 2020.
+[35] E. Schmerling, K. Leung, W. Vollprecht, and M. Pavone. Multimodal probabilistic modelbased planning for human-robot interaction. In International Conference on Robotics and Automation (ICRA), pages 1–9. IEEE, 2018.
+[36] B. Ivanovic and M. Pavone. The Trajectron: Probabilistic multi-agent trajectory modeling with dynamic spatiotemporal graphs. In International Conference on Computer Vision (ICCV). IEEE, 2019.
+[37] Y. Chai, B. Sapp, M. Bansal, and D. Anguelov. MultiPath: Multiple probabilistic anchor trajectory hypotheses for behavior prediction. In Conference on Robot Learning (CoRL), pages 86–99. PMLR, 2019.
+[38] T. Phan-Minh, E. C. Grigore, F. A. Boulton, O. Beijbom, and E. M. Wolff. CoverNet: Multimodal behavior prediction using trajectory sets. In Computer Society Conference on Computer Vision and Pattern Recognition (CVPR), pages 14074–14083. IEEE, 2020.
+[39] H. Zhao, J. Gao, T. Lan, C. Sun, B. Sapp, B. Varadarajan, Y. Shen, Y. Shen, Y. Chai, C. Schmid, et al. TNT: Target-driven trajectory prediction. In Conference on Robot Learning (CoRL). PMLR, 2020.
+[40] H. Caesar, V. Bankiti, A. H. Lang, S. Vora, V. E. Liong, Q. Xu, A. Krishnan, Y. Pan, G. Baldan, and O. Beijbom. NuScenes: A multimodal dataset for autonomous driving. In Computer Society Conference on Computer Vision and Pattern Recognition (CVPR), pages 11621–11631. IEEE, 2020.
+[41] P. Kothari, B. Sifringer, and A. Alahi. Interpretable social anchors for human trajectory forecasting in crowds. In Computer Society Conference on Computer Vision and Pattern Recognition (CVPR), pages 15556–15566. IEEE, 2021.
+[42] K. Mangalam, Y. An, H. Girase, and J. Malik. From goals, waypoints & paths to long term human trajectory forecasting. In International Conference on Computer Vision (ICCV), pages 15233–15242. IEEE, 2021.
+[43] Y. Hu, W. Zhan, L. Sun, and M. Tomizuka. Multi-modal probabilistic prediction of interactive behavior via an interpretable model. In Intelligent Vehicles Symposium (IV), pages 557–563. IEEE, 2019.
+[44] M. Neumeier, M. Betsch, A. Tollku¨hn, and T. Berberich. Variational autoencoder-based vehicle trajectory prediction with an interpretable latent space. In International Conference on Intelligent Transportation Systems (ITSC), pages 820–827. IEEE, 2021.
+[45] S. Capobianco, N. Forti, L. M. Milleﬁori, P. Braca, and P. Willett. Uncertainty-aware recurrent encoder-decoder networks for vessel trajectory prediction. In International Conference on Information Fusion (FUSION), pages 1–5. IEEE, 2021.
+[46] P. Dijt and P. Mettes. Trajectory prediction network for future anticipation of ships. In International Conference on Multimedia Retrieval (ICMR), pages 73–81. ACM, 2020.
+[47] A. Bhattacharyya, M. Fritz, and B. Schiele. Long-term on-board prediction of people in trafﬁc scenes under uncertainty. In Computer Society Conference on Computer Vision and Pattern Recognition (CVPR), pages 4194–4202. IEEE, 2018.
+[48] A. Kendall and Y. Gal. What uncertainties do we need in Bayesian deep learning for computer vision? In Advances in Neural Information Processing Systems (NeurIPS), volume 30, pages 5574–5584, 2017.
+[49] D. Bauer, L. Kuhnert, and L. Eckstein. Deep, spatially coherent inverse sensor models with uncertainty incorporation using the evidential framework. In Intelligent Vehicles Symposium (IV), pages 2490–2495. IEEE, 2019.
+11
+
+[50] Y. Ovadia, E. Fertig, J. Ren, Z. Nado, D. Sculley, S. Nowozin, J. Dillon, B. Lakshminarayanan, and J. Snoek. Can you trust your model’s uncertainty? Evaluating predictive uncertainty under dataset shift. In Advances in Neural Information Processing Systems (NeurIPS), volume 32, pages 13991–14002, 2019.
+[51] D. Rezende and S. Mohamed. Variational inference with normalizing ﬂows. In International Conference on Machine Learning (ICML), pages 1530–1538. PMLR, 2015.
+[52] D. P. Kingma, T. Salimans, R. Jozefowicz, X. Chen, I. Sutskever, and M. Welling. Improved variational inference with inverse autoregressive ﬂow. Advances in Neural Information Processing Systems (NeurIPS), 29, 2016.
+[53] D. P. Kingma and M. Welling. Auto-encoding variational Bayes. In International Conference on Learning Representations (ICLR), 2014.
+[54] B. F. de Brito, H. Zhu, W. Pan, and J. Alonso-Mora. Social-VRNN: One-shot multi-modal trajectory prediction for interacting pedestrians. In Conference on Robot Learning (CoRL), pages 862–872. PMLR, 2020.
+[55] J. Postels, H. Blum, Y. Stru¨mpler, C. Cadena, R. Siegwart, L. Van Gool, and F. Tombari. The hidden uncertainty in a neural networks activations. arXiv, 2020.
+[56] M. Itkina, K. Driggs-Campbell, and M. J. Kochenderfer. Dynamic environment prediction in urban scenes using recurrent representation learning. In Intelligent Transportation Systems Conference (ITSC), pages 2052–2059. IEEE, 2019.
+[57] M. Toyungyernsub, M. Itkina, R. Senanayake, and M. J. Kochenderfer. Double-prong occupancy ConvLSTM: Spatiotemporal prediction in urban environments. In International Conference on Robotics and Automation (ICRA). IEEE, 2021.
+[58] B. Lange, M. Itkina, and M. J. Kochenderfer. Attention augmented ConvLSTM for environment prediction. In International Conference on Intelligent Robots and Systems (IROS). IEEE, 2021.
+[59] D. P. Kingma and J. Ba. Adam: A method for stochastic optimization. In International Conference on Learning Representations (ICLR), 2015.
+[60] A. van den Oord, O. Vinyals, and K. Kavukcuoglu. Neural discrete representation learning. In Advances in Neural Information Processing Systems (NeurIPS), pages 6306–6315, 2017.
+12
+

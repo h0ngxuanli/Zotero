@@ -1,0 +1,709 @@
+    首页
+    知学堂
+    会员
+    发现
+    等你来答 
+
+​
+提问
+​
+80
+消息
+​
+19
+私信
+​
+创作中心
+点击打开要爆了的主页
+NLP领域中的token和tokenization到底指的是什么？
+关注问题 ​ 写回答
+点击打开要爆了的主页
+机器学习
+自然语言处理
+语言学
+NLP领域中的token和tokenization到底指的是什么？
+这是一个非常简单的基本概念问题，但作为小白，真的不太清晰 显示全部 ​
+关注者
+167
+被浏览
+525,008
+关注问题 ​ 写回答
+​ 邀请回答
+​ 好问题 20
+​ 添加评论
+​ 分享
+​
+15 个回答
+默认排序
+羡鱼智能
+羡鱼智能
+​
+浙江大学 工学硕士
+​ 关注
+64 人赞同了该回答
+​
+目录
+收起
+简而言之：
+0.序章
+LLM基础组件
+行为思路
+updates
+1.分词算法
+0.文本应该分成什么粒度？
+1.BPE
+核心思想：
+具体做法：
+优势与劣势：
+代码实现：
+refs:
+2.Byte-level BPE
+核心思想：
+具体做法：
+优势与劣势：
+refs:
+3.WordPiece
+核心思想：
+具体做法：
+优势与劣势：
+代码实现：
+refs:
+4.ULM
+核心思想：
+具体做法：
+优势与劣势：
+代码实现：
+refs:
+5.SentencePiece
+主要特性
+refs:
+6.主流subword算法的对比
+wordpiece和BPE的对比
+wordpiece和ULM的对比：wordpiece和ULM的对比：都使用语言模型来挑选子词；区别在于前者词表由小到大，而后者词表由大到小，先初始化一个大词表，根据评估准则不断丢弃词表，直到满足限定条件。ULM算法考虑了句子的不同分词可能，因而能够输出带概率的多个分词结果。
+三种subword分词算法的关系
+7.tokenizers库
+2.分词器
+1.BERT的分词器
+2.T5的分词器
+3.GPT的分词器
+4.LLaMA的分词器
+5.GLM的分词器
+总结
+参考资料
+简而言之：
+
+token可以理解为最小语义单元，翻译的话个人喜欢叫词元（当然翻译成令牌、词都行），可以是word/char/subword。
+
+tokenization是指分词，目的是将输入文本分成一个个词元，保证各个词元拥有相对完整和独立的语义，以供后续任务（比如学习 embedding 或者作为高级模型的输入）使用。
+
+原文：
+
+
+羡鱼智能：【OpenLLM 008】大模型基础组件1-分词算法与分词器（tokenization & tokenizers） 94 赞同 · 11 评论 文章
+0.序章
+
+笔者在上一篇文章中对最近 折腾 大模型的过程进行了反思，痛定思痛，决定除了工作部分以外不再浪费太多时间去跑更大规模的模型，同时决心开一些新坑来倒逼输入并与大家交流讨论，暂时的想法是在OpenLLM下面做两个系列：LLM基础组件和LLM炼丹术。
+
+注：从4.11开始，不知不觉居然写到OpenLLM 008了，这十几天累成狗了，最快乐的时候居然是忙里偷闲写这些东西的时候，amazing！
+LLM基础组件
+
+    tokenization&tokenizers：分词算法与分词器
+    位置编码
+    attention机制
+    基础架构与attention mask
+    归一化
+    激活函数
+
+行为思路
+
+分词算法与分词器作为LLM（ 大语言模型 ）的基础组件，作用相当于文本与模型的桥梁。因此作为LLM基础组件系列的开篇，本文将对主流的分词算法和分词器进行全面的梳理和介绍。
+updates
+
+    2023/04/30，资料阅读+整理，完成大纲；
+    2023/05/01，主流subword算法伪代码； bert分词 代码解读；
+    2023/05/02，+byte-level BPE、优缺点、示例、总结等，主体内容基本算是写完了；剩余的代码实现示例和具体模型的分词器示例后续有空再补（看优先级和精力）；
+    2023/05/03，XX；
+
+1.分词算法
+
+tokenization算法大致经历了从word/char到subword的进化，这一章首先介绍不同的分词粒度，然后对主流的三大subword分词算法进行介绍，配合代码和实例，希望可以对 subword算法 有一个比较全面的梳理。
+0.文本应该分成什么粒度？
+
+分词的目的是将输入文本分成一个个词元，保证各个词元拥有相对完整和独立的语义，以供后续任务（比如学习embedding或者作为高级模型的输入）使用。
+
+首先，最自然的粒度当然是词粒度。词，作为语言最自然的基本单元，在英文等语言中有着天然的空格分隔，但是对于中文等语言可能需要额外的分词算法来进行处理（比如中文的 jieba分词 ）。不过，我们总归是有办法获得各种各样的词的，这并不是一个致命的问题。真正影响词粒度分词算法应用问题主要有：1）词粒度的词表由于长尾效应可能会非常大，包含很多的稀有词，存储和训练的成本都很高，并且稀有词往往很难学好；2）OOV问题，对于词表之外的词无能为力；3）无法处理单词的形态关系和词缀关系：同一个词的不同形态，语义相近，完全当做不同的单词不仅增加了训练成本，而且无法很好的捕捉这些单词之间的关系；同时，也无法学习词缀在不同单词之间的泛化。
+
+那么，一个很自然的想法就是使用字符粒度的词表，这样OOV问题迎刃而解了，但是字符粒度太细了，会造成新的问题：1）无法承载丰富的语义；2）序列长度增长，带来计算成本的增长。
+
+所以，如何结合word和char粒度各自的优势呢？subword分词应运而生，顾名思义，粒度介于char和Word之间，基本思想为常用词应该保持原状，生僻词应该拆分成子词以共享token压缩空间，所以可以较好的平衡词表大小与语义表达能力，比如OOV问题可以通过subword的组合来解决。
+
+目前有三种主流的Subword分词算法，分别是Byte Pair Encoding (BPE), WordPiece和Unigram Language Model。
+
+总结一下，文本的分词粒度：
+
+    word：
+        优点：词的边界和含义得到保留；
+        缺点：1）词表大，稀有词学不好；2）OOV；3）无法处理单词形态关系和词缀关系；
+
+
+    char：
+        优点：词表极小，比如26个英文字母几乎可以组合出所有词，5000多个中文常用字基本也能组合出足够的词汇；
+        缺点：1）无法承载丰富的语义；2）序列长度大幅增长；
+
+
+    subword：可以较好的平衡词表大小与语义表达能力；
+
+1.BPE
+
+BPE最早其实是一种数据压缩算法，基本思想是将经常一起出现的数据对替换为不在数据串中的其他字符，后续可以通过一个 merge表 来恢复原始数据。在2015年，由论文 [1508.07909] Neural Machine Translation of Rare Words with Subword Units 引入NLP领域。
+核心思想：
+
+从一个基础小词表开始，通过不断合并最高频的连续token对来产生新的token。
+具体做法：
+
+输入：训练语料；词表大小V
+
+1.准备基础词表：比如英文中26个字母加上各种符号；
+
+2.基于基础词表将语料拆分为最小单元；
+
+3.在语料上统计单词内相邻单元对的频率，选择频率最高的单元对进行合并；
+
+4.重复第3步直到达到预先设定的subword词表大小或下一个最高频率为1；
+
+输出：BPE算法得到的 subword词表
+
+下面是一个BPE的训练示例：
+优势与劣势：
+
+优势：可以有效地平衡词汇表大小和编码步数(编码句子所需的token数量，与词表大小和粒度有关)。
+
+劣势：基于贪婪和确定的符号替换，不能提供带概率的多个分词结果(这是相对于ULM而言的)；decode的时候面临歧义问题。
+
+BPE的劣势：
+代码实现：
+refs :
+
+[1508.07909] Neural Machine Translation of Rare Words with Subword Units
+
+理解NLP最重要的编码方式 — Byte Pair Encoding (BPE)，这一篇就够了 - 硅谷谷主的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/42 4631681
+2.Byte-level BPE
+
+2019年12月：《Neural Machine Translation with Byte-Level Subwords》，论文提出了一种新的subword算法，称之为BBPE，即Byte-level BPE。
+核心思想：
+
+将BPE的思想从字符级别扩展到子节级别 。
+具体做法：
+
+摘要：几乎所有现有的机器翻译模型都建立在基于字符的词汇表之上：characters, subwords or words（只是字符的粒度不同）。 然而，来自噪声文本或 字符丰富的语言（如日语和中文）的稀有字符可能会不必要地占用词汇槽并限制其紧凑性 。 在字节级别表示文本并使用 256 字节集作为词汇表 是解决此问题的潜在方法。 然而， 高昂的计算成本阻碍了它在实践中的广泛部署或使用 。 在本文中，我们研究了 字节级子词，具体为字节级 BPE (BBPE)，它比字符词汇表更紧凑，没有词汇表外的标记，但比仅使用纯字节更有效 。 我们声称上下文化 BBPE 嵌入是必要的，这可以通过卷积层或循环层来实现。 我们的实验表明， BBPE 具有与 BPE 相当的性能，而其大小仅为 BPE 的 1/8 。 在多语言设置中，BBPE 最大限度地共享多种语言的词汇并实现更好的翻译质量 。 此外，我们表明 BBPE 可以在具有非重叠字符集的语言之间实现可迁移的模型 。
+
+我们考虑文本的UTF8编码，它将每个Unicode字符编码成1到4个字节。这允许我们将句子建模为字节序列，而不是字符序列。虽然有覆盖150多种语言的138K Unicode字符，但我们可以将任何语言的句子表示为UTF-8字节序列(只需要256个可能的字节中的248个)。
+
+文本的字节序列表示通常比字符序列表示长得多(高达4倍)，这使得按原样使用字节（只使用256的子节集）在计算上要求很高。作为另一种选择，我们考虑将字节序列分割成可变长度的n-gram(字节级“subwords”)。具体地说，我们学习关于字节级表示的BPE词汇，该表示用字节n-gram扩展了UTF-8字节集，称之为BBPE。图一展示了BBPE与BPE的对比。
+
+不同的词表对序列长度的影响 ：
+
+词表粒度由细到粗，分词序列的对比 ：
+
+我们可以验证一下上图中的部分编码，可以看到是一致的：
+
+https://www. browserling.com/tools/u tf8-encode
+优势与劣势：
+
+优势：1）效果与BPE相当，但词表大为减小；2）可以在多语言之间通过字节级别的子词实现更好的共享；3）即使字符集不重叠，也可以通过子节层面的共享来实现良好的迁移。
+
+劣势：1）编码序列时，长度可能会略长于BPE，计算成本更高；2）由 byte 解码时可能会遇到歧义，需要通过上下文信息和动态规划来进行解码。
+refs:
+
+Neural Machine Translation with Byte-Level Subwords
+
+https:// arxiv.org/abs/1909.0334 1
+
+浅谈Byte-Level BPE - CaesarEX的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/14 6114164
+
+tokenizers小结 - 马东 什么的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/36 0290118
+3.WordPiece
+
+WordPiece出自《JAPANESE AND KOREAN VOICE SEARCH》，并用于解决日语和韩语的语音问题。
+核心思想：
+
+与BPE类似，也是从一个基础小词表出发，通过不断合并来产生最终的词表。主要的差别在于，BPE按频率来选择合并的token对，而wordpiece按token间的互信息来进行合并。注：互信息，在分词领域有时也被称为凝固度、内聚度，可以反映一个词内部的两个部分结合的紧密程度。
+具体做法：
+
+除了合并对象的选择以外，基本同BPE；
+
+输入：训练语料；词表大小V
+
+1.准备基础词表：比如英文中26个字母加上各种符号；
+
+2.基于基础词表将语料拆分为最小单元；
+
+3.基于第2步数据训练语言模型，可以是unigram语言模型，通过极大似然进行估计即可；
+
+4.从所有可能得token对中选择，选择合并后可以最大程度地增加训练数据概率的token对进行合并，具体的score=(freq_of_pair)/(freq_of_first_element×freq_of_second_element)，当然你也可以取个log，就变成了互信息，选择最高的单元对进行合并；
+
+5.重复第4步直到达到预先设定的subword词表大小或概率增量低于某一阈值；
+
+输出：wordpiece算法得到的subword词表
+优势与劣势：
+
+优势：可以较好的平衡词表大小和OOV问题；
+
+劣势：可能会产生一些不太合理的子词或者说错误的切分；对拼写错误非常敏感；对前缀的支持不够好；
+
+复合词错误的切分：
+
+前缀的错误处理：
+
+一种解决方案是：将复合词拆开； 将前缀也拆开 ；
+代码实现：
+refs:
+
+japanese and korean voice search
+
+https:// static.googleusercontent.com /media/research.google.com/zh-CN//pubs/archive/37842.pdf
+
+
+4.ULM
+
+ULM出自《 Subword Regularization: Improving Neural Network Translation Models with Multiple Subword Candidates 》。
+核心思想：
+
+初始化一个大词表，然后通过unigram 语言模型计算删除不同subword造成的损失来代表subword的重要性，保留loss较大或者说重要性较高的subword。
+具体做法：
+
+输入：训练语料；词表大小V
+
+1.准备基础词表：初始化一个很大的词表，比如所有字符+高频ngram，也可以通过BPE算法初始化；
+
+2.针对当前词表，用EM算法估计每个子词在语料上的概率；
+
+3.计算删除每个subword后对总loss的影响，作为该subword的loss；
+
+4.将子词按照loss大小进行排序，保留前x%的子词；注意，单字符不能被丢弃，以免OOV；
+
+5.重复步骤2到4，直到词表大小减少到设定值；
+
+输出：ULM算法得到的subword词表
+
+可见，ULM会倾向于保留那些以较高频率出现在很多句子的分词结果中的子词，因为这些子词如果被删除，其损失会很大。
+优势与劣势：
+
+优势：1)使用的训练算法可以利用所有可能的分词结果，这是通过data sampling算法实现的；2）提出一种基于语言模型的分词算法，这种语言模型可以给多种分词结果赋予概率，从而可以学到其中的噪声；3）使用时也可以给出带概率的多个分词结果。
+
+劣势：1）效果与初始词表息息相关，初始的大词表要足够好，比如可以通过BPE来初始化；2）略显复杂。
+代码实现：
+refs:
+
+Subword Regularization: Improving Neural Network Translation Models with Multiple Subword Candidates
+
+https:// arxiv.org/abs/1804.1095 9
+
+NLP三大Subword模型详解：BPE、WordPiece、ULM - 阿北的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/19 1648421
+5.SentencePiece
+
+SentencePiece，有些文章将其看作一种分词方法，有的地方将其视为一个分词工具包。个人更倾向于后者，但是将其看作一种分词算法也未尝不可（因为不仅是分词算法的集成，还做了很多优化）。
+
+官方介绍：
+
+SentencePiece is an unsupervised text tokenizer and detokenizer mainly for Neural Network-based text generation systems where the vocabulary size is predetermined prior to the neural model training. SentencePiece implements subword units (e.g., byte-pair-encoding (BPE) [Sennrich et al.]) and unigram language model [Kudo.]) with the extension of direct training from raw sentences. SentencePiece allows us to make a purely end-to-end system that does not depend on language-specific pre/postprocessing.
+
+https:// github.com/google/sente ncepiece
+主要特性
+
+    多分词粒度：支持BPE、ULM子词算法，也支持char, word分词；
+    多语言：以unicode方式编码字符 ，将所有的输入（英文、中文等不同语言）都转化为unicode字符，解决了多语言编码方式不同的问题；
+    编解码的可逆性 ：之前几种分词算法对空格的处理略显粗暴，有时是无法还原的。Sentencepiece显式地将空白作为基本标记来处理，用一个元符号 “▁”（ U+2581 ）转义空白，这样就可以实现简单且可逆的编解码；
+    无须Pre-tokenization：Sentencepiece可以直接从raw text/setences进行训练，无须Pre-tokenization；
+    Fast and lightweight；
+
+编解码的可逆性：
+
+Decode（Encode（Normalized（text）））= Normalized（text）
+
+一个中文转Unicode的示例：
+
+https:// tool.chinaz.com/tools/u nicode.aspx
+refs:
+
+https:// github.com/google/sente ncepiece
+
+sentencepiece原理与实践
+
+https://www. zhihu.com/tardis/zm/art /159200073?source_id=1003
+6.主流subword算法的对比
+wordpiece和BPE的对比
+
+wordpiece和BPE的对比：都是走的 合并 的思路，将语料拆分成最小单元（英文中26个字母加上各种符号，这些作为初始词表）然后进行合并， 词表从小到大 ；核心区别就在于wordpiece是按token间的 互信息 来进行合并而BPE是按照token一同出现的 频率 来合并的。
+wordpiece和ULM的对比：
+wordpiece和ULM的对比：都使用语言模型来挑选子词；区别在于前者词表由小到大，而后者词表由大到小，先初始化一个大词表，根据评估准则不断丢弃词表，直到满足限定条件。ULM算法考虑了句子的不同分词可能，因而能够输出带概率的多个分词结果。
+三种subword分词算法的关系
+7.tokenizers库
+
+优先级靠后
+2.分词器
+1.BERT的分词器
+
+BERT的分词器由两个部分组成：
+
+    BasicTokenizer：
+        转成 unicode：Python3，输入为str时，可以省略这一步
+        _clean_text：去除各种奇怪字符
+        _tokenize_chinese_chars：中文按字拆开
+        whitespace_tokenize：空格分词
+        _run_strip_accents：去掉变音符号
+        _run_split_on_punc：标点分词
+        再次空格分词：whitespace_tokenize(" ".join(split_tokens))，先用空格join再按空白分词，可以去掉连续空格
+
+
+    WordpieceTokenizer：
+        贪心最大匹配：用双指针实现；
+
+
+核心代码：
+
+tokenize(self, text):
+2.T5的分词器
+3.GPT的分词器
+4.LLaMA的分词器
+5.GLM的分词器
+总结
+
+下面对主流模型使用的分词器进行总结（待完善）：
+参考资料
+
+深入理解NLP Subword算法：BPE、WordPiece、ULM - Luke的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/86 965595
+
+NLP三大Subword模型详解：BPE、WordPiece、ULM - 阿北的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/19 1648421
+
+NLP中的subword算法及实现 - 微胖界李现的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/11 2444056
+
+NLP BERT GPT等模型中 tokenizer 类别说明详解
+
+https:// cloud.tencent.com/devel oper/article/1865689
+
+BERT 客制化分词器和 WWM 的实现 - 满甲的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/26 8515387
+
+bert第三篇：tokenizer
+
+https:// blog.csdn.net/iterate7/ article/details/108959082
+
+BERT 是如何分词的
+
+https:// blog.csdn.net/u01009908 0/article/details/102587954
+
+同：BERT 是如何分词的 - Alan Lee的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/13 2361501
+
+Bert系列伴生的新分词器
+
+https:// dxzmpk.github.io/2020/0 4/29/Bert%E7%B3%BB%E5%88%97%E4%BC%B4%E7%94%9F%E7%9A%84%E6%96%B0%E5%88%86%E8%AF%8D%E5%99%A8/
+
+Tokenizers: How machines read
+
+https:// blog.floydhub.com/token ization-nlp/
+
+【HugBert11】聚沙成塔：关于tokenization（词元化）的解疑释惑 - 套牌神仙的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/37 1300063
+
+japanese and korean voice search
+
+https:// static.googleusercontent.com /media/research.google.com/zh-CN//pubs/archive/37842.pdf
+
+[1508.07909] Neural Machine Translation of Rare Words with Subword Units
+
+3-3 Transformers Tokenizer API 的使用
+
+https://www. zhihu.com/tardis/zm/art /390821442?source_id=1003
+
+关于transformers库中不同模型的Tokenizer - 莫冉的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/12 1787628
+
+NLP领域中的token和tokenization到底指的是什么？ - 知乎
+
+https://www. zhihu.com/question/6498 4731
+
+NLP中的Tokenization - 薛定谔没养猫的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/44 4774532
+
+大模型中的分词器tokenizer：BPE、WordPiece、Unigram LM、SentencePiece - 眼睛里进砖头了的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/62 0508648
+
+浅谈Byte-Level BPE - CaesarEX的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/14 6114164
+
+理解NLP最重要的编码方式 — Byte Pair Encoding (BPE)，这一篇就够了 - 硅谷谷主的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/42 4631681
+
+Neural Machine Translation with Byte-Level Subwords
+
+https:// arxiv.org/abs/1909.0334 1
+
+tokenizers小结 - 马东什么的文章 - 知乎
+
+https:// zhuanlan.zhihu.com/p/36 0290118
+
+互信息
+
+https:// zh.wikipedia.org/wiki/% E4%BA%92%E4%BF%A1%E6%81%AF
+
+Python unicodedata.normalize 将Unicode文本标准化
+
+https:// blog.csdn.net/weixin_43 866211/article/details/98384017
+
+Weaknesses of WordPiece Tokenization
+
+https:// medium.com/@rickbattle/ weaknesses-of-wordpiece-tokenization-eb20e37fec99
+
+Subword
+
+https:// paddlepedia.readthedocs.io /en/latest/tutorials/pretrain_model/subword.html
+
+sentencepiece原理与实践
+
+https://www. zhihu.com/tardis/zm/art /159200073?source_id=1003
+
+抱抱脸：
+
+https:// huggingface.co/docs/tra nsformers/tokenizer_summary
+
+https:// huggingface.co/learn/nl p-course/zh-CN/chapter2/4?fw=tf
+
+https:// huggingface.co/learn/nl p-course/chapter6/7?fw=pt
+
+https:// huggingface.co/learn/nl p-course/chapter6/5?fw=pt
+编辑于 2023-05-03 00:20
+真诚赞赏，手留余香
+赞赏
+还没有人赞赏，快来当第一个赞赏的人吧！
+​ 赞同 64 ​ ​ 7 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+李鹏宇
+李鹏宇
+​
+哈尔滨工业大学 管理学硕士
+​ 关注
+121 人赞同了该回答
+
+tokenization，也叫word segmentation,是一种操作，它按照特定需求，把文本切分成一个字符串序列(其元素一般称为token，或者叫词语)。一般来说，我们要求序列的元素有一定的意义，比如“text mining is time-consuming”需要处理成"text mining/ is/ time-consuming"，其中"text mining"表示"文本挖掘"。
+
+如果我们把语料中所有的token做一个去重，就得到了一个词汇表，其中的每一个词语被称为type。
+
+英文信息处理中,tokenization需要把"I'm Li"这样的句子转换为"I am Li"，即将一些词语、短语的写法规范化。中文由于文字本身没有形态变化、不需要太多的规范化操作，大家关注的主要的是切分操作，即分词。
+发布于 2020-01-08 14:27
+​ 赞同 121 ​ ​ 18 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+周鸟
+周鸟
+思想跃出脑子，文字记于纸上，便是旧物。
+​ 关注
+180 人赞同了该回答
+
+token(符号):包括单词和标点
+
+tokenization(分词)：我是中国人->['我', '是', '中国人']
+编辑于 2018-03-09 11:47
+​ 赞同 180 ​ ​ 4 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+梁二
+梁二
+程序员
+​ 关注
+7 人赞同了该回答
+
+tokenization：对text/log进行分词
+
+token:分词结果，比如 I like NLP的分词结果是['I', 'like', 'NLP']
+发布于 2022-03-09 11:47
+​ 赞同 7 ​ ​ 添加评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+AA-Gold
+AA-Gold
+我偏要勉强
+​ 关注
+19 人赞同了该回答
+
+Tokenization is a common task in Natural Language Processing (NLP). It’s a fundamental step in both traditional NLP methods like Count Vectorizer and Advanced Deep Learning-based architectures like Transformers .
+
+    Tokens are the building blocks of Natural Language. 
+
+Tokenization is a way of separating a piece of text into smaller units called tokens. Here, tokens can be either words, characters, or subwords. Hence, tokenization can be broadly classified into 3 types – word, character, and subword (n-gram characters) tokenization.
+
+For example, consider the sentence: “Never give up”.
+
+The most common way of forming tokens is based on space. Assuming space as a delimiter, the tokenization of the sentence results in 3 tokens – Never-give-up. As each token is a word, it becomes an example of Word tokenization.
+
+Similarly, tokens can be either characters or subwords. For example, let us consider “smarter”:
+
+    Character tokens: s-m-a-r-t-e-r
+    Subword tokens: smart-er 
+
+参考
+
+发布于 2021-03-19 14:16
+​ 赞同 19 ​ ​ 2 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+学习者老张
+学习者老张
+​
+
+简答一个
+
+NLP领域中，"token"通常指的是一个文本序列中的最小单元，可以是单词、标点符号、数字、符号或其他类型的语言元素。通常，对于NLP任务， 文本序列 会被分解为一系列的tokens，以便进行分析、理解或处理。
+
+"Tokenization"是将文本序列分解为 tokens 的过程。在tokenization过程中，文本被划分为一个个的tokens，这些tokens通常是由空格、标点符号、 特殊字符 或其他 自然语言处理 规则分隔开的。 tokenization 是NLP任务的一个重要 预处理 步骤，因为它将文本转换为计算机可以处理的 结构化数据 形式。
+
+例如，考虑以下句子：“I love natural language processing!”。在tokenization过程中，这个句子可以被分解为以下tokens序列：["I", "love", "natural", "language", "processing", "!"]。这个 tokens序列 可以用于分析和处理文本，例如，可以使用它来计算词频或构建文本分类器。
+
+以上
+发布于 2023-05-04 08:54
+​ 赞同 ​ ​ 添加评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+ICY星星
+ICY星星
+​
+清华大学网络空间安全博士在读
+41 人赞同了该回答
+
+tokenization：tokenization的粒度有三种，字粒度、词粒度和 子词粒度 。
+
+token：上面被分割后得到的一个个东西，就叫token。（例如：字粒度的中文例子，得到了五个token，即 [ '在', '纽', '约', '生', '活' ] ）
+
+
+参考链接： 机器如何认识文本 ？NLP中的Tokenization方法总结
+发布于 2020-12-28 10:12
+​ 赞同 41 ​ ​ 1 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+water
+water
+好好休息
+3 人赞同了该回答
+
+不知道你问的是什么地方的token。。。感觉并不是绝对的，需要看文档和函数实现
+
+一般的，比如nltk的token
+
+比如对句子的token，（a catch b.）
+
+word-token的就是(a，catch，b，.)
+
+对于 raw text ，可以token一个句子
+
+对于treebank，可以提取句子或者词或者tag
+
+总之 token函数 一般就是一个信息的转换表达
+发布于 2017-09-09 00:57
+​ 赞同 3 ​ ​ 添加评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+拉霍伊
+拉霍伊
+5 人赞同了该回答
+
+    Chopping up sentences into single words (called tokens ) is called tokenization . In Python, generally a string is tokenized and stored in a list.
+
+For example, the sentence “Artificial intelligence is all about applying mathematics ” becomes the following:
+
+[“Artificial”, “intelligence”, “is”, “all”, “about”,“applying”, “mathematics”]
+发布于 2020-08-18 15:50
+​ 赞同 5 ​ ​ 2 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+月亮在偷看吖
+月亮在偷看吖
+​
+努力入门的科研民工
+1 人赞同了该回答
+什么是Tokenization
+
+Tokenization 指的是将 文本分割 成若干个有意义的单元的过程。这些单元被称作“token"，常常是单词或短语，也可以是其他有意义的单元，比如 标点符号 、数字等。比如说，我们有一个sequence，经过tokenization，就变成了许多单词，即token。之后再传入Bert等language model进行处理。
+
+分词（word segmentation）是 tokenization 的一种常见形式，指的是将文本分割成单词的过程。分词是 NLP 中的基本任务，通常在文本处理之前进行，为后续的语言理解、翻译、摘要等任务奠定基础。
+
+Tokenization 还有其他的形式，例如将文本分割成句子或段落的过程，或者将文本分割成以字符为单位的序列的过程。这些形式的 tokenization 都可以帮助我们更好地处理文本数据，并为后续的 NLP 任务提供便利。
+Tokenization的好处
+
+    tokenization 可以通过连接、堆叠、加权求和等方式让我们在组织输入信息时更加灵活。比如，我们想加入位置信息，经过tokenization之后，我们可以对每个单元加上相对应的位置编码，从而实现嵌入位置信息。
+    tokenization 和特定于任务的特定tokens相兼容。比如，用于分类的[CLASS] token 和用于掩码语言建模的[MASK] token。
+    tokenization 可以帮助处理 多模态 数据。比如最 简单的方式 ，采用对多模态输入进行连接、加权和等方式处理后再传入vanilla transformer。
+
+发布于 2023-01-06 23:02
+​ 赞同 1 ​ ​ 添加评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+广告
+广告
+相关问题
+请问Token和Coin的区别是什么啊？ 2 个回答
+这个token无效是什么意思？ 0 个回答
+BERT的MLM中的mask token采用mask掉句子中15%的token几种实现有什么区别？ 1 个回答
+mgc token和cloud token 有何区别？是不是资金盘？ 2 个回答
+相关推荐
+live
+静对喧嚣：任剑涛访谈对话录（谷臻小简·AI 导读版）
+23 人读过 ​ 阅读
+live
+自然语言处理实践：聊天机器人技术原理与应用
+17 人读过 ​ 阅读
+live
+「一带一路」倡议与中国参与全球治理新突破 （谷臻小简·AI 导读版）
+9 人读过 ​ 阅读
+广告
+广告
+ 
+帮助中心
+知乎隐私保护指引 申请开通机构号 联系我们
+ 
+举报中心
+涉未成年举报 网络谣言举报 涉企虚假举报 更多
+ 
+关于知乎
+下载知乎 知乎招聘 知乎指南 知乎协议 更多
+京 ICP 证 110745 号 · 京 ICP 备 13052560 号 - 1 · 京公网安备 11010802020088 号 · 京网文[2022]2674-081 号 · 药品医疗器械网络信息服务备案（京）网药械信息备字（2022）第00334号 · 广播电视节目制作经营许可证:（京）字第06591号 · 服务热线：400-919-0001 · Investor Relations · © 2023 知乎 北京智者天下科技有限公司版权所有 · 违法和不良信息举报：010-82716601 · 举报邮箱：jubao@zhihu.com
+本站提供适老化无障碍服务

@@ -1,0 +1,596 @@
+
+Advertisement
+r/Python r/Python A chip A close button Clear search
+r/Python A chip A close button
+Get app Log In
+r/Python
+r/Python icon
+Home Popular
+Topics
+Gaming
+Valheim
+Genshin Impact
+Minecraft
+Pokimane
+Halo Infinite
+Call of Duty: Warzone
+Path of Exile
+Hollow Knight: Silksong
+Escape from Tarkov
+Watch Dogs: Legion
+Sports
+NFL
+NBA
+Megan Anderson
+Atlanta Hawks
+Los Angeles Lakers
+Boston Celtics
+Arsenal F.C.
+Philadelphia 76ers
+Premier League
+UFC
+Business
+GameStop
+Moderna
+Pfizer
+Johnson & Johnson
+AstraZeneca
+Walgreens
+Best Buy
+Novavax
+SpaceX
+Tesla
+Crypto
+Cardano
+Dogecoin
+Algorand
+Bitcoin
+Litecoin
+Basic Attention Token
+Bitcoin Cash
+Television
+The Real Housewives of Atlanta
+The Bachelor
+Sister Wives
+90 Day Fiance
+Wife Swap
+The Amazing Race Australia
+Married at First Sight
+The Real Housewives of Dallas
+My 600-lb Life
+Last Week Tonight with John Oliver
+Celebrity
+Kim Kardashian
+Doja Cat
+Iggy Azalea
+Anya Taylor-Joy
+Jamie Lee Curtis
+Natalie Portman
+Henry Cavill
+Millie Bobby Brown
+Tom Hiddleston
+Keanu Reeves
+See more
+Animals and Pets
+Anime
+Art
+Cars and Motor Vehicles
+Crafts and DIY
+Culture, Race, and Ethnicity
+Ethics and Philosophy
+Fashion
+Food and Drink
+History
+Hobbies
+Law
+Learning and Education
+Military
+Movies
+Music
+Place
+Podcasts and Streamers
+Politics
+Programming
+Reading, Writing, and Literature
+Religion and Spirituality
+Science
+Tabletop Games
+Technology
+Travel
+Resources
+About Reddit Advertise Help
+See more
+Communities Rereddit Topics
+Blog Careers Press
+Content Policy Privacy Policy User Agreement
+Reddit, Inc. © 2023. All rights reserved.
+Upvote 128 Downvote 50 comments
+Share Share
+r/Python icon
+Go to Python
+r/Python
+A banner for the subreddit
+r/Python icon
+r/Python Join
+
+News about the programming language Python. If you have something to teach others post here. If you have questions or are a newbie use r/learnpython
+1.1M Members 320 Online
+• 10 yr. ago
+by
+barisumog
+Join
+
+Report
+What's your opinion on what to include in __init__.py ?
+
+I'm new to packaging and publishing on PyPI. I've been searching for information about the best practices about modules and namespaces, and using __init__.py to manipulate them. Yet I haven't been able to find a generally accepted approach.
+
+Considering a package with multiple modules (and possibly sub-packages), there seems to be 3 different approaches:
+
+    Leave the __init__.py blank. This enforces explicit imports and thus clear namespaces. I've read Alex Martelli post in favor of this option on various questions at Stack Overflow. The cons are, the user of the package has to import seperate modules and call them with the dot notation.
+
+    Import all modules in __init__.py . The user doesn't have to do multiple imports. The cons are explicit vs implicit, and also as Martelli puts it (paraphrased), "if that's how your package works, maybe it should all go in a single module anyway".
+
+    Import key functions from various modules directly into the package namespace. If you restructure modules, you still have the option to keep the same API for end users. Cons, it dirties the namespace, and very implicit / hacky.
+
+I've been looking around at Github, and I've seen all 3 approaches in various projects. So I'm guessing there isn't really a consensus on what is the best practice.
+
+I'm really interested in hearing from the pros, how they think about this, what they do, what they suggest... Or maybe there are subtleties that I'm missing... Any help is appreciated.
+
+Thanks in advance
+
+EDIT: Thanks a lot for all the great posts! They provide a lot to think about.
+
+A couple of people asked about links, so here are a few I found to be useful:
+
+http://guide.python-distribute.org/introduction.html
+
+http://docs.python-guide.org/en/latest/writing/structure/
+
+http://foobar.lu/wp/2012/05/13/a-comprehensive-step-through-python-packaging-a-k-a-setup-scripts/
+
+(If you have links to other good guides to packaging, they'd be appreciated!)
+
+And the Stack Overflow posts I mentioned:
+
+http://stackoverflow.com/questions/1801878/the-pythonic-way-of-organizing-modules-and-packages
+
+http://stackoverflow.com/questions/1944569/how-do-i-write-good-correct-init-py-files
+
+http://stackoverflow.com/questions/2360724/in-python-what-exactly-does-import-import
+Read more
+Archived post. New comments cannot be posted and votes cannot be cast.
+Sort by:
+Best Log in to sort by top, controversial, or new Log in to sort by top, controversial, or new 50 comments
+u/reostra avatar
+reostra
+• 10 yr. ago
+
+I tend toward option 3 for my own work. For me, it's about declaring a 'public' API for the module, e.g.
+
+ stuff/
+  __init__.py
+  bigstuff.py
+  privateStuff.py
+
+And __init__.py would have:
+
+ from bigstuff import Stuffinator, Stuffinatrix
+
+This essentially says that stuff.Stuffinator and stuff.Stuffinatrix are the only parts of the module intended for public use. While there's nothing stopping people from doing an 'import stuff.bigstuff.Stuffometer' or 'import stuff.privateStuff.HiddenStuff', they'll at least know they're peeking behind the curtain at that point. Rather than being implicit, I find it's rather explicit.
+Upvote 40 Downvote
+Share Share
+Reply reply
+
+Report
+flying-sheep
+• 10 yr. ago
+
+also, flat is better than nested, really.
+
+having to import stuff from various places to make basic uses of the api work is very much against python’s philosophy.
+
+as for the .api subpackage: why not just use __init__.py ? it’s less stuff to type and remember and feels like a pretty natural place for the “public API”.
+Upvote 9 Downvote
+Share Share
+Reply reply
+
+Report
+3 more replies
+13 more replies
+u/billsil avatar
+billsil
+• 10 yr. ago
+
+You stick important parameters like version , author , release date, image DPI in there.
+Upvote 22 Downvote
+Share Share
+Reply reply
+
+Report
+fullouterjoin
+• 10 yr. ago
+
+Don't forget __doc__ with decent sample usage.
+Upvote 13 Downvote
+Share Share
+Reply reply
+
+Report
+7 more replies
+[deleted]
+[deleted]
+• 10 yr. ago
+
+Option 3 is definitely how this should work, here's why. You start out with your library having a package "foo" and a module "bar". Users make use of things inside of "bar" like, from foo.bar import x, y, z . Then one day, "bar" starts getting really big, the implementations for things become more complex and broken out, features are added. The way you deal with this is by making bar.py into a package, and the __init__.py inside of bar/ essentially replaces bar.py . Your users see no change in API, and there's no need for them to learn exactly which submodule inside the new bar package they need to use (nor should there be, as things can keep changing many more times - it wouldn't be correct to expose the userbase to each of those changes when it's entirely unnecessary).
+
+There's nothing hacky about this at all, it's how __init__.py is meant to be used, and to those saying "explicit is better than implicit" I'd counter with "practicality beats purity" and "flat is better than nested", not to mention a foolish consistency is the hobgoblin of little minds .
+Upvote 8 Downvote
+Share Share
+Reply reply
+
+Report
+1 more reply
+[deleted]
+otheraccount
+• 10 yr. ago
+
+I like importing key functions and classes. Flat is better than nested, so as a user of a library, I prefer from library import ThingIWant or import library and then using library.ThingIWant rather than from library.things.thing_i_want import ThingIWant .
+
+More specifically, I would often have the contents of __init__.py be:
+
+ """Docstring explaining package"""
+from thispackage.module_or_subpackage import *
+from thispackage.module_thats_next_alphabetically import *
+...
+
+And then have each module use __all__ to specify which names constitute its public API that should be exposed by the package.
+
+For something you are distributing publicly, I don't think your __init__.py should ever by "blank" as specified by option 1: you should at least include a docstring explaining what the package does. This will help users poking around in ipython, etc.
+Upvote 12 Downvote
+Share Share
+Reply reply
+
+Report
+u/shigawire avatar
+shigawire
+• 10 yr. ago
+
+Nothing. Explicit is better than implicit.
+Upvote 12 Downvote
+Share Share
+Reply reply
+
+Report
+u/rkern avatar
+rkern
+• 10 yr. ago
+
+I recommend option 1 for most cases. We usually include an api.py module that puts in the convenience imports that one would otherwise put into the __init__.py . Many users of the foo.bar package will do from foo.bar.api import FooBar . Others that want more control will do from foo.bar.foo_bar import FooBar .
+Upvote 8 Downvote
+Share Share
+Reply reply
+
+Report
+u/mirashii avatar
+mirashii
+• 10 yr. ago
+
+I'm personally a fan of how Werkzeug does things , and use it in my own projects. It allows for the the explicit import style of (1), but also allows (3) for convenience if you prefer that.
+Upvote 5 Downvote
+Share Share
+Reply reply
+
+Report
+UloPe
+• 10 yr. ago
+
+Well that is rather clever (what else would you expect from mitsuhiko) but unfortunately completely bamboozles code intelligence tools (IDEs, static analyzers and such)
+Upvote 4 Downvote
+Share Share
+Reply reply
+
+Report
+3 more replies
+u/iarcfsil avatar
+iarcfsil
+• 10 yr. ago
+
+Any chance you could post/add the links you found in regards to packaging and publishing? I'm new to it as well, and haven't found anything helpful so far
+Upvote 4 Downvote
+Share Share
+Reply reply
+
+Report
+1 more reply
+[deleted]
+[deleted]
+• 10 yr. ago
+
+[removed]
+Upvote Downvote
+Share Share
+Reply reply
+
+Report
+u/BioGeek avatar
+BioGeek
+• 10 yr. ago
+
+Please don't use URL shorteners, they trigger the spam filter.
+Upvote 10 Downvote
+Share Share
+Reply reply
+
+Report
+3 more replies
+u/Manganeez avatar
+Manganeez
+• 10 yr. ago
+
+In my opinion, 2 and 3 are both abuses of __init__.py. On the other hand, characterizing option 1 as "leave it blank" is also too strict. The purpose of __init__.py, to my mind, is to hold shared initialization code. In support of that, it should contain side-effect-ish code that you want run before anything gets imported from the package. For simple, or even moderately complex cases, this can degenerate to "leave it blank". But when there's a win for sharing initialization code, it may be an ideal place.
+
+Note that using __init__.pey in this way makes it directly analagous to a class's __init__() method, which I believe is exactly what the BDFL intended to imply when he named it.
+Upvote 2 Downvote
+Share Share
+Reply reply
+
+Report
+[deleted]
+[deleted]
+• 10 yr. ago
+
+I started a python project once that, in it's early days, used init .py to do some basic dependency checks, and print out useful instructions about what to do when critical modules were missing from your system. It seemed clever at the time, but I had to scrap it when I started collaborating with a debian packager, and he said that it was useful to be able to build the package on a system that didn't have the deps installed. Turned out that setup.py was importing the version string from the project itself, so you couldn't even run setup.py if the deps were missing, and it made packaging difficult.
+
+So, that got scrapped and it's been empty in every project I've worked on since.
+Upvote 5 Downvote
+Share Share
+Reply reply
+
+Report
+1 more reply
+View more comments
+Loading
+More posts you may like
+
+    r/learnpython icon
+    r/learnpython
+    r/learnpython icon
+    r/learnpython Join
+
+    Subreddit for posting questions and asking for general advice about your python code.
+    720K Members 562 Online
+    What exactly does the __init__.py files do?
+    88 upvotes · 17 comments
+    r/perfectloops icon
+    r/perfectloops
+    r/perfectloops icon
+    r/perfectloops Join
+
+    A collection of Perfectly Looped animated .gifs and html5 videos.
+    666K Members 95 Online
+    [A] A simple perfect loop made with PYTHON
+    r/perfectloops - [A] A simple perfect loop made with PYTHON
+    547 upvotes · 30 comments
+    r/ProgrammerHumor icon
+    r/ProgrammerHumor
+    A banner for the subreddit
+    r/ProgrammerHumor icon
+    r/ProgrammerHumor Join
+
+    For anything funny related to programming and software development.
+    3M Members 3.3K Online
+    Why you have to be there
+    r/ProgrammerHumor - Why you have to be there
+    71 upvotes · 34 comments
+    Promoted
+    sidebar promoted post thumbnail
+    r/datasets icon
+    r/datasets
+    A banner for the subreddit
+    r/datasets icon
+    r/datasets Join
+
+    A place to share, find, and discuss Datasets.
+    176K Members 34 Online
+    Reddit API changes. What do you think?
+    122 upvotes · 34 comments
+    r/MachineLearning icon
+    r/MachineLearning
+    r/MachineLearning icon
+    r/MachineLearning Join
+
+    This subreddit is temporarily closed in protest of Reddit killing third party apps, see /r/ModCoord and /r/Save3rdPartyApps for more information.
+    2.7M Members 703 Online
+    So long r/MachineLearning, it's been an interesting few years
+    1.3K upvotes · 92 comments
+    r/MachineLearning icon
+    r/MachineLearning
+    r/MachineLearning icon
+    r/MachineLearning Join
+
+    This subreddit is temporarily closed in protest of Reddit killing third party apps, see /r/ModCoord and /r/Save3rdPartyApps for more information.
+    2.7M Members 703 Online
+    [R] Bytes are all you need: Transformers operating directly on file bytes
+    103 upvotes · 22 comments
+    r/compsci icon
+    r/compsci
+    r/compsci icon
+    r/compsci Join
+
+    Computer Science Theory and Application. We share and discuss any content that computer scientists find interesting. People from all walks of life welcome, including hackers, hobbyists, professionals, and academics.
+    2.2M Members 137 Online
+    Searching for points within a sphere using a 3D KD-Tree / 3D-Tree in Unity
+    r/compsci - Searching for points within a sphere using a 3D KD-Tree / 3D-Tree in Unity
+    117 upvotes · 8 comments
+    Promoted
+    sidebar promoted post thumbnail
+    r/MachineLearning icon
+    r/MachineLearning
+    r/MachineLearning icon
+    r/MachineLearning Join
+
+    This subreddit is temporarily closed in protest of Reddit killing third party apps, see /r/ModCoord and /r/Save3rdPartyApps for more information.
+    2.7M Members 703 Online
+    I Created an AI Basketball Referee [P]
+    r/MachineLearning - I Created an AI Basketball Referee [P]
+    1.2K upvotes · 61 comments
+    r/learnpython icon
+    r/learnpython
+    r/learnpython icon
+    r/learnpython Join
+
+    Subreddit for posting questions and asking for general advice about your python code.
+    720K Members 562 Online
+    I've coded in R for years, but I want to learn Python for machine learning/statistical analysis. Where to start, and which IDE?
+    111 upvotes · 45 comments
+    r/webdev icon
+    r/webdev
+    A banner for the subreddit
+    r/webdev icon
+    r/webdev Join
+
+    A community dedicated to all things web development: both front-end and back-end. For more design-related questions, try /r/web_design.
+    1.7M Members 1.4K Online
+    I made a simple Chrome Extension which removes Promoted Posts (Ads) on Reddit!
+    374 upvotes · 56 comments
+    r/web_design icon
+    r/web_design
+    A banner for the subreddit
+    r/web_design icon
+    r/web_design Join
+
+    Web Design
+    805K Members 201 Online
+    What technology do you use to build websites these days?
+    143 upvotes · 217 comments
+    r/MachineLearning icon
+    r/MachineLearning
+    r/MachineLearning icon
+    r/MachineLearning Join
+
+    This subreddit is temporarily closed in protest of Reddit killing third party apps, see /r/ModCoord and /r/Save3rdPartyApps for more information.
+    2.7M Members 703 Online
+    [D] Paper Explained - RWKV: Reinventing RNNs for the Transformer Era (Full Video Analysis)
+    237 upvotes · 3 comments
+    r/MachineLearning icon
+    r/MachineLearning
+    r/MachineLearning icon
+    r/MachineLearning Join
+
+    This subreddit is temporarily closed in protest of Reddit killing third party apps, see /r/ModCoord and /r/Save3rdPartyApps for more information.
+    2.7M Members 703 Online
+    [R] Blockwise Parallel Transformer for Long Context Large Models
+    r/MachineLearning - [R] Blockwise Parallel Transformer for Long Context Large Models
+    self.MachineLearning
+    144 upvotes · 30 comments
+    r/ExperiencedDevs icon
+    r/ExperiencedDevs
+    A banner for the subreddit
+    r/ExperiencedDevs icon
+    r/ExperiencedDevs Join
+
+    For experienced developers. This community should be specialized subreddit facilitating discussion amongst individuals who have gained some ground in the software engineering world. Any posts or comments that are made by inexperienced individuals (outside of the weekly Ask thread) should be reported. Anything not specifically related to development or career advice that is _specific_ to Experienced Developers belongs elsewhere. Try /r/work, /r/AskHR, /r/careerguidance, or /r/OfficePolitics.
+    117K Members 152 Online
+    Are there any industries where the work is slow-paced?
+    215 upvotes · 166 comments
+    r/MachineLearning icon
+    r/MachineLearning
+    r/MachineLearning icon
+    r/MachineLearning Join
+
+    This subreddit is temporarily closed in protest of Reddit killing third party apps, see /r/ModCoord and /r/Save3rdPartyApps for more information.
+    2.7M Members 703 Online
+    [R] New OpenAI article: Improving Mathematical Reasoning with Process Supervision
+    156 upvotes · 31 comments
+    r/MachineLearning icon
+    r/MachineLearning
+    r/MachineLearning icon
+    r/MachineLearning Join
+
+    This subreddit is temporarily closed in protest of Reddit killing third party apps, see /r/ModCoord and /r/Save3rdPartyApps for more information.
+    2.7M Members 703 Online
+    [N] RedPajama 7B now available, instruct model outperforms all open 7B models on HELM benchmarks
+    130 upvotes · 10 comments
+    r/MachineLearning icon
+    r/MachineLearning
+    r/MachineLearning icon
+    r/MachineLearning Join
+
+    This subreddit is temporarily closed in protest of Reddit killing third party apps, see /r/ModCoord and /r/Save3rdPartyApps for more information.
+    2.7M Members 703 Online
+    [D] LLM's in languages other than English.
+    114 upvotes · 50 comments
+    r/MachineLearning icon
+    r/MachineLearning
+    r/MachineLearning icon
+    r/MachineLearning Join
+
+    This subreddit is temporarily closed in protest of Reddit killing third party apps, see /r/ModCoord and /r/Save3rdPartyApps for more information.
+    2.7M Members 703 Online
+    [P] langchain-huggingGPT
+    111 upvotes · 5 comments
+    r/learnpython icon
+    r/learnpython
+    r/learnpython icon
+    r/learnpython Join
+
+    Subreddit for posting questions and asking for general advice about your python code.
+    720K Members 562 Online
+    What all tools should I learn more to be a capable python developer ?
+    119 upvotes · 69 comments
+    r/MachineLearning icon
+    r/MachineLearning
+    r/MachineLearning icon
+    r/MachineLearning Join
+
+    This subreddit is temporarily closed in protest of Reddit killing third party apps, see /r/ModCoord and /r/Save3rdPartyApps for more information.
+    2.7M Members 703 Online
+    [R] AlphaDev discovers faster sorting algorithms
+    428 upvotes · 78 comments
+    r/ExperiencedDevs icon
+    r/ExperiencedDevs
+    A banner for the subreddit
+    r/ExperiencedDevs icon
+    r/ExperiencedDevs Join
+
+    For experienced developers. This community should be specialized subreddit facilitating discussion amongst individuals who have gained some ground in the software engineering world. Any posts or comments that are made by inexperienced individuals (outside of the weekly Ask thread) should be reported. Anything not specifically related to development or career advice that is _specific_ to Experienced Developers belongs elsewhere. Try /r/work, /r/AskHR, /r/careerguidance, or /r/OfficePolitics.
+    117K Members 152 Online
+    New manager, where to draw the line on reviewing PR’s?
+    179 upvotes · 159 comments
+    r/learnpython icon
+    r/learnpython
+    r/learnpython icon
+    r/learnpython Join
+
+    Subreddit for posting questions and asking for general advice about your python code.
+    720K Members 562 Online
+    Recursion is hard
+    94 upvotes · 82 comments
+    r/MachineLearning icon
+    r/MachineLearning
+    r/MachineLearning icon
+    r/MachineLearning Join
+
+    This subreddit is temporarily closed in protest of Reddit killing third party apps, see /r/ModCoord and /r/Save3rdPartyApps for more information.
+    2.7M Members 703 Online
+    [N] Chain-of-Thought Hub: Measuring LLMs' Reasoning Performance
+    128 upvotes · 1 comment
+    r/learnprogramming
+    r/learnprogramming Join
+
+    A subreddit for all questions related to programming in any language.
+    3.9M Members 1.4K Online
+    Re-wrote my Zero to Hero Git Tutorial and was Told to Post Here; Hope some Find it Useful 🐙
+    1.1K upvotes · 98 comments
+    r/web_design icon
+    r/web_design
+    A banner for the subreddit
+    r/web_design icon
+    r/web_design Join
+
+    Web Design
+    805K Members 201 Online
+    Would it be possible for this sub to join the Reddit Blackout?
+    1.2K upvotes · 86 comments
+

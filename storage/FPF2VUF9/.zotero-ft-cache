@@ -1,0 +1,262 @@
+
+Skip to content
+
+    Lightning-AI /
+    lightning
+
+Type / to search
+Command palette
+Create new...
+Issues
+Pull requests
+You have no unread notifications
+
+    Code
+    Issues 676
+    Pull requests 56
+    Discussions
+    Actions
+    Projects 0
+    Security
+    Insights
+
+More
+
+    Code
+    Issues
+    Pull requests
+    Discussions
+    Actions
+    Projects
+    Security
+    Insights
+
+{{ message }}
+/   ...   /  
+Lightning-AI   /   lightning   /   Issues #4983   /  
+Clear Command Palette
+Tip: Type # to search pull requests
+Type ? for help and tips
+Tip: Type # to search issues
+Type ? for help and tips
+Tip: Type # to search discussions
+Type ? for help and tips
+Tip: Type ! to search projects
+Type ? for help and tips
+Tip: Type @ to search teams
+Type ? for help and tips
+Tip: Type @ to search people and organizations
+Type ? for help and tips
+Tip: Type > to activate command mode
+Type ? for help and tips
+Tip: Go to your accessibility settings to change your keyboard shortcuts
+Type ? for help and tips
+Tip: Type author:@me to search your content
+Type ? for help and tips
+Tip: Type is:pr to filter to pull requests
+Type ? for help and tips
+Tip: Type is:issue to filter to issues
+Type ? for help and tips
+Tip: Type is:project to filter to projects
+Type ? for help and tips
+Tip: Type is:open to filter to open content
+Type ? for help and tips
+We’ve encountered an error and some results aren't available at this time. Type a new search or try again later.
+No results matched your search
+Top result
+Commands Type > to filter
+Global Commands Type > to filter
+This Page
+Files
+Pages
+Access Policies
+Organizations
+Repositories
+Issues, pull requests, and discussions Type # to filter
+Teams
+Users
+Projects
+Projects (classic)
+Modes
+Use filters in issues, pull requests, discussions, and projects
+Search for issues and pull requests # Search for issues, pull requests, discussions, and projects # Search for organizations, repositories, and users @ Search for projects ! Search for files / Activate command mode > Search your issues, pull requests, and discussions # author:@me Search your issues, pull requests, and discussions # author:@me Filter to pull requests # is:pr Filter to issues # is:issue Filter to discussions # is:discussion Filter to projects # is:project Filter to open issues, pull requests, and discussions # is:open
+New issue
+Set different lr_schedulers for different parameter groups #4983
+Closed
+xinfangliu opened this issue on Dec 5, 2020 Dec 5, 2020 · 3 comments
+Closed
+Set different lr_schedulers for different parameter groups #4983
+xinfangliu opened this issue on Dec 5, 2020 Dec 5, 2020 · 3 comments
+Comments
+@xinfangliu
+
+Sorry, something went wrong.
+Quote reply
+xinfangliu commented on Dec 5, 2020 Dec 5, 2020
+❓ Questions and Help
+What is your question?
+
+I want to set different learning rate adjustment lr_schedulers for different parameter groups in one optimizer. This motivation is easy to understand. For example, add my own module to the pre-training network for fine-tuning.
+What have you tried?
+
+I have tried the following method:
+def configure_optimizers(self):
+opt = torch.optim.SGD([
+dict(params = self.net.net.parameters(),lr=0.1*self.lr),
+dict(params=[*self.net.pool.parameters(),
+* self.net.fc.parameters(),
+*self.center_loss.parameters()])
+],lr=self.lr,momentum=0.98)
+
+ sdl = torch.optim.lr_scheduler.CyclicLR(opt, 1e-5, 1e-3, step_size_up=2000, step_size_down=1000,gamma=0.5, mode='triangular2') return [opt], [dict(scheduler=sdl, interval='step')]  
+
+As self.net.net is a pre-trained backbone, I only want the learning rate of this group to be 1/10 of others'.
+However, the learning rates of the two params groups are identified with this code. For example, both are 1e-5 at the training start, and I want them to be 1e-6 and 1e-5, respectively.
+Since "automatic_optimizition = False" has bugs to fix, I confused want should I do.
+
+    👍
+    👎
+    😄
+    🎉
+    😕
+    ❤️
+    🚀
+    👀
+
+👍 1 zhehaoli1999 reacted with thumbs up emoji
+All reactions
+
+    👍 1 reaction
+
+@xinfangliu xinfangliu added the question Further information is requested label on Dec 5, 2020 Dec 5, 2020
+@SkafteNicki
+
+Sorry, something went wrong.
+Quote reply
+Member
+SkafteNicki commented on Dec 5, 2020 Dec 5, 2020
+
+When you set base_lr=1e-5 (second argument) in torch.optim.lr_scheduler.CyclicLR it overwrites the initial learning rate of all the optimizers parameter groups, which is why they are the same. Instead you should set base_lr=[1e-6, 1e-5] .
+
+    👍
+    👎
+    😄
+    🎉
+    😕
+    ❤️
+    🚀
+    👀
+
+👍 3 Dudly01, rachtibat, and shim94kr reacted with thumbs up emoji
+All reactions
+
+    👍 3 reactions
+
+@xinfangliu
+
+Sorry, something went wrong.
+Quote reply
+Author
+xinfangliu commented on Dec 7, 2020 Dec 7, 2020
+
+Thank you very much for your help.
+I changed the code so that the program can run without errors.
+However, the learning rate does not seem to have adjusted.
+def configure_optimizers(self):
+opt = torch.optim.Adam([dict(params=self.net.net.parameters()),
+dict(params=[*self.net.pool.parameters(),
+*self.net.fc.parameters(),
+*self.center_loss.parameters(),
+])],)
+sdl = torch.optim.lr_scheduler.CyclicLR(opt, base_lr=[5e-5, 5e-5], max_lr=[5e-4, 5e-4],
+step_size_up=1000, step_size_down=500,
+mode='exp_range', gamma=0.5,cycle_momentum=False,)
+return [opt], [dict(scheduler=sdl, interval='step')]
+image
+
+    👍
+    👎
+    😄
+    🎉
+    😕
+    ❤️
+    🚀
+    👀
+
+All reactions
+
+@xinfangliu
+
+Sorry, something went wrong.
+Quote reply
+Author
+xinfangliu commented on Dec 14, 2020 Dec 14, 2020
+
+I solved this problem by setting mode='triangle2' in the scheduler.
+
+    👍
+    👎
+    😄
+    🎉
+    😕
+    ❤️
+    🚀
+    👀
+
+All reactions
+
+@xinfangliu xinfangliu closed this as completed on Dec 14, 2020 Dec 14, 2020
+@h0ngxuanli
+Write Preview
+Add heading text Add bold text, <Cmd+b> Add italic text, <Cmd+i>
+Add a quote, <Cmd+Shift+.> Add code, <Cmd+e>
+Insert Link
+Link Text
+URL
+Add
+Add a link, <Cmd+k>
+Add a bulleted list, <Cmd+Shift+8> Add a numbered list, <Cmd+Shift+7> Add a task list, <Cmd+Shift+l>
+Directly mention a user or team Reference an issue, pull request, or discussion
+Select a reply ctrl .
+Add saved reply Slash commands
+There was an error creating your Issue.
+Attach files by dragging & dropping, selecting or pasting them. We don’t support that file type. Attaching documents requires write permission to this repository. We don’t support that file type. This file is empty. This file is hidden. Something went really wrong, and we can’t process that file. Styling with Markdown is supported
+Comment
+Remember, contributions to this repository should follow its contributing guidelines , security policy , and code of conduct .
+Assignees
+No one assigned
+Labels
+question Further information is requested
+Projects
+None yet
+Milestone
+No milestone
+Development
+
+No branches or pull requests
+Notifications
+Customize
+Notification settings
+Loading...
+Subscribe
+
+You’re not receiving notifications from this thread.
+2 participants
+@SkafteNicki @xinfangliu
+Footer
+© 2023 GitHub, Inc.
+Footer navigation
+
+    Terms
+    Privacy
+    Security
+    Status
+    Docs
+    Contact GitHub
+    Pricing
+    API
+    Training
+    Blog
+    About
+
+You can’t perform that action at this time.

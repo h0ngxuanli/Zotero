@@ -1,0 +1,98 @@
+写文章
+点击打开要爆了的主页
+BERT中的Tokenizer
+嘻嘻哈哈666
+嘻嘻哈哈666
+​ 关注
+7 人赞同了该文章
+
+经常在使用Transformer中遇到各种转id形式，整理一下几种
+
+ from transformers import BertTokenizer tokenizer = BertTokenizer.from_pretrained('bert-base-chinese') text = '[CLS] 武1松1打11老虎 [SEP] 你在哪 [SEP]' tokenized_text = tokenizer.tokenize(text)#切词 方式1 token_samples_a = tokenizer.convert_tokens_to_ids(tokenized_text)#只返回token_ids,手动添加CLS与SEP token_samples_b=tokenizer(text)#返回一个字典，包含id,type,mask，无须手动添加CLS与SEP 方式2 token_samples_c=tokenizer.encode(text=text)#只返回token_ids，无须手动添加CLS与SEP 方式3 token_samples_d=tokenizer.encode_plus(text=text,max_length=30,return_tensors='pt')#方式4 返回一个字典，包含id,type,mask，无须手动添加CLS与SEP，可以指定返回类型与长度  
+
+
+例如文本“ 预约12号的腹部手术” 标签为 O O O O B I O O(将12视作为整体)
+
+上面的几种方式会将12视作一个整体，转换城的id就会长度减一，造成与标签无法对齐的问题。
+
+
+下面介绍一种BertTokenizerFast的方法解决这种问题
+
+BertTokenizerFast中可以选择返回return_offsets_mapping，若12被切分为整体12，则会返回一个(1,3）的offset，代表有两个光标
+
+ from transformers import BertTokenizerFast tokenizerfast = BertTokenizerFast.from_pretrained('bert-base-chinese') token_samples_d=tokenizerfast(text,return_offsets_mapping=True) 
+
+可以根据offsetmapping重新设置标签对齐格式
+
+
+不过我不经常用BertTokenizerFast，下面介绍一下我处理这种问题的心得，
+
+ words = list(text) token_samples_e = tokenizer.convert_tokens_to_ids(words) 
+
+这种转id时就会准确的将12切分为1和2，不会造成标签无法对齐,缺点是转成list后不能直接使用方式2,并且会将[CLS]切分为C,L,S。但是我们可以用方式3，4，因为这两种无须在文本中手动添加CLS与SEP。
+
+
+插入特殊词
+
+ from transformers import BertTokenizer tokenizer = BertTokenizer.from_pretrained('bert-base-chinese') text = '武松打老虎你在哪里' tokenized_text = tokenizer.tokenize(text,add_special_tokens=False)#切词 不返回id token_samples_a = tokenizer.convert_tokens_to_ids(tokenized_text)#只返回token_ids,手动添加CLS与SEP token_samples_b=tokenizer(text,add_special_tokens=False)#返回一个字典，包含id,type,mask，add_special_tokens默认为True 方式2 token_samples_c=tokenizer.encode(text=text,add_special_tokens=False)#只返回token_ids，无须手动添加CLS与SEP 方式3 token_samples_d=tokenizer.encode_plus(text=text,max_length=30,return_tensors='pt',add_special_tokens=False)#方式4 返回一个字典，包含id,type,mask，无须手动添加CLS与SEP，可以指定返回类型与长度,add_special_tokens默认为True data=tokenizer.decode(token_samples_a) data=tokenizer.decode(token_samples_b["input_ids"]) vocab=tokenizer.vocab#查看词典 print(tokenizer.vocab_size)#打印词典大小 print(tokenizer.all_special_ids)#打印special_ids print(tokenizer.all_special_tokens)#打印special_tokens print(tokenizer.sep_token, tokenizer.sep_token_id)#sep print(tokenizer.unk_token, tokenizer.unk_token_id) print(tokenizer.pad_token, tokenizer.pad_token_id) print(tokenizer.cls_token, tokenizer.cls_token_id) print(tokenizer.mask_token, tokenizer.mask_token_id) # tokenizer.add_tokens({'additional_special_tokens':["<e>"]}) # tokenizer.add_special_tokens({'additional_special_tokens':["你在"]}) # tokenizer.add_special_tokens({'additional_special_tokens':["哪里"]}) tokenizer.add_special_tokens({'additional_special_tokens':["你在","哪里"]}) print(tokenizer.vocab_size)#打印词典大小 print(tokenizer.all_special_ids)#打印special_ids print(tokenizer.all_special_tokens)#打印special_tokens token_samples_a_a = tokenizer.encode(text,add_special_tokens=False)#可以 token_samples_a_b = tokenizer.encode_plus(text,add_special_tokens=False)#可以 token_samples_a_c = tokenizer.tokenize(text,add_special_tokens=False)#可以 token_samples_a_d = tokenizer(text,add_special_tokens=False)#可以 token_samples_a_e = tokenizer.convert_tokens_to_ids(text)#直接来个100 print("fin") 
+
+希望大家指正。
+编辑于 2022-10-19 12:39
+BERT
+知识图谱
+深度学习（Deep Learning）
+​ 赞同 7 ​ ​ 5 条评论
+​ 分享
+​ 喜欢 ​ 收藏 ​ 申请转载
+​
+发布一条带图评论吧
+
+5 条评论
+默认
+最新
+GodK
+GodK
+
+words = list(text) 这种方式将每个字符单独拆出来，解决了映射偏差问题，但是不是也丢失了某些英文单词整体的语义[发呆]
+2022-11-16
+​ 回复 ​ 赞
+嘻嘻哈哈666
+嘻嘻哈哈666
+作者
+是的，当时写这篇文章时考虑不周，应该使用tokenizerfast
+2022-11-16
+​ 回复 ​ 赞
+唛田
+唛田
+
+up你的想法不正确，你可以把BertTokenizerFast 换成AutoTokenizer，结果一样
+2022-07-24
+​ 回复 ​ 赞
+唛田
+唛田
+
+tokenizer.convert_tokens_to_ids只是字典映射，前面还有切词方式，都是基于wordpice的
+2022-07-24
+​ 回复 ​ 赞
+ucasCoco
+ucasCoco
+type是什么意思啊
+2022-04-11
+​ 回复 ​ 赞
+推荐阅读
+
+    Bert中的tokenizer
+
+    本文主要参考 BERT 是如何分词的_Alan Lee-CSDN博客_bert分词相关在代码在 https://github.com/google-research/bert/blob/master/tokenization.py注：参考文章写的很详细，本文主要目的在…
+    entropy
+    我没写过tokenizer
+
+    刚才夜跑回来，发现莫名的被 @林诚 @Hush 在 留言区怼。林诚说: 诸位怕是忘了林建入用tokenizer和parser喝退薛非的往事了? 程序员约架梗还有人记得吗? 我也依靠同样的招数在和董伟明的论战…
+    小明 发表于Pytho...
+    Hello, Tokenizer
+    Hello, Tokenizer
+    luiko... 发表于Lapis...
+    1.2 Tokenizer快速使用
+    1.2 Tokenizer快速使用
+    你可是处女... 发表于Trans...
+

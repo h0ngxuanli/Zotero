@@ -1,0 +1,80 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2210.02330
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 5 Oct 2022]
+Title: Revisiting Graph Contrastive Learning from the Perspective of Graph Spectrum
+Authors: Nian Liu , Xiao Wang , Deyu Bo , Chuan Shi , Jian Pei
+Download a PDF of the paper titled Revisiting Graph Contrastive Learning from the Perspective of Graph Spectrum, by Nian Liu and 4 other authors
+Download PDF
+
+    Abstract: Graph Contrastive Learning (GCL), learning the node representations by augmenting graphs, has attracted considerable attentions. Despite the proliferation of various graph augmentation strategies, some fundamental questions still remain unclear: what information is essentially encoded into the learned representations by GCL? Are there some general graph augmentation rules behind different augmentations? If so, what are they and what insights can they bring? In this paper, we answer these questions by establishing the connection between GCL and graph spectrum. By an experimental investigation in spectral domain, we firstly find the General grAph augMEntation (GAME) rule for GCL, i.e., the difference of the high-frequency parts between two augmented graphs should be larger than that of low-frequency parts. This rule reveals the fundamental principle to revisit the current graph augmentations and design new effective graph augmentations. Then we theoretically prove that GCL is able to learn the invariance information by contrastive invariance theorem, together with our GAME rule, for the first time, we uncover that the learned representations by GCL essentially encode the low-frequency information, which explains why GCL works. Guided by this rule, we propose a spectral graph contrastive learning module (SpCo), which is a general and GCL-friendly plug-in. We combine it with different existing GCL models, and extensive experiments well demonstrate that it can further improve the performances of a wide variety of different GCL methods. 
+
+Comments: 	This paper has been accepted by NeurIPS 2022
+Subjects: 	Machine Learning (cs.LG)
+Cite as: 	arXiv:2210.02330 [cs.LG]
+  	(or arXiv:2210.02330v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2210.02330
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Nian Liu [ view email ]
+[v1] Wed, 5 Oct 2022 15:32:00 UTC (7,944 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Revisiting Graph Contrastive Learning from the Perspective of Graph Spectrum, by Nian Liu and 4 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2210
+Change to browse by:
+cs
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

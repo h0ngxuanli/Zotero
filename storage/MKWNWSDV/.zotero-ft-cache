@@ -1,0 +1,1266 @@
+Spatial-Temporal Hypergraph Self-Supervised Learning for Crime Prediction
+Zhonghang Li1, Chao Huang2,3∗, Lianghao Xia2,3, Yong Xu1, Jian Pei4 South China University of Technology1, Simon Fraser University4
+Department of Computer Science2, Musketeers Foundation Institute of Data Science3, University of Hong Kong cszhonghang.li@mail.scut.edu.cn, chaohuang75@gmail.com, aka xia@foxmail.com, yxu@scut.edu.cn, jpei@cs.sfu.ca
+
+arXiv:2204.08587v2 [cs.LG] 7 May 2022
+
+Abstract—Crime has become a major concern in many cities, which calls for the rising demand for timely predicting citywide crime occurrence. Accurate crime prediction results are vital for the beforehand decision-making of government to alleviate the increasing concern about the public safety. While many efforts have been devoted to proposing various spatial-temporal forecasting techniques to explore dependence across locations and time periods, most of them follow a supervised learning manner, which limits their spatial-temporal representation ability on sparse crime data. Inspired by the recent success in self-supervised learning, this work proposes a Spatial-Temporal Hypergraph Self-Supervised Learning framework (ST-HSL) to tackle the label scarcity issue in crime prediction. Speciﬁcally, we propose the cross-region hypergraph structure learning to encode region-wise crime dependency under the entire urban space. Furthermore, we design the dual-stage self-supervised learning paradigm, to not only jointly capture local- and global-level spatial-temporal crime patterns, but also supplement the sparse crime representation by augmenting region self-discrimination. We perform extensive experiments on two real-life crime datasets. Evaluation results show that our ST-HSL signiﬁcantly outperforms state-of-theart baselines. Further analysis provides insights into the superiority of our ST-HSL method in the representation of spatialtemporal crime patterns. The implementation code is available at https://github.com/LZH-YS1998/STHSL.
+Index Terms—Spatial-Temporal Prediction, Self-Supervised Learning, Crime Prediction, Graph Neural Network.
+I. INTRODUCTION
+Crime prevention has become a critical issue for many cities, which endangers the public safety seriously [4], [28]. The increase of crime activities not only affects individuals, but also the businesses and societies. According to the research statistic [29], the cost of crimes is over $2.5 trillion in USA 2017. Hence, effective crime prevention strategies can bring substantial economic beneﬁts and reducing crime-relevant cost (e.g., business loss, violence with injury, and death). With the advancement of data positioning and acquisition techniques in urban sensing, there is a rising demand for accurately forecasting future crime occurrence [36]. Such prediction results can be beneﬁcial for the policy-making of government by proposing effective solutions (e.g., police dispatch) beforehand, so as to reduces the crime rate [37].
+Predicting urban crimes of each geographical region in a city, however, is very challenging, due to the complex spatial and temporal crime patterns vary by locations and time
+*Corresponding author: Chao Huang.
+
+>80
+
+0~0.25
+
+>80
+
+0~0.25
+
+60
+
+0.25~0.5 0.5~0.75
+
+60
+
+0.25~0.5 0.5~0.75
+
+40
+
+0.75~1
+
+40
+
+0.75~1
+
+20
+
+20
+
+0 BurglaryLarcenyRobbery Assault
+
+0 Theft Battery Assault Damage
+
+(a) New York City
+
+(b) Chicago
+
+Figure 1. Distribution of crime sequence density degrees (i.e., the ratio of non-zero elements with crime occurrence) of regions at NYC and Chicago.
+
+periods. Among various spatial-temporal prediction methods, deep learning approaches stand out owing to the strong feature representation ability of neural network architectures [40]. There exist many recently developed forecasting models focusing on encoding temporal dependency and region-wise spatial dynamics. To be speciﬁc, attentive models propose to fuse spatial-temporal information with various attention mechanism, such as recurrent attentive network in DeepCrime [15], the periodically shifted attention in STDN [46] and the multi-level attention network in GeoMAN [20]. Motivated by the strength of graph neural networks, another relevant research line is to explore spatial-temporal graph structure for making predictions, e.g., graph convolution-based method STGCN [48], and attentional graph message passing schemes in GMAN [56] and ST-MetaNet [31].
+However, the aforementioned work has thus far focused on spatial-temporal representation. Despite their effectiveness, most of existing spatial-temporal prediction methods suffer from the limitation in predicting urban crimes with the sparse supervision signals. The crime prediction problem present unique challenges as follows:
+• Sparse Supervision Signal. Current spatial-temporal prediction models approach the spatial-temporal prediction task under a supervised learning framework, which requires sufﬁcient supervision labels to learn quality representations. However, the urban crime data of each ﬁne-grained region is extremely sparse, compared with the entire urban space [41], [54]. For example, crime events can only occur at a small number of geographical areas across the whole city. We present the distribution of crime sequence density degrees of geographical regions in New York City and Chicago in Figure 1. In particular, the region-speciﬁc density degree is generated by calculating the percentage of days over the
+
+1XPEHURIFULPHV 1XPEHURIFULPHV 1XPEHURIFULPHV 1XPEHURIFULPHV
+
+70 60 50 40 30 20 10 0 10 20 30 40 50 60 70 80 90 100
+5HJLRQV
+(a) Burglary
+
+400 350 300 250 200 150 100 50
+0 10 20 30 40 50 60 70 80 90 100 5HJLRQV
+(b) Larceny
+
+80 70 60 50 40 30 20 10 0 10 20 30 40 50 60 70 80 90
+5HJLRQV
+(c) Robbery
+
+120 100 80 60 40 20
+0 10 20 30 40 50 60 70 80 90 5HJLRQV
+(d) Assault
+
+Figure 2. Skewed distribution of crime occurrence at geographical regions reported in New York City on September 2015.
+
+two-year period with crime occurrences. From our statistical information, we can observe that the crime sequences of most regions have low density degrees (e.g., [0, 0.25]). Such sparse supervision crime information make current deep models easily towards overﬁtting with the generated suboptimal spatial-temporal relationship embeddings.
+• Skewed Crime Data Distribution. The crime occurrence of different regions in a city often exhibit a power-law distribution, as shown in Figure 2. Speciﬁcally, we show the skewed distribution of crime occurrence with different types at different regions in New York City on September 2015. The y-axis represents the number of crime cases reported from the time period, and x-axis denotes the region index. For better presentation for the long-tail crime distribution, we sort the region index (x-axis) in terms of the number of crime cases. Therefore, each bar in those ﬁgures represent the number of happened crimes with a certain crime category at a speciﬁc region. When learning spatial dependencies among geographical locations, neural network models are easily affected by the regions with more frequent crime occurrence, and will sacriﬁce the prediction performance of low-degree regions. The neighborhood information aggregation mechanism in state-of-the-art GNN methods will enlarge the effect of skewed data distribution. Therefore, it is a necessity to enable the robust spatialtemporal representation under imbalanced crime data.
+Presented work. In light of the aforementioned challenge and limitation, we proposed a spatial-temporal self-supervised learning framework for urban crime prediction, which we refer to as Spatial-Temporal Hypergraph Self-Supervised Learning, ST-HSL for brevity. In ST-HSL, we ﬁrst develop a multiview spatial-temporal convolution network to encode the local dependency among nearby regions and time periods, as well as the implicit type-wise crime correlations. Then, we explore the potentials of integrating hypergraph structure learning with graph neural architecture, to capture global cross-region crime dependency. Technically, we generalize the concept of hyperedge by making it as intermediate hubs to interact with different regions. By designing hypergraph message passing schema, ST-HSL aggregates regions’ crime patterns through multiple channels, and yields comprehensive crime representations with the preservation of spatial-temporal context.
+We further design a novel spatial-temporal hypergraph
+
+contrastive learning paradigm which enables the local and global relation encoder to collaboratively supervise each other, to perform robust spatial-temporal representation with sparse crime data. ST-HSL effectively constructs augmentation from unlabeled crime data, and enhances the discrimination ability of our model in differentiating spatial-temporal crime patterns of different regions and time periods under data scarcity. To supercharge ST-HSL to inject global crime context, hypergraph infomax network is introduced to achieve the agreement between the local- and global-level representations.
+We summarize key contributions of this paper as follows:
+• We propose novel crime prediction model ST-HSL that addresses the issue of sparse supervision signals and skewed crime data distribution, by unifying hypergraph dependency modeling with self-supervision learning for spatial-temporal crime representation.
+• ST-HSL innovatively endow local- and global-level spatialtemporal encoder to perform cross-view collaborative supervision under a hypergraph contrastive learning paradigm. Moreover, a hypergraph infomax network is designed to further enhance the contrastive schema with the modeling of global crime spatial-temporal context.
+• We perform extensive experiments on two real-world crime datasets, with detailed analyses for the effectiveness of our ST-HSL framework as compared to 15 spatial-temporal forecasting methods from various aspects. Furthermore, detailed model ablation study demonstrates the rationality of key components in our proposed new framework.
+II. PRELIMINARIES
+In this section, we ﬁrst introduce preliminaries and key deﬁnitions in this work, and then we formally present our studied problem of urban crime prediction. Table I presents the frequently used notations throughout this paper. Geographical Region. We evenly partition the entire urban space into R geographical regions with grid-based map segmentation. Each region is our target spatial unit for predicting crime occurrence. In the urban space, both local and global region-wise dependencies exist among regions. Urban Crime Data. The data of crime occurrence reports is collected with the spatial-temporal information formatted as <crime type, timestamp, longitude, latitude>. Each crime report is mapped into a speciﬁc geographical region based on its coordinates. The multi-dimensional urban crime data
+
+Table I DESCRIPTIONS OF KEY NOTATIONS
+
+Notations
+
+Description
+
+R, T , C
+
+Number of regions, time slots, crime types.
+
+r, t, c
+
+Index of regions, time slots, crime types.
+
+X ∈ RR×T ×C
+
+Three-way urban crime tensor.
+
+Xr,t,c
+
+Number of reported crimes at region r, time t, type c.
+
+Xr,c ∈ RT
+
+Region- and type-speciﬁc crime sequence.
+
+H(t,Rc) ∈ Rd Representations with hierarchical convolutional encoder.
+
+H(rT,c) ∈ Rd Representations with temporal dependency modeling.
+
+Γ(tR) ∈ RRC×d Representations with hypergraph dependency modeling.
+
+Ψt,c ∈ Rd
+
+Spatial graph-level representations.
+
+L(I )
+
+Hypergraph Infomax optimized objective.
+
+L(C)
+
+Cross-view contrastive optimized objective.
+
+can be formatted as a three-way tensor X ∈ RR×T ×C , where R, T and C represents the number of regions (i.e., geographical areas) indexed r, time slots (e.g., days) indexed t and crime types (e.g., burglary, robbery, larceny, etc) indexed c, respectively. Each entry Xr,t,c in tensor X represents the number of happened crime cases with type c at region r during the t-th time slot. For each region r, we can construct the typespeciﬁc crime sequence Xr,c ∈ RT . Task Formalization. Based on the above deﬁnitions, we can formalize the problem of urban crime prediction as follows: Input: the spatial-temporal crime tensor X ∈ RR×T ×C . Output: a predictive model to effective infer the number of crime cases for each region with different crime types in the future time slot T + 1. The forecasting results can be formalized as a matrix Xˆ T +1 ∈ RR×C .
+III. METHODOLOGY
+This section presents the technical details of our proposed ST-HSL crime prediction framework. There are three key learning components in our framework: (1) Multi-view spatialtemporal convolution encoder that offers initialized representations with the preservation of spatial-temporal patterns. (2) Hypergraph global dependency modeling component that reﬁne the region embeddings by injecting high-order relationships across all regions. (3) The dual-stage self-supervised learning component that provides data augmentation with contrastive objectives from the aspect of graph-structured mutual information. The overall model architecture is illustrated in Figure 3.
+
+A. Crime Embedding Layer
+
+We ﬁrst design an embedding layer to generate initial
+representation for each geographical region based on its crime
+occurrence distributions. In particular, we assign a randomlyinitialized embedding ec ∈ Rd (with dimensionality of d) for each crime type c. We generate the initial representation er,t,c ∈ Rd for spatial-temporal crime pattern with c-th type at region r during the t-th time slot as follows:
+
+er,t,c
+
+=
+
+Z-Score(Xr,t,c) · ec
+
+=
+
+xr,t,c − µ σ
+
+· ec
+
+(1)
+
+Here, we apply the Z-Score normalization function with µ and
+
+σ as the mean and standard variation of tensor X.
+
+B. Multi-View Spatial-Temporal Convolution Encoder
+
+In our ST-HSL framework, we develop the multi-view spatial-temporal convolutional network to encode not only the crime dependencies among the neighboring geographical regions and consecutive time slots, as well as the latent relationships across different crime categories.
+
+1) Type-aware Spatial Crime Pattern Encoding: We propose to jointly map spatial relations and type-wise crime dependence into the same latent representation space. In reallife urban scenarios, the occurrence of crimes with different types are inter-dependent in complex ways. For example, violent crimes (e.g., robbery and assault) are more likely to happen due to the deﬁciency of police resources at certain regions. Hence, it is of great importance to capture both the spatial crime context and implicit type-wise crime dependence. To achieve this goal, we design a hierarchical convolutional encoder which is formally presented as follows:
+
+H(t,Rc) = σ(δ(Wc(R) ∗ Et + b(cR)) + Et,c)
+
+(2)
+
+where Et,c ∈ RR×d, H(t,Rc) ∈ RR×d. Speciﬁcally, Et ∈ RI×J×C×d, I and J represents the number of regions cor-
+responding to the row and column dimension in the spatial region map in a city. Wc(R) ∈ RL(I)×L(J)×C and b(cR) ∈ Rd are the convolution kernel and bias terms for the c-th type of
+crimes. Here, (R) indicates the spatial dimension correspond-
+ing to different regions. L(I) and L(J) denote the kernel size along the row and column dimension, respectively. ∗ denotes
+the convolution operation. δ(·) and σ(·) represent the dropout
+and LeakyReLU function, respectively. In ST-HSL, we further
+adopt the residual connection with element-wise addition over
+the previous embedding Et,c to relieve gradient vanishing [10]. We stack two layers of the above designed convolutions to yield representation vectors H(R) ∈ RR×T ×C×d which simul-
+taneously preserve spatial and semantic crime dependence.
+
+2) Temporal Crime Dependency Modeling: To model the temporal dependency of crime occurrence across different time slots, we propose to aggregate the cross-time crime patterns with the temporal convolutional network. Formally, the aggregation process is given as below:
+
+H(rT,c) = σ(δ(W(cT ) ∗ Hr(R) + b(cT )) + H(t,Rc))
+
+(3)
+
+where H(rR) ∈ RT ×C×d, H(t,Rc) ∈ Rd are embeddings learned from type-aware spatial pattern encoder. (T ) refers to the tem-
+poral dimension. The temporal convolution kernel is deﬁned as W(cT ) ∈ RL(T )×C . The representation H(T ) ∈ RR×T ×C×d is generated with applying two layers of our temporal convo-
+lution kernel to capture the time-evolving crime patterns.
+
+C. Hypergraph Global Dependency Modeling
+In addition to encoding local spatial relationships among nearby regions, global dependencies with respect to crime occurrence patterns also serve as key factors for accurate crime predictions. Speciﬁcally, two regions with similar urban functionality (e.g., residential area, shopping mall) can also
+
+Multi-View Spatial-Temporal Convolutions
+
+𝑊 (𝑅)
+
+𝑊 (𝑇)
+
+Conv
+
+Conv
+
+... ...
+
+Theft Assault
+Spatial Conv
+Conv Bias
+
+Theft
+
+Assault
+
+Temporal Conv
+
+Drop Res Act
+
+Theft
+
+Assault
+
+positive negative
+
+pair
+
+pair
+
+ℒ 𝐗෡ − 𝐗𝑇+1
+
+2
+
+(𝐼)
+
+2 discriminate
+
+𝚿
+
+ℒ (𝐶)
+contrast readout
+
+𝐇
+
+𝚪
+
+𝚪෨
+
+shuffle
+
+Dynamic Hypergraph
+
+ℋ Act
+
+Spatial
+
+Spatial
+Battery
+
+Damage
+
+ℋ⊤ Act
+Region-wise Hypergraph
+
+……
+
+𝑡1 𝑡2 ……
+
+𝑇
+
+Conv
+Temporal Relation Encoding
+
+Figure 3. Overall Architecture of the proposed ST-HSL.
+
+be highly correlated even they are distant in geographical urban space. Meanwhile, the skewed crime data distribution has an adverse effect on the prediction of low-frequency crime regions. In this component, we argument our ST-HSL model to capture the global-level cross-region dependencies and alleviate the skewed distribution issue, by proposing a hypergraph learning framework.
+
+1) Region-wise Hypergraph Relation Encoding: In our hypergraph relation learning paradigm, we propose to automatically and explicitly capture the cross-region crime dependency under a trainable hypergrpah structures. Inspired by recent advances in hypergraph neural networks [7], [16], we leverage the hyperedges as the intermediate hubs to connect a set of regions. By doing so, different regions can interact altogether with high-order connections. Here, we deﬁne the number of hyperedges as H. In our hypergraph learning framework, the region-wise relationships can be captured through the hypergraph-guided message passing schema between individual regions and hyperedges. In this regard, hyperedges serve as latent representation channels to preserve relation semantics from different dimensions. Formally, we deﬁne our hypergraph message passing schema with the the following form:
+
+Γ(tR) = σ(Ht · σ(Ht · Et))
+
+(4)
+
+where Ht ∈ RH×RC represents the learnable dependency structures between regions and hyperedges for information propagation over hypergraph. Note that Ht relates to the t-th time slot, by doing which ST-HSL is able to capture the time-
+evolving characteristics in global connectivity. To comprehen-
+sively consider regional features from different categorical perspectives, here we use Et ∈ RRC×d which contains the embedding vectors for all region-category combinations. Here, σ(·) denotes the LeakyReLU activation function. With the
+design of hyperedge-based embedding propagation, ST-HSL
+allows the encoding of cross-region crime dependency with the capability of global context awareness by generating Γ(tR) ∈ RRC×d under the global urban space. By effectively encoding
+
+the relevance between different regions and latent hyperedge representations, regions with similar crime distributions across the entire city can be correlated for knowledge transfer with the injecting global urban context. By doing so, the skewed distribution problem can be alleviated well.
+
+2) Temporal Relation Encoding: To inject temporal context of crime patterns into our embedding paradigm, we adopt the temporal convolutional network with fusion kernel size to perform information aggregation along temporal dimension. Formally, our temporal relation encoder works as follows:
+
+Γ(rT,c) = σ(δ(V ∗ Γr(R,c) + c))
+
+(5)
+
+where V ∈ RL(R)×1 and c ∈ Rd are trainable transformation parameters for temporal convolutions. Γ(rT,c) ∈ RT ×d contains embedding vectors for all T time slots for the r-th region and c-th crime type.
+
+D. Dual-Stage Self-Supervision Learning Paradigm
+
+In crime prediction, one key challenge lies in the effective learning of spatial-temporal dependencies with sparse crime data. To tackle this challenge, we augment the crime pattern representation in ST-HSL with a dual-stage self-supervision learning paradigm, which contains two key components: (1) data augmentation with hypergraph infomax network that enhances the global context learning; (2) a contrastive learning objective that enables the interaction between the local and global spatial-temporal dependency modeling.
+
+1) Hypergraph Infomax Network: Inspired by the effectiveness of self-supervised learning for data augmentation in computer vision [5], nature language processing [17], we design a hypergraph infomax network to enhance the main embedding space of crime data with auxiliary task. Motivated by the graph encoding function in [35], our hypergraph infomax network designs a hypergraph learning task with the mutual information agreement between node- and graph-level spatialtemporal representations. In particular, we generate a corrupt hypergraph structure via randomly shufﬂing the region indices. Here, we deﬁne Γ(R) and Γ˜(R) to represent the encoded locallevel region embeddings (learned with propagation function in 4) from the original and corrupt hypergraph structures, respectively. Then, we apply a readout function to generate the global-level representation Ψt,c ∈ Rd:
+
+R
+
+Ψt,c = Γr,t,c/R
+
+(6)
+
+r=1
+
+where Ψt,c ∈ Rd encodes information from all regions for the t-th time slot and c-th crime type. Finally, we train our hypergraph neural network in discriminating whether the node embeddings are from the original graph and the corrupt graph, based on Ψt,c, formally described as:
+
+R
+
+L(I) = −
+
+log(sigm(Ψt,cW(I)Γ(rR,t,)c))
+
+r=1
+
++ log(1 − sigm(Ψt,cW(I)Γ˜ r(R,t,)c))
+
+(7)
+
+Here, sigm(·) denotes the sigmoid function. Bi-linear operations with parameters W(I) ∈ Rd×d is applied. With the regularization of L(I), the global contextual information across the entire urban space is injected into individual region embeddings Γr,t,c for augmenting self-supervision signals.
+2) Local-Global Cross-View Contrastive Learning: With the modeling of both local and global spatial-temporal crime patterns, we further perform the cross-view contrastive learning, to enable the integration of spatial-temporal convolutional network with hypergraph global dependency encoder. The designed contrastive learning module i) allows our local and global relation encoder (two contrastive views) collaboratively supervise with each other to mitigate the sparsity issue of crime data; ii) alleviate the interference from the involved noisy information by our spatial-temporal crime pattern modeling for robust crime data representation. To be speciﬁc, we iterate all regions and categories, and pair embedding vectors from the local relation modeling and the global relation learning as positive training pairs. While embeddings of different regions from the two views are utilized as the negative pairs. Formally, the adopted InfoNCE objective function is as follows:
+
+RC
+
+L(C) =
+
+log
+
+r=1 c=1
+
+exp(cos(Γ¯ r,t,c, H¯ r,t,c, )) r exp(cos(Γ¯ r,t,c, H¯ r ,t,c))
+
+(8)
+
+where H¯ r,t,c, Γ¯ r,t,c ∈ Rd are embedding vectors are generated by mean-pooling over the temporal dimension. Here, cos(·) denotes the cosine similarity function to measure the similarity between embeddings. With the regularization of the above contrastive loss, we enhance the discrimination ability of our ST-HSL model in differentiating regions with respect to their crime occurrence patterns across different types and time slots.
+
+E. Model Optimization
+
+In this section, we discuss the learning process of our STHSL model with the joint optimized objective, by integrating the generative and contrastive self-supervised auxiliary learning tasks. Our ST-HSL framework make predictions on the number of cases for the future T +1-th time slot by conducting mean-pooling on the previous T embeddings. The process is formalized as:
+
+Td
+
+Xˆ r,c =
+
+Wd Γ(rT,t,)c(d )/T
+
+(9)
+
+t=1 d =1
+
+The weight parameters Wd ∈ Rd×d is applied to latent dimensions. In the learning process of our proposed ST-HSL framework, we adopt the squared error loss function and integrate it with the aforementioned self-supervised loss terms L(I) and L(C), to generate the joint loss L deﬁned as follows:
+
+L=
+
+Xˆ − XT +1
+
+2 2
+
++
+
+λ1L(I)
+
++
+
+λ2L(C)
+
++
+
+λ3
+
+Θ
+
+2 2
+
+(10)
+
+where Xˆ ∈ RR×C represents the predicted number of crime cases for R regions and C types. XRT +×1C represents the corre-
+sponding ground-truth of crime occurrence. Here, λ1, λ2, λ3
+
+Algorithm 1: Learning Process of ST-HSL Framework
+
+Input: Urban crime data X ∈ RR×T ×C , maximum epoch
+
+number E, regularization weight λ1, λ2, λ3, learning
+
+rate η
+
+Output: trained parameters in Θ
+
+1 Initialize all parameters in Θ
+
+2 for e = 1 to E do
+
+3 Calculate the initial representation er,t,c for each region,
+
+time slot and category according to Eq 1. 4 Encode the spatial crime pattern with H(R) based on the
+
+type-aware spatial convolutions according to Eq 2. 5 Encode the temporal crime pattern with H(T ) based on
+
+the type-aware temporal convolutions according to
+
+Eq 3. 6 Model global region-wise relations with Γ(R) based on
+
+hypergraph neural networks according to Eq 4.
+
+7 Generate the global representation Ψ for infomax
+
+learning according to Eq 6.
+
+8 Conduct information propagation on a corrupt
+
+hypergraph structure and generate Γ˜ (R).
+
+9 Inject temporal context into the global embeddings to get
+
+Γ(T ) according to Eq 5. 10 Make predictions Xˆ according to Eq 9.
+
+11
+
+Calculate the squared error loss
+
+Xˆ − XT +1
+
+2 2
+
+12 Calculate the infomax training loss L(I).
+
+13 Calculate the contrastive learning loss L(C).
+
+14 Combine the loss terms together to get L.
+
+15 for θ ∈ Θ do
+
+16
+
+θ = θ − η · ∂L/∂θ
+
+17
+
+end
+
+18 end
+
+19 return all parameters Θ
+
+are the regularization weights for balancing loss. A weight-
+
+decay regularization term is further applied.
+
+Θ
+
+2 2
+
+represents
+
+the L2 norm (or Frobenius norm) for all parametric vectors
+
+and transformation matrices Θ. The detailed learning process
+
+of ST-HSL is presented in Alg 1.
+
+F. In-Depth Analysis of ST-HSL Framework
+In this part, we will ﬁrst show the rationality of our ST-HSL model from the theoretical perspective. Then, we provide the analysis of the model time complexity.
+We ﬁrstly discuss the efﬁcacy of the contrastive learning module by analyzing the generated gradients with our contrastive optimized objectives. The contrastive learning between local and global views is able to adaptively learn from the negative samples of different training difﬁculties. To be speciﬁc, the gradients related to a negative sample r is calculated by:
+
+c(r ) = H˜ (rT,)c − (Γ˜ (rT,c)H˜ (rT,)c )Γ˜ (rT,c)
+
+(11)
+
+where Γ˜ (rT,c) and H˜ (rT,)c denote the normalized vectors of Γ¯ (rT,)c and H¯ (rT,c), respectively. By inspecting the norm of gradients in
+Eq 11, we have:
+
+c(r ) 2 ∝
+
+1 − s2 exp s τ
+
+(12)
+
+where s = Γ˜ (rT,c)H˜ (rT,)c represents the similarity between the anchor embedding and the negative embedding. The anchor
+
+embedding is the learned representation of the target region.
+
+Based on the self-discrimination design, we treat the encoded
+
+embeddings from the local relation modeling and the global
+
+cross-region dependency modeling as positive training pairs,
+
+and embeddings of different regions are regarded as negative
+
+samples. Large s indicates that the negative sample is similar
+
+to the anchor sample, which is also known as the hard negative
+
+samples [3√3]. Under certain τ settings, when the similarity s
+
+increases,
+
+1
+
+−
+
+s2
+
+exp
+
+s τ
+
+increases
+
+dramatically,
+
+and
+
+so
+
+does
+
+the norm of the gradients. In other words, our cross-view con-
+
+trastive learning framework is able to adaptively assign bigger
+
+gradients to hard negative samples. This greatly promote the
+
+training efﬁciency of the local-global representation learning.
+
+Model Complexity Analysis. In this part, we analyze the time complexity of our new method. Speciﬁcally, for spatialtemporal dependency encoding, ST-HSL takes O(R×T ×C × d × (L(R) + L(T ))) time complexity for local convolutional networks, and spends O(R × T × C × d × (H + L(R)) for global relation modeling. To calculate L(C) for contrastive learning, O(R2 × C2 × d) computational cost is required to calculate the denominator, which is marginally higher than the above complexity considering the empirical hyperparameter settings. Overall, our ST-HSL can achieve comparable model efﬁciency as compared to attention-based and GNN-based spatial-temporal prediction methods.
+
+IV. EVALUATION
+In this section, we evaluate our proposed ST-HSL framework with extensive experiments on real-life urban crime datasets and answer the following research questions: • RQ1: How does ST-HSL perform for accurate crime pre-
+diction as compared to various state-of-the-art baselines?
+• RQ2: What are the beneﬁts of our designed hypergraph selfsupervision learning components and how they contribute to the prediction performance?
+• RQ3: Does our ST-HSL work robustly for geographical regions with different degrees of crime data density?
+• RQ4: How do different hyperparameter settings inﬂuence ST-HSL’s prediction performance?
+• RQ5: How does the hypergraph-guided global spatial dependency modeling beneﬁt the model interpretation power?
+• RQ6: How efﬁcient of our ST-HSL forecasting framework is when competing with different baselines? In the following subsection, we ﬁrstly describe our ex-
+perimental settings and then report the evaluation results corresponding to the above research questions.
+
+A. Experimental Setting
+1) Dataset Description: Our experiments are performed on two collected crime datasets from New York City (NYC) and Chicago to contain different types of crime occurrence at different locations in a city, such as Robbery, Larceny for
+
+Table II
+
+STATISTICS OF EXPERIMENTED URBAN CRIME DATASETS.
+
+Data
+
+NYC-Crimes
+
+Chicago-Crimes
+
+Time Span Jan, 2014 to Dec, 2015 Jan, 2016 to Dec, 2017
+
+Category
+
+Burglary Robbery
+
+Theft
+
+Battery
+
+Cases #
+
+31,799
+
+33,453 124,630 99,389
+
+Category
+
+Assault Larceny Damage Assault
+
+Cases #
+
+40,429
+
+85,899
+
+59,886
+
+37,972
+
+NYC crimes; and Damage, Assault for Chicago crimes. In our experiments, we apply the 3km×3km spatial gird unit to NYC and Chicago and generate 256 and 168 disjoint spatial regions, respectively. The target resolution of predicted time period is set as day. The training and testing set are constructed with the ratio of 7:1 along with the time dimension. We tune the parameters on the validation set generated from the last 30 days of the training set. The ﬁnal reported model performance is averaged over all days in the test period for all compared methods. Table II summarizes the data statistics.
+2) Evaluation Metrics: To evaluate the accuracy of forecasting urban crimes, we utilize two metrics: Mean Absolute Error (MAE) and Mean Absolute Percentage Error (MAPE) which have been widely used in predicting continuous spatialtemporal data (e.g., trafﬁc volume [22], [23] and air quality [47]). For fair comparison and alleviating the evaluation bias, the reported prediction performance of all compared methods are averaged over all days in the test time period. Note that lower MAE and MAPE score indicates better crime prediction performance.
+3) Baselines for Comparison: To comprehensively evaluate our method, we compare ST-HSL with 15 baselines based on various spatial-temporal predictive solutions:
+Conventional Time Series Prediction Methods. We consider the traditional time series prediction approaches as baselines.
+• ARIMA [30]: The autoregressive integrated moving average model aims to capture the correlations between observations lagged dependent variables for series prediction.
+• SVM [3]: The support vector machine has been used to predict periodic patterns of time series data, with the consideration of non-linear and non-stationary time series pattern.
+Spatial-Temporal Prediction with CNNs. Convolutional neural networks have been utilized to fuse spatial features over grid-based regions for forecasting crowd ﬂow.
+• ST-ResNet [51]: This method designs convolutional network to model region-wise correlations with residual connections. Three types of time properties (i.e., closeness, period, trend) are considered for temporal modeling.
+Spatial-Temporal Prediction via Graph Neural Networks. Graph neural networks have become the state-of-the-art spatial-temporal prediction models which capture the spatial dependency with message passing among regions.
+• DCRNN [19]: This method integrates the sequence-tosequence learning framework with the diffusional convolutional operation, to simulate the temporal and spatial dynamics with diffusion process for making prediction.
+
+Table III OVERALL PERFORMANCE OF URBAN CRIME PREDICTION ON NYC AND CHI DATASET IN TERMS OF MAE AND MAPE
+
+Model
+
+New York City
+
+Chicago
+
+Burglary
+
+Larceny
+
+Robbery
+
+Assault
+
+Theft
+
+Battery
+
+Assault
+
+Damage
+
+MAE MAPE MAE MAPE MAE MAPE MAE MAPE MAE MAPE MAE MAPE MAE MAPE MAE MAPE
+
+ARIMA 0.8999 0.6305 1.3015 0.6268 0.9558 0.5969 0.9983 0.6198 1.5965 0.5720 1.3212 0.5792 0.8691 0.6044 1.0430 0.6134 SVM 1.1604 0.7653 1.4979 0.6417 1.1278 0.6733 1.1928 0.6964 1.7711 0.5629 1.3493 0.6027 1.0879 0.6560 1.1313 0.5721
+ST-ResNet 0.8680 0.5603 1.1082 0.5329 0.8717 0.5209 0.9645 0.5749 1.3931 0.5488 1.1519 0.5719 0.7679 0.4633 0.9064 0.5018 DCRNN 0.8176 0.5324 1.0732 0.5492 0.9189 0.5532 0.9692 0.5955 1.3699 0.5770 1.1583 0.5528 0.7639 0.4600 0.8764 0.4756 STGCN 0.8366 0.5404 1.0629 0.5295 0.9035 0.5441 0.9375 0.5757 1.3628 0.5359 1.1512 0.5761 0.7963 0.4810 0.9068 0.4959
+GWN 0.7993 0.5235 1.0493 0.5405 0.8681 0.5351 0.8866 0.5646 1.3211 0.5502 1.1331 0.5503 0.7493 0.4580 0.8584 0.4850 STtrans 0.8617 0.5592 1.0896 0.5478 0.8839 0.5651 0.9363 0.5679 1.3404 0.5356 1.1466 0.5684 0.7671 0.4499 0.8987 0.4842 DeepCrime 0.8227 0.5508 1.0618 0.5351 0.8841 0.5537 0.9222 0.5677 1.3391 0.5430 1.1290 0.5389 0.7737 0.4616 0.9096 0.4960 STDN 0.8831 0.5768 1.1442 0.5889 0.9230 0.5649 0.9498 0.5661 1.5303 0.6287 1.2076 0.5791 0.8052 0.4820 0.9169 0.4869 ST-MetaNet 0.8285 0.5369 1.0697 0.5627 0.9214 0.5766 0.9323 0.5702 1.3369 0.5369 1.1762 0.5748 0.7904 0.4753 0.8907 0.4756 GMAN 0.8652 0.5633 1.0503 0.5340 0.9234 0.5671 0.9338 0.5803 1.3235 0.5307 1.1442 0.5560 0.7852 0.4714 0.8823 0.4838 AGCRN 0.8260 0.5397 1.0499 0.5404 0.9013 0.5383 0.9063 0.5519 1.3281 0.5304 1.1432 0.5697 0.7669 0.4612 0.8712 0.4859 MTGNN 0.8329 0.5439 1.0473 0.5330 0.8759 0.5457 0.9090 0.5714 1.3054 0.5378 1.1307 0.5597 0.7571 0.4572 0.8667 0.4859 STSHN 0.8012 0.5198 1.0431 0.5291 0.8717 0.5362 0.9169 0.5682 1.3231 0.5310 1.1348 0.5544 0.7758 0.4574 0.8741 0.4747 DMSTGCN 0.8376 0.5485 1.0410 0.5464 0.8597 0.5403 0.9036 0.5601 1.3292 0.5291 1.1297 0.5552 0.8058 0.4759 0.8698 0.4877
+
+ST-HSL 0.7329 0.4788 1.0316 0.5040 0.7912 0.4595 0.8484 0.5029 1.2952 0.4929 1.1016 0.5231 0.6665 0.3996 0.8446 0.4644
+
+• STGCN [48]: This method integrates the spatial graph convolutional network with the temporal gated convolutional network to generate spatial-temporal representations over graph-structured time series. Several convolutional blocks are combined in this model with the kernel size of 3.
+• GWN [44]:This method incorporates the adaptive adjacency matrix into graph convolution with 1-D dilated casual convolution to capture spatial and temporal correlations.
+• GMAN [56]: It is a graph-based multi-attention model to encode the spatial-temporal correlations and perform the transformation between the encoder and decoder to make predictions on spatial-temporal data.
+• ACGRN [2]: This method uses recurrent neural network to encode temporal representations. Additionally, relations between regions are modeled with the graph convolutional network with adaptive learning methods.
+• MTGNN [43]: This method aims to capture the spatial correlations based on a new graph neural framework without explicit graph structural information.
+• DMSTGCN [9]: This approach enhances the graph convolutional network with dynamic and multi-faceted spatial and temporal information. In DMSTGCN, the time-aware graph constructor is applied to capture the periodicity and dependencies among road segments.
+Hybrid Spatial-Temporal Prediction Models. Another line of spatial-temporal prediction designs the hybrid models to encode relationships among regions and time periods.
+• ST-MetaNet [31]: This model is a meta-learning approach which is built on GNN-based sequence-to-sequence paradigm to extract region-speciﬁc meta knowledge, and capture diverse spatial correlations.
+• STDN [46]: In this framework, a ﬂow gating scheme is introduced to capture time-aware dependence between regions, a periodic shifted attention is proposed to learn temporal patterns among different time periods.
+Attention-based Crime Prediction Method. Existing deep
+
+learning crime prediction methods are built on the attention mechanism to aggregate information from spatial and temporal dimensions. These work has validated the performance superiority of neural network-based models over conventional feature-based approaches, such as logistic regression.
+• DeepCrime [15]: It is a representative crime prediction baseline which ﬁrst uses the recurrent neural network to encode temporal embeddings of crime occurrences across time. Then, attention mechanism is utilized to further aggregate temporal representations with the attentional weights.
+• STtrans [41]: It explores the sparse crimes by stacking two layers of Transformer to encode spatial-temporal relationships across locations and time. Self-attention with query/key transformations is adopted for spatial and temporal information aggregation.
+Graph-based Crime Prediction Model. We also compare our ST-HSL with the recently developed crime prediction framework under a graph learning architecture.
+• STSHN [45]. This method performs the spatial message passing among different geographical regions based on the hypergraph connections between regions. The region hypergraph is constructed in a stationary manner. The number of spatial path aggregation layers is set as 2. We set the number of hypergraph channels as 128 to be consistent with our STHSL model for fair comparison.
+4) Hyperparameter Settings: Our ST-HSL is optimized with Adam optimizer with the learning rate of 0.001. We search the hidden state dimensionality from the range {22, 23, 24, 25}. For our multi-view spatial-temporal convolutions, the kernel size is set as 3 with two convolutional layers. For our hypergraph dependency learning component, we conﬁgure ST-HSL with 128 hyperedges for cross-region embedding propagation. We stack 4 convolutional layers for long-term temporal context modeling. The batch size is selected from {4, 8, 16, 32}. The weight for regularization terms λ1, λ2, λ3 are selected from the range of (0.0, 1.0).
+
+B. Performance Comparison (RQ1)
+Table III shows the performance comparison results between our ST-HSL method and different types of baselines for urban crime prediction. We summarize our ﬁndings as:
+• ST-HSL outperforms various spatial-temporal prediction methods in all cases, which suggests the superiority of our hypergraph contrastive learning paradigm in supplementing the spatial-temporal dependency modeling for crime predictions, with dual-stage self-supervised learning. Speciﬁcally, we attribute these signiﬁcant improvements to: i) Beneﬁting from our hypergraph dependency encoder, ST-HSL is able to capture the holistic crime patterns and preserve global spatial-temporal signals across the entire urban space; ii) The designed dual-stage self-supervised learning paradigm incorporates auxiliary self-supervision signals, which can provide informative spatial-temporal representations with sparse crime data.
+• While GNN-based methods (DCRNN, STGCN, GMAN) capture spatial dependence with the high-order information propagation over the region graph, they approach the crime prediction task under the supervised learning architecture. However, the sparse supervision labeled data limit their discrimination ability to produce quality spatial-temporal representations under the highly sparse and skewed distributed crime data. The performance gap between ST-HSL and attention-based crime prediction models (DeepCrime, STtrans), suggests the rationality of our global context enhancement for modeling spatial relationships with respect to crime occurrences. Additionally, by comparing our STHSL framework with the baseline STSHN, the performance improvement indicates that the augmented hypergraph learning tasks are critical for enhancing the encoding of complex crime patterns with effective self-supervised regularization.
+• To have a better understanding of our prediction results, we visualize the crime prediction results in terms of MAPE over the entire urban spatial space for both New York City and Chicago. The visualization results are presented in Figure 4. We can observe that ST-HSL can provide obvious better prediction performance at the highlighted spatial areas. Another observation is that our ST-HSL still achieves signiﬁcant superior performance compared with state-of-the-art baselines at regions with relatively fewer crime occurrence.
+• With the joint performance analysis across different crime types, we notice that the improvement on sparse crime types (e.g., Burglary, Robbery, Assault) is more signiﬁcant than that on relatively dense types (e.g., Larceny, Battery) of urban crimes. Most baselines are easily biased and relatively unstable than our ST-HSL for predicting different categories of crime data. These observations further validate the effectiveness of incorporating auxiliary self-supervision signals from both generative and contrastive views under the hypergraph-guided learning paradigm, to guide the sparse crime pattern representation with effective augmentations.
+
+C. Model Ablation and Effectiveness Analyses (RQ2)
+We further explore how different components in ST-HSL contribute to the prediction performance of ST-HSL. In particular, the model ablation study is conducted to investigate the beneﬁts of ST-HSL’s key components, i.e., multi-view spatial-temporal encoder, dual-stage self-supervised learning paradigm. The results are reported in Figure 5 and Table IV.
+1) Multi-View Spatial-Temporal Convolution: To verify the effectiveness of our spatial-temporal convolution network for modeling the multi-view dependencies, we generate three variants: “w/o S-Conv”, “w/o T-Conv”, “w/o C-Conv” by disabling the local relation representation for spatial, temporal, and category, respectively. Furthermore, we remove entire multi-view local encoder to generate the variant termed as “w/o Local”. According to results in Figure 5, by comparing with the aforementioned model variants, ST-HSL demonstrates its effectiveness to distill useful knowledge from different views corresponding to spatial, temporal, and semantic information of crime data. Each view-speciﬁc encoded semantic is complementary with each other, which has positive effect on the overall crime prediction performance.
+2) Dual-Stage Self-Supervised Learning: We also perform ablation study to evaluate the effectiveness of our dual-stage self-supervised learning architecture, so as to enhance the spatial-temporal representation based on the selfdiscrimination of regions. In this part, we generate seven contrast method variants: 1) “w/o Hyper”. We leave the regionwise hypergraph relation unexplored and rely on the local spatial encoder to make prediction; 2) “w/o GlobalTem”. We leave the global temporal encoder unexplored and rely on the local temporal encoder to make prediction; 3) “w/o Infomax”. We disable the hypergraph infomax network for global context injection with auxiliary self-supervision signals. 4) “w/o ConL”. This variant does not include the cross-view contrastive learning to enable the interaction between the local and global spatial dependency encoder in our framework. 5) “w/o Global”. This variant set same as 4) without contrastive learning. Differently, we only use local encoder to make prediction. 6) “Fusion w/o ConL”. We use a fusion layer to aggregate the the local and global view embeddings to make prediction, without the incorporation of cross-view contrastive learning paradigm.
+As we can see in Table IV, with the incorporation of our self-supervised learning paradigm, ST-HSL performs the best in most evaluation cases. This again emphasizes the beneﬁts of exploring self-supervision signals with hypergraph-guided relational learning augmentation, to alleviate the crime data sparsity issue and skewed distribution issue for better spatialtemporal representations. In our joint learning framework– ST-HSL, our hypergraph information network enhances the region-wise dependency modeling, by integrating a selfsupervised hypergraph learning task into the embedding space of crime patterns. In the comparative experiment with the fusion layer, we can ﬁnd that the effect of aggregating local and global view information by using the contrastive learning
+
+ST-ResNet
+
+DeepCrime
+
+STtrans
+
+ST-ResNet
+
+DeepCrime
+
+STtrans
+
+STSHN
+
+DMSTGCN
+
+ST-HSL
+
+Visualization of Prediction Error at Chicago
+
+STSHN
+
+DMSTGCN
+
+ST-HSL
+
+Visualization of Prediction Error at New York City
+
+Figure 4. Prediction error Visualization of different methods over geographical regions in the entire urban space of NYC and Chicago. Best view in color.
+
+MAE
+
+1.2 1.1 1.0 0.9 0.8 0.7
+Burglary
+
+ww//oo ST--CCoonnvv wST/o-HLSoLcal LaCrrciemneyCatReogbobreyry Assault
+
+MAPE
+
+0.7
+
+ww//oo ST--CCoonnvv wST/o-HLSoLcal
+
+0.6
+
+0.5
+
+0.4 Burglary LaCrrciemneyCatReogbobreyry Assault
+
+(a) Evaluation Results on NYC Data
+
+MAE
+
+1.4 1.2 1.0 0.8
+Theft
+
+ww//oo ST--CCoonnvv wST/o-HLSoLcal BCatrtimerey CatAegssoaryult Damage
+
+MAPE
+
+0.7 0.6 0.5 0.4
+Theft
+
+ww//oo ST--CCoonnvv wST/o-HLSoLcal BCatrtimerey CatAegssoaryult Damage
+
+(b) Evaluation Results on Chicago Data
+
+Figure 5. Module ablation study on multi-view spatial-temporal relation encoder in our ST-HSL framework, in terms of MAE and MAPE.
+
+Table IV MODULE ABLATION STUDY ON THE HYPERGRAPH DUAL-STAGE
+SELF-SUPERVISED LEARNING PARADIGM.
+
+Model
+w/o Hyper w/o GlobalTem w/o Infomax w/o ConL w/o Global Fusion w/o ConL ST-HSL
+Model
+w/o Hyper w/o GlobalTem w/o Infomax w/o ConL w/o Global Fusion w/o ConL ST-HSL
+
+Burglary 0.7929 0.8531 0.7512 0.8938 0.7876 0.7939 0.7329
+Theft 1.3041 1.3147 1.2972 1.3211 1.3053 1.3010 1.2952
+
+NYC-Data Larceny Robbery 1.0380 0.8567 1.0866 0.9226 1.0382 0.8338 1.0757 0.9345 1.0583 0.8740 1.0438 0.8551 1.0316 0.7912
+Chicago-Data Battery Assault 1.1214 0.7134 1.1703 0.7208 1.1196 0.7000 1.1598 0.7694 1.1351 0.7318 1.1365 0.7482 1.1016 0.6665
+
+Assault 0.9010 0.9285 0.8603 0.9529 0.9472 0.8877 0.8484
+Damage 0.8657 0.8699 0.8507 0.8849 0.8626 0.8592 0.8446
+
+method is better than using the fusion layer. We attribute such performance improvement to two aspects: i) Contrastive learning allows the model to explore useful information from the data itself, which is helpful to generate more robust feature representation. ii) Both the fusion layer and crossview contrastive learning can establish the aggregation and balance between local and global features. However, only using a supervised loss to guide the fusion layer to make trade-offs may be no easy. By adding additional infoNCE loss, a guide information can be generated intuitively, which can better aggregate local and global features. Moreover, the designed hypergraph contrastive learning mechanism with effective augmentation that incorporates both local and global semantic for robust spatial-temporal representation. Through our hypergraph self-supervised learning paradigm, the main and augmented representation tasks are mutually enhanced each other to produce better region embeddings.
+
+D. Model Robustness Study (RQ3)
+We also perform experiments to investigate the robustness of our ST-HSL method against data sparsity. To achieve this objective, we separately evaluate the prediction accuracy of regions with different density degrees. Here, the density degree of each region is estimated by the ratio of non-zero elements (crime occurs) in the region-speciﬁc crime occurrence sequence Xr. Speciﬁcally, we partition sparse regions with the crime density degree ≤ 0.5 into two groups (0.0, 0.25] and (0.25, 0.5]. The evaluation results are shown in Figure 6.
+We can observe that our ST-HSL consistently outperforms compared methods in all cases with different crime density degrees. This observation further validates the effectiveness of our ST-HSL framework in alleviating the data sparsity issue in crime data. The sparse supervision labels have negative impacts on the spatial and temporal relation learning with graph structures (e.g., GMAN, DMSTGCN), leading to sub-optimal prediction results of existing methods. This observation admits that current neural network-based spatial-
+
+MAE
+
+ST-Resnet DeepCrime DMSTGCN STSHN GMAN ST-HSL
+
+1.0 Burglary
+0.8 0.6
+Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+MAPE
+
+Burglary
+0.8 0.6 0.4
+Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+MAE
+
+Larceny
+0.9 0.8 0.7 0.6Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+MAPE
+
+Larceny
+0.8 0.6 0.4Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+MAE
+
+1.0 Robbery
+0.8 0.6
+Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+MAPE
+
+Robbery
+0.8 0.6 0.4
+Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+MAE
+
+1.0 Assault
+0.9 0.8 0.7 0.6Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+MAPE
+
+Assault
+0.8 0.6 0.4Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+(a) Evaluation Results on NYC Data for Burglary, Larceny, Robbery and Assault
+
+1.0 Theft
+0.8
+0.6 Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+MAPE
+
+Theft
+0.8
+0.6
+0.4 Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+MAE
+
+1.0 Battery
+0.8
+0.6 Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+MAPE
+
+Battery
+0.8
+0.6
+0.4 Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+MAE
+
+1.0 Assault
+0.8 0.6 0.4Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+MAPE
+
+Assault
+0.8 0.6 0.4
+Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+MAE
+
+1.0 Damage
+0.8
+0.6 Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+MAPE
+
+Damage
+0.8
+0.6
+0.4 Reg0io-0n.2D5ensi0ty.2D5-e0g.r5ee
+
+(b) Evaluation Results on Chicago Data for Theft, Battery, Assault and Damage
+
+MAE
+
+Figure 6. Robustness study of our ST-HSL to data sparsity. X-axis represents the region crime density degree, i.e., the ratio of non-zero elements in region-speciﬁc crime sequence. Y-axis represents the prediction performance (measured by MAE and MAPE) of different compared methods.
+
+MAPE
+
+0.60
+
+0.55
+
+0.50
+
+0.45
+
+CHI NYC
+
+0.40
+
+20 40 60
+
+1.10 1.05
+
+1.00
+
+0.95
+
+0.90
+
+CHI
+
+0.85
+
+NYC
+
+0.80
+
+20 40 60
+
+MAE
+
+MAPE
+
+0.55
+
+0.50
+
+0.45 0.40
+
+CHI NYC
+
+0.35
+
+100 200
+
+1.0
+
+0.8
+
+CHI
+
+NYC
+
+0.6
+
+100 200
+
+MAE
+
+MAPE
+
+0.6
+
+0.5
+
+0.4
+
+CHI
+
+NYC
+
+0.3
+
+5.0 7.5
+
+1.2
+
+1.0
+
+0.8
+
+0.6
+
+CHI NYC
+
+0.4
+
+5.0 7.5
+
+MAE
+
+MAPE
+
+0.6
+
+0.5
+
+0.4
+
+CHI
+
+NYC
+
+0.3 1 2 3 4
+
+1.2
+
+1.0
+
+0.8
+
+CHI
+
+NYC
+
+0.6 1 2 3 4
+
+MAE
+
+MAPE
+
+0.5
+
+0.4
+
+CHI NYC
+
+23456 1.2
+
+1.0
+
+0.8
+
+CHI
+
+0.6
+
+NYC
+
+23456
+
+(a) # Hidden Units
+
+(b) # Hyperedges
+
+(c) Kernel Size
+
+(d) # Local Conv
+
+(e) # Global Conv
+
+Figure 7. Impact study for various hyperparameters in ST-HSL’s performance on Chicago and New York crime data, in terms of MAE and MAPE.
+
+MAE
+
+temporal prediction methods (e.g., GNN-based or attentionbased approaches) can hardly learn high-quality representations for sparse regions. With the incorporation of our dualstage self-supervised learning components into the graphbased crime prediction framework, i.e., hypergraph infomax network and local-global cross-view contrastive learning, we explore self-supervised signals from the crime data itself with augmented hypergraph learning tasks to enhance the model robustness in crime prediction. As such, this experiment again demonstrates that the spatial-temporal representation learning beneﬁts greatly from our incorporated self-supervised signals, to offer accurate and robust crime forecasting performance.
+E. Hyperparameter Studies (RQ4)
+To show the effect of different parameter settings, we perform experiments to evaluate the performance of our developed ST-HSL framework with different conﬁgurations of key hyperparameters (e.g., # of hypergraph channels, kernel size). When varying a speciﬁc hyperparameter for effect investigation, we keep other parameters with default values. The results are shown in Figure 7. We summarize the observations below to analyze the inﬂuence of different hyperparameters:
+• We vary the embedding dimensionality from the range of {22, 23, 24, 25} and the best performance can be achieved
+
+with d = 16. The prediction accuracy slightly degrades as we further increase the value of d, which suggests that larger embedding dimensionality does not always bring stronger model representation ability. The further increase of d easily leads to the overﬁtting issue for spatial-temporal representations on sparse crime data.
+• In our hypergraph structure learning module, hyperedges serve as latent representation channels for global regionwise relation modeling. We search the number of hyperedges H in the range of {25, 26, 27, 28}. The results indicate that H = 128 is sufﬁcient to well capture the global cross-region dependency with respect to their crime patterns.
+• The best prediction accuracy is achieved with convolutional kernel size of 3. The larger size (e.g., 5,7,9) of convolution kernels may involve unexpected noise during the spatialtemporal information aggregation.
+F. Case Study (RQ5)
+We exploit the model interpretation ability of our ST-HSL in learning cross-region dependency with respect to the crime patterns under global context. Speciﬁcally, we ﬁrst sample eight hyperedges (e.g., e22, e29, e53) and generate a 4 × 3 matrix for each one. In the matrix, each row represents top-3
+
+Day n
+
+Day n+1
+
+Day n+2
+
+Day n+3
+
+e6
+
+e14
+
+e22
+
+e23
+
+e27
+
+e29
+
+e32
+
+e53
+
+e2
+
+e7
+
+e26
+
+e5
+
+e8
+
+e14
+
+e18
+
+e25
+
+1.0
+
+0.8
+
+(a) e1
+
+(b) e55
+
+(c) e105
+
+(d) Crime Distribution_Day13
+
+(i) e7
+
+(j) e16
+
+(k) e69
+
+0.6
+(l) Crime Distribution_Day13
+0.4
+
+0.2
+
+(e) e34
+Pediatrics South Park
+
+(f) e72
+Pediatrics South Park
+
+High School
+
+West Pullman Park West Pullman Park
+
+Andy Lopez Park
+
+High School Andy Lopez Park
+
+(q) Theft
+
+(g) e101
+
+(h) Crime Distribution_All
+Big Jjs Fish Chicken
+
+(m) e3
+Community Prayer Center
+
+(n) e5
+Triathlon
+
+Restaurant & BBQ
+
+Supreme Fish
+
+Snappers
+
+Supreme Fish
+
+Restaurant & BBQ
+
+Exchange Medical Center
+
+Exchange Medical Center
+
+Community Prayer Center
+
+(o) e125
+
+(p) Crime Distribution_All 0.0
+Armands Pizzeria
+
+Park & Restaurant
+
+Park & Restaurant
+
+Shopping Center & Market
+
+Shopping Center & Market
+
+Big Jjs Fish Chicken
+(r) Battery
+
+Snappers
+
+Faith United Church of Christ
+
+Triathlon
+
+(s) Assault
+
+Faith United Church of Christ
+Armands Pizzeria
+
+Lou Malnatis Pizzeria
+(t) Damage
+
+Lou Malnatis Pizzeria
+
+Figure 8. Case study of our proposed ST-HSL framework. (i): 16 4 × 3 matrices in which each row corresponds to top-3 regions with the highest relevance scores (learned from our ST-HSL) to this hyperedge on a speciﬁc day. (ii): (a)-(p) sub-ﬁgures visualize the hyperedge-speciﬁc dependency scores over all regions in the global urban space. (iii) Highlighted several highly relevant geographical regions learned by our method for different types of crimes in Chicago. Those regions exhibit dependent relationships in terms of their region functionality from external source.
+
+regions with the highest relevance scores (learned from our ST-HSL) to this hyperedge on a speciﬁc day. For consistently, we apply the min-max normalization over the crime statistics and show the case studies in Figure 8. We can observe that those highly dependent regions indeed share similar crime patterns (shown with similar colors) across different time slots (i.e., days). This observation validates the effectiveness of our hypergraph dependency encoder in capturing global dependency among different geographical regions in a timeaware environment. Furthermore, we visualize the hyperedgespeciﬁc dependency scores over all regions in the global urban space. It can be seen that the encoded global region-speciﬁc crime patterns (shown in Figure 8 (a)-(c), (e)-(g), (i)-(k), (m)-(o)) are consistent with ground-truth of crime occurrence (shown in Figure 8 (d), (h), (l), (p)). This further conﬁrms the effectiveness of our ST-HSL approach in capturing the complex and accurate cross-region dependencies to ﬁt the realworld crime scenario in a city.
+We further explore the explainability behind our prediction results with our ST-HSL framework. To be speciﬁc, we highlight several highly relevant geographical regions learned by our method for different types of crimes in Chicago. From these four sub-ﬁgures, we can notice that the learned highly dependent regions share similar functionality (e.g., city
+
+parks, restaurant zone, shopping center). Therefore, the learned hypergraph dependence structures between different regions, can show the learned insights leading to the crime prediction results by capturing the region-wise crime patterns.
+G. Model Efﬁciency Study (RQ6)
+We ﬁnally investigate the model scalability of our ST-HSL framework as compared to state-of-the-art spatial-temporal prediction techniques. All experiments are conducted with the default parameter settings in a computing sever with GTX 1080Ti and Inter Core i7-3770K. We study the efﬁciency of all compared methods by evaluating their running time of each training epoch on both NYC and Chicago datasets. Table V lists the evaluation results. As can be seen, ST-HSL achieves better efﬁciency than most of baselines with respect to the model computational cost. The reason is that the designed hypergraph-guided self-supervised learning only incurs small computational cost with the augmented loss regularization. The high complexity of STDN lies in stacking many attention layers with explicit weight learning to fuse information.
+V. RELATED WORK
+In this section, we discuss the research work relevant to our studied urban crime prediction problem from four aspects: i) Deep spatial-temporal prediction techniques; ii) Graph neural
+
+Table V COMPUTATIONAL TIME COST INVESTIGATION (SECONDS).
+
+Model STGCN DMSTGCN STtrans GMAN ST-MetaNet
+
+NYC 2.745 5.482 6.940 11.120 11.938
+
+CHI 1.943 4.593 5.209 10.025 11.100
+
+Model DeepCrime
+ST-SHN DCRNN STDN ST-HSL
+
+NYC 12.926 17.872 18.823 22.223 12.355
+
+CHI 11.550 16.310 18.754 26.535 8.254
+
+networks for spatial-temporal data; iii) crime prediction; iv) self-supervised learning.
+A. Deep Spatial-Temporal Prediction Techniques
+Many spatial-temporal prediction methods have been developed to model geographical and time-wise data patterns based on different neural networs [13], [24]. For example, earlier predictive models are built on recurrent neural network for temporal information encoding, such as D-LSTM [49] and ST-RNN [25]. In addition, there exist some hybrid spatialtemporal prediction methods, e.g., the convolutional shifted attention mechanism SDTN [46], recurrent attentive network MiST [14], and external factor fusion in UrbanFM [21]. ASPPA [53] is a power-law attention mechanism which incorporates domain knowledge into the user mobility modeling with sub-sequential patterns. [8] aims to capture the dynamics and heterogeneity over spatial-temporal graph. Different from the above spatial-temporal prediction tasks, crime prediction presents unique challenge of data sparsity which cannot be easily handled by most existing prediction techniques. In this work, we propose a spatial-temporal self-supervised learning model with hypergraph neural architecture to capture dynamic crime patterns under data scarcity.
+B. Graph Neural Networks for Spatial-Temporal Data
+Graph neural network have shown its strong relational learning power in various applications [11], [42], including fake news detection [50], knowledge graph learning [32], and recommender systems [12]. In recent years, we have witnessed the development of research work applying graph neural networks to model spatial dependency among different locations [38]. For example, inspired by the effectiveness of graph convolutional network, spectral graph-based message passing methods have been developed to capture correlations among regions, e.g., STGCN [48] and DCRNN [19]. To differentiate the embedding propagation between regions, graph attention network with spatial message passing has been proposed to aggregate features from correlated regions for trafﬁc data modeling (e.g., GMAN [56], ST-GDN [52]), next location recommendation (e.g., STAN [27]). Inspired by those work, we endow our spatial-temporal prediction framework with the global context-enhanced region dependency modeling under a self-supervised hypergraph learning paradigm.
+C. Crime Prediction
+There exist several relevant crime prediction models which explores the time-evolving crime occurrence patterns from both spatial and temporal dimensions [36]. For example,
+
+Zhao et al. [55] formulates the crime prediction task as a tensor factorization architecture to learn the dependence among different geographical areas and time slots. DeepCrime [15] is the representative deep neural network model to integrate recurrent unit with attention mechanism to predict citywide crime occurrence. To investigate the ﬁne-grained crime prediction, STtrans [41] develops a hierarchically structured Transformer network to fuse spatial-temporal-semantic relatedness from crime data. Despite the effectiveness of those methods, several issues remain less explored: i) the global cross-region crime dependence has been overlooked in existing crime prediction solutions; ii) the entire urban space usually involve sparse crime data, which undermines the representation capability of Transformer or attention networks. By effectively addressing these limitations, ST-HSL achieves better performance.
+D. Self-Supervised Learning
+Recently, self-supervised learning (SSL) becomes a promising solution to enhance the representation capability of neural networks, so as to address the limitation of high reliance on sufﬁcient labeled data for model training [1], [26]. The effectiveness of SSL has been demonstrated in various domains, such as computer vision [18], nature language understanding [6], graph representation learning [34]. In self-supervised learning paradigms, models explore the supervision signals from the data itself with auxiliary learning tasks. Furthermore, contrastive-based SSL methods aim to reach agreement between generated correlated contrastive views [39]. However, self-supervised learning is relatively less explored in spatialtemporal data prediction. This work brings SSL’s superiority into the urban crime prediction task to tackle the challenges of crime data sparsity and skewed distribution. Towards this end, the proposed ST-HSL prediction framework integrates the generative and contrastive learning with a dual-stage selfsupervised augmentation scheme for jointly modeling local and global crime patterns.
+VI. CONCLUSION
+In this paper, we introduce the hypergraph contrastive learning into the crime prediction by proposing a new spatialtemporal self-supervised learning framework ST-HSL. The proposed ST-HSL ﬁrst augments the local spatial-temporal encoder with hypergraph-based global relation learning. Then, on the hypergraph structure, we introduce a dual-stage selfsupervised learning paradigm to enhance the representation ability of ST-HSL with sparse supervision crime signals. Extensive empirical results on real-life urban crime datasets demonstrate the effectiveness of our ST-HSL learning method.
+ACKNOWLEDGMENTS
+We thank the anonymous reviewers for their constructive feedback and comments. This work is supported in part by National Nature Science Foundation of China (62072188), Major Project of National Social Science Foundation of China (18ZDA062), Science and Technology Program of Guangdong Province (2019A050510010).
+
+REFERENCES
+[1] P. Arsomngern, C. Long, S. Suwajanakorn, and S. Nutanong. Selfsupervised deep metric learning for pointsets. In ICDE, pages 2171– 2176. IEEE, 2021.
+[2] L. Bai, L. Yao, C. Li, X. Wang, and C. Wang. Adaptive graph convolutional recurrent network for trafﬁc forecasting. In NIPS, pages 17804–17815, 2020.
+[3] C.-C. Chang and C.-J. Lin. Libsvm: a library for support vector machines. TIST, 2(3):27, 2011.
+[4] H. Chen, W. Chung, J. J. Xu, G. Wang, Y. Qin, and M. Chau. Crime data mining: a general framework and some examples. computer, 37(4):50– 56, 2004.
+[5] H. Chen, Y. Wang, T. Guo, C. Xu, Y. Deng, Z. Liu, S. Ma, C. Xu, C. Xu, and W. Gao. Pre-trained image processing transformer. In CVPR, pages 12299–12310, 2021.
+[6] Y. Cheng, W. Wang, L. Jiang, et al. Self-supervised and supervised joint training for resource-rich machine translation. In ICML, 2021.
+[7] Y. Feng, H. You, Z. Zhang, R. Ji, and Y. Gao. Hypergraph neural networks. In AAAI, volume 33, pages 3558–3565, 2019.
+[8] S. Guo, Y. Lin, H. Wan, X. Li, and G. Cong. Learning dynamics and heterogeneity of spatial-temporal graph data for trafﬁc forecasting. TKDE, 2021.
+[9] L. Han, B. Du, L. Sun, Y. Fu, Y. Lv, and H. Xiong. Dynamic and multifaceted spatio-temporal deep learning for trafﬁc speed forecasting. In KDD, pages 547–555, 2021.
+[10] K. He, X. Zhang, S. Ren, and J. Sun. Deep residual learning for image recognition. In CVPR, pages 770–778, 2016.
+[11] C. Huang. Recent advances in heterogeneous relation learning for recommendation. arXiv preprint arXiv:2110.03455, 2021.
+[12] C. Huang, H. Xu, Y. Xu, P. Dai, L. Xiao, M. Lu, L. Bo, H. Xing, X. Lai, and Y. Ye. Knowledge-aware coupled graph neural network for social recommendation. In AAAI, 2021.
+[13] C. Huang, C. Zhang, P. Dai, and L. Bo. Deep dynamic fusion network for trafﬁc accident forecasting. In CIKM, pages 2673–2681, 2019.
+[14] C. Huang, C. Zhang, J. Zhao, X. Wu, D. Yin, and N. Chawla. Mist: A multiview and multimodal spatial-temporal learning framework for citywide abnormal event forecasting. In WWW, pages 717–728, 2019.
+[15] C. Huang, J. Zhang, Y. Zheng, and N. V. Chawla. Deepcrime: Attentive hierarchical recurrent networks for crime prediction. In CIKM, pages 1423–1432. ACM, 2018.
+[16] J. Jiang, Y. Wei, Y. Feng, J. Cao, and Y. Gao. Dynamic hypergraph neural networks. In IJCAI, pages 2635–2641, 2019.
+[17] D. Kang and E. Hovy. Self-supervised text planning for paragraph completion task. In EMNLP, pages 6533–6543, 2020.
+[18] A. Kolesnikov, X. Zhai, and L. Beyer. Revisiting self-supervised visual representation learning. In CVPR, pages 1920–1929, 2019.
+[19] Y. Li, R. Yu, C. Shahabi, and Y. Liu. Diffusion convolutional recurrent neural network: data-driven trafﬁc forecasting. In ICLR, 2018.
+[20] Y. Liang, S. Ke, J. Zhang, X. Yi, and Y. Zheng. Geoman: Multi-level attention networks for geo-sensory time series prediction. In IJCAI, volume 2018, pages 3428–3434, 2018.
+[21] Y. Liang, K. Ouyang, L. Jing, S. Ruan, Y. Liu, J. Zhang, D. S. Rosenblum, and Y. Zheng. Urbanfm: Inferring ﬁne-grained urban ﬂows. In KDD, pages 3132–3142. ACM, 2019.
+[22] Y. Liang, K. Ouyang, J. Sun, Y. Wang, J. Zhang, Y. Zheng, D. Rosenblum, and R. Zimmermann. Fine-grained urban ﬂow prediction. In WWW, pages 1833–1845, 2021.
+[23] Z. Lin, J. Feng, Z. Lu, Y. Li, and D. Jin. Deepstn+: Context-aware spatial-temporal neural network for crowd ﬂow prediction in metropolis. In AAAI, volume 33, pages 1020–1027, 2019.
+[24] J. Liu, T. Li, P. Xie, S. Du, F. Teng, and X. Yang. Urban big data fusion based on deep learning: An overview. Information Fusion, 53:123–133, 2020.
+[25] Q. Liu, S. Wu, L. Wang, and T. Tan. Predicting the next location: A recurrent model with spatial and temporal contexts. In AAAI, 2016.
+[26] X. Liu, F. Zhang, Z. Hou, L. Mian, Z. Wang, J. Zhang, and J. Tang. Self-supervised learning: Generative or contrastive. TKDE, 2021.
+[27] Y. Luo, Q. Liu, and Z. Liu. Stan: Spatio-temporal attention network for next location recommendation. In WWW, pages 2177–2185, 2021.
+[29] T. R. Miller, M. A. Cohen, D. I. Swedler, B. Ali, and D. V. Hendrie. Incidence and costs of personal and property crimes in the usa, 2017. Journal of Beneﬁt-Cost Analysis, 12(1):24–54, 2021.
+[28] M. Maguire and S. McVie. Crime data and criminal statistics: A critical reﬂection, volume 1. Oxford University Press Oxford, 2017.
+
+[30] B. Pan, U. Demiryurek, and C. Shahabi. Utilizing real-world transportation data for accurate trafﬁc prediction. In ICDM, pages 595–604. IEEE, 2012.
+[31] Z. Pan, Y. Liang, W. Wang, et al. Urban trafﬁc prediction from spatiotemporal data using deep meta learning. In KDD. ACM, 2019.
+[32] N. Park, A. Kan, X. L. Dong, T. Zhao, and C. Faloutsos. Estimating node importance in knowledge graphs using graph neural networks. In KDD, pages 596–606, 2019.
+[33] J. Robinson, C.-Y. Chuang, S. Sra, and S. Jegelka. Contrastive learning with hard negative samples. In ICLR, 2020.
+[34] S. Tian, R. Wu, L. Shi, et al. Self-supervised representation learning on dynamic graphs. In CIKM, pages 1814–1823, 2021.
+[35] P. Velickovic, W. Fedus, W. L. Hamilton, P. Lio`, Y. Bengio, and R. D. Hjelm. Deep graph infomax. ICLR, 2(3):4, 2019.
+[36] H. Wang, D. Kifer, C. Graif, and Z. Li. Crime rate inference with big data. In KDD, pages 635–644, 2016.
+[37] H. Wang, H. Yao, D. Kifer, C. Graif, and Z. Li. Non-stationary model for crime rate inference using modern urban data. TBD, 5(2):180–194, 2017.
+[38] X. Wang, Y. Ma, Y. Wang, W. Jin, X. Wang, J. Tang, C. Jia, and J. Yu. Trafﬁc ﬂow prediction via spatial temporal graph neural network. In WWW, pages 1082–1092, 2020.
+[39] W. Wei, C. Huang, L. Xia, Y. Xu, J. Zhao, and D. Yin. Contrastive meta learning with behavior multiplicity for recommendation. In WSDM, pages 1120–1128, 2022.
+[40] D. Wu, L. Gao, X. Xiong, M. Chinazzi, A. Vespignani, Y.-A. Ma, and R. Yu. Quantifying uncertainty in deep spatiotemporal forecasting. In KDD, 2021.
+[41] X. Wu, C. Huang, C. Zhang, and N. V. Chawla. Hierarchically structured transformer networks for ﬁne-grained spatial event forecasting. In WWW, pages 2320–2330, 2020.
+[42] Z. Wu, S. Pan, F. Chen, G. Long, C. Zhang, and S. Y. Philip. A comprehensive survey on graph neural networks. TNNLS, 32(1):4–24, 2020.
+[43] Z. Wu, S. Pan, G. Long, J. Jiang, X. Chang, and C. Zhang. Connecting the dots: Multivariate time series forecasting with graph neural networks. In KDD, pages 753–763, 2020.
+[44] Z. Wu, S. Pan, G. Long, J. Jiang, and C. Zhang. Graph wavenet for deep spatial-temporal graph modeling. In IJCAI, 2019.
+[45] L. Xia, C. Huang, Y. Xu, P. Dai, L. Bo, X. Zhang, and T. Chen. Spatial-temporal sequential hypergraph network for crime prediction with dynamic multiplex relation learning. In IJCAI, 2021.
+[46] H. Yao, X. Tang, H. Wei, G. Zheng, and Z. Li. Revisiting spatialtemporal similarity: A deep learning framework for trafﬁc prediction. In AAAI, 2019.
+[47] X. Yi, J. Zhang, Z. Wang, T. Li, and Y. Zheng. Deep distributed fusion network for air quality prediction. In KDD, pages 965–973, 2018.
+[48] B. Yu, H. Yin, et al. Spatio-temporal graph convolutional networks: A deep learning framework for trafﬁc forecasting. In IJCAI, 2018.
+[49] R. Yu, Y. Li, C. Shahabi, U. Demiryurek, and Y. Liu. Deep learning: A generic approach for extreme condition trafﬁc forecasting. In SDM, pages 777–785. SIAM, 2017.
+[50] J. Zhang, B. Dong, and S. Y. Philip. Fakedetector: Effective fake news detection with deep diffusive neural network. In ICDE, pages 1826– 1829. IEEE, 2020.
+[51] J. Zhang, Y. Zheng, and D. Qi. Deep spatio-temporal residual networks for citywide crowd ﬂows prediction. In AAAI, 2017.
+[52] X. Zhang, C. Huang, Y. Xu, L. Xia, P. Dai, L. Bo, J. Zhang, and Y. Zheng. Trafﬁc ﬂow forecasting with spatial-temporal graph diffusion network. In AAAI, volume 35, pages 15008–15015, 2021.
+[53] K. Zhao, Y. Zhang, H. Yin, J. Wang, K. Zheng, X. Zhou, and C. Xing. Discovering subsequence patterns for next poi recommendation. In IJCAI, pages 3216–3222, 2020.
+[54] L. Zhao, F. Chen, C.-T. Lu, et al. Multi-resolution spatial event forecasting in social media. In ICDM, pages 689–698. IEEE, 2016.
+[55] X. Zhao and J. Tang. Modeling temporal-spatial correlations for crime prediction. In CIKM, pages 497–506, 2017.
+[56] C. Zheng, X. Fan, C. Wang, and J. Qi. Gman: A graph multi-attention network for trafﬁc prediction. In AAAI, pages 1234–1241, 2020.
+

@@ -1,0 +1,709 @@
+Learning Invariant Graph Representations for Out-of-Distribution Generalization
+Haoyang Li, Ziwei Zhang, Xin Wang∗, Wenwu Zhu∗ Tsinghua University
+lihy18@mails.tsinghua.edu.cn, {zwzhang,xin_wang,wwzhu}@tsinghua.edu.cn
+Abstract
+Graph representation learning has shown effectiveness when testing and training graph data come from the same distribution, but most existing approaches fail to generalize under distribution shifts. Invariant learning, backed by the invariance principle from causality, can achieve guaranteed generalization under distribution shifts in theory and has shown great successes in practice. However, invariant learning for graphs under distribution shifts remains unexplored and challenging. To solve this problem, we propose Graph Invariant Learning (GIL) model capable of learning generalized graph representations under distribution shifts. Our proposed method can capture the invariant relationships between predictive graph structural information and labels in a mixture of latent environments through jointly optimizing three tailored modules. Specifically, we first design a GNN-based subgraph generator to identify invariant subgraphs. Then we use the variant subgraphs, i.e., complements of invariant subgraphs, to infer the latent environment labels. We further propose an invariant learning module to learn graph representations that can generalize to unknown test graphs. Theoretical justifications for our proposed method are also provided. Extensive experiments on both synthetic and real-world datasets demonstrate the superiority of our method against state-of-the-art baselines under distribution shifts for the graph classification task.
+1 Introduction
+Graph structured data is ubiquitous in the real world, e.g., social networks, biology networks, chemical molecules, etc. Graph representation learning, which encodes graphs into vectorized representations, has been the central topic in graph machine learning in the last decade. For example, graph neural networks (GNNs) [1–3] design end-to-end learning schemes to extract useful graph information and are shown to be successful in a variety of applications.
+Despite the enormous success, the existing approaches for learning graph representations heavily rely on the I.I.D. assumption, i.e., the testing and training graph data are independently drawn from an identical distribution. However, distribution shifts of graph data widely exist in real-world scenarios and are usually inevitable due to the uncontrollable underlying data generation mechanism [4]. Most existing approaches fail to generalize to out-of-distribution (OOD) testing graph data. One critical bottleneck is that the existing methods ignore the invariant graph patterns and tend to rely on correlations that are variant for graphs from different environments. Therefore, it is of paramount significance to learn graph representations under distribution shifts and develop methods capable of out-of-distribution (OOD) generalization. Such studies are particularly critical for high-stake graph applications such as medical diagnosis [5], financial analysis [6], molecular prediction [7], etc.
+In this work, we propose a brand new methodology to learn invariant graph representation under distribution shifts. Invariant learning, which aims to exploit the invariant relationships between
+∗Corresponding authors
+36th Conference on Neural Information Processing Systems (NeurIPS 2022).
+
+features and labels across different distributions while disregarding the variant spurious correlations,
+
+can provably achieve satisfactory OOD generalization under distribution shifts [8–10]. Though
+
+invariant learning has been studied for images and texts [8, 11], it remains largely unexplored in
+
+the literature of graph representation learning. However, invariant graph representation learning is
+
+non-trivial due to the following challenges. First, graph data usually comes from a mixture of latent
+
+environments without accurate environment la-
+
+bels, as shown in Figure 1. Since most invariant Labels Training Set
+
+methods require multiple training environments
+
+! = house ! = cycle
+
+IID Testing Set
+…
+
+Good Prediction
+…
+
+with explicit environment labels, these existing Latent methods cannot be directly applied to graphs. Environments … … Second, the formation process of graphs is af-
+
+OOD Testing Set
+…
+
+Poor Prediction
+…
+
+fected by the complex interaction of both invari- Figure 1: An example of distribution shifts under ant and variant patterns. How to identify the a mixture of latent environments, which leads to invariant patterns among latent environments is poor generalization. even more challenging. Last but not least, even
+
+after having obtained the environmental labels, how to design a theoretically grounded learning
+
+scheme to generate graph representations capable of OOD generalization remains largely unexplored.
+
+To tackle these challenges, in this paper, we propose Graph Invariant Learning method (GIL) which is able to capture invariant graph patterns in a mixture of latent environments and capable of OOD generalization under distribution shifts. As shown in Figure 2, our proposed method can capture the invariant relationships between predictive graph structural information and labels in a mixture of latent environments through jointly optimizing three mutually promoting modules, with each module tackling one aforementioned challenge. Specifically, in the invariant subgraph identification module, we design a GNN-based subgraph generator to identify potentially invariant subgraphs from the complex interaction between invariant and variant patterns. Then, we use the variant subgraphs, i.e., the complement of invariant subgraphs, to infer environment labels by clustering these environment-discriminative features. The variant subgraphs capture variant correlations under different distributions and therefore contain informative features to infer environment labels. Lastly, in the invariant learning module, we propose to optimize the maximal invariant subgraph generator criterion given the identified invariant subgraphs and inferred environments to generate graph representations capable of OOD generalization under distribution shifts. We theoretically show that the OOD generalization problem on graphs can be formulated as finding a maximal invariant subgraph generator of our GIL, and further prove that our GIL satisfies permutation invariance. We conduct extensive experiments on both synthetic graph datasets and real graph benchmarks for the graph classification task. The results show that the representations learned from GIL achieve substantial performance gains on the unseen OOD testing graphs compared with various state-of-the-art baselines.
+
+Our contributions are summarized as follows.
+
+• We propose a novel Graph Invariant Learning method (GIL) to learn invariant and OOD generalized graph representations under distribution shifts. To the best of our knowledge, we are the first to study invariant learning for graph representation learning under a mixture of latent environments.
+
+• Our proposed method can automatically infer the environment label of graphs from a mixture of latent environments without supervision.
+
+• We propose maximal invariant subgraph generator criterion to learn graph representations capable of OOD generalization under distribution shifts.
+
+• We theoretically show that finding a maximal invariant subgraph generator of GIL can solve the OOD generalization problem. Extensive empirical results demonstrate the effectiveness of GIL on various synthetic and benchmark datasets under distribution shifts.
+
+2 Notations and Problem Formulation
+Notations. Let G and Y be the graph and label space. We consider a graph dataset G = {(Gi, Yi)}Ni=1 where Gi ∈ G and Yi ∈ Y. Following the OOD convention [11, 8, 9], we assume the dataset is collected from multiple training environments, i.e., G = {Ge}e∈supp(Etr), where Ge = {(Gei , Yie)}Ni=e1 denotes the dataset from environment e, supp(Etr) is the support of the environmental variable in the training data. We use G and Y to denote the random variables of graph and label, and Ge and Ye to
+
+2
+
+Latent environments: 8$= Ladder, 8(= Tree, 8)= Wheel
+Labels: 9 = 9 =
+Training Dataset
+………
+Graphs from a mixture of latent environments
+Distribution shifts
+Testing Dataset
+…
+
+Invariant Subgraph Identification
+
+Φ(⋅)
+
+Variant
+
+Graph dataset
+…
+
+subgraphs {"-}
+
+GNN9
+Node representation G(*)
+…
+
+0/.1 = 1/2 3 ⋅ 112
+
+0.75
+
+Edge Mask R..0
+
+… 0.9
+
+0.01
+
+0.85 … 0.1
+
+0.93
+
+24 = Top5(0 ⊙ 2) 26 = 2 - 24
+
+Invariant & variant subgraphs {(1}, {((}
+…
+
+(1
+
+((
+
+(1
+
+((
+
+Φ(⋅)
+
+Invariant subgraphs {"7}
+
+Environment Inference
+
+Cluster variant subgraphs {"-} to infer environments
+
+B$= Ladder
+
+B%= Tree
+
+B&= Wheel
+
+…
+
+…
+
+…
+
+Invariant Learning
+
+B$= Ladder
+
+B%= Tree
+
+B&= Wheel
+
+…
+
+…
+
+…
+
+Shared
+
+Shared
+
+H ∘ J(⋅)
+
+H ∘ J(⋅)
+
+H ∘ J(⋅)
+
+ℛ -!
+
+ℛ -"
+
+ℛ -#
+
+Classification loss
+
+[- (ℛ- )
+
+∇, ℛ -!
+
+∇, ℛ -"
+
++
+
+∇, ℛ -#
+
+Invariance regularizer \trace(Var(∇,ℛ-))
+
+Objective function
+% ∘ '(⋅) )( = + , = % ∘ ' ∘ Φ(,) Prediction
+
+Inferred environments
+=
+
+ℰVWXYZ
+
+Figure 2: The framework of GIL model. Our proposed method jointly optimizes three modules: (1) In the invariant subgraph identification module, a GNN-based subgraph generator Φ(·) identifies the invariant subgraph GI and the variant subgraph GV . (2) The environment inference module uses the variant subgraphs {GV } to infer the latent environments by clustering the representations of {GV }. (3) The invariant learning module jointly optimizes the invariant subgraph generator Φ(·), the representation learning function g(·), and the classifier w(·). Training stage (shown by grey arrows): we back propagate with the objective function to update model parameters. Testing stage (shown by
+green arrows): we use the optimized model to make predictions.
+
+specify random variables from environment e. The environment label for graphs is unobserved since it is prohibitively expensive to collect graph environment labels for most real scenarios.
+
+Problem Formulation. We formulate the generalization under distribution shifts on graphs as:
+
+Problem 1. Let E denote the random variable on indices of all possible environments. Our goal is to find an optimal predictor f ∗(·) : G → Y that performs well on all environments:
+
+f ∗(·) = arg min sup R(f |e),
+
+(1)
+
+f e∈supp(E)
+
+where R(f |e) = EeG,Y[ℓ(f (G), Y)] is the risk of the predictor f on the environment e, and ℓ(·, ·) : Y × Y → R denotes a loss function. We further decompose f (·) = w ◦ h, where h(·) : G → Rd is the representation learning function, d is the dimensionality, and w(·) : Rd → Y is the classifier.
+Note that supp(Etr) ⊂ supp(E). Besides, distribution shifts indicate that P e(G, Y) ̸= P e′ (G, Y), e ∈ supp(Etr), e′ ∈ supp(E) \ supp(Etr), i.e., the joint distribution of the graph and the corresponding label is different for training and testing graph data.
+
+Problem 1 is difficult to be solved since supp(E) is unobserved or latent [8, 9]. In addition, for most graph datasets, we do not have access to accurate environment labels or environment partitions. Therefore, we focus on jointly inferring the environments of the graph dataset G and achieving good OOD generalization performance under the inferred environments. The problem is formulated as:
+
+Problem 2. Given a graph dataset G collected from a mixture of latent environments but without environment labels, the task is to jointly infer graph environments Einfer, i.e., G = {Ge}e∈supp(Einfer), and learn a graph predictor f ∗(·) in Problem 1 under the inferred environments Einfer to achieve
+good OOD generalization performance.
+
+3 Method
+
+In this section, we introduce our proposed method in detail, whose framework is shown in Figure 2. We first present the invariant subgraph identification module. Then, we infer environment labels by clustering the variant subgraphs. Next, we introduce the maximal invariant subgraph generator criterion to generate graph representations which can generalize to test graphs under distribution shifts. Lastly, we provide some discussions of our proposed method.
+
+3
+
+3.1 Invariant Subgraph Identification
+
+We assume that each input graph G ∈ G has an invariant subgraph GI ⊂ G so that its relationship with the label is invariant across different environments. We refer to the rest of the graph, i.e., the complement of GI , as the variant subgraph and denote it as GV . GV represents the graph part whose relationship with the label is variant across different environments, e.g., spurious correlations. Therefore, the model will have a better OOD generalization ability if it can identify the invariant subgraph and only uses structural information from GI .
+We denote a generator to obtain the invariant subgraph as GI = Φ(G). Following the invariant learning literature [12], we make an assumption on Φ(G) as follows:
+Assumption 3.1. Given G, there exists an optimal invariant subgraph generator Φ∗(G) satisfying: a. Invariance property: ∀e, e′ ∈ supp(E), P e(Y|Φ∗(G)) = P e′ (Y|Φ∗(G)). b. Sufficiency property: Y = w∗(g∗(Φ∗(G))) + ϵ, ϵ ⊥ G, where g∗(·) denotes a representation learning function, w∗ is the classifier, ⊥ indicates statistical independence, and ϵ is random noise.
+The invariance assumption means that there exists a subgraph generator such that it can generate invariant subgraphs across different environments. The sufficiency assumption means that the generated invariant subgraphs should have sufficient predictive abilities in predicting the graph labels.
+
+Under this assumption, we instantiate Φ(·) with learnable parameters. Consider an input graph instance G with n nodes. The corresponding adjacency matrix is denoted as A = {0, 1}n×n, where
+Ai,j = 1 represents that there exists an edge between node i and j, and Ai,j = 0 otherwise. To split the input graph G into GI and GV , a common strategy is to use a binary mask matrix M = {0, 1}n×n on the adjacency matrix A. However, directly optimizing a discrete matrix M is intractable as G
+has exponentially many subgraph candidates [13]. Besides, learning M for each graph G separately
+hinders the method from handling unseen test graphs [14]. Therefore, we adopt a shared learnable GNN (denoted as GNNM) to generate a soft mask matrix M = Rn×n as follows:
+
+Mi,j = Z(im)⊤ · Z(jm), Z(m) = GNNM(G),
+
+(2)
+
+where Z(m) is the node representation. Then, we obtain the invariant and variant subgraphs as:
+
+AI = Topt (M ⊙ A) , AV = A − AI ,
+
+(3)
+
+where AI and AV denotes the adjacency matrix of GI and GV , respectively, ⊙ means the elementwise matrix multiplication, and Topt(·) selects the top t-percentage of elements with the largest values. The parameters of GNNM are trained on all available graphs to generate the corresponding GI and GV . Using the inductive learning ability of GNNs, it can also be used to unseen test graphs, as opposed to directly optimizing mask matrices.
+
+3.2 Environment Inference
+
+After obtaining the invariant and variant subgraphs, we can infer the environment label Einfer. The intuition is that since the invariant subgraph captures invariant relationships between predictive graph structural information and labels, the variant subgraphs in turn capture variant correlations under different distributions, which are environment-discriminative features. Therefore, we can use the variant subgraphs to infer the latent environments. We adopt another GNN encoder, whose parameters are also shared among different graphs, to generate the representation of the variant subgraph GV :
+
+ZV = GNNV(GV ), hV = READOUTV(ZV ),
+
+(4)
+
+where READOUT is a permutation-invariant readout function that aggregates node-level representa-
+tion ZV into graph-level representation hV . The representation of all the variant subgraphs is denoted as H = [hV1 , ..., hVN ]. After obtaining H, we use an off-the-shelf clustering algorithm to infer the environment label Einfer. In this paper, we adopt k-means [15] as our clustering algorithm:
+
+Einfer = k-means(H).
+
+(5)
+
+Using Einfer, we can partition the graph dataset into multiple training environments, i.e., G = {Ge}e∈supp(Einfer). The environment inference module is purely unsupervised without needing any ground-truth environment labels.
+
+4
+
+3.3 Invariant Learning
+
+After obtaining the inferred invariant subgraphs and environment labels, we propose the invariant learning module which can generate OOD generalized graph representations under distribution shifts.
+
+Recall that both the invariant subgraph identification module and environment inference module heavily depend on the generator Φ. Therefore, we aim to learn the optimal generator Φ∗ in Assumption 3.1 by proposing and optimizing the maximal invariant subgraph generator criterion. First,
+following the invariant learning literature [9], we give the following definition.
+
+Definition 1. The invariant subgraph generator set I with respect to E is defined as:
+
+IE = {Φ(·) : P e(Y|Φ(G)) = P e′ (Y|Φ(G)), e, e′ ∈ supp(E)}.
+
+(6)
+
+Then, we show that the optimal generator Φ∗ satisfies the following theorem.
+
+Theorem 3.2. A generator Φ(G) is the optimal generator that satisfies Assumption 3.1 if and only if it is the maximal invariant subgraph generator, i.e.,
+
+Φ∗ = arg max I (Y; Φ(G)) ,
+
+(7)
+
+Φ∈IE
+
+where I(·; ·) is the mutual information between the label and the generated subgraph.
+
+The proof is provided in Appendix. Eq. (7) provides us an objective function to optimize the subgraph
+
+generator. However, directly solving Eq. (7) for a non-linear Φ is difficult [9]. Following the invariant
+
+learning literature [9], we transform Eq. (7) into an invariance regularizer:
+
+Ee∈supp(Einfer)Re(f (G), Y; θ) + λtrace(VarEinfer (∇θRe)),
+
+(8)
+
+where f (·) = w ◦ g ◦ Φ, Einfer is the infered environment label, and θ denotes all the learnable parameters. Recall that g(·) is the representation learning function of the invariant subgraphs and w(·) is the classifier. We instantiate g as another GNN as follows:
+
+ZI = GNNI(GI ), hI = READOUTI(ZI ).
+
+(9)
+
+ZI and hI are the node-level and graph-level representations of invariant subgraph GI , respectively. w(·) is instantiated as a multilayer perceptron followed by the softmax activation function. By optimizing Eq. (8), we can get our desired generator Φ and the subgraph representation learning function g(·), which collectively serve as our representation learning method h(·), i.e., h = g ◦ Φ.
+
+3.4 Discussions
+Training Procedure. We present the pseudocode of GIL in Appendix.
+Time Complexity. The time complexity of our GIL is O(|E| d + |V | d2), where |V | and |E| denotes the number of nodes and edges, respectively, and d is the dimensionality of the representations. Specifically, we adopt message-passing GNNs to instantiate our GNN components, which has a complexity of O(|E| d + |V | d2). Since we only need to generate mask for the existing edges in graphs, the time complexity of generating invariant and variant subgraphs and further obtaining their representations is O(|E| d + |V | d2). The time complexity of environment inference is O(|B||Einfer|T d), where |B| is the batch size, T is the number of iterations for the k-means algorithm, and |Einfer| denotes the number of inferred environments. The time complexity of the invariance regularizer is O(|Einfer|d2), as the number of parameters for most GNNs is O(d2). Since |B|, |Einfer|, and T are small constants, the overall time complexity of GIL is O(|E| d + |V | d2). In comparison, the time complexity of other GNN-based graph representation methods is also O(|E| d + |V | d2). Therefore, the time complexity of our proposed GIL is on par with the existing methods.
+
+4 Theoretical Analysis
+
+In this section, we theoretically analyze our GIL model by showing that the maximal invariant
+
+subgraph generator can achieve OOD optimal. The proofs are provided in Appendix.
+
+Theorem 4.1. Let Φ∗ be the optimal invariant subgraph generator in Assumption 3.1 and denote the complement as G\Φ∗(G), i.e., the corresponding variant subgraph. Then, we can obtain the optimal
+
+predictor under distribution shifts, i.e., the solution to Problem 1, as follows:
+
+arg min w ◦ g ◦ Φ∗(G) = arg min sup R(f |e),
+
+(10)
+
+w,g
+
+f e∈supp(E)
+
+5
+
+if the following conditions hold: (1) Φ∗(G) ⊥ G\Φ∗(G); and (2) ∀Φ ∈ IE , ∃ e′ ∈ supp(E) such that P e′ (G, Y) = P e′ (Φ(G), Y)P e′ (G\Φ(G)) and P e′ (Φ(G)) = P e(Φ(G)).
+The theorem shows that we can transform the OOD generalization problem into finding the optimal invariant subgraphs while maintaining the optimality.
+We also prove that our GIL satisfies permutation invariance in Appendix.
+5 Experiments
+In this section, we evaluate the effectiveness of our GIL on both synthetic and real-world datasets.
+5.1 Experimental Setup
+Datasets. We adopt one synthetic dataset with controllable ground-truth environments and four real-world benchmark datasets for the graph classification task. • SP-Motif: Following [13, 16], we generate a synthetic dataset where each graph consists of one
+variant subgraph and one invariant subgraph, i.e., motif. The variant subgraph includes Tree, Ladder, and Wheel (denoted by V = 0, 1, 2, respectively) and the invariant subgraph includes Cycle, House, and Crane (denoted by I = 0, 1, 2). The ground-truth label Y only depends on the invariant subgraph I, which is sampled uniformly. The spurious correlation between V and Y is injected by controlling the variant subgraphs distribution as: P (V ) = r if V = I and P (V ) = (1 − r)/2 if V ̸= I. Intuitively, r controls the strength of the spurious correlation. We set r to different values in the testing and training set to simulate the distribution shifts. • MNIST-75sp [17]: The task is to classify each graph that is converted from an image in MNIST [18] into the corresponding handwritten digit. Distribution shifts exist on node features by adding random noises in the testing set. • Graph-SST2 [19]: Each graph is converted from a text sequence. Graphs are split into different sets based on average node degrees to create distribution shifts. • Open Graph Benchmark (OGB) [20]: We consider two datasets, MOLSIDER and MOLHIV. The default split separates structurally different molecules with different scaffolds into different subsets.
+Baselines. We compare our GIL with some representative state-of-the-art methods. The first group of these methods generates masks on graph structures to filter out important subgraphs using different GNNs, including Attention [2], Top-k Pool [21], SAGPool [22], and ASAP [23]. The second group is invariant learning methods, including standard ERM, GroupDRO [24], IRM [8], V-REx [25], DIR [16]. We also consider a recent interpretable graph learning method GSAT [26]. For a fair comparison, we use the same GNN backbone as GIL for the baselines.
+Optimization and Hyper-parameters. The adopted GNNs and READOUT functions including GNNM, GNNV, GNNI, READOUTV, and READOUTI are listed in Appendix. The hyperparameter λ in Eq. (8) is chosen from {10−5, 10−3, 10−1}. The number of clusters in Eq. (5) is chosen from [2, 4]. They are tuned on the validation set. We report the mean results and standard deviations of five runs. More details on the datasets, baselines and implementations are in Appendix.
+5.2 Experiments on SP-Motif
+Settings. To simulate different degrees of distribution shifts, we vary r in both the training and testing datasets. For the training set, we select rtrain from {1/3, 0.5, 0.6, 0.7, 0.8, 0.9}. A larger rtrain indicates a higher spurious correlation between Y and GV in the training set, while rtrain = 1/3 implies that the training set is balanced without any spurious correlation. For the testing set, we consider two settings: (1) rtest = 1/3, which simulates that the invariant subgraphs and variant subgraphs are randomly attached without spurious correlations; (2) rtest = 0.2, which indicates that the testing set has reversed spurious correlations and thus is more challenging.
+Quantitative Results. The results are shown in Table 1. We have the following observations. Our proposed GIL model consistently and significantly outperforms the baselines and achieves the best performance on all settings. The results demonstrate that our proposed method can well handle graph distribution shifts and have a remarkable out-of-distribution generalization ability.
+6
+
+Precision@5
+Test Accuracy (%) Silhouette Score
+
+Table 1: The graph classification accuracy (%) on testing sets of the synthetic dataset SP-Motif. In each column, the boldfaced and the underlined score denotes the best and the second-best result, respectively. Numbers in the lower right corner denote standard deviations.
+
+rtrain
+ERM Attention Top-k Pool SAG Pool
+ASAP GroupDRO
+IRM V-REx
+DIR GSAT GIL
+
+r = 1/3
+53.60±3.79 54.31±3.98 54.68±2.71 54.08±3.66 54.00±4.21 53.20±4.91 52.00±2.34 53.16±3.25 52.96±5.06 53.67±3.65 55.44±3.11
+
+Scenario 1: rtest = 1/3 r = 0.5 r = 0.6 r = 0.7 r = 0.8
+
+51.24±4.13 53.24±3.56 53.12±5.58 52.60±3.52 51.92±3.81 51.40±4.35 50.60±3.54 46.04±6.11 52.08±1.93 53.34±4.08 54.56±3.02
+
+47.04±7.01 42.52±6.20 44.56±4.57 44.68±5.25 45.12±1.98 48.32±5.35 47.84±6.95 45.36±3.66 50.12±2.76 51.54±3.78 53.60±4.82
+
+38.80±3.72 35.20±1.05 37.44±2.04 37.68±4.03 36.28±0.86 39.12±4.27 38.80±3.72 40.24±3.86 49.84±2.46 50.12±3.29 53.12±2.18
+
+37.84±3.01 34.48±1.18 35.24±2.28 34.28±1.82 34.24±2.02 38.40±2.76 39.84±3.21 39.48±3.00 45.20±1.11 45.83±4.01 51.24±3.88
+
+r = 0.9
+37.44±2.15 33.88±1.01 34.28±4.11 32.72±1.83 34.40±3.15 37.64±1.69 39.00±3.98 39.12±3.48 41.24±4.73 44.22±5.57 46.04±3.51
+
+r = 1/3
+48.48±4.53 44.04±4.33 45.68±5.16 44.36±6.09 49.88±4.90 52.68±4.04 50.24±6.73 50.56±2.83 50.68±5.20 51.36±4.21 54.80±3.93
+
+r = 0.5
+41.72±4.81 31.64±0.67 34.20±4.34 38.64±3.02 34.52±4.35 43.68±4.05 41.60±4.75 37.16±6.24 49.96±1.75 50.48±3.98 52.48±4.41
+
+Scenario 2: rtest = 0.2 r = 0.6 r = 0.7
+
+36.92±6.93 25.72±5.34 31.00±2.89 31.36±4.40 27.00±2.61 31.92±6.84 35.24±5.35 34.52±3.00 45.44±6.00 46.93±5.03 50.08±5.47
+
+35.72±8,33 24.80±4.06 30.64±3.59 32.84±1.86 27.20±2.53 34.36±8.41 34.92±8.03 29.72±4.58 40.56±2.36 43.55±3.67 47.44±2.87
+
+r = 0.8
+28.80±3.91 23.20±3.60 29.16±2.18 28.72±3.11 27.96±3.89 28.88±5.14 29.44±5.47 27.32±3.18 39.92±4.53 40.35±4.21 46.36±3.80
+
+r = 0.9
+19.60±1.66 18.04±2.88 27.56±3.91 26.60±5.37 22.88±4.33 20.32±1.64 21.84±3.57 24.04±6.08 32.52±4.59 33.87±5.19 35.80±5.03
+
+0.35
+
+GILTop-k PooGl SAT ASAPDIR AtteSnAtGionPool
+
+0.29
+
+0.23
+
+0.17 1/3 0.5 0r.6train0.7 0.8 0.9
+
+Figure 3: The results of discovering the ground-truth invariant subgraphs on SP-Motif (rtest = 0.2).
+
+70
+
+Test Accuracy
+
+Silhouette Score 0.80
+
+60
+
+0.75
+
+50 40
+
+0.70
+
+30
+
+0.65
+
+20 0 5 10 1E5po2c0h 25 30 35 0.60
+
+Figure 4: The test accuracy and the performance of environment inference over different training periods.
+
+EnviroTLWanrhedmeedeeenlrts
+Figure 5: The environment inference results when training is finished.
+
+As rtrain grows larger, the performance of all the methods tends to decrease since there exists a larger degree of distribution shift. Nevertheless, our proposed method is able to maintain the most relatively stable performance. In fact, the performance gap between GIL and the baselines becomes more significant as the degree of distribution shift increases. For example, when rtest = 1/3, the accuracy of all baselines drops by more than 7% when rtrain changes from 0.5 to 0.8, indicating their poor OOD generalization ability. In contrast, our method only has 3% performance drop.
+When the degree of distribution shift is relatively small, GNNs with different pooling methods to generate subgraphs generally report better results. On the other hand, when the degree of distribution shift is large, invariant baselines show more stable performance. Among them, DIR, which is a recently proposed invariant method specifically designed for graphs, is one competitive baseline. Nevertheless, our proposed method outperforms DIR by more than 3% in terms of the classification accuracy in most cases. GSAT achieves promising gains over the other baselines, but our GIL still performs better than GSAT. When rtest = rtrain = 1/3, i.e., no distribution shifts, our proposed method also achieves the best results, indicating that learning invariant subgraphs is also beneficial.
+Analysis. To analyze whether our proposed method can accurately capture the invariant subgraph, we compare GIL with baselines that also output subgraphs using the ground-truth invariant subgraphs. The evaluation metric is Precision@5. We report the results in Figure 3. The results show that GIL has a clear advantage in discovering invariant subgraphs under latent environments, while the other baselines cannot handle distribution shifts well.
+
+(a) Top-k Pool (b) SAG Pool
+
+(c) DIR
+
+(d) GSAT
+
+(e) GIL (f) Ground Truth
+
+Figure 6: Visualizations of the learned invariant subgraph for a showcase from the testing set of SP-Motif. In Figures (a)-(e), the red lines indicate the learned invariant subgraph, and the ground-truth is shown by the black lines in Figure (f).
+
+7
+
+the the 's 's actoarcstorsdandiealniel , ,a a romraonmtiacntic wwoorrwwllddoorrlldd bbeessttbbeesstt ,, ,, aauutteaaeuuittilleeuuiill ddeelliiddggeehhllttiiffgguuhhllttffuull ccoommcceeooddmmyyeeddyy
+
+oonnttoonnttssooccrreesseccenrrneeeenn ,, ,, aannddaanndd
+
+aann aann
+
+ssttuuppssiittdduuppiidd
+
+tthheetthheelloouuddlloouudd vviioollvveeniinoottlleenntt mmiinnmmddlliieennssddsslleessss uunnbbuueellnniibbeevveeallaiibbeellvvyyaabbllyy ffiillmmffiillmm
+
+Table 2: The graph classification results (%) on testing sets of the real-world datasets. We report the accuracy for MNIST-75sp and Graph-SST2, ROC-AUC for MOLSIDER and MOLHIV.
+
+MNIST-75sp Graph-SST2 MOLSIDER MOLHIV
+
+ERM Attention Top-k Pool SAG Pool
+ASAP GroupDRO
+IRM V-REx
+DIR GSAT GIL
+
+14.94±3.27 16.44±3.78 15.02±3.08 19.34±1.73 15.14±3.58 15.72±4.35 18.74±2.43 18.40±1.12 17.38±3.52 20.12±1.35 21.94±0.38
+
+81.44±0.59 81.57±0.71 79.78±1.35 80.24±1.72 81.57±0.84 81.29±1.44 81.01±1.13 81.76±0.08 83.29±0.53 82.95±0.58 83.44±0.37
+
+57.57±1.56 56.99±0.54 60.63±1.52 61.29±1.31 55.77±1.34 56.31±1.15 57.10±0.92 57.76±0.78 57.74±1.63 60.82±1.36 63.50±0.57
+
+76.20±1.14 75.84±1.33 73.01±1.65 73.26±0.84 73.81±1.17 75.44±2.70 74.46±2.74 75.62±0.79 77.05±0.57 76.47±1.53 79.08±0.54
+
+negative positive
+
+Train set
+tthhee tthhee ''ss ''ss aaccttooaarrccssttoorrssddaannddiieeaallnniieell ,, ,,aa aa
+
+Test set
+rroommrraaoonnmmttiiaaccnnttiicc
+
+wwoorrwwllddoorrlldd bbeessttbbeesstt ,, ,, aauutteaaeuuittilleeuuiill ddeelliiddggeehhllttiiffgguuhhllttffuull ccoommcceeooddmmyyeeddyy
+
+! ! oonnttoonnttss"ooccrreesseccenrrneeeenn ,, ,, ! aannddaanndd
+
+aann aann
+
+ssttuuppssiittdduuppiidd
+
+tthheetthheelloouuddlloouudd vviioollvveeniinoottlleenntt mmiinnmmddlliieennssddsslleessss uunnbbuueellnniibbeevveeallaiibbeellvvyyaabbllyy ffiillmmffiillmm
+
+Figure 7: Four showcases of sentences with positive/negative sentiments of train/test sets on Graph-SST2 learned by our GIL. Blue edges indicate the learned invariant subgraphs, while the others are variant subgraphs.
+
+Besides the quantitative evaluation, we plot a showcase from the testing set of SP-Motif (rtrain = 0.8 and rtest = 0.2) in Figure 6. The figure shows that the learned invariant subgraph of our method is more accurate than baselines.
+
+5.3 Experiments on Real-world Graphs
+
+We further evaluate the effectiveness of our method on real-world graph datasets. The experimental results are presented in Table 2. Our GIL achieves the best performance on all four datasets, indicating that GIL can well handle distribution shifts on real-world graphs. For example, GIL increases the classification accuracy by 1.8% on MNIST-75sp and ROC-AUC by 2.0% on MOLHIV against the strongest baselines respectively. On MOLHIV, the results of most baselines are worse than ERM, indicating that they fail to achieve OOD generalization in this dataset. Besides, different datasets have different distribution shifts, e.g., Graph-SST2 has different node degrees, the distribution shift of MNIST-75sp is on node features, and OGB is split based on scaffold. Therefore, the results show that our proposed method can well handle diverse types of distribution shifts in real graph datasets.
+
+For MOLHIV, besides adopting GIN [3] as back- Table 3: The test results with different backbones.
+
+bone (shown in Table 2), our method is also compatible with the other popular GNNs. We try using HIG and CIN [27] (Rank #2 and #8 on
+
+CIN (Rank #8)
+80.94±0.57
+
+GIL (CIN Backbone)
+81.15±0.46
+
+HIG (Rank #2)
+84.03±0.21
+
+PAS+FPs (Rank #1)
+84.20±0.15
+
+GIL (HIG Backbone)
+84.23±0.25
+
+the MOLHIV leaderboard2) as the backbone since these models are orthogonal to ours. Table 3
+
+shows that our GIL can consistently improve these models.
+
+In addition, we present some showcases of the learned invariant subgraph of the proposed GIL on both the train and test set of Graph-SST2. This dataset consists of sentences with positive/negative sentiments and is more understandable for humans. Figure 7 shows that our method can learn invariant subgraphs by consistently focusing on the positive/negative words that are salient for sentiments and distinguishing invariant/variant parts under distribution shifts. For example, the subgraph “The world’s best actors” identified by GIL has a predictive and invariant relationship with the positive sentiment label, while the subgraph “daniel auteuil” may reflect variant sentiments in different sentences. These results validate: (1) the invariant and variant subgraphs widely exist in real-world datasets, and (2) our GIL can well identify invariant subgraphs under distribution shifts and further make predictions with high accuracy based on the learned invariant subgraphs.
+
+5.4 Analysis of Environment Inference
+In our proposed model, all components are jointly optimized. To show that the environment inference module and invariant learning module can mutually enhance each other, we record the test accuracy and the Silhouette score [28], which is a commonly used evaluation metric for clustering, as the model is trained. The results on SP-Motif (rtrain = 0.8, rtest = 1/3) are shown in Figure 4. We can observe that the test accuracy and the clustering performance improve synchronously over training. A plausible reason is that, as the training stage progresses, the invariant subgraph generator is optimized so that it can generate more informative invariant subgraphs and therefore improve the performance on the testing set. On the other hand, accurately discovering invariant subgraphs can also promote
+2https://ogb.stanford.edu/docs/leader_graphprop/#ogbg-molhiv
+
+8
+
+identifying variant subgraphs, which capture the environment-discriminate features and better infer the latent environments. To verify that GIL can infer the environments accurately, we use t-SNE [29] to plot the discovered environments on a 2D-plane when the optimization is finished. Figure 5 shows that the variant subgraphs perfectly capture the environment-discriminate features. Notice that GIL achieves such results without needing any ground-truth environment label.
+
+5.5 Hyper-parameter Sensitivity
+
+We investigate the sensitivity of hyper-parameters of our method, including the number of environments |Einfer|, the invariance regularizer coefficient λ, and the size of the invariant subgraph mask t in Eq. (3). For simplicity, we only report the results on SP-Motif (rtrain = 0.8 and rtest = 1/3) and MNIST-75sp in Figure 8, while the results on other datasets show similar patterns.
+
+First, the number of environments has a moderate impact on the model performance.
+
+For SP-Motif, the performance reaches a peak when |Einfer| = 3, showing that GIL
+
+achieves the best result when the number of environments matches the ground truth.
+
+For MNIST-75sp, the best number of environments is 52.0
+
+SP-Motif
+
+23.0
+
+MNIST-75sp
+
+Accuracy (%)
+
+Accuracy (%)
+
+|Einfer| = 2. A plausible reason is that a large number of 48.0
+
+21.0
+
+environments will bring difficulty in inferring the latent environment, leading to sub-optimal performance. Second, the coefficient λ also has a slight influence on the
+
+44.0 2
+
+3 | inf4er| 5
+
+6
+
+19.0 2
+
+3 | inf4er| 5
+
+6
+
+(a) The number of environments |Einfer|.
+
+52.0
+
+SP-Motif
+
+23.0
+
+MNIST-75sp
+
+Accuracy (%)
+
+Accuracy (%)
+
+performance, indicating that we need to properly balance 48.0
+
+21.0
+
+the classification loss and the invariance regularizer term. Finally, a proper value of the mask size t is important. A very large t will result in too many edges in the in-
+
+44.0 10 6 10 5 10 4 10 3 10 2 10 1 100
+
+19.0 10 6 10 5 10 4 10 3 10 2 10 1 100
+
+(b) The regularizer coefficient λ.
+
+52.0
+
+SP-Motif
+
+23.0
+
+MNIST-75sp
+
+Accuracy (%)
+
+Accuracy (%)
+
+variant subgraph and bring in variant structures, while a 46.0
+
+21.0
+
+small t may let the invariant subgraph become too small to capture enough structural information. Although an appropriate choice of hyper-parameters can further improve the performance, our method is not very sensitive to hyperparameters. Figure 8 shows that GIL can outperform the best baselines with a wide range of hyper-parameters choices.
+
+40.0 0.15 0.25 0t.35 0.45 0.55
+
+19.0 0.75 0.80 0t.85 0.90 0.95
+
+(c) The invariant subgraph mask size t.
+
+Figure 8: The impact of different hyperparameters. Yellow and blue lines denote the results of GIL and grey dashed lines are the best results of all baselines.
+
+6 Related Works
+Graph neural networks. Recently, graph neural networks (GNNs) have shown enormous success in graph representation learning [1–3], demonstrating their strength in various tasks [30–36]. GNNs generally adopt a neighborhood aggregation (message passing) paradigm, i.e., the representations of nodes are iteratively updated by aggregating representations of their neighbors. The representation of the whole graph is summarized on node representations through the readout function (i.e., pooling) [3, 22]. However, most existing GNN models do not consider the out-of-distribution generalization ability [37] so that their performances can drop substantially on testing graphs with distribution shifts.
+Generalization of GNNs. Early works [38–41] for analyzing the generalization ability of GNNs do not consider distribution shifts [37, 42, 43]. More recently, the generalization ability of GNNs under distribution shifts starts to receive research attention [44, 16, 45, 46]. [47] find that encoding task-specific non-linearities in the architecture or features can improve GNNs in extrapolating graph algorithmic tasks. [17, 48, 49] try to encourage GNNs to perform well on testing graphs with different sizes. Some works [50, 51] are proposed to deal with node-level tasks. EERM [52] studies the OOD generalization in node classification. However, little attention has been paid to learning graph-level representations under distribution shifts from the invariant learning perspective. One exception is the work DIR [16], which conducts interventions on graphs to create interventional distributions. However, performing causal intervention relies on strong assumptions [53] that could be violated and expensive to satisfy in practice [54]. GSAT [26] applies graph information bottleneck criteria for generalization, but its goal is mainly to build inherently interpretable GNNs.
+Invariant Learning. Invariant learning aims to exploit the invariant relationships between features and labels across distribution shifts, while filtering out the variant spurious correlations. Backed by causal theory, invariant learning model can lead to OOD optimal models under some assumptions [11,
+
+9
+
+8, 9]. However, most existing methods heavily rely on multiple environments that have to be explicitly provided in the training dataset. Such annotation is not only prohibitively expensive for graphs, but also inherently problematic as the environment split could be inaccurate, rendering these invariant learning methods inapplicable. A few works study OOD generalization on latent environments in computer vision [55, 56] or raw feature data [57], which cannot be directly applied to graphs. In summary, how to learn invariant graph representations without explicit environment label under distribution shits remains largely unexplored in the literature.
+7 Conclusions
+In this paper, we propose the graph invariant learning (GIL) model to tackle the problem of learning invariant graph representations under distribution shifts. Three tailored modules are jointly optimized to encourage the graph representations to capture the invariant relationships between predictive graph structural information and labels. Theoretical analysis and extensive experiments on both synthetic and real-world datasets demonstrate the superiority of GIL.
+Acknowledgements
+This work was supported in part by the National Key Research and Development Program of China No. 2020AAA0106300 and National Natural Science Foundation of China (No. 62250008, 62222209, 62102222, 62206149), China National Postdoctoral Program for Innovative Talents No. BX20220185, China Postdoctoral Science Foundation No. 2022M711813.
+References
+[1] Thomas N Kipf and Max Welling. Semi-supervised classification with graph convolutional networks. In International Conference on Learning Representations, 2017.
+[2] Petar Velicˇkovic´, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Lio, and Yoshua Bengio. Graph attention networks. In International Conference on Learning Representations, 2018.
+[3] Keyulu Xu, Weihua Hu, Jure Leskovec, and Stefanie Jegelka. How powerful are graph neural networks? In International Conference on Learning Representations, 2019.
+[4] Yoshua Bengio, Tristan Deleu, Nasim Rahaman, Rosemary Ke, Sébastien Lachapelle, Olexa Bilaniuk, Anirudh Goyal, and Christopher Pal. A meta-transfer objective for learning to disentangle causal mechanisms. International Conference on Learning Representations, 2019.
+[5] Yang Li, Buyue Qian, Xianli Zhang, and Hui Liu. Graph neural network-based diagnosis prediction. Big Data, 8(5):379–390, 2020.
+[6] Yiying Yang, Zhongyu Wei, Qin Chen, and Libo Wu. Using external knowledge for financial event prediction based on graph neural networks. In Proceedings of the 28th ACM International Conference on Information and Knowledge Management, pages 2161–2164, 2019.
+[7] Zhenqin Wu, Bharath Ramsundar, Evan N Feinberg, Joseph Gomes, Caleb Geniesse, Aneesh S Pappu, Karl Leswing, and Vijay Pande. Moleculenet: a benchmark for molecular machine learning. Chemical science, 9(2):513–530, 2018.
+[8] Martin Arjovsky, Léon Bottou, Ishaan Gulrajani, and David Lopez-Paz. Invariant risk minimization. arXiv preprint arXiv:1907.02893, 2019.
+[9] Masanori Koyama and Shoichiro Yamaguchi. Out-of-distribution generalization with maximal invariant predictor. arXiv preprint arXiv:2008.01883, 2020.
+[10] Kartik Ahuja, Ethan Caballero, Dinghuai Zhang, Yoshua Bengio, Ioannis Mitliagkas, and Irina Rish. Invariance principle meets information bottleneck for out-of-distribution generalization. Neural Information Processing Systems (NeurIPS), 2021.
+10
+
+[11] Shiyu Chang, Yang Zhang, Mo Yu, and Tommi Jaakkola. Invariant rationalization. In International Conference on Machine Learning, pages 1448–1458. PMLR, 2020.
+[12] Mateo Rojas-Carulla, Bernhard Schölkopf, Richard Turner, and Jonas Peters. Invariant models for causal transfer learning. The Journal of Machine Learning Research, 19(1):1309–1342, 2018.
+[13] Rex Ying, Dylan Bourgeois, Jiaxuan You, Marinka Zitnik, and Jure Leskovec. Gnnexplainer: Generating explanations for graph neural networks. Advances in neural information processing systems, 32:9240, 2019.
+[14] Dongsheng Luo, Wei Cheng, Dongkuan Xu, Wenchao Yu, Bo Zong, Haifeng Chen, and Xiang Zhang. Parameterized explainer for graph neural network. Advances in Neural Information Processing Systems, 33, 2020.
+[15] John A Hartigan and Manchek A Wong. Algorithm as 136: A k-means clustering algorithm. Journal of the royal statistical society. series c (applied statistics), 28(1):100–108, 1979.
+[16] Yingxin Wu, Xiang Wang, An Zhang, Xiangnan He, and Tat-Seng Chua. Discovering invariant rationales for graph neural networks. In International Conference on Learning Representations, 2022.
+[17] Boris Knyazev, Graham W Taylor, and Mohamed Amer. Understanding attention and generalization in graph neural networks. Advances in Neural Information Processing Systems, 32: 4202–4212, 2019.
+[18] Yann LeCun, Léon Bottou, Yoshua Bengio, and Patrick Haffner. Gradient-based learning applied to document recognition. Proceedings of the IEEE, 86(11):2278–2324, 1998.
+[19] Hao Yuan, Haiyang Yu, Shurui Gui, and Shuiwang Ji. Explainability in graph neural networks: A taxonomic survey. arXiv preprint arXiv:2012.15445, 2020.
+[20] Weihua Hu, Matthias Fey, Marinka Zitnik, Yuxiao Dong, Hongyu Ren, Bowen Liu, Michele Catasta, and Jure Leskovec. Open graph benchmark: Datasets for machine learning on graphs. Neural Information Processing Systems (NeurIPS), 2020.
+[21] Hongyang Gao and Shuiwang Ji. Graph u-nets. In international conference on machine learning, pages 2083–2092. PMLR, 2019.
+[22] Junhyun Lee, Inyeop Lee, and Jaewoo Kang. Self-attention graph pooling. In International Conference on Machine Learning, pages 3734–3743. PMLR, 2019.
+[23] Ekagra Ranjan, Soumya Sanyal, and Partha Talukdar. Asap: Adaptive structure aware pooling for learning hierarchical graph representations. In Proceedings of the AAAI Conference on Artificial Intelligence, volume 34, pages 5470–5477, 2020.
+[24] Shiori Sagawa, Pang Wei Koh, Tatsunori B Hashimoto, and Percy Liang. Distributionally robust neural networks for group shifts: On the importance of regularization for worst-case generalization. arXiv preprint arXiv:1911.08731, 2019.
+[25] David Krueger, Ethan Caballero, Joern-Henrik Jacobsen, Amy Zhang, Jonathan Binas, Dinghuai Zhang, Remi Le Priol, and Aaron Courville. Out-of-distribution generalization via risk extrapolation (rex). In International Conference on Machine Learning, pages 5815–5826. PMLR, 2021.
+[26] Siqi Miao, Mia Liu, and Pan Li. Interpretable and generalizable graph learning via stochastic attention mechanism. In ICML, 2022.
+[27] Cristian Bodnar, Fabrizio Frasca, Nina Otter, Yuguang Wang, Pietro Lio, Guido F Montufar, and Michael Bronstein. Weisfeiler and lehman go cellular: Cw networks. Neural Information Processing Systems, 2021.
+[28] Peter J Rousseeuw. Silhouettes: a graphical aid to the interpretation and validation of cluster analysis. Journal of computational and applied mathematics, 20:53–65, 1987.
+11
+
+[29] Laurens Van der Maaten and Geoffrey Hinton. Visualizing data using t-sne. Journal of machine learning research, 9(11), 2008.
+[30] Jianxin Ma, Peng Cui, Kun Kuang, Xin Wang, and Wenwu Zhu. Disentangled graph convolutional networks. In International conference on machine learning, pages 4212–4221. PMLR, 2019.
+[31] Haoyang Li, Xin Wang, Ziwei Zhang, Jianxin Ma, Peng Cui, and Wenwu Zhu. Intention-aware sequential recommendation with structured intent transition. IEEE Transactions on Knowledge and Data Engineering, 2021.
+[32] Haoyang Li, Xin Wang, Ziwei Zhang, Zehuan Yuan, Hang Li, and Wenwu Zhu. Disentangled contrastive learning on graphs. Advances in Neural Information Processing Systems, 34: 21872–21884, 2021.
+[33] Xin Wang, Hong Chen, Yuwei Zhou, Jianxin Ma, and Wenwu Zhu. Disentangled representation learning for recommendation. IEEE Transactions on Pattern Analysis and Machine Intelligence, 2022.
+[34] Haoyang Li, Peng Cui, Chengxi Zang, Tianyang Zhang, Wenwu Zhu, and Yishi Lin. Fates of microscopic social ecosystems: Keep alive or dead? In Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, pages 668–676, 2019.
+[35] Haoyang Li, Ziwei Zhang, Xin Wang, and Wenwu Zhu. Disentangled graph contrastive learning with independence promotion. IEEE Transactions on Knowledge and Data Engineering, 2022.
+[36] Yijian Qin, Xin Wang, Peng Cui, and Wenwu Zhu. Gqnas: Graph q network for neural architecture search. In 2021 IEEE International Conference on Data Mining (ICDM), pages 1288–1293. IEEE, 2021.
+[37] Haoyang Li, Xin Wang, Ziwei Zhang, and Wenwu Zhu. Out-of-distribution generalization on graphs: A survey. arXiv preprint arXiv:2202.07987, 2022.
+[38] Renjie Liao, Raquel Urtasun, and Richard Zemel. A pac-bayesian approach to generalization bounds for graph neural networks. In International Conference on Learning Representations, 2020.
+[39] Vikas Garg, Stefanie Jegelka, and Tommi Jaakkola. Generalization and representational limits of graph neural networks. In International Conference on Machine Learning, pages 3419–3430. PMLR, 2020.
+[40] Saurabh Verma and Zhi-Li Zhang. Stability and generalization of graph convolutional neural networks. In Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, pages 1539–1548, 2019.
+[41] Franco Scarselli, Ah Chung Tsoi, and Markus Hagenbuchner. The vapnik–chervonenkis dimension of graph and recursive neural networks. Neural Networks, 108:248–259, 2018.
+[42] Huaxiu Yao, Caroline Choi, Yoonho Lee, Pang Wei Koh, and Chelsea Finn. Wild-time: A benchmark of in-the-wild distribution shift over time. In Proceedings of the Thirty-sixth Conference on Neural Information Processing Systems Datasets and Benchmarks Track, 2022.
+[43] Zeyang Zhang, Ziwei Zhang, Xin Wang, and Wenwu Zhu. Learning to solve travelling salesman problem with hardness-adaptive curriculum. In 36th AAAI Conference on Artificial Intelligence (AAAI), 2022.
+[44] Haoyang Li, Xin Wang, Ziwei Zhang, and Wenwu Zhu. Ood-gnn: Out-of-distribution generalized graph neural network. IEEE Transactions on Knowledge and Data Engineering, 2022.
+[45] Yijian Qin, Xin Wang, Ziwei Zhang, Pengtao Xie, and Wenwu Zhu. Graph neural architecture search under distribution shifts. In International Conference on Machine Learning, pages 18083–18095. PMLR, 2022.
+12
+
+[46] Zeyang Zhang, Xin Wang, Ziwei Zhang, Haoyang Li, Zhou Qin, and Wenwu Zhu. Dynamic graph neural networks under spatio-temporal distribution shift. In Thirty-Sixth Conference on Neural Information Processing Systems, 2022.
+[47] Keyulu Xu, Mozhi Zhang, Jingling Li, Simon S Du, Ken-ichi Kawarabayashi, and Stefanie Jegelka. How neural networks extrapolate: From feedforward to graph neural networks. In International Conference on Learning Representations, 2021.
+[48] Gilad Yehudai, Ethan Fetaya, Eli Meirom, Gal Chechik, and Haggai Maron. From local structures to size generalization in graph neural networks. In International Conference on Machine Learning, pages 11975–11986. PMLR, 2021.
+[49] Beatrice Bevilacqua, Yangze Zhou, and Bruno Ribeiro. Size-invariant graph representations for graph classification extrapolations. In Proceedings of the 38th International Conference on Machine Learning, pages 837–851, 2021.
+[50] Qi Zhu, Natalia Ponomareva, Jiawei Han, and Bryan Perozzi. Shift-robust gnns: Overcoming the limitations of localized graph training data. Advances in Neural Information Processing Systems, 34, 2021.
+[51] Shaohua Fan, Xiao Wang, Chuan Shi, Kun Kuang, Nian Liu, and Bai Wang. Debiased graph neural networks with agnostic label selection bias. IEEE transactions on neural networks and learning systems, 2022.
+[52] Qitian Wu, Hengrui Zhang, Junchi Yan, and David Wipf. Handling distribution shifts on graphs: An invariance perspective. In International Conference on Learning Representations (ICLR), 2022.
+[53] Miguel A Hernán and James M Robins. Causal inference, 2010.
+[54] Tan Wang, Chang Zhou, Qianru Sun, and Hanwang Zhang. Causal attention for unbiased visual recognition. In Proceedings of the IEEE/CVF International Conference on Computer Vision, pages 3091–3100, 2021.
+[55] Toshihiko Matsuura and Tatsuya Harada. Domain generalization using a mixture of multiple latent domains. In Proceedings of the AAAI Conference on Artificial Intelligence, pages 11749– 11756, 2020.
+[56] Elliot Creager, Jörn-Henrik Jacobsen, and Richard Zemel. Environment inference for invariant learning. In International Conference on Machine Learning, pages 2189–2200. PMLR, 2021.
+[57] Jiashuo Liu, Zheyuan Hu, Peng Cui, Bo Li, and Zheyan Shen. Heterogeneous risk minimization. In International Conference on Machine Learning. PMLR, 2021.
+Checklist
+1. For all authors... (a) Do the main claims made in the abstract and introduction accurately reflect the paper’s contributions and scope? [Yes] (b) Did you describe the limitations of your work? [Yes] (c) Did you discuss any potential negative societal impacts of your work? [N/A] (d) Have you read the ethics review guidelines and ensured that your paper conforms to them? [Yes]
+2. If you are including theoretical results... (a) Did you state the full set of assumptions of all theoretical results? [Yes] (b) Did you include complete proofs of all theoretical results? [Yes]
+3. If you ran experiments... (a) Did you include the code, data, and instructions needed to reproduce the main experimental results (either in the supplemental material or as a URL)? [Yes]
+13
+
+(b) Did you specify all the training details (e.g., data splits, hyperparameters, how they were chosen)? [Yes]
+(c) Did you report error bars (e.g., with respect to the random seed after running experiments multiple times)? [Yes]
+(d) Did you include the total amount of compute and the type of resources used (e.g., type of GPUs, internal cluster, or cloud provider)? [Yes]
+4. If you are using existing assets (e.g., code, data, models) or curating/releasing new assets... (a) If your work uses existing assets, did you cite the creators? [Yes] (b) Did you mention the license of the assets? [Yes] (c) Did you include any new assets either in the supplemental material or as a URL? [N/A] (d) Did you discuss whether and how consent was obtained from people whose data you’re using/curating? [N/A] (e) Did you discuss whether the data you are using/curating contains personally identifiable information or offensive content? [N/A]
+5. If you used crowdsourcing or conducted research with human subjects... (a) Did you include the full text of instructions given to participants and screenshots, if applicable? [N/A] (b) Did you describe any potential participant risks, with links to Institutional Review Board (IRB) approvals, if applicable? [N/A] (c) Did you include the estimated hourly wage paid to participants and the total amount spent on participant compensation? [N/A]
+14
+

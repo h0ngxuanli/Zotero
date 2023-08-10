@@ -1,0 +1,70 @@
+
+This application simulates a git repository in your browser, so you will need JS to use the app. Try enabling and refreshing the page -- Thanks!
+Learn Git Branching
+
+$ help
+
+$ levels
+$  
+
+   
+Git Hg
+Created with Raphaël 2.1.0 C0 C1 master* HEAD
+Levels Solution Reset Undo Objective Help
+Git Branching 日本語版リポジトリ Git 브랜치 배우기 学习 Git 分支 學習 Git 分支 español argentino português français Deutsch Русский Українська Galego
+Fork me on GitHub
+Select a level
+Main
+Remote
+Introduction Sequence
+
+A nicely paced introduction to the majority of git commands
+
+1: Introduction to Git Commits
+1
+2
+3
+4
+Ramping Up
+
+The next serving of 100% git awesomes-ness. Hope you're hungry
+
+1: Detach yo' HEAD
+1
+2
+3
+4
+Moving Work Around
+
+"Git" comfortable with modifying the source tree :P
+
+1: Cherry-pick Intro
+1
+2
+A Mixed Bag
+
+A mixed bag of Git techniques, tricks, and tips
+
+1: Grabbing Just 1 Commit
+1
+2
+3
+4
+5
+Advanced Topics
+
+For the truly brave!
+
+1: Rebasing over 9000 times
+1
+2
+3
+Welcome to Learn Git Branching
+
+Interested in learning Git? Well you've come to the right place! "Learn Git Branching" is the most visual and interactive way to learn Git on the web; you'll be challenged with exciting levels, given step-by-step demonstrations of powerful features, and maybe even have a bit of fun along the way.
+
+After this dialog you'll see the variety of levels we have to offer. If you're a beginner, just go ahead and start with the first. If you already know some Git basics, try some of our later more challenging levels.
+
+You can see all the commands available with show commands at the terminal.
+
+PS: Want to go straight to a sandbox next time? Try out this special link

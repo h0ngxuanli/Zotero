@@ -1,0 +1,536 @@
+首发于 硬核而接地气的深度学习
+写文章
+点击打开要爆了的主页
+[算法学习]Transformer tokenizers二元店(1)
+[算法学习]Transformer tokenizers二元店(1)
+迷途小书僮
+迷途小书僮
+​
+加班摸鱼
+​ 关注他
+18 人赞同了该文章
+
+写标题的时候，突然回忆起李诞吐槽曹金的“二元相声，买不了吃亏，买不了上当”-“买得了！”。所以就起了个中二的名字。
+
+但愿本文，不会让读者上当。（建议：快速浏览，拒绝被骗！）
+
+
+这是面向初学者的！
+
+这是面向初学者的！
+
+这是面向初学者的！
+迷途小书僮：[算法学习]Transformer tokenizers二元店(2) 4 赞同 · 2 评论 文章
+
+
+写这个文章之前，笔者的脑中对于transformers的tokenizers是非常片面的：
+
+    sentencepiece知道，用sentencepiece给分词后的日文，或者，分词后的中文，训练得到“子词”。例如，"九寨沟-> 九 ##寨 ##沟"，或者"九 ##寨沟"，或者"九寨 ##沟"，即带有"##"的表示，这个词是“非打头的”subword；对于日语来说，例如，"従業員 -> "従 ##業 ##員"，或者，"従 ##業員"，或者，"従業 ##員"。反正是想方设法使用，更加常用的subword的序列，来替换掉长的且使用频次低的那些短语词。这个我自己也分别训练过基于这个逻辑的日文和中文的BERT-large的模型。【回顾：这个其实是sentencepiece里面的 wordpiece 方法；或者是huggingface tokenizers 里面的 BertWordPieceTokenizer 类来实现】
+    bert和gpt的vocabulary有区别，bert的变体中，有一些是使用上面说到的sentencepiece的。而类似roberta，gpt这样的是使用带有merges.txt, vocab.json等词典文件的玩意。至于如何根据一个大规模文本语料库，来构造这样的“定制化”词典，还不知道咋做。目前为止，基于别人构造好的日文gpt类型的词典，训练过新的日文的gpt模型。
+    听说过，bpe, wpe，以及byte-based bpe？(其实是byte-level BPE)但是并不能分清楚他们的详细的区别。
+    目前生成bert类型的vocab，一般用的是日本东北大学的那个日文bert，稍微修改一下，就可以用于中文的“先分词，后subwords”的词表学习了。这个：
+
+GitHub - cl-tohoku/bert-japanese: BERT models for Japanese text. ​ github.com/cl-tohoku/bert-japanese
+
+5. 如果是在其他如asr任务上，则应该如何选用这些tokenizers，词表大小，如何自动生成词表？
+
+
+带着这些问题，开启transformers下的tokenizers之旅。
+参考文献，参考URL，参考video
+
+本文章主要参考的是：
+Summary of the tokenizers ​ huggingface.co/transformers/tokenizer_summary.html
+
+总体而言，tokenizers分两步：
+
+    把输入的text序列，切割成word序列，或者subword序列；
+    基于一个look-up table来把word/subword转整数int id。
+
+当然，第二步没有难度，我们主要关注的是第一步，即对输入文本序列进行“切割”。
+
+三大流派：
+
+一，byte-pair encoding (bpe)，
+
+二，wordpiece（例如，其被BertTokenizer使用）
+
+三，sentencepiece
+第一部分，介绍
+
+例子：
+
+"Don't you love Transformers? We sure do.& amp;amp;quot;
+
+一个简单的方法，是把文本序列，按照“空格”切割，得到：
+
+["Don't", "you", "love", " ", "Transformers?", "We", "sure", "do."]
+
+
+遗憾的是，上面的两个标点符号，?和.，被添加到了Transformers和do的后边了。这显然不是最优的。
+
+鉴于标点符号的个数有限，我们再不济，可以写几个简单的规则，来把单词和标点符号切割开：
+
+["Don", "'", "t", "you", "love", " ", "Transformers", "?", "We", "sure", "do", "."]
+
+
+但是上面的切割，又导致另外一个问题，即Don't，最好是被切割成Do n't，而不是Don ' t。
+
+不同的预训练模型，分别会配套自己的tokenizer的方法。这样的话，当把文本序列扔给一个预训练模型的时候，需要先根据该预训练模型使用的tokenizer，来对文本序列进行“预处理”，之后的操作才有意义。
+
+spaCy和Moses，分别有rule-based tokenizers，如果直接使用它们，则我们可以得到如下输出：
+
+["Don", "'", "t", "you", "love", " ", "Transformers", "?", "We", "sure", "do", "."]
+
+
+以moses为例（这是我在做机器翻译时代的最strong的baseline）：
+mosesdecoder/tokenizer.perl at master · moses-smt/mosesdecoder ​ github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/tokenizer.perl
+
+实操之后，效果如何呢：
+
+ ( base ) xianchaow@dgx-1:/raid/xianchaow/asr/mosesdecoder/scripts/tokenizer$ cat test.in.txt Don ' t you love Transformers? We sure do . ( base ) xianchaow@dgx-1:/raid/xianchaow/asr/mosesdecoder/scripts/tokenizer$ cat test.in.txt | perl tokenize r.perl Tokenizer Version 1.1 Language: en Number of threads: 1 Don & apos ; t you love Transformers ? We sure do . ( base ) xianchaow@dgx-1:/raid/xianchaow/asr/mosesdecoder/scripts/tokenizer$  
+
+可以看到：
+
+其一，抱脸笑的hugging face，这个符号如果直接copy-paste，上不了linux（我用的是vi）；
+
+其二， Don't，被替换成了Don &apos;t，并没有达到预期的效果 。
+
+这就是“理想的例子”，和“实际的现实”之间的gap。
+
+
+再看看spaCy的：
+
+ ( pytorch ) xianchaow @dgx - 1 : / raid / xianchaow / asr / mosesdecoder / scripts / tokenizer $ python Python 3.6 . 12 | Anaconda , Inc .| ( default , Sep 8 2020 , 23 : 10 : 56 ) [ GCC 7.3 . 0 ] on linux Type "help" , "copyright" , "credits" or "license" for more information . >>> import spacy >>> nlp = spacy . load ( 'en' ) >>> intxt = "Don't you love Transformers? We sure do." >>> intxt "Don't you love Transformers? We sure do." >>> doc = nlp ( intxt ) >>> words = [ word . text for word in doc ] >>> words [ 'Do' , "n't" , 'you' , 'love' , ' ' , 'Transformers' , '?' , 'We' , 'sure' , 'do' , '.' ] >>>  
+
+好的是，这里的Do n't被切割正确了，不过直接copy-paste也是搞不定抱脸笑这个符号。
+
+这样的话，搞english的tokenizer的时候，还是spacy更加靠谱一些。
+
+
+但是，如果严格按照tokenizer之后的full word来构造词表，则对于common crawl这样的TB级别的语料，得到单词有百万，千万级别，这显然是太大了。
+
+小一点的，transformer-xl这个模型，使用了267,735个词条的词表vocab!!! 太大了。这会得到一个超大的embedding matrix。不但耗费gpu内存，而且训练速度更慢，还有data sparseness问题。
+
+所以，（主要是依据实验经验）一般的词表在50,000以下。
+
+
+另外一个极端情况是，如果word和标点符号”粒度太大“，那么为什么不直接用character呢，例如英文字母，大小写区分开也不过26*2=52个啊。。。
+
+因为这会导致模型非常难于学习到meaningful input representations。例如，学习字母't'的不依赖于上下文的表示向量的难度，要远大于学习一个单词word的不依赖于上下文的表示向量。
+
+故此，纯基于character的预训练模型的精度，一般都要打折扣。
+
+
+这样的话，可选择的就是介于character和word之间的 subwords 了！
+
+背后的一个考量是：1，常用的word，可能不会被切割；2，不常用的偏僻的词，则会被切割成”可复用的“subwords，例如：
+
+annoyingly -> annoying + ly -> annoy + ing + ly
+
+
+(如下是归类为“ wordpiece ”的：）
+
+基于subwords，可以拼接出来一个新词，例如：
+
+I have a new GPU!里面的gpu这个”新词“可以被其他一些subwords，拼接出来：
+
+ >>> from transformers import BertTokenizer / home / xianchaow / anaconda3 / envs / pytorch / lib / python3 . 6 / site - packages / torch / cuda / __init__ . py : 52 : UserWarning : CUDA initialization : The NVIDIA driver on your system is too old ( found version 10010 ) . Please update you r GPU driver by downloading and installing a new version from the URL : http : // www . nvidia . com / Download / inde x . aspx Alternatively , go to : https : // pytorch . org to install a PyTorch version that has been compiled with your version of the CUDA driver . ( Triggered internally at / pytorch / c10 / cuda / CUDAFunctions . cpp : 100. ) return torch . _C . _cuda_getDeviceCount () > 0 >>> tokenizer = BertTokenizer . from_pretrained ( 'bert-base-uncased' ) >>> tokenizer . tokenize ( 'I have a new GPU! and I bought a lot of GPUs' ) [ 'i' , 'have' , 'a' , 'new' , 'gp' , '##u' , '!' , 'and' , 'i' , 'bought' , 'a' , 'lot' , 'of' , 'gp' , '##us' ] >>> tokenizer . tokenize ( 'Don \' t you love Transformers? We sure do.' ) [ 'don' , "'" , 't' , 'you' , 'love' , 'transformers' , '?' , 'we' , 'sure' , 'do' , '.' ]  
+
+
+上面使用的是bert-base-uncased这个预训练模型，uncased，即”不区分大小写“。
+
+
+同样的一句话，可以使用不同的tokenizers来搞一下，下面是XLNetTokenizer的：
+
+ >>> from transformers import XLNetTokenizer >>> tokenizer = XLNetTokenizer . from_pretrained ( 'xlnet-base-cased' ) Downloading : 100 %| ██████████████████████████████████████████████████████ | 798 k / 798 k [ 00 : 00 < 00 : 00 , 949 kB / s ] >>> tokenizer . __class__ < class ' transformers . tokenization_xlnet . XLNetTokenizer '> >>> tokenizer . tokenize ( 'Don \' t you love Transformers? We sure do.' ) [ '▁Don' , "'" , 't' , '▁you' , '▁love' , '▁' , 'Transform' , 'ers' , '?' , '▁We' , '▁sure' , '▁do' , '.' ] >>> tokenizer . tokenize ( 'Don \' t you love Huggingface Transformers? We sure do.' ) [ '▁Don' , "'" , 't' , '▁you' , '▁love' , '▁Hu' , 'gging' , 'face' , '▁' , 'Transform' , 'ers' , '?' , '▁We' , '▁sure' , '▁do' , '.' ] >>>  
+
+
+这些下划线，_you，是来自sentenpiece的tokenize的结果。
+
+可以看到，Transformers -> Transform + ers，被一分二了。
+第二部分，Byte-Pair Encoding (BPE)
+
+这个bpe是2015年的一篇acl的文章引入的：
+Neural Machine Translation of Rare Words with Subword Units ​ arxiv.org/abs/1508.07909
+
+Neural Machine Translation of Rare Words with Subword Units
+
+Rico Sennrich, Barry Haddow, Alexandra Birch
+
+
+BPE首先依赖于一个pre-tokenizer，即，word breaking，即需要先把句子切割成词，这对于中文，日文这样的语言来说很重要（例如使用jieba，mecab等分词工具）。
+
+这个pre-tokenization可以和space tokenization一样简单，例如gpt-2，roberta；（english而言)；
+
+更加复杂一些的pre-tokenization，可以是再包括rule-based tokenization，例如：
+
+    XLM，FlauBERT，其使用Moses来处理多个语言；
+    GPT，使用spacy和ftfy来计算training corpus中的每个word的频次。
+
+
+在pre-tokenization之后，创建了一组不重复的词的列表，并确定了每个词条在训练数据中出现的频率。 接下来，BPE 创建一个由出现在唯一单词集中的所有符号（例如英文中的单个字母，中文中的单个汉字，日文中的汉字或者假名）组成的基本词汇表，并学习 合并规则 以从基本词汇表的两个符号symbol形成一个新符号(subword)。 它会持续执行上述”合并“操作，直到词汇量达到所需的词汇量。 请注意，所需的词汇量（词表大小）是在训练分词器 之前 定义的超参数（例如，32K=32000, 48K=48000之类的）。
+
+
+举个例子：
+
+假设，经过pre-tokenization之后，如下的单词word和他们的频次被统计出来了：
+
+("hug", 10), ("pug", 5), ("pun", 12), ("bun", 4), ("hugs", 5)
+
+那么，我们收集其中出现的characters，就得到：
+
+["b","g","h","n","p","s","u"]
+
+基于这个character set，我们可以回头把前面的列表切割一下：
+
+("h" "u" "g", 10), ("p" "u" "g", 5), ("p" "u" "n", 12), ("b" "u" "n", 4), ("h" "u" "g" "s", 5)
+
+
+然后做啥？” 合并 “！
+
+上面的例子中，我们可以统计出来，h和u常常一起出现：
+
+hu in hug 10 times；
+
+hu in hugs 5 times；
+
+同时，也会发现：
+
+ug 在 hug中10次；
+
+ug在pug中5次；
+
+ug在hugs中5次；
+
+一共20次。
+
+
+那么，就把u和g结合，合并起来，得到：
+
+("h" "ug", 10), ("p" "ug", 5), ("p" "u" "n", 12), ("b" "u" "n", 4), ("h" "ug" "s", 5)
+
+然后，继续”合并“操作，寻找可以合并的，频次最高的那个候选。
+
+un一起是12+4=16次；
+
+之后，是h 和ug，15次。
+
+从而，我们有：
+
+("hug", 10), ("p" "ug", 5), ("p" "un", 12), ("b" "un", 4), ("hug" "s", 5)
+
+
+如果就学习到这里，那么，新来一个词，bug，其就可以根据上面的词表，使用最长匹配方法，得到分割之后的结果：
+
+bug -> b + ug
+
+而，另外一个新来的词，mug，就会被切割为<unk> ng，因为m没有在目前的词表中出现。
+
+
+基于这种方法，例如gpt，的词表大小是40,478；其中包括了 478个base characters(例如下面例子中的'g') ，以及 40000次合并操作之后得到的subwords 。
+
+看看实际的例子：
+
+ >>> from transformers import OpenAIGPTTokenizer >>> tokenizer = OpenAIGPTTokenizer . from_pretrained ( 'openai-gpt' ) >>> intext = "I have a new GPU! and I bought a lot of GPUs." >>> tokenizer_gpt . tokenize ( intext ) [ 'i</w>' , 'have</w>' , 'a</w>' , 'new</w>' , 'g' , 'pu</w>' , '!</w>' , 'and</w>' , 'i</w>' , 'bought</w>' , 'a</w>' , 'lot</w>' , 'of</w>' , 'g' , 'pus</w>' , '.</w>' ] >>> intext2 = "Don't you love huggingface Transformers? We sure do." >>> tokenizer ( intext ) { 'input_ids' : [ 249 , 604 , 246 , 783 , 30 , 10078 , 267 , 488 , 249 , 3828 , 246 , 1322 , 498 , 30 , 6197 , 239 ], 'attention_mask' : [ 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 ]} >>> tokenizer ( intext2 ) { 'input_ids' : [ 587 , 538 , 512 , 1119 , 884 , 901 , 667 , 835 , 2973 , 1858 , 650 , 257 , 606 , 881 , 587 , 239 ], 'attention_mask' : [ 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 ]} >>> print ( dir ( tokenizer )) [ 'SPECIAL_TOKENS_ATTRIBUTES' , '__annotations__' , '__call__' , '__class__' , '__delattr__' , '__dict__' , '__dir__' , '__doc__' , '__eq__' , '__format__' , '__ge__' , '__getattribute__' , '__gt__' , '__hash__' , '__init__' , '__init_subcla ss__ ', ' __le__ ', ' __len__ ', ' __lt__ ', ' __module__ ', ' __ne__ ', ' __new__ ', ' __reduce__ ', ' __reduce_ex__ ', ' __repr__ ', ' __setattr__ ', ' __sizeof__ ', ' __str__ ', ' __subclasshook__ ', ' __weakref__ ', ' _add_tokens ', ' _additional_specia l_tokens ', ' _batch_encode_plus ', ' _batch_prepare_for_model ', ' _bos_token ', ' _cls_token ', ' _convert_id_to_token ', ' _convert_token_to_id ', ' _convert_token_to_id_with_added_voc ', ' _decode ', ' _encode_plus ', ' _eos_token ', ' _from_p retrained ', ' _get_padding_truncation_strategies ', ' _mask_token ', ' _pad ', ' _pad_token ', ' _pad_token_type_id ', ' _save_pretrained ', ' _sep_token ', ' _tokenize ', ' _unk_token ', ' add_special_tokens ', ' add_tokens ', ' added_tokens_decod er ', ' added_tokens_encoder ', ' additional_special_tokens ', ' additional_special_tokens_ids ', ' all_special_ids ', ' all_special_tokens ', ' all_special_tokens_extended ', ' batch_decode ', ' batch_encode_plus ', ' bos_token ', ' bos_token_i d ', ' bpe ', ' bpe_ranks ', ' build_inputs_with_special_tokens ', ' cache ', ' clean_up_tokenization ', ' cls_token ', ' cls_token_id ', ' convert_ids_to_tokens ', ' convert_tokens_to_ids ', ' convert_tokens_to_string ', ' create_token_type_ids_f rom_sequences ', ' decode ', ' decoder ', ' deprecation_warnings ', ' do_lower_case ', ' encode ', ' encode_plus ', ' encoder ', ' eos_token ', ' eos_token_id ', ' fix_text ', ' from_pretrained ', ' get_added_vocab ', ' get_special_tokens_mask ', ' get_ vocab ', ' init_inputs ', ' init_kwargs ', ' is_fast ', ' mask_token ', ' mask_token_id ', ' max_len ', ' max_len_sentences_pair ', ' max_len_single_sentence ', ' max_model_input_sizes ', ' model_input_names ', ' model_max_length ', ' name_or_path ', 'nlp' , 'num_special_tokens_to_add' , 'pad' , 'pad_token' , 'pad_token_id' , 'pad_token_type_id' , 'padding_side' , 'prepare_for_model' , 'prepare_for_tokenization' , 'prepare_seq2seq_batch' , 'pretrained_init_configuration' , 'pretrai ned_vocab_files_map ', ' sanitize_special_tokens ', ' save_pretrained ', ' save_vocabulary ', ' sep_token ', ' sep_token_id ', ' slow_tokenizer_class ', ' special_tokens_map ', ' special_tokens_map_extended ', ' tokenize ', ' truncate_sequences ' , 'unique_no_split_tokens' , 'unk_token' , 'unk_token_id' , 'verbose' , 'vocab_files_names' , 'vocab_size' ] >>> tokenizer . convert_ids_to_tokens ( tokenizer ( intext )[ 'input_ids' ]) [ 'i</w>' , 'have</w>' , 'a</w>' , 'new</w>' , 'g' , 'pu</w>' , '!</w>' , 'and</w>' , 'i</w>' , 'bought</w>' , 'a</w>' , 'lot</w>' , 'of</w>' , 'g' , 'pus</w>' , '.</w>' ] >>> tokenizer . convert_ids_to_tokens ( tokenizer ( intext2 )[ 'input_ids' ]) [ 'do</w>' , "n't</w>" , 'you</w>' , 'love</w>' , 'hu' , 'gg' , 'ing' , 'face</w>' , 'trans' , 'form' , 'ers</w>' , '?</w>' , 'we</w>' , 'sure</w>' , 'do</w>' , '.</w>' ] >>> tokenizer . convert_ids_to_tokens ( tokenizer ( intext2 )[ 'input_ids' ]) >>> tokenizer . vocab_size 40478  
+
+第三部分，Byte-level BPE
+
+一个base vocabulary，如果包括了所有的base characters,可能会非常大！例如，一个极端情况下，如果把所有的unicode characters都作为base characters，这就有点太大了。
+
+为了拥有更好的base vocabulary，gpt-2使用了bytes作为”基础词表“，这样就可以强制此”基础词表“只有256个元素了！
+
+而且可以保证，每个base character都可以通过这256个bytes被构造出来！
+
+再加上一些处理”标点符号“的特殊的规则，gpt2的tokenizer可以tokenize几乎所有text序列，而不需要<unk>这个让人讨厌的symbol。
+
+gpt-2的词表大小是50,257；其中有256个bytes是构成了base vocabulary；一个特殊的end-of-text的symbol，以及 50,000次”合并“操作 。
+
+哦，这下搞清楚了，bpe和byte-level bpe的主要区别，在于使用的base vocabulary是不一样的，前者的bpe，可能是a, b, c这样的单独的english character，或者中文单个汉字作为”基础词表“，但是，byte-level bpe就更加”聪明“一些，使用的是256个特殊（不可人工直接理解的）bytes，作为比a/b/c更加原始的”基本单元”。
+
+ >>> from transformers import GPT2Tokenizer >>> tokenizer = GPT2Tokenizer . from_pretrained ( 'gpt2' ) Downloading : 100 %| ██████████████████████████████████████████████████████████████████████████████████████████████████ | 1.04 M / 1.04 M [ 00 : 01 < 00 : 00 , 899 kB / s ] Downloading : 100 %| ████████████████████████████████████████████████████████████████████████████████████████████████████ | 456 k / 456 k [ 00 : 00 < 00 : 00 , 561 kB / s ] >>> print ( dir ( tokenizer )) [ 'SPECIAL_TOKENS_ATTRIBUTES' , '__annotations__' , '__call__' , '__class__' , '__delattr__' , '__dict__' , '__dir__' , '__doc__' , '__eq__' , '__format__' , '__ge __ ', ' __getattribute__ ', ' __gt__ ', ' __hash__ ', ' __init__ ', ' __init_subclass__ ', ' __le__ ', ' __len__ ', ' __lt__ ', ' __module__ ', ' __ne__ ', ' __new__ ', ' __red uce__ ', ' __reduce_ex__ ', ' __repr__ ', ' __setattr__ ', ' __sizeof__ ', ' __str__ ', ' __subclasshook__ ', ' __weakref__ ', ' _add_tokens ', ' _additional_special_toke ns ', ' _batch_encode_plus ', ' _batch_prepare_for_model ', ' _bos_token ', ' _cls_token ', ' _convert_id_to_token ', ' _convert_token_to_id ', ' _convert_token_to_id _with_added_voc ', ' _decode ', ' _encode_plus ', ' _eos_token ', ' _from_pretrained ', ' _get_padding_truncation_strategies ', ' _mask_token ', ' _pad ', ' _pad_token ' , '_pad_token_type_id' , '_save_pretrained' , '_sep_token' , '_tokenize' , '_unk_token' , 'add_prefix_space' , 'add_special_tokens' , 'add_tokens' , 'added_toke ns_decoder ', ' added_tokens_encoder ', ' additional_special_tokens ', ' additional_special_tokens_ids ', ' all_special_ids ', ' all_special_tokens ', ' all_special _tokens_extended ', ' batch_decode ', ' batch_encode_plus ', ' bos_token ', ' bos_token_id ', ' bpe ', ' bpe_ranks ', ' build_inputs_with_special_tokens ', ' byte_decod er ', ' byte_encoder ', ' cache ', ' clean_up_tokenization ', ' cls_token ', ' cls_token_id ', ' convert_ids_to_tokens ', ' convert_tokens_to_ids ', ' convert_tokens_to _string ', ' create_token_type_ids_from_sequences ', ' decode ', ' decoder ', ' deprecation_warnings ', ' encode ', ' encode_plus ', ' encoder ', ' eos_token ', ' eos_tok en_id ', ' errors ', ' from_pretrained ', ' get_added_vocab ', ' get_special_tokens_mask ', ' get_vocab ', ' init_inputs ', ' init_kwargs ', ' is_fast ', ' mask_token ', ' mask_token_id ', ' max_len ', ' max_len_sentences_pair ', ' max_len_single_sentence ', ' max_model_input_sizes ', ' model_input_names ', ' model_max_length ', ' name_ or_path ', ' num_special_tokens_to_add ', ' pad ', ' pad_token ', ' pad_token_id ', ' pad_token_type_id ', ' padding_side ', ' pat ', ' prepare_for_model ', ' prepare_for _tokenization ', ' prepare_seq2seq_batch ', ' pretrained_init_configuration ', ' pretrained_vocab_files_map ', ' sanitize_special_tokens ', ' save_pretrained ', ' s ave_vocabulary ', ' sep_token ', ' sep_token_id ', ' slow_tokenizer_class ', ' special_tokens_map ', ' special_tokens_map_extended ', ' tokenize ', ' truncate_sequenc es ', ' unique_no_split_tokens ', ' unk_token ', ' unk_token_id ', ' verbose ', ' vocab_files_names ', ' vocab_size '] >>> tokenizer . convert_ids_to_tokens ( tokenizer ( 'hello world!' )[ 'input_ids' ]) [ 'hello' , 'Ġworld' , '!' ] >>> tokenizer ( 'hello world!' ) { 'input_ids' : [ 31373 , 995 , 0 ], 'attention_mask' : [ 1 , 1 , 1 ]} >>> tokenizer . vocab_size 50257  
+
+
+这里有一篇使用byte-level subwords来搞neural machine translation的文章，facebook的：
+https://arxiv.org/pdf/1909.03341.pdf ​ arxiv.org/pdf/1909.03341.pdf
+第四部分，WordPiece
+
+
+wordpiece是 bert, distilbert，electra 中被使用的subword tokenization 算法，其最初在：
+https://static.googleusercontent.com/media/research.google.com/ja//pubs/archive/37842.pdf ​ static.googleusercontent.com/media/research.google.com/ja//pubs/archive/37842.pdf
+
+这个wordpiece，和bpe有特别类似的地方。
+
+wordpiece，首先是初始化一个“基础词表”，其中包括了训练数据中的所有的character，然后逐步学习一些“合并”规则。
+
+和bpe不一样的地方在于：
+
+    bpe是每次合并的时候，选择的是频次最高的候选symbol (pair of existing two units）；
+    wordpiece，则是要最大化训练数据的likelihood！ 
+
+
+什么意思？回到之前的例子：
+
+("h" "u" "g", 10), ("p" "u" "g", 5), ("p" "u" "n", 12), ("b" "u" "n", 4), ("h" "u" "g" "s", 5)
+
+
+然后做啥？” 合并 “！如何合并？
+
+上面的例子中，我们可以统计出来，h和u常常一起出现：
+
+hu in hug 10 times；
+
+hu in hugs 5 times；
+
+同时，也会发现：
+
+ug 在 hug中10次；
+
+ug在pug中5次；
+
+ug在hugs中5次；
+
+一共20次。
+
+
+那么，需要比较：
+
+p(hu)/p(h)p(u)和P(ug)/p(u)p(g)
+
+p(h）如何计算？c(h)/c(*) = (10+5)/(30+15+36+12+20) = 15/113。
+
+p(u)呢：c(u)/c(*) = (10+5+12+4+5)/113=36/113；
+
+p(hu）呢：c(hu)/c(**) = (10+5)/x，这里的分母可以是所有两个symbol的结合，设置为x，因为计算P(ug)的时候，也是分母是这个x，所以比较的时候，就可以不看这个x了。
+
+
+p(g)=(10+5+5)/113 = 20/113
+
+p(ug) = 20/x。
+
+从而有：
+
+15 x 15 113 ∗ 36 113 \frac{\frac{15}{x}}{\frac{15}{113}*\frac{36}{113}} -> 1/36，简化了，不要x和113*113了;
+
+而，第二个是：
+
+20 x 15 113 ∗ 20 113 \frac{\frac{20}{x}}{\frac{15}{113}*\frac{20}{113}} -> 1/15 ，也是简化了，不需要x和113*113了。
+
+还是加入ug，这个候选合并项。
+
+
+还是回顾一下bert的：
+
+基于subwords，可以拼接出来一个新词，例如：
+
+I have a new GPU!里面的gpu这个”新词“可以被其他一些subwords，拼接出来：
+
+ >>> from transformers import BertTokenizer / home / xianchaow / anaconda3 / envs / pytorch / lib / python3 . 6 / site - packages / torch / cuda / __init__ . py : 52 : UserWarning : CUDA initialization : The NVIDIA driver on your system is too old ( found version 10010 ) . Please update you r GPU driver by downloading and installing a new version from the URL : http : // www . nvidia . com / Download / inde x . aspx Alternatively , go to : https : // pytorch . org to install a PyTorch version that has been compiled with your version of the CUDA driver . ( Triggered internally at / pytorch / c10 / cuda / CUDAFunctions . cpp : 100. ) return torch . _C . _cuda_getDeviceCount () > 0 >>> tokenizer = BertTokenizer . from_pretrained ( 'bert-base-uncased' ) >>> tokenizer . tokenize ( 'I have a new GPU! and I bought a lot of GPUs' ) [ 'i' , 'have' , 'a' , 'new' , 'gp' , '##u' , '!' , 'and' , 'i' , 'bought' , 'a' , 'lot' , 'of' , 'gp' , '##us' ] >>> tokenizer . tokenize ( 'Don \' t you love Transformers? We sure do.' ) [ 'don' , "'" , 't' , 'you' , 'love' , 'transformers' , '?' , 'we' , 'sure' , 'do' , '.' ]  
+
+
+上面使用的是bert-base-uncased这个预训练模型，uncased，即”不区分大小写“。
+
+
+问题：如何根据一个大规模语料，训练得到wordpiece的词表呢？
+
+回答1：huggingface里面的tokenizers，类BertWordPieceTokenizer：
+
+代码示例为：
+
+ import datasets from pathlib import Path #from tokenizers import ByteLevelBPETokenizer from tokenizers import BertWordPieceTokenizer all_ds = datasets . list_datasets () print ( all_ds [: 20 ]) dataset = datasets . load_dataset ( 'oscar' , 'unshuffled_deduplicated_la' ) print ( dataset ) print ( dataset [ 'train' ][ 0 ]) paths = [ str ( x ) for x in Path ( './oscar_la' ) . glob ( '*.txt' )] print ( paths ) #tokenizer = ByteLevelBPETokenizer() tokenizer = BertWordPieceTokenizer () tokenizer . train ( files = paths , vocab_size = 30522 , min_frequency = 2 , special_tokens = [ '<s>' , '<pad>' , '</s>' , '<unk>' , '<mask>' ]) tokenizer . save_model ( './oscar_la/wpe' )  
+
+然后，可以在./oscar_la/wpe下面看到：
+
+ root @53cb332d4795 : / workspace / asr / test . byte . level . bpe / oscar_la / wpe # ls -l total 228 - rw - r -- r -- 1 root root 232292 Sep 20 00 : 57 vocab . txt root @53cb332d4795 : / workspace / asr / test . byte . level . bpe / oscar_la / wpe # wc -l vocab.txt 30522 vocab . txt root @53cb332d4795 : / workspace / asr / test . byte . level . bpe / oscar_la / wpe # head -n 10 vocab.txt < s > < pad > </ s > < unk > < mask > ! " # $ %  
+
+
+回答2：可以使用sentencepiece来做。
+
+% spm_train --input=<input> --model_prefix=<model_name> --vocab_size=8000 --character_coverage=1.0 --model_type=<type>
+
+这里有关于使用sentencepiece来训练tokenizer的更加详细的使用方法：
+sentencepiece/options.md at master · google/sentencepiece ​ github.com/google/sentencepiece/blob/master/doc/options.md
+名称	含义	缺省值）
+--input	输入文本文件	""
+--model_prefix	输出模型的前缀	""
+--model_type	模型类型，例如unigram, bpe, word, char。
+当选择word的时候，输入的句子需要先分词完毕。	"unigram"
+--normalization_rule_name		
+--vocab_size	词表大小	8000
+--character_coverage	单个char的覆盖率，从而可以确定预选词表	0.9995
+--pad_id	PAD (<pad>)	-1
+--unk_id	UNK (<unk>)	0
+--bos_id	BOS = begin of sentence	1
+--eos_id	EOS = end of sentence	
+--control_symbols	控制字符	例如，[CLS], [SEP], [MASK] for bert
+--input_sentence_size	输入多少句子	0；例如1000,000,000之类的
+--max_sentence_length	最大句子长度	4192
+--shuffle_input_sentence	随机打乱输入文本句子	true
+		
+
+举几个例子：
+
+（sentencepiece的安装方法就不详细说了，可以直接参考：
+
+ % sudo apt-get install cmake build-essential pkg-config libgoogle-perftools-dev % git clone https://github.com/google/sentencepiece.git % cd sentencepiece % mkdir build % cd build % cmake .. % make -j $( nproc ) % sudo make install % sudo ldconfig -v 
+
+然后检查一下which spm_train和which spm_encode即可。
+
+假设我们创建一个文本文件，test.txt，里面只包括三句话：
+
+ root@e0319bac48ed:/workspace/megatron/sentencepiece# more test.txt hello world! this is only a test for sentencepiece. you can copy something to here to check.  
+
+好，开始训练：
+
+ root@e0319bac48ed:/workspace/megatron/sentencepiece# spm_train --input test.txt --model_prefix=test1_unigram --vocab_size=30 --character_coverage=0.99 --model_type=unigram 
+
+root@e0319bac48ed:/workspace/megatron/sentencepiece# spm_train --input test.txt --model_prefix=test1_unigram --vocab_size=30 --character_coverage=0.99 --model_type=unigram
+
+因为只有三句，所以这里，vocab-size设置为了30，然后模型类型是选用了Unigram（下面的“第五部分”会介绍Unigram）。
+
+训练得到两个文件：
+
+ root@e0319bac48ed:/workspace/megatron/sentencepiece# ls test1_unigram.* -l -rw-r--r-- 1 root root 238076 Sep 18 21:24 test1_unigram.model -rw-r--r-- 1 root root 329 Sep 18 21:24 test1_unigram.vocab 
+
+其中的vocab的内容为：
+
+ root@e0319bac48ed:/workspace/megatron/sentencepiece# more test1_unigram.vocab <unk> 0 <s> 0 </s> 0 ▁ -2.23685 o -2.36734 l -2.9962 e -3.00096 n -3.10971 s -3.18995 y -3.32953 ▁c -3.3674 ▁t -3.53072 . -3.82953 a -3.82953 i -3.82953 p -3.82953 thi -3.82953 ▁he -3.87131 t -3.99278 c -4.60426 r -4.7053 ! -4.82953 d -4.82953 f -4.82953 g -4.82953 k -4.82953 u -4.82953 m -4.82953 w -4.82953 h -5.48321  
+
+一共包括了30行。
+
+接着是看如何使用上面训练得到的模型：
+
+ root@e0319bac48ed:/workspace/megatron/sentencepiece# spm_encode --model = test1_unigram.model --output_format = piece < test.txt ▁he l l o ▁ w o r l d ! ▁ thi s ▁ i s ▁ o n l y ▁ a ▁t e s t ▁ f o r ▁ s e n t e n c e p i e c e . ▁ y o u ▁c a n ▁c o p y ▁ s o m e thi n g ▁t o ▁he r e ▁t o ▁c h e c k . root@e0319bac48ed:/workspace/megatron/sentencepiece# spm_encode --model = test1_unigram.model --output_format = id < test.txt 17 5 5 4 3 28 4 20 5 22 21 3 16 8 3 14 8 3 4 7 5 9 3 13 11 6 8 18 3 23 4 20 3 8 6 7 18 6 7 19 6 15 14 6 19 6 12 3 9 4 26 10 13 7 10 4 15 9 3 8 4 27 6 16 7 24 11 4 17 20 6 11 4 10 29 6 19 25 12  
+
+假设上面两个encode的输出文件分别为test.txt.encode.piece和test.txt.encode.id。
+
+然后是回复原样：
+
+ root@e0319bac48ed:/workspace/megatron/sentencepiece# spm_decode --model = test1_unigram.model --input_format = id < test.txt.encode.id hello world! this is only a test for sentencepiece. you can copy something to here to check. root@e0319bac48ed:/workspace/megatron/sentencepiece# spm_decode --model = test1_unigram.model --input_format = piece < test.txt.encode.piece hello world! this is only a test for sentencepiece. you can copy something to here to check.  
+
+
+因为sentencepiece，一共支持unigram, bpe, char, word四种类型，我们再看看剩下三种。
+
+
+ root@e0319bac48ed:/workspace/megatron/sentencepiece# spm_train --input test.txt --model_prefix = test1_bpe --vocab_size = 30 --character_coverage = 0.99 --model_ty pe = bpe sentencepiece_trainer.cc ( 77 ) LOG ( INFO ) Starts training with : trainer_spec { input: test.txt input_format: model_prefix: test1_bpe model_type: BPE vocab_size: 30 self_test_sample_size: 0 character_coverage: 0.99 input_sentence_size: 0 shuffle_input_sentence: 1 seed_sentencepiece_size: 1000000 shrinking_factor: 0.75 max_sentence_length: 4192 num_threads: 16 num_sub_iterations: 2 max_sentencepiece_length: 16 split_by_unicode_script: 1 split_by_number: 1 split_by_whitespace: 1 split_digits: 0 treat_whitespace_as_suffix: 0 allow_whitespace_only_pieces: 0 required_chars: byte_fallback: 0 vocabulary_output_piece_score: 1 train_extremely_large_corpus: 0 hard_vocab_limit: 1 use_all_vocab: 0 unk_id: 0 bos_id: 1 eos_id: 2 pad_id: -1 unk_piece: <unk> bos_piece: <s> eos_piece: </s> pad_piece: <pad> unk_surface: ⁇ } normalizer_spec { name: nmt_nfkc add_dummy_prefix: 1 remove_extra_whitespaces: 1 escape_whitespaces: 1 normalization_rule_tsv: } denormalizer_spec {} trainer_interface.cc ( 329 ) LOG ( INFO ) SentenceIterator is not specified. Using MultiFileSentenceIterator. trainer_interface.cc ( 178 ) LOG ( INFO ) Loading corpus: test.txt trainer_interface.cc ( 385 ) LOG ( INFO ) Loaded all 3 sentences trainer_interface.cc ( 400 ) LOG ( INFO ) Adding meta_piece: <unk> trainer_interface.cc ( 400 ) LOG ( INFO ) Adding meta_piece: <s> trainer_interface.cc ( 400 ) LOG ( INFO ) Adding meta_piece: </s> trainer_interface.cc ( 405 ) LOG ( INFO ) Normalizing sentences... trainer_interface.cc ( 466 ) LOG ( INFO ) all chars count = 93 trainer_interface.cc ( 487 ) LOG ( INFO ) Alphabet size = 23 trainer_interface.cc ( 488 ) LOG ( INFO ) Final character coverage = 1 trainer_interface.cc ( 520 ) LOG ( INFO ) Done! preprocessed 3 sentences. trainer_interface.cc ( 526 ) LOG ( INFO ) Tokenizing input sentences with whitespace: 3 trainer_interface.cc ( 537 ) LOG ( INFO ) Done! 16 bpe_model_trainer.cc ( 167 ) LOG ( INFO ) Updating active symbols. max_freq = 4 min_freq = 1 trainer_interface.cc ( 615 ) LOG ( INFO ) Saving model: test1_bpe.model trainer_interface.cc ( 626 ) LOG ( INFO ) Saving vocabs: test1_bpe.vocab root@e0319bac48ed:/workspace/megatron/sentencepiece# more test1_bpe.vocab <unk> 0 <s> 0 </s> 0 ▁t -0 he -1 ▁c -2 ce -3 ▁ -4 e -5 o -6 t -7 c -8 h -9 n -10 s -11 i -12 l -13 r -14 y -15 . -16 a -17 p -18 ! -19 d -20 f -21 g -22 k -23 m -24 u -25 w -26 root@e0319bac48ed:/workspace/megatron/sentencepiece# ls test1_bpe.* -l -rw-r--r-- 1 root root 238068 Sep 18 21:51 test1_bpe.model -rw-r--r-- 1 root root 183 Sep 18 21:51 test1_bpe.vocab  
+
+encode走起;
+
+ root@e0319bac48ed:/workspace/megatron/sentencepiece# spm_encode --model = test1_bpe.model --output_format = piece < test.txt ▁ he l l o ▁ w o r l d ! ▁t h i s ▁ i s ▁ o n l y ▁ a ▁t e s t ▁ f o r ▁ s e n t e n ce p i e ce . ▁ y o u ▁c a n ▁c o p y ▁ s o m e t h i n g ▁t o ▁ he r e ▁t o ▁c he c k . root@e0319bac48ed:/workspace/megatron/sentencepiece# spm_encode --model = test1_bpe.model --output_format = piece < test.txt > test.txt.encode.piece root@e0319bac48ed:/workspace/megatron/sentencepiece# spm_encode --model = test1_bpe.model --output_format = id < test.txt 7 4 16 16 9 7 29 9 17 16 23 22 3 12 15 14 7 15 14 7 9 13 16 18 7 20 3 8 14 10 7 24 9 17 7 14 8 13 10 8 13 6 21 15 8 6 19 7 18 9 28 5 20 13 5 9 21 18 7 14 9 27 8 10 12 15 13 25 3 9 7 4 17 8 3 9 5 4 11 26 19 root@e0319bac48ed:/workspace/megatron/sentencepiece# spm_encode --model = test1_bpe.model --output_format = id < test.txt > test.txt.encode.id 
+
+然后是decode:
+
+ root@e0319bac48ed:/workspace/megatron/sentencepiece# spm_decode --model = test1_bpe.model --input_format = id < test.txt.encode.id hello world! this is only a test for sentencepiece. you can copy something to here to check. root@e0319bac48ed:/workspace/megatron/sentencepiece# spm_decode --model = test1_bpe.model --input_format = piece < test.txt.encode.piece hello world! this is only a test for sentencepiece. you can copy something to here to check. 
+
+
+如果想用##作为“非打头的”subword的标识，那么可以对bpe得到的vocab做后处理：
+
+ with open ( os . path . join ( tempdir , 'bpe.vocab' )) as vocab_file , \ open ( args . output_file , 'w' ) as output_file : for line in vocab_file : sp_token , _ = line . rstrip ( ' \n ' ) . split ( ' \t ' ) if sp_token == '<pad>' : output_token = '[PAD]' elif sp_token == '<unk>' : output_token = '[UNK]' elif sp_token in CONTROL_SYMBOLS : output_token = sp_token elif sp_token . startswith ( ' \u2581 ' ): # e.g. "▁word" -> "word" output_token = sp_token [ 1 :] elif args . subword_type == 'bpe' : # e.g. "tion" -> "##tion" output_token = '##' + sp_token else : output_token = sp_token output_file . write ( output_token + ' \n ' )  
+
+特别是其中的，：
+
+elif sp_token.startswith('\u2581'):# e.g. "▁word" -> "word"
+
+output_token = sp_token[1:]
+
+和：
+
+elif args.subword_type =='bpe':# e.g. "tion" -> "##tion"
+
+output_token ='##'+ sp_token
+
+
+
+
+
+接下来看char类型的：直接写了个bash文件：命名为try.sh了：
+
+ #!/bin/bash atype = "char" spm_train --input test.txt --model_prefix = test1_ $atype --vocab_size = 50 --character_coverage = 0.99 --model_type = $atype ls test1_ $atype .* -l spm_encode --model = test1_ $atype .model --output_format = piece < test.txt spm_encode --model = test1_ $atype .model --output_format = piece < test.txt > test.txt.encode. $atype .piece spm_encode --model = test1_ $atype .model --output_format = id < test.txt spm_encode --model = test1_ $atype .model --output_format = id < test.txt > test.txt.encode. $atype .id spm_decode --model = test1_ $atype .model --input_format = id < test.txt.encode. $atype .id spm_decode --model = test1_ $atype .model --input_format = piece < test.txt.encode. $atype .piece  
+
+执行结果如下：
+
+ root@e0319bac48ed:/workspace/megatron/sentencepiece# bash try.sh sentencepiece_trainer.cc ( 77 ) LOG ( INFO ) Starts training with : trainer_spec { input: test.txt input_format: model_prefix: test1_char model_type: CHAR vocab_size: 50 self_test_sample_size: 0 character_coverage: 0.99 input_sentence_size: 0 shuffle_input_sentence: 1 seed_sentencepiece_size: 1000000 shrinking_factor: 0.75 max_sentence_length: 4192 num_threads: 16 num_sub_iterations: 2 max_sentencepiece_length: 16 split_by_unicode_script: 1 split_by_number: 1 split_by_whitespace: 1 split_digits: 0 treat_whitespace_as_suffix: 0 allow_whitespace_only_pieces: 0 required_chars: byte_fallback: 0 vocabulary_output_piece_score: 1 train_extremely_large_corpus: 0 hard_vocab_limit: 1 use_all_vocab: 0 unk_id: 0 bos_id: 1 eos_id: 2 pad_id: -1 unk_piece: <unk> bos_piece: <s> eos_piece: </s> pad_piece: <pad> unk_surface: ⁇ } normalizer_spec { name: nmt_nfkc add_dummy_prefix: 1 remove_extra_whitespaces: 1 escape_whitespaces: 1 normalization_rule_tsv: } denormalizer_spec {} trainer_interface.cc ( 329 ) LOG ( INFO ) SentenceIterator is not specified. Using MultiFileSentenceIterator. trainer_interface.cc ( 178 ) LOG ( INFO ) Loading corpus: test.txt trainer_interface.cc ( 385 ) LOG ( INFO ) Loaded all 3 sentences trainer_interface.cc ( 400 ) LOG ( INFO ) Adding meta_piece: <unk> trainer_interface.cc ( 400 ) LOG ( INFO ) Adding meta_piece: <s> trainer_interface.cc ( 400 ) LOG ( INFO ) Adding meta_piece: </s> trainer_interface.cc ( 405 ) LOG ( INFO ) Normalizing sentences... trainer_interface.cc ( 466 ) LOG ( INFO ) all chars count = 93 trainer_interface.cc ( 487 ) LOG ( INFO ) Alphabet size = 23 trainer_interface.cc ( 488 ) LOG ( INFO ) Final character coverage = 1 trainer_interface.cc ( 520 ) LOG ( INFO ) Done! preprocessed 3 sentences. trainer_interface.cc ( 615 ) LOG ( INFO ) Saving model: test1_char.model trainer_interface.cc ( 626 ) LOG ( INFO ) Saving vocabs: test1_char.vocab -rw-r--r-- 1 root root 238021 Sep 18 21:59 test1_char.model -rw-r--r-- 1 root root 267 Sep 18 21:59 test1_char.vocab ▁ h e l l o ▁ w o r l d ! ▁ t h i s ▁ i s ▁ o n l y ▁ a ▁ t e s t ▁ f o r ▁ s e n t e n c e p i e c e . ▁ y o u ▁ c a n ▁ c o p y ▁ s o m e t h i n g ▁ t o ▁ h e r e ▁ t o ▁ c h e c k . 3 8 4 12 12 5 3 25 5 13 12 19 18 3 6 8 11 10 3 11 10 3 5 9 12 14 3 16 3 6 4 10 6 3 20 5 13 3 10 4 9 6 4 9 7 4 17 11 4 7 4 15 3 14 5 24 3 7 16 9 3 7 5 17 14 3 10 5 23 4 6 8 11 9 21 3 6 5 3 8 4 13 4 3 6 5 3 7 8 4 7 22 15 hello world! this is only a test for sentencepiece. you can copy something to here to check. hello world! this is only a test for sentencepiece. you can copy something to here to check.  
+
+然后是看词表内容：
+
+ root@e0319bac48ed:/workspace/megatron/sentencepiece# more test1_char.vocab <unk> 0 <s> 0 </s> 0 ▁ -1.69939 e -2.1347 o -2.33537 t -2.58669 c -2.74084 h -2.92316 n -2.92316 s -2.92316 i -3.14631 l -3.14631 r -3.43399 y -3.43399 . -3.83945 a -3.83945 p -3.83945 ! -4.5326 d -4.5326 f -4.5326 g -4.5326 k -4.5326 m -4.5326 u -4.5326 w -4.5326  
+
+最后是word类型的：
+
+只需要把前面的atype="char"，修改为atype="word"即可：
+
+ root@e0319bac48ed:/workspace/megatron/sentencepiece# bash try_word.sh sentencepiece_trainer.cc ( 77 ) LOG ( INFO ) Starts training with : trainer_spec { input: test.txt input_format: model_prefix: test1_word model_type: WORD vocab_size: 50 self_test_sample_size: 0 character_coverage: 0.99 input_sentence_size: 0 shuffle_input_sentence: 1 seed_sentencepiece_size: 1000000 shrinking_factor: 0.75 max_sentence_length: 4192 num_threads: 16 num_sub_iterations: 2 max_sentencepiece_length: 16 split_by_unicode_script: 1 split_by_number: 1 split_by_whitespace: 1 split_digits: 0 treat_whitespace_as_suffix: 0 allow_whitespace_only_pieces: 0 required_chars: byte_fallback: 0 vocabulary_output_piece_score: 1 train_extremely_large_corpus: 0 hard_vocab_limit: 1 use_all_vocab: 0 unk_id: 0 bos_id: 1 eos_id: 2 pad_id: -1 unk_piece: <unk> bos_piece: <s> eos_piece: </s> pad_piece: <pad> unk_surface: ⁇ } normalizer_spec { name: nmt_nfkc add_dummy_prefix: 1 remove_extra_whitespaces: 1 escape_whitespaces: 1 normalization_rule_tsv: } denormalizer_spec {} trainer_interface.cc ( 329 ) LOG ( INFO ) SentenceIterator is not specified. Using MultiFileSentenceIterator. trainer_interface.cc ( 178 ) LOG ( INFO ) Loading corpus: test.txt trainer_interface.cc ( 385 ) LOG ( INFO ) Loaded all 3 sentences trainer_interface.cc ( 400 ) LOG ( INFO ) Adding meta_piece: <unk> trainer_interface.cc ( 400 ) LOG ( INFO ) Adding meta_piece: <s> trainer_interface.cc ( 400 ) LOG ( INFO ) Adding meta_piece: </s> trainer_interface.cc ( 405 ) LOG ( INFO ) Normalizing sentences... trainer_interface.cc ( 466 ) LOG ( INFO ) all chars count = 93 trainer_interface.cc ( 487 ) LOG ( INFO ) Alphabet size = 23 trainer_interface.cc ( 488 ) LOG ( INFO ) Final character coverage = 1 trainer_interface.cc ( 520 ) LOG ( INFO ) Done! preprocessed 3 sentences. trainer_interface.cc ( 615 ) LOG ( INFO ) Saving model: test1_word.model spm_train_main.cc ( 258 ) [ _status.ok ()] Internal: src/trainer_interface.cc ( 590 ) [( trainer_spec_.vocab_size ()) == ( model_proto->pieces_size ())] Vocabulary size too high ( 50 ) . Please set it to a value < = 19. Program terminated with an unrecoverable error. -rw-r--r-- 1 root root 238021 Sep 18 22:02 test1_word.model -rw-r--r-- 1 root root 267 Sep 18 22:02 test1_word.vocab ▁ h e l l o ▁ w o r l d ! ▁ t h i s ▁ i s ▁ o n l y ▁ a ▁ t e s t ▁ f o r ▁ s e n t e n c e p i e c e . ▁ y o u ▁ c a n ▁ c o p y ▁ s o m e t h i n g ▁ t o ▁ h e r e ▁ t o ▁ c h e c k . 3 8 4 12 12 5 3 25 5 13 12 19 18 3 6 8 11 10 3 11 10 3 5 9 12 14 3 16 3 6 4 10 6 3 20 5 13 3 10 4 9 6 4 9 7 4 17 11 4 7 4 15 3 14 5 24 3 7 16 9 3 7 5 17 14 3 10 5 23 4 6 8 11 9 21 3 6 5 3 8 4 13 4 3 6 5 3 7 8 4 7 22 15 hello world! this is only a test for sentencepiece. you can copy something to here to check. hello world! this is only a test for sentencepiece. you can copy something to here to check. root@e0319bac48ed:/workspace/megatron/sentencepiece# wc -l test1_word.vocab 26 test1_word.vocab root@e0319bac48ed:/workspace/megatron/sentencepiece# more test1_word.vocab <unk> 0 <s> 0 </s> 0 ▁ -1.69939 e -2.1347 o -2.33537 t -2.58669 c -2.74084 h -2.92316 n -2.92316 s -2.92316 i -3.14631 l -3.14631 r -3.43399 y -3.43399 . -3.83945 a -3.83945 p -3.83945 ! -4.5326 d -4.5326 f -4.5326 g -4.5326 k -4.5326 m -4.5326 u -4.5326 w -4.5326  
+
+词表有26个词（没到50）。
+
+中文的简单的例子：
+
+ #!/bin/bash if [[ $# -lt 3 ]] then echo "Usage: $0 <language:ch, jp, en> <type:char, bpe, word, unigram> <input.file>" exit 1 fi lang = $1 atype = $2 infn = $3 pref = test1_ " $lang " _ $atype echo $pref spm_train --input $infn --model_prefix = $pref --vocab_size = 58 --character_coverage = 0.99 --model_type = $atype ls test1_ $atype .* -l spm_encode --model = $pref .model --output_format = piece < $infn spm_encode --model = $pref .model --output_format = piece < $infn > $infn .encode. $atype .piece spm_encode --model = $pref .model --output_format = id < $infn spm_encode --model = $pref .model --output_format = id < $infn > $infn .encode. $atype .id spm_decode --model = $pref .model --input_format = id < $infn .encode. $atype .id spm_decode --model = $pref .model --input_format = piece < $infn .encode. $atype .piece  
+
+然后，构造一个数据：
+
+ root@e0319bac48ed:/workspace/megatron/sentencepiece# more test.txt.ch 不负韶光，所以要砥砺前行！ 阳光总在风雨后! so you should try hard! 我是中文，我是一个好代码，我是一个好码农，把福报留给老板，把钱带回家！  
+
+
+运行：
+
+ root@e0319bac48ed:/workspace/megatron/sentencepiece# bash try.sh ch unigram test.txt.ch test1_ch_unigram sentencepiece_trainer.cc ( 77 ) LOG ( INFO ) Starts training with : trainer_spec { input: test.txt.ch input_format: model_prefix: test1_ch_unigram model_type: UNIGRAM vocab_size: 58 self_test_sample_size: 0 character_coverage: 0.99 input_sentence_size: 0 shuffle_input_sentence: 1 seed_sentencepiece_size: 1000000 shrinking_factor: 0.75 max_sentence_length: 4192 num_threads: 16 num_sub_iterations: 2 max_sentencepiece_length: 16 split_by_unicode_script: 1 split_by_number: 1 split_by_whitespace: 1 split_digits: 0 treat_whitespace_as_suffix: 0 allow_whitespace_only_pieces: 0 required_chars: byte_fallback: 0 vocabulary_output_piece_score: 1 train_extremely_large_corpus: 0 hard_vocab_limit: 1 use_all_vocab: 0 unk_id: 0 bos_id: 1 eos_id: 2 pad_id: -1 unk_piece: <unk> bos_piece: <s> eos_piece: </s> pad_piece: <pad> unk_surface: ⁇ } normalizer_spec { name: nmt_nfkc add_dummy_prefix: 1 remove_extra_whitespaces: 1 escape_whitespaces: 1 normalization_rule_tsv: } denormalizer_spec {} trainer_interface.cc ( 329 ) LOG ( INFO ) SentenceIterator is not specified. Using MultiFileSentenceIterator. trainer_interface.cc ( 178 ) LOG ( INFO ) Loading corpus: test.txt.ch trainer_interface.cc ( 385 ) LOG ( INFO ) Loaded all 3 sentences trainer_interface.cc ( 400 ) LOG ( INFO ) Adding meta_piece: <unk> trainer_interface.cc ( 400 ) LOG ( INFO ) Adding meta_piece: <s> trainer_interface.cc ( 400 ) LOG ( INFO ) Adding meta_piece: </s> trainer_interface.cc ( 405 ) LOG ( INFO ) Normalizing sentences... trainer_interface.cc ( 466 ) LOG ( INFO ) all chars count = 83 trainer_interface.cc ( 487 ) LOG ( INFO ) Alphabet size = 51 trainer_interface.cc ( 488 ) LOG ( INFO ) Final character coverage = 1 trainer_interface.cc ( 520 ) LOG ( INFO ) Done! preprocessed 3 sentences. unigram_model_trainer.cc ( 139 ) LOG ( INFO ) Making suffix array... unigram_model_trainer.cc ( 143 ) LOG ( INFO ) Extracting frequent sub strings... unigram_model_trainer.cc ( 194 ) LOG ( INFO ) Initialized 58 seed sentencepieces trainer_interface.cc ( 526 ) LOG ( INFO ) Tokenizing input sentences with whitespace: 3 trainer_interface.cc ( 537 ) LOG ( INFO ) Done! 8 unigram_model_trainer.cc ( 489 ) LOG ( INFO ) Using 8 sentences for EM training unigram_model_trainer.cc ( 505 ) LOG ( INFO ) EM sub_iter = 0 size = 48 obj = 36.1218 num_tokens = 70 num_tokens/piece = 1.45833 unigram_model_trainer.cc ( 505 ) LOG ( INFO ) EM sub_iter = 1 size = 48 obj = 35.7325 num_tokens = 70 num_tokens/piece = 1.45833 trainer_interface.cc ( 615 ) LOG ( INFO ) Saving model: test1_ch_unigram.model trainer_interface.cc ( 626 ) LOG ( INFO ) Saving vocabs: test1_ch_unigram.vocab -rw-r--r-- 1 root root 238335 Sep 18 22:13 test1_unigram.model -rw-r--r-- 1 root root 606 Sep 18 22:13 test1_unigram.vocab ▁ 不 负 韶 光 , 所 以 要 砥 砺 前 行 ! ▁ 阳 光 总 在 风 雨 后 ! ▁s o ▁ y ou ▁s h ou l d ▁ t r y ▁ h a r d ! ▁ 我是 中 文 , 我是一个好 代 码 , 我是一个好 码 农 , 把 福 报 留 给 老 板 , 把 钱 带 回 家 ! 3 22 27 28 6 4 25 23 26 39 40 24 41 5 3 43 6 38 35 45 44 33 5 12 29 3 7 9 12 11 9 31 8 3 32 10 7 3 11 30 10 8 5 3 50 49 56 4 15 52 14 4 15 14 53 4 13 57 55 51 47 48 46 4 13 42 37 34 36 5 不负韶光,所以要砥砺前行! 阳光总在风雨后! so you should try hard! 我是中文,我是一个好代码,我是一个好码农,把福报留给老板,把钱带回家! 不负韶光,所以要砥砺前行! 阳光总在风雨后! so you should try hard! 我是中文,我是一个好代码,我是一个好码农,把福报留给老板,把钱带回家!  
+
+词典：
+
+ root@e0319bac48ed:/workspace/megatron/sentencepiece# more test1_ch_unigram.vocab <unk> 0 <s> 0 </s> 0 ▁ -2.53521 , -2.73523 ! -2.98521 光 -3.81854 y -3.81855 d -3.81855 ou -3.81855 r -3.81855 h -3.81855 ▁s -3.81855 把 -3.81857 码 -3.81857 我是一个好 -3.81858 好 -4.81798 个 -4.81808 一 -4.81818 u -4.81828 s -4.81838 是 -4.81848 不 -4.81854 以 -4.81854 前 -4.81854 所 -4.81854 要 -4.81854 负 -4.81854 韶 -4.81854 o -4.81855 a -4.81855 l -4.81855 t -4.81855 后 -4.81855 回 -4.81855 在 -4.81855 家 -4.81855 带 -4.81855 总 -4.81855 砥 -4.81855 砺 -4.81855 行 -4.81855 钱 -4.81855 阳 -4.81855 雨 -4.81855 风 -4.81855 板 -4.81856 给 -4.81856 老 -4.81856 中 -4.81857 我是 -4.81857 留 -4.81857 代 -4.81858 农 -4.81858 我 -4.81858 报 -4.81858 文 -4.81858 福 -4.81858  
+
+待续！(说我文字超了。。。）
+
+
+导航：
+迷途小书僮：[算法学习]Transformer tokenizers二元店(2) 4 赞同 · 2 评论 文章
+
+编辑于 2021-09-20 09:08
+「真诚赞赏，手留余香」
+赞赏
+还没有人赞赏，快来当第一个赞赏的人吧！
+BERT
+自然语言处理
+GPT2
+​ 赞同 18 ​ ​ 2 条评论
+​ 分享
+​ 喜欢 ​ 收藏 ​ 申请转载
+​
+发布一条带图评论吧
+
+2 条评论
+默认
+最新
+Yurisa
+Yurisa
+谢谢分享！ 想请教一下，东北大那个bert 模型，有两种 1. Mecab 分词+wordpiece(with whole word masking), 和 2. Mecab 分词 后分成character,并且用了 whole word masking. 有点疑惑第二种都分成字了， 再用不用whole word masking 有什么改变呢。第一种的话我的理解是比如说 我是学生，用结巴分词成我 是 学生， 然后对学生这个词再细分成 学生 或者学#生 是吗？
+2022-07-18
+​ 回复 ​ 赞
+迷途小书僮
+迷途小书僮
+作者
+loss计算按照word，mask的时候也需要知道word的边界
+2022-07-18
+​ 回复 ​ 1
+文章被以下专栏收录
+
+    硬核而接地气的深度学习
+    硬核而接地气的深度学习
+    真材实料，实例分析深度学习
+
+推荐阅读
+
+    让Pipeline在Transformer LM上沿着Token level并行起来——TeraPipe
+    让Pipeline在Transformer LM上沿着Token level并行起来——TeraPipe
+    西门宇少
+    关于transformers库中不同模型的Tokenizer
+
+    不同PLM原始论文和transformers库中数据的组织格式。其实，像Roberta，XLM等模型的中 &lt;s&gt;, &lt;/s&gt;是可以等价于Bert中的[CLS], [SEP]的，只不过不同作者的习惯不同。Bert 单句：[C…
+    莫冉 发表于我想学NL...
+    CVPR22：Transformer | 经过多尺度Token聚合实现的Shunted Self-Attention
+    CVPR22：Transformer | 经过多尺度Token聚合实现的Shunted Self-Attention
+    欲扬先抑 发表于CV Pa...
+    深度学习序列数据处理利器-tokenizer，结合TensorFlow和PyTorch
+    深度学习序列数据处理利器-tokenizer，结合TensorFlow和PyTorch
+    DengB... 发表于深度学习那...
+

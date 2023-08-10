@@ -1,0 +1,90 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2102.01854
+
+Help | Advanced Search
+Search
+Computer Science > Cryptography and Security
+(cs)
+[Submitted on 3 Feb 2021 ( v1 ), last revised 27 Oct 2021 (this version, v4)]
+Title: Provably Secure Federated Learning against Malicious Clients
+Authors: Xiaoyu Cao , Jinyuan Jia , Neil Zhenqiang Gong
+Download a PDF of the paper titled Provably Secure Federated Learning against Malicious Clients, by Xiaoyu Cao and 2 other authors
+Download PDF
+
+    Abstract: Federated learning enables clients to collaboratively learn a shared global model without sharing their local training data with a cloud server. However, malicious clients can corrupt the global model to predict incorrect labels for testing examples. Existing defenses against malicious clients leverage Byzantine-robust federated learning methods. However, these methods cannot provably guarantee that the predicted label for a testing example is not affected by malicious clients. We bridge this gap via ensemble federated learning. In particular, given any base federated learning algorithm, we use the algorithm to learn multiple global models, each of which is learnt using a randomly selected subset of clients. When predicting the label of a testing example, we take majority vote among the global models. We show that our ensemble federated learning with any base federated learning algorithm is provably secure against malicious clients. Specifically, the label predicted by our ensemble global model for a testing example is provably not affected by a bounded number of malicious clients. Moreover, we show that our derived bound is tight. We evaluate our method on MNIST and Human Activity Recognition datasets. For instance, our method can achieve a certified accuracy of 88% on MNIST when 20 out of 1,000 clients are malicious. 
+
+Comments: 	Accepted by AAAI-21. For slides, see this https URL . For the talk, see this https URL
+Subjects: 	Cryptography and Security (cs.CR) ; Distributed, Parallel, and Cluster Computing (cs.DC); Machine Learning (cs.LG)
+Cite as: 	arXiv:2102.01854 [cs.CR]
+  	(or arXiv:2102.01854v4 [cs.CR] for this version)
+  	https://doi.org/10.48550/arXiv.2102.01854
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Xiaoyu Cao [ view email ]
+[v1] Wed, 3 Feb 2021 03:24:17 UTC (10,880 KB)
+[v2] Thu, 4 Feb 2021 03:43:50 UTC (10,880 KB)
+[v3] Tue, 16 Feb 2021 16:14:35 UTC (10,880 KB)
+[v4] Wed, 27 Oct 2021 02:14:38 UTC (10,880 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Provably Secure Federated Learning against Malicious Clients, by Xiaoyu Cao and 2 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.CR
+< prev   |   next >
+new | recent | 2102
+Change to browse by:
+cs
+cs.DC
+cs.LG
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+DBLP - CS Bibliography
+listing | bibtex
+Xiaoyu Cao
+Jinyuan Jia
+Neil Zhenqiang Gong
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

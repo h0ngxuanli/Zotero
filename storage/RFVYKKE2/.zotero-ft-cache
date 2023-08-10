@@ -1,0 +1,1821 @@
+arXiv:2210.15025v1 [cs.CV] 26 Oct 2022
+
+Addressing Heterogeneity in Federated Learning via Distributional Transformation
+Haolin Yuan1∗, Bo Hui1∗, Yuchen Yang1∗, Philippe Burlina1,2, Neil Zhenqiang Gong3, and Yinzhi Cao1
+1 Department of Computer Science, Johns Hopkins University {hyuan4, bo.hui, yc.yang, yinzhi.cao}@jhu.edu
+2 Johns Hopkins University Applied Physics Laboratory (JHU/APL) Philippe.Burlina@jhuapl.edu 3 Duke University neil.gong@duke.edu
+Abstract. Federated learning (FL) allows multiple clients to collaboratively train a deep learning model. One major challenge of FL is when data distribution is heterogeneous, i.e., diﬀers from one client to another. Existing personalized FL algorithms are only applicable to narrow cases, e.g., one or two data classes per client, and therefore they do not satisfactorily address FL under varying levels of data heterogeneity. In this paper, we propose a novel framework, called DisTrans, to improve FL performance (i.e., model accuracy) via train and test-time distributional transformations along with a double-input-channel model structure. DisTrans works by optimizing distributional oﬀsets and models for each FL client to shift their data distribution, and aggregates these oﬀsets at the FL server to further improve performance in case of distributional heterogeneity. Our evaluation on multiple benchmark datasets shows that DisTrans outperforms state-of-the-art FL methods and data augmentation methods under various settings and diﬀerent degrees of client distributional heterogeneity.
+1 Introduction
+Federated learning [35,30,18,48] (FL) is an emerging distributed machine learning (ML) framework that enables clients to learn models together with the help of a central server. In FL, each client learns a local model that is sent to the FL server for aggregation, and subsequently the FL server returns the aggregated model to the client. The process is repeated until convergence. One emerging and unsolved FL challenge is that the data distribution at each client can be heterogeneous. For example, for FL based skin diagnostics, the skin disease distribution for each hospital / client can vary signiﬁcantly. In another use case of smartphone face veriﬁcation, data distributions collected at each mobile device can vary from one client to another. Such distributional heterogeneity often leads to suboptimal accuracy of the ﬁnal FL model.
+∗
+The ﬁrst three authors have equal contributions to the paper.
+
+2
+
+H. Yuan et al.
+
+client1
+
+goal 2
+
+(1+α)X - αt
+
+client1 , goal 1
+
+client2 ...
+
+clientc
+
+upload dowload
+
+local model
+ local offset
+
+upload
+
+global server
+global model
+
+(
+
+,
+
+)
+
+X: training data t: offset
+
+(1-α)X + αt
+
+Model aggregation Offset aggregation
+
+backbone
+
+dense logits
+
+Local double-channel model
+
+download
+global model
+ global offset
+
+
+global offset
+
+Fig. 1: The pipelines of DisTrans. Each client jointly optimizes the oﬀset and model in local training phase, then uploads both to the central server for aggregation. The aggregated model and oﬀset are sent back to clients for next-round.
+
+There are two types of approaches to learn FL models under data heterogeneity: (i) improving FL’s training process and (ii) improving clients’ local data. Unfortunately, neither improves FL under varied levels of data heterogeneity. On one hand, existing FL methods [35,2,14], especially personalized FLs [28,26], learn a model (or even multiple models) using customized loss functions or model architectures based on heterogeneity level. However, existing personalized FL algorithms are designed for highly heterogeneous distribution. FedAwS [50] can only train FL models when local client’s data has one positive label. The performance of pfedMe [43] and pfedHN [39] degrades to even 5% to 18% lower accuracy than FedAvg [35], when the data distribution is between heterogeneity and homogeneity.
+On the other hand, traditional centralized machine learning also rely on data transformations, i.e., data augmentation, [7,8,46,52,27,9,53,31] to improve model’s performance. Such transformations could be used for a pre-processing of all the training data or an addition to the existing training set. Until very recently, data transformations are also used during test time [38,40,21,15,42] to improve learning models, e.g., adversarial robustness [38]. However, it remains unclear whether and how data transformation can improve FL particularly under diﬀerent client heterogeneity. The major challenge is how to tailor transformations for each client with diﬀerent data distributions.
+In this paper, we propose the ﬁrst FL distributional transformation framework, called DisTrans, to address this heterogeneity challenge by altering local data distributions via a client-speciﬁc data shift applied both on train and test/inference data. Our distributional transformation alters each client’s data distribution so that such distribution becomes less heterogeneous and thus the local models can be better aggregated at the server. Speciﬁcally, DisTrans performs a so-called joint optimization, at each client, to train the local model and generate an oﬀset that is added to the local data. That is, an DisTrans’s
+
+FL Distributional Transformation
+
+3
+
+client alternately performs two steps in each round: 1) optimizing the personalized oﬀset to transform the local data via distribution shifts and 2) optimizing a local model to ﬁt its oﬀsetted local data. After client-side optimization, the FL server aggregates both the personalized oﬀsets and the local models from all the clients and sends the aggregated global model and oﬀset back to each client. During testing, each client adds its personalized oﬀset to each testing input before using the global model to predict its label.
+DisTrans is designed with a special network architecture, called a doubleinput-channel model, to accommodate client-side oﬀsets. This double-inputchannel model has a backbone network shared by both channels, a dense layer accepting outputs from two channels in parallel, and a logits layer that merges channel-related outputs from the dense layer. This double architecture allows the oﬀset to be added to an (training or testing) input in one channel but subtracted from the input in the other. Such addition and subtraction better preserves the information in the original training and testing data because the original data can be recovered from the data with oﬀset in the two channels.
+We perform extensive evaluation of DisTrans using ﬁve diﬀerent image datasets and compare it against state-of-the-art (SOTA) methods. Our evaluation shows that DisTrans outperforms SOTA FL methods across various distributional settings of the clients’ local data by 1%–10% with respect to testing accuracy. Moreover, our evaluation shows that DisTrans achieves 1%–7% higher testing accuracy than other data transformation / augmentation approaches, i.e., mixup [51] and AdvProp [46]. The code for DisTrans is made available under (https://github.com/hyhmia/DisTrans).
+
+2 Related Work
+Existing federated learning (FL) studies focus on improving accuracy [35,50,43,39], convergence [12,6,37,17,45,32], communication cost [24,41,22,3,23,13,34,49], security and privacy [36,10,5,4], or others [16,20,11,47]. Our work focuses on FL accuracy. Personalized Federated Learning. Prior studies [43,50,39] have attempted to address personalization, i.e., to make a model better ﬁt a client’s local training data. For instance, FedAwS [50] investigates FL problems where each local model only has access to the positive data associated with only a single class and imposes a geometric regularizer at the server after each round to encourage classes to spread out in the embedding space. pFedMe [43] formulates a new bi-level optimization problem and uses Moreau envelopes to regularize each client loss function and to decouple personalized model optimization from the global model learning. pFedHN [39] utilizes a hypernetwork model as the global model to generate weights for each local model. MOON [29] uses contrastive learning to maximize the agreement between local and global model. Data Transformation. Data transformation applies label-preserving transformations to images and is a standard technique to improve model accuracy in centralized learning. Most of the recent data transformation meth-
+
+4
+
+H. Yuan et al.
+
+1
+
+.5
+
+1
+
+.0
+
+n
+
+i
+
+n
+
+g
+
+l
+
+o
+
+s
+
+s
+
+2
+
+.5
+
+2
+
+.0
+
+1
+
+.5
+
+C
+
+l
+
+i
+
+e
+
+n
+
+t
+
+1
+
+C
+
+l
+
+i
+
+e
+
+n
+
+t
+
+2
+
+C
+
+l
+
+i
+
+e
+
+n
+
+t
+
+1
+
+w
+
+i
+
+t
+
+h
+
+o
+
+f
+
+f
+
+s
+
+e
+
+t
+
+1
+
+C
+
+l
+
+i
+
+e
+
+n
+
+t
+
+2
+
+w
+
+i
+
+t
+
+h
+
+o
+
+f
+
+f
+
+s
+
+e
+
+t
+
+2
+
+s
+
+s
+
+o
+
+l
+
+g
+
+i
+
+n
+
+a
+
+i
+
+r
+
+n
+
+t
+
+i
+
+l
+
+a
+
+a
+
+r
+
+T
+
+0
+
+.5
+
+0
+
+.0
+
+0
+
+C
+
+l
+
+i
+
+e
+
+n
+
+t
+
+1
+
+C
+
+l
+
+i
+
+e
+
+n
+
+t
+
+2
+
+C
+
+l
+
+i
+
+e
+
+n
+
+t
+
+1
+
+w
+
+i
+
+t
+
+h
+
+o
+
+f
+
+f
+
+s
+
+e
+
+t
+
+1
+
+C
+
+l
+
+i
+
+e
+
+n
+
+t
+
+2
+
+w
+
+i
+
+t
+
+h
+
+o
+
+f
+
+f
+
+s
+
+e
+
+t
+
+2
+
+5
+
+1
+
+0
+
+1
+
+5
+
+V
+
+a
+
+l
+
+u
+
+e
+
+o
+
+f
+
+w
+
+(a) y = cos(wx) on local clients.
+
+G
+
+l
+
+o
+
+b
+
+1
+
+.0
+
+0
+
+.5
+
+2
+
+3
+
+4
+
+V
+
+a
+
+l
+
+u
+
+e
+
+o
+
+f
+
+g
+
+l
+
+o
+
+b
+
+a
+
+l
+
+w
+
+(b) y = wx on FL clients.
+
+Fig. 2: Training loss with respect to optimal weight w on two clients’ local training data with and w/o oﬀset. We observe that oﬀsets can make the training loss against weight more consistent on local clients and help FL model converge.
+
+ods [7,8,46,52,27,9,53,31] focus on transforming datasets during the training phase. For instance, mixup [51] transforms the training data by mixing up the features and their corresponding labels; and AdvProp [46] transforms the training data by adding adversarial examples. Additionally, transforming data at testing time [38,40,21,15,42] has received increased attention. The basic test-time transformations use multiple data augmentations [15,42] at test time to classify one image and get the averaged results. P´erez et.al [38] aims to enhance adversarial robustness via test-time transformation. As a comparison, DisTrans is the ﬁrst to utilize test-time transformation to improve federated learning accuracy under data heterogeneity.
+
+3 Motivation
+DisTrans’s intuition is to transform each client’s training and testing data with oﬀsets to improve FL under heterogeneous data. That is, DisTrans transforms the client-side data distribution so that the learned local models are less heterogeneous and can be better aggregated. To better illustrate this intuition, we describe two simple learning problems as motivating examples. Speciﬁcally, we show that well-optimized and selected oﬀsets can (i) align two learning problems at diﬀerent FL clients and (ii) help the aggregated model converge. Local Non-convex Learning Problems. We consider a non-convex learning problem, i.e., f (x) = cos(wx) where w ∈ R, at two local clients with heterogeneous data. The local data is generated via x, y ∈ R with y = cos(wctrliueentkx) + clientk, where x is drawn i.i.d from Gaussian distribution and clientk is Gaussian noise with mean value as 0. The oﬀsets are px+q where p is a ﬁxed value at both clients and q is chosen via brute force search. Figure 2a shows the squared training loss with and without oﬀsets. The diﬀerence between the training losses of two learning models are reduced, thus making two clients consistent. Linear Regression Problems with An Aggregation Server. We train two local linear models, i.e., f (x) = wx with the model parameter w ∈ R2, aggregate the parameters at a server following FL, and then repeat the two steps following
+
+FL Distributional Transformation
+
+5
+
+Algorithm 1 Pseudo-code of DisTrans
+
+Input: Number of clients C, local training dataset Di for client i, number of rounds R, batch size
+
+B, number of epochs E, and learning rates η and ηp for model and oﬀset t, respectively
+
+Output: Oﬀset ti for client i and global model θ
+
+1: 2:
+
+Server initializes global model for r = 0 to R − 1 do
+
+θ0
+
+and
+
+oﬀset
+
+t0i
+
+for each client
+
+i
+
+3: 4:
+
+Server sends θr and tri to client i for i = 0 to C − 1 do
+
+5: 6:
+
+θir ← θr // Initialize local model θir for client i for e = 0 to E − 1 do
+
+7:
+
+for each mini-batch Dm from Di do
+
+8:
+
+tri ← SGD(∇tri Lri , tri , ηt) // Update oﬀset tri
+
+9: 10:
+
+xt θir
+
+←←(S(1G−Dα(∇)xθir+Lαri t,riθ,ir
+
+(1 + α)x − αtri ) // , η) // Update local
+
+Combine model
+
+tri
+
+with
+
+each
+
+x
+
+∈
+
+Dm
+
+11:
+
+end for
+
+12:
+
+end for
+
+13:
+
+Client i sends θir and tri to server
+
+14: end for
+
+15:
+
+Server
+
+updates
+
+global
+
+model:
+
+θr+1
+
+←
+
+1 C
+
+i∈[C] θir
+
+16: Server updates oﬀset tri +1 for each client i via Oﬀset Aggregation 17: end for
+
+FL until convergence. The local training data is heterogeneous and generated as y = wctrliueentkx + clientk, where each of the two dimensions of x is drawn i.i.d from normal distribution and clientk is a Gaussian noise. The oﬀset is the same as the non-convex learning problem. We ﬁx p and optimize q and w via SGD at each client to minimize learning loss respectively. Figure 2b shows the squared training loss with respect to the optimal w (sum value of two dimensions) with and without the oﬀsets. Clearly, when oﬀsets are not present, the aggregated model does not converge, resulting in a set of sub-optimal weights. Instead, the aggregated model converges with a small training loss with the presence of oﬀsets, conﬁrming our intuition.
+4 Method
+In this section, we present our proposed method in detail. DisTrans aims to learn a single shared global model for the clients. Algorithm 1 shows the pseudo-code of DisTrans. In each round, each client learns a local model and an oﬀset, which are sent to the central server. The server aggregates the clients’ local models and local oﬀsets, and sends them back to the clients. Based on the intuition presented above, we propose a joint optimization method to learn a local model and oﬀset for a client in each round. Figure 1 illustrates our joint optimization that each client performs. Notations. We assume C clients and denote by Di the local training dataset for client i, where i = 1, 2, · · · , C and |Di| = ni. We consider z = (x, y) a training sample, where x ∈ Rm denotes the training input and y the label of the training input. We also denote by Dti the oﬀsetted local training dataset for client i, xt an oﬀsetted training input, and zt = (xt, y) a training sample oﬀsetted with oﬀset. We denote by θ the global model.
+
+6
+
+H. Yuan et al.
+
+4.1 Double-Input-Channel Model Architecture
+
+DisTrans uses a double-input-channel neural network architecture (see Figure 1) for a local/global model. Our architecture has a shared backbone network, a dense layer concatenating two channels’ outputs, and a logits layer merging outputs from the dense layer. Speciﬁcally, these two channels shift the local data distribution in two diﬀerent ways using the same oﬀset t. Formally, Eq. 1 shows our two linear shifts:
+
+xt = ((1 − α)x + αt, (1 + α)x − αt)),
+
+(1)
+
+where the ﬁrst channel adds the oﬀset t to the input x with a coeﬃcient α (i.e., (1 − α)x + αt is the input for the ﬁrst channel) and the second subtracts t from x with the same α (i.e., (1 + α)x − αt is the input to the second channel). Unless otherwise mentioned, our default setting for α is 0.3 in our experiments.
+
+4.2 Joint Optimization
+
+In our joint optimization, each client aims to achieve the following two goals: • Goal 1. Optimizing oﬀset to shift local data distribution to better ﬁt with local
+model. • Goal 2. Optimizing local model to ﬁt with oﬀsetted local data distribution.
+We formulate the two goals as an optimization problem. Speciﬁcally, client i aims to solve the following optimization problem in round r:
+
+min
+θir ,tri
+
+Lri
+
+=
+
+1 n
+
+zt ∈Dti
+
+l(θir, zt),
+
+(2)
+
+where θir is the local model of client i, tri is the oﬀset of client i, and Lri is the loss function of client i in round r. We choose cross entropy as loss term in our implementation. Solving tri in Eq. 2 while ﬁxing θir achieves Goal 1; and solving θir in Eq. 2 while ﬁxing tri achieves Goal 2. Therefore, we initialize θir as the global model θr and alternately optimize tri and θir for each mini-batch. Algorithm 1 illustrates our pseudo-code.
+
+4.3 Model and Oﬀset Aggregation
+
+The server aggregates both the local models and the oﬀsets from the clients. The model aggregation follows the traditional FL, e.g., the server computes the mean of the clients’ local models as the global model like FedAvg [35]. Our oﬀset aggregation leverages the class distribution at each client. Next, we ﬁrst introduce a metric to measure distributional heterogeneity and then our oﬀset aggregation method based on the metric. Distributional Heterogeneity. We deﬁne distributional heterogeneity to characterize the class heterogeneity among the clients. Formally, we denote distributional heterogeneity as DH and deﬁne it as follows:
+
+DH = 1 − j∈[1,N] cj ,
+
+(3)
+
+N ×C
+
+0
+
+1
+
+2
+
+3
+
+4
+
+Class
+
+5
+
+6
+
+FL Distributional Transformation
+
+7
+
+0.1 0.098 0.084 0.098 0.11 0.11 0.086 0.1 0.11 0.097
+
+0.120
+
+0.11 0.088 0.088 0.09 0.099 0.11 0.086 0.098 0.12 0.11 0.115
+
+0.078 0.09 0.09 0.11 0.12 0.093 0.11 0.092 0.1 0.11 0.110
+0.086 0.088 0.12 0.087 0.09 0.12 0.098 0.1 0.12 0.093
+0.105
+0.084 0.11 0.11 0.12 0.082 0.092 0.1 0.12 0.083 0.1
+
+0.093 0.11 0.091 0.1 0.094 0.12 0.095 0.11 0.09 0.089
+
+0.100
+
+0.095 0.11 0.088 0.099 0.099 0.1 0.097 0.099 0.11 0.1
+
+0.095
+
+0.089 0.12 0.11 0.09 0.11 0.1 0.099 0.095 0.093 0.092
+
+0.090
+
+0.091 0.11 0.1 0.11 0.084 0.11 0.1 0.092 0.11 0.095
+
+0.085
+
+0.089 0.095 0.093 0.12 0.11 0.087 0.11 0.092 0.1 0.11
+
+0.080
+
+0
+
+1
+
+2
+
+3
+
+4Client5
+
+6
+
+7
+
+8
+
+9
+
+(a) DH = 0%
+
+Class
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+3
+
+2
+
+1
+
+0
+
+0 0.15 0.2 0 0.17 0 0.17 0.15 0 0.16
+
+0.200
+
+0.18 0 0.15 0 0.17 0.16 0 0.16 0 0.18
+
+0.175
+
+0.15 0 0.15 0 0.2 0 0.15 0.2 0 0.14
+
+0.150
+
+0.18 0 0.15 0.16 0 0.19 0 0 0.18 0.14 0.125
+0.16 0.16 0 0.19 0 0.16 0 0.19 0.13 0
+
+0 0.15 0 0.18 0.15 0.15 0.18 0 0 0.18
+
+0.100
+
+0 0.18 0 0.14 0.15 0 0.2 0.15 0.17 0
+
+0.075
+
+0 0.16 0.16 0.18 0 0.17 0 0 0.15 0.18
+
+0.050
+
+0.15 0 0.18 0.18 0 0 0.17 0.16 0.17 0 0.025
+
+0.17 0.18 0 0 0.16 0.17 0.15 0 0.16 0
+
+0
+
+1
+
+2
+
+3
+
+4Client5
+
+6
+
+7
+
+8
+
+9
+
+0.000
+
+(b) DH = 40%
+
+Class
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+3
+
+2
+
+1
+
+0
+
+0.25 0 0 0 0.26 0.23 0 0 0 0.25
+
+0.30
+
+0 0.24 0 0.21 0 0 0 0.28 0.27 0 0.25
+0.27 0 0 0 0.24 0 0 0.24 0 0.24
+
+0 0 0.2 0.26 0 0 0.26 0 0 0.28
+
+0.20
+
+0 0.22 0 0 0.29 0 0.27 0 0.22 0
+
+0.29 0 0 0.28 0 0.2 0 0 0.24 0
+
+0.15
+
+0 0 0.28 0.25 0 0.21 0 0.25 0 0 0.10
+0.23 0 0 0 0.24 0 0.31 0 0.22 0
+
+0 0.23 0.28 0 0 0 0.21 0 0 0.27
+
+0.05
+
+0 0.23 0.27 0 0 0.24 0 0.26 0 0
+
+0
+
+1
+
+2
+
+3
+
+4Client5
+
+6
+
+7
+
+8
+
+9
+
+0.00
+
+(c) DH = 60%
+
+Class
+
+9
+
+8
+
+7
+
+6
+
+5
+
+4
+
+3
+
+2
+
+1
+
+0
+
+1.0
+0100000000
+
+0000100000
+0.8
+0000010000
+
+0000000010
+0.6
+0000000001
+
+0010000000
+0.4
+0000000100
+
+0001000000
+0.2
+1000000000
+
+0000001000
+
+0
+
+1
+
+2
+
+3
+
+4Client5
+
+6
+
+7
+
+8
+
+9
+
+0.0
+
+(d) DH = 100%
+
+Fig. 3: Diﬀerent distributional heterogeneity levels on CIFAR-10.
+
+7
+
+8
+
+9
+
+where N is the total number of classes, C is the total number of clients, and cj is deﬁned as follows:
+
+0, if only one client has data from class j,
+
+cj = k, if k > 1 clients have data from class j.
+
+(4)
+
+Our deﬁned DH has a value between 0 and 100%. In particular, DH = 0% means that each client has data from the C classes, e.g., the clients’ local data are i.i.d., while DH = 100% means that each class of data belongs to only one client, i.e., an extreme non-i.i.d. setting. Figure 3 shows examples of diﬀerent levels of distributional heterogeneity visualized by heatmaps for clients’ local data in our experiments on CIFAR-10. We list clients on the x-axis and classes on the y-axis; and each cell is the fraction of the data from the corresponding class that are on the corresponding client.
+
+4.4 Oﬀset Aggregation Methods
+DisTrans aggregates clients’ oﬀsets based on distributional heterogeneity. Intuitively, when the distributional heterogeneity is very large, the oﬀset of one client may not be informative for the oﬀset of another client, as their data distributions are substantially diﬀerent. Therefore, we aggregate clients’ oﬀsets only if the distributional heterogeneity is smaller than a threshold (we set the threshold to be 50% in experiments).
+Suppose the distributional heterogeneity of an FL system is smaller than the threshold. One naive way to aggregate the clients’ oﬀsets is to compute their average as a global oﬀset, which is sent back to all clients. However, such naive aggregation method uses the same global oﬀset for all clients, which achieves suboptimal accuracy as shown in our experiments. Therefore, we propose a neural network based aggregation method, which produces diﬀerent aggregated oﬀsets for the clients. Speciﬁcally, the server maintains a neural network, which takes a client-speciﬁc embedding vector e ∈ R1×N and a client’s oﬀset as input and outputs an aggregated oﬀset for the client, where an entry ei of the embedding vector is the fraction of the training data in class i that are on the client.
+The server learns the oﬀset aggregation network by treating it as a regression problem during the FL training process. Speciﬁcally, in each round of DisTrans,
+
+8
+
+H. Yuan et al.
+
+the server collects a set of pairs (ti, ti), where ti is the oﬀset from client i in
+
+the current round, ti is the aggregated oﬀset the server outputs for client i in
+
+the previous round, and i = 1, 2, · · · , C. The server learns the oﬀset aggregation
+
+network by minimizing the 2 distance between ti and ti, i.e., min
+
+C i=1
+
+||ti
+
+−
+
+ti||2,
+
+using Stochastic Gradient Descent (SGD).
+
+5 Experiments
+
+Hyperparameters. Our model’s architecture is the double-input-channel model
+
+as shown in Figure 1. Our default α value is 0.3, number of epochs E = 1, and the
+
+learning rates for the model and oﬀset optimization are 5e-3 and 1e-3 respectively.
+
+Our neural network based oﬀset aggregator’s architecture is a single-input-channel
+
+generator with four convolutional layers.
+
+Datasets and Model Architectures. We use six diﬀerent datasets in the
+
+experiment to show the generality of DisTrans. (i) The BioID [1] dataset
+
+contains 1521 gray level images with the frontal view of 23 people’s face and eye
+
+positions. We keep 20 people’s images in a descending order and central-crop the
+
+images into 256×256. (ii) The CelebA [33] dataset contains 202,599 face images of
+
+10,177 unique, unnamed celebrities. Due to computation resource limit, we choose
+
+images of 50 identities in descending order, central-crop them to 178×178, and
+
+then resize to 128×128. (iii) The CH-MNIST [19] dataset contains eight classes of
+
+5,000 histology tiles images (64x64) from patients with colorectal cancer, (iv) The
+
+CIFAR-10 [25] dataset contains 60,000 32×32 color images in 10 diﬀerent classes,
+
+we resize them to 64×64, (v)The CIFAR-100 [25] dataset contains 60,000 32×32
+
+color images in 100 diﬀerent classes, and (vi) Caltech-UCSD Birds-200-2011 [44]
+
+(referred as Bird-200. The Bird-200 dataset contains 11,788 image from 200 bird
+
+species. Due to computation resource limit, we resize them to 128×128.
+
+Here are the model architectures for each dataset. We use LeNet as the
+
+backbone for BioID, AlexNet for CelebA, CH-MNIST and CIFAR-100, ResNet18
+
+and ResNet50 for CIFAR-100, and ResNet18 for Bird200.
+
+Local Data Distribution. Our local data distribution ranges from entirely i.i.d.
+
+to extreme non-i.i.d., i.e., with distributional heterogeneity value ranging from
+
+0% to 100%. Our data splitting method follows SOTA approach [39]. Speciﬁcally,
+
+we ﬁrst assign a speciﬁc number of classes u out of total classes N for each client.
+
+Then, we sample si,c ∈ (0.4, 0.6) for each client i and a selected class c, and then
+
+assign the client with
+
+si,c n sn,c
+
+of
+
+the
+
+samples
+
+for
+
+the
+
+class
+
+c.
+
+We
+
+repeat
+
+the
+
+same
+
+process for each client.
+
+5.1 Results under Diﬀerent Data Distributions
+We evaluate DisTrans’s accuracy with diﬀerent data distributions and compare with SOTA personalized FL works. Extreme non-i.i.d. The extreme non-i.i.d. setting, following prior work [50], is a setup where each client only has one class (called positive labels), thus being disjointed from each other. The distributional heterogeneity value is thus 100%.
+
+FL Distributional Transformation
+
+9
+
+Table 1: DisTrans vs. SOTA under diﬀerent data distribution. — means that the approach is not applicable under that setting, and DH means distributional heterogeneity (0%: i.i.d. and 100%: extreme non-i.i.d.). We did not evaluate the datasets of BioID and CelebA under other distributional settings due to the relative small number of images per class.
+
+Dataset # clients DH DisTrans (ours) FedAvg pFedMe pFedHN MOON FedAwS
+
+0% (i.i.d.)
+
+CH-MNIST 8
+
+50%
+
+100%
+
+0.908 0.907 0.946
+
+0.891 0.892 0.908
+
+0.778 0.834 0.908
+
+0.702 0.871 0.641
+
+0.887 0.894 0.910
+
+— — 0.942
+
+CIFAR-10
+
+0% (i.i.d.)
+
+40%
+
+10
+
+60%
+
+80%
+
+100%
+
+0.829 0.819 0.846 0.891 0.860
+
+0.809 0.782 0.751 0.702 0.726
+
+0.520 0.523 0.673 0.736 0.751
+
+0.652 0.721 0.785 0.869 0.629
+
+0.789 0.809 0.798 0.794 0.813
+
+— — — — 0.829
+
+0% (i.i.d.)
+
+40%
+
+CIFAR-100 10
+
+60%
+
+80%
+
+100%
+
+0.533 0.586 0.646 0.734 0.834
+
+0.531 0.020 0.354 0.532 — 0.538 0.018 0.492 0.564 — 0.523 0.017 0.604 0.628 — 0.461 0.013 0.669 0.709 — 0.524 0.015 0.469 0.820 —
+
+Bird-200
+
+0% (i.i.d.)
+
+40%
+
+10
+
+60%
+
+80%
+
+100%
+
+0.556 0.548 0.542 0.565 0.641
+
+0.518 0.018 0.053 0.523 — 0.521 0.015 0.064 0.528 — 0.528 0.012 0.086 0.532 — 0.524 0.010 0.125 0.550 — 0.549 0.014 0.309 0.621 —
+
+BioID
+
+20
+
+100%
+
+0.988
+
+0.911 0.902 0.932 0.961 0.983
+
+CelebA
+
+50
+
+100%
+
+0.804
+
+0.639 0.527 0.545 0.497 0.721
+
+We single out this setting, because the evaluation metrics are diﬀerent from other settings given that each client only has positive images. That is, the same amount of negative images (i.e., randomly-selected images from other classes) are introduced in the testing dataset just like prior work [50].
+The rows with 100% distributional heterogeneity values in Table 1 show the model’s accuracy of DisTrans and the comparison with SOTA works. As shown in those results, DisTrans outperforms all prior works with ﬁve diﬀerent datasets with an improvement ranging from 0.4% to 7.7%. FedAwS is clearly the SOTA, which always performs next to DisTrans, because it is designed for this extreme setting. Due to the negative test images, pFedHN performs poor since the server assigns each client model weights that are trained on only positive images according to its mechanism. FedAvg performs better than we expect because the features of negative examples are aggregated from other clients. We did not evaluate CIFAR-100 or Bird-200 under positive labels scenario (FedAws), since the number of classes per client does not satisfy positive labels setting when # clients equals to 10 for them. Instead, each client is assigned 10 or 20 disjoint classes as the extreme non-i.i.d. case.
+
+10
+
+H. Yuan et al.
+
+Table 2: Comparison with data transformation for CH-MNIST dataset.
+
+Method
+
+Distributional heterogeneity
+
+0%
+
+25%
+
+50%
+
+75%
+
+100%
+
+FedAvg
+DisTrans mixup
+AdvProp
+
+0.891 0.908 0.896 0.879
+
+0.893 0.904 0.895 0.880
+
+0.892 0.907 0.882 0.877
+
+0.847 0.905 0.839 0.859
+
+0.908 0.946 0.901 0.919
+
+Other Distributional Settings. Other settings include distributional heterogeneity values ranging from 0% (i.i.d.) to 80% . The evaluation also follows prior FL works [35,43], i.e., each client evaluates testing data with the same classes as its training data. Table 1 also shows the accuracy of DisTrans and four other SOTA works (FedAvg, pFedMe, MOON, and pFedHN). DisTrans outperforms STOA works in every data distribution for all datasets. Note that we do not evaluate FedAwS in these settings because its design is only applicable to the extreme non-i.i.d. setting.
+5.2 Comparing with Data Transformation
+We compare DisTrans with two state-of-the-art, popular data transformation (augmentation) methods, mixup [51] and AdvProp [46]. The former, i.e., mixup, augments training data with virtual training data based on existing data samples and one hot encoding of the label. The latter, i.e., AdvProp, augments training data with its adversarial counterpart. We add both data transformation methods for local training data at each client of FedAvg.
+The comparison results are shown in Table 2. DisTrans appears to outperform both mixup and AdvProp in diﬀerent data distributions from i.i.d. to non-i.i.d. There are two major reasons. First, DisTrans shifts local training and testing data distribution to ﬁt the global model, but existing data transformation only improves training data. Second, DisTrans aggregates the oﬀset based on data distributions, but neither data transformation approaches did so. Another thing worth noting is that mixup improves FedAvg under an i.i.d. setting, but AdvProp improves FedAvg under a non-i.i.d. setting. On one hand, that is likely because virtual examples under a non-i.i.d. setting may introduce further distributional discrepancies, while adversarial examples may help each local model better know the boundary. On the other hand, the distribution is the same under an i.i.d. setting and so does the virtual examples, but diﬀerent adversarial examples may explore diﬀerent boundaries at diﬀerent clients.
+5.3 Ablation Studies
+Single vs. Double-Input Channel. We compare the performance of single vs. double-input-channel models to demonstrate the necessity in using the doubleinput-channel model. Table 3 shows the model’s accuracy on three datasets with diﬀerent distributional heterogeneity values. As shown, the double-input-channel
+
+FL Distributional Transformation
+
+11
+
+Table 3: Ablation study on model structures. We adopt diﬀerent distributional heterogeneity values according to the number of classes in the dataset, i.e., 0%, 25%, 50%, 75%, and 100% for CH-MNIST (8 classes) and 0%, 40%, 60%, 80%, and 100% for CIFAR-10 (10 classes) and Bird-200 (200 classes).
+
+Dataset
+
+Structure
+
+Distributional heterogeneity
+
+0%
+
+40%/25% 60%/50% 80%/75%
+
+100%
+
+CH-MNIST
+
+single double
+
+0.874 0.908
+
+0.871 0.904
+
+0.872 0.907
+
+0.874 0.905
+
+0.889 0.946
+
+CIFAR-10
+
+single double
+
+0.775 0.829
+
+0.802 0.819
+
+0.785 0.846
+
+0.796 0.891
+
+0.811 0.860
+
+Bird-200
+
+single double
+
+0.569 0.556
+
+0.512 0.548
+
+0.497 0.542
+
+0.501 0.565
+
+0.505 0.641
+
+Table 4: Ablation study on aggregation methods. We adopt diﬀerent distributional heterogeneity values according to the number of classes in the dataset, i.e., 0%, 25%, 50%, 75%, and 100% for CH-MNIST (8 classes) and 0%, 40%, 60%, 80%, and 100% for CIFAR-10 (10 classes) and Bird-200 (200 classes).
+
+Dataset
+
+Aggregation
+
+Distributional heterogeneity
+
+0%
+
+40%/25% 60%/50% 80%/75% 100%
+
+CH-MNIST
+
+no agg avg agg nn agg
+
+0.868 0.903 0.908
+
+0.887 0.902 0.904
+
+0.907 0.907 0.905
+
+0.905 0.865 0.887
+
+0.946 0.899 0.921
+
+nn+no (default) 0.908
+
+0.904
+
+0.907
+
+0.905
+
+0.946
+
+CIFAR-10
+
+no agg avg agg nn agg
+
+0.767 0.811 0.829
+
+0.789 0.814 0.819
+
+0.846 0.813 0.799
+
+0.891 0.702 0.743
+
+0.860 0.798 0.839
+
+nn+no (default) 0.829
+
+0.819
+
+0.846
+
+0.891
+
+0.860
+
+Bird-200
+
+no agg avg agg nn agg
+
+0.501 0.526 0.556
+
+0.522 0.529 0.548
+
+0.542 0.525 0.551
+
+0.565 0.515 0.532
+
+0.641 0.489 0.513
+
+nn+no (default) 0.556
+
+0.548
+
+0.551
+
+0.565
+
+0.641
+
+model always outperforms the single-input-channel with around 3%–9% accuracy improvement on three diﬀerent datasets.
+Diﬀerent Oﬀset Aggregations. We compare diﬀerent oﬀset aggregation methods, i.e., no aggregation, average aggregation and neural network (NN) based aggregation, on three datasets with various distributional heterogeneity values. Table 4 shows the comparison results. No aggregation performs best when the distributional heterogeneity is greater than 50%, and NN aggregation performs the best when the distributional heterogeneity is smaller than 50%. Average aggregation always performs worse than the other two. This motivates the design of DisTrans in adopting no aggregation for greater than 50% distributional heterogeneity and NN aggregation for less than 50% distributional heterogeneity, which is the “nn+no (default)” row in Table 4.
+
+12
+
+H. Yuan et al.
+
+Accuracy Accuracy Accuracy
+
+1.0 0.9 0.909
+0.902
+0.8 0.7 0.6 0.5
+0.1
+
+0.946 0.925
+
+0.908
+
+0.906
+
+0.895 0.895
+
+0.889
+
+0.831
+
+DisTrans: 100% distributional heterogeneity DisTrans: 0% distributional heterogeneity
+
+0.3
+
+0.5
+
+0.7
+
+0.9
+
+1.0
+
+0.9
+
+0.8
+
+0.7
+
+0.6
+
+CH-MNIST
+
+0.5
+
+CIFAR-10
+
+CIFAR-100
+
+0.4
+
+5
+
+10
+
+15
+
+20
+
+# local epochs
+
+0.6 0.4 0.2 0.0
+0
+
+DisTrans (ours) pFedMe pFedHN FedAVG
+
+50
+
+100 150 200
+
+# of rounds
+
+Fig. 4: Accuracy vs. α for Fig. 5: Accuracy vs. # of Fig. 6: Accuracy vs. # of
+
+CH-MNIST.
+
+local epochs.
+
+rounds for Birds-200.
+
+Diﬀerent α Values. We evaluate top-1 accuracy of DisTrans with diﬀerent α values, and 0% and 100% distributional heterogeneity to justify why we choose 0.3 as α. Figure 4 shows the results. The accuracy with 100% distributional heterogeneity is more sensitive to α than that with 0%. In both data distributions, the accuracy is the highest when α equals 0.3. The reason is as follows. When α is small, the oﬀset is too weak to shift the distribution. When the α is large, the oﬀset is too strong in overriding the original data distribution. Diﬀerent Local Epochs. We study diﬀerent local training epochs for each round. Figure 5 shows the accuracy for CH-MNIST, CIFAR-100, and Bird-200 with epochs from 1, 5, 10, to 20. The accuracy is the highest with the local epoch as 1, and decreases when the epoch increases. The reason is too much local training makes oﬀsets become overﬁtted to local data. Convergence Rate. We study the convergence rate of three SOTA works and DisTrans in terms of communication rounds between the server and local clients. Figure 6 shows the number of communication rounds as the x-axis and the model’s accuracy as the y-axis for the Birds-200 dataset under the i.i.d. setting (i.e., 0% distributional heterogeneity). There are two things worth noting. First, as shown, the convergence rate of DisTrans is similar to that of FedAvg, which needs approximately 100 rounds. Second, the accuracy of DisTrans is constantly better than FedAvg for each communication between client and server.
+5.4 Scalability
+We study the scalability of DisTrans using two datasets CH-MNIST and CIFAR100 as the number of FL clients increases. First, we test the number of clients from 8, 16, 24, to 40 using 50% distributional heterogeneity for CH-MNIST. The third column in Table 5 shows the accuracy of four diﬀerent works including DisTrans as the number of clients increases. The fourth to eighth columns in Table 5 show the total number of rounds to reach certain accuracy. Generally, the convergence needs more rounds with more clients, which aligns with the previous work [35]. Second, we show the testing accuracy in Table 6 for CIFAR-100 (with ResNet18) of 50, 100, and 500 clients. Each client has 10 classes and the sample rate is 0.2 [29]. DisTrans outperforms SOTA by 8.8%–30.7%. Note that the accuracy of DisTrans drops by 8.4% while SOTA drops by 10.8% to 27.6% for 500 clients.
+
+FL Distributional Transformation
+
+13
+
+Table 5: Best accuracy and the number of rounds to achieve it vs. diﬀerent number of clients using the CH-MNIST dataset when reaching listed accuracy, e.g., DisTrans needs 5 rounds to achieve a 0.800 accuracy with 8 clients. (—: the approach cannot reach the accuracy under that setting.)
+
+# clients
+
+Best accuracy
+
+>0.700
+
+# of rounds to achieve >0.800 >0.850 >0.870
+
+>0.890
+
+8
+
+DisTrans (ours)
+
+16 24
+
+40
+
+0.907 0.898 0.897 0.895
+
+2
+
+5
+
+10
+
+36
+
+63
+
+8
+
+15
+
+25
+
+51
+
+123
+
+12
+
+26
+
+37
+
+68
+
+154
+
+14
+
+29
+
+40
+
+87
+
+192
+
+8
+
+FedAVG
+
+16 24
+
+40
+
+0.892 0.883 0.880 0.878
+
+3
+
+5
+
+15
+
+24
+
+78
+
+7
+
+12
+
+23
+
+48
+
+—
+
+10
+
+21
+
+39
+
+74
+
+—
+
+19
+
+34
+
+44
+
+100
+
+—
+
+8
+
+0.834
+
+690
+
+779
+
+—
+
+—
+
+—
+
+pFedMe
+
+16 24
+
+0.805 0.725
+
+844
+
+1,225
+
+—
+
+—
+
+—
+
+1,859
+
+—
+
+—
+
+—
+
+—
+
+40
+
+0.719
+
+3,071
+
+—
+
+—
+
+—
+
+—
+
+8
+
+pFedHN
+
+16 24
+
+40
+
+0.871 0.817 0.816 0.832
+
+3
+
+8
+
+23
+
+117
+
+—
+
+6
+
+29
+
+—
+
+—
+
+—
+
+4
+
+28
+
+—
+
+—
+
+—
+
+5
+
+27
+
+—
+
+—
+
+—
+
+Table 6: Best accuracy vs. number of clients on CIFAR-100.
+
+DisTrans
+
+pFedHN
+
+pFedHN-pc
+
+MOON
+
+#Client 50 100 500 50 100 500 50 100 500 50 100 500
+
+Accuracy 0.729 0.681 0.645 0.614 0.538 0.338 0.623 0.541 0.372 0.615 0.593 0.507
+
+Table 7: Communication overhead of weights and oﬀset for 64x64 RGB images.
+
+Baseline (in bytes) single-input-channel weight
+
+DisTrans (in bytes) double-input-channel weight
+
+oﬀset
+
+∆ overhead
+
+LeNet AlexNet ResNet18 ResNet50
+
+4,346,447 244,449,263 44,805,709 94,326,992
+
+4,350,415 244,489,263 44,826,189 94,408,912
+
+49,280 49,280 49,280 49,280
+
+1.225% 0.036% 0.155% 0.139%
+
+5.5 Communication Overhead
+We study the communication overhead by calculating the ∆ bytes brought by our double-input-channel weights and oﬀset in each communication round. The comparison baseline used is FedAvg with conventional single-input-channel model. Table 7 shows results for diﬀerent backbone neural network architectures: The overhead is between 0.036% to 1.225% with an average value of 0.389% for diﬀerent network architectures because the double-input-channel model only introduces one additional layer and the oﬀsets are small.
+
+14
+
+H. Yuan et al.
+
+0
+
+0
+
+0
+
+0
+
+1
+
+1
+
+1
+
+1
+
+2
+
+2
+
+2
+
+2
+
+3
+
+3
+
+3
+
+3
+
+4
+
+4
+
+4
+
+4
+
+5
+
+5
+
+5
+
+5
+
+6
+
+6
+
+6
+
+6
+
+7
+
+7
+
+7
+
+7
+
+8
+
+8
+
+8
+
+8
+
+9
+
+9
+
+9
+
+9
+
+(a) FedAvg
+
+(b) FedAwS
+
+(c) pFedMe (d) DisTrans (ours)
+
+Fig. 7: UMAP visualization of embedded feature representations in the global model for test images in CIFAR-10. DisTrans learns better feature representations than FedAvg, FedAwS, and pFedMe.
+
+5.6 Prediction Visualization
+We perform an experiment on CIFAR-10 using ten FL clients where each client has data for only one class, and visualize hidden feature representations using Uniform Manifold Approximation and Projection (UMAP) in Figure 7. The model trained using FedAvg learns poor features, which are mixed and indistinguishable. The feature representations of FedAwS and pFedMe also highly overlap. By contrast, the feature representations of DisTrans are well separated in Figure 7d as a result of shifting the local data distributions via personalized oﬀsets.
+
+6 Conclusion
+FL often needs to contend with client-side local training data with diﬀerent distributions with high heterogeneity. This paper advances a novel approach, DisTrans, based on distributional transformation, that jointly optimizes local model and data with a personalized oﬀset and then aggregates both at a central server. We perform an empirical evaluation of DisTrans using ﬁve diﬀerent datasets, which shows that DisTrans outperforms SOTA FL and data augmentation methods, under diﬀerent degrees of data distributional heterogeneity ranging from extreme non-i.i.d. to i.i.d.
+
+Acknowledgements
+This work was supported in part by Johns Hopkins University Institute for Assured Autonomy (IAA) with grants 80052272 and 80052273, and National Science Foundation (NSF) under grants CNS-21-31859, CNS-21-12562, and CNS18-54001. The views and conclusions contained herein are those of the authors and should not be interpreted as necessarily representing the oﬃcial policies or endorsements, either expressed or implied, of NSF or JHU-IAA.
+
+FL Distributional Transformation
+
+15
+
+References
+
+1. Bioid face dataset. https://www.bioid.com/facedb/ 2. Bonawitz, K., Eichner, H., Grieskamp, W., Huba, D., Ingerman, A., Ivanov, V.,
+Kiddon, C., Koneˇcny`, J., Mazzocchi, S., McMahan, H.B., et al.: Towards federated learning at scale: System design. arXiv preprint arXiv:1902.01046 (2019) 3. Caldas, S., Koneˇcny, J., McMahan, H.B., Talwalkar, A.: Expanding the reach of federated learning by reducing client resource requirements. arXiv preprint arXiv:1812.07210 (2018) 4. Cao, X., Fang, M., Liu, J., Gong, N.Z.: Fltrust: Byzantine-robust federated learning via trust bootstrapping. arXiv preprint arXiv:2012.13995 (2020) 5. Cao, X., Jia, J., Gong, N.Z.: Provably secure federated learning against malicious clients. In: Proceedings of the AAAI Conference on Artiﬁcial Intelligence. vol. 35, pp. 6885–6893 (2021) 6. Chen, M., Poor, H.V., Saad, W., Cui, S.: Convergence time optimization for federated learning over wireless networks. IEEE Transactions on Wireless Communications 20(4), 2457–2471 (2021). https://doi.org/10.1109/TWC.2020.3042530 7. Cubuk, E.D., Zoph, B., Mane, D., Vasudevan, V., Le, Q.V.: Autoaugment: Learning augmentation strategies from data. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) (June 2019) 8. Cubuk, E.D., Zoph, B., Shlens, J., Le, Q.: Randaugment: Practical automated data augmentation with a reduced search space. In: Larochelle, H., Ranzato, M., Hadsell, R., Balcan, M.F., Lin, H. (eds.) Advances in Neural Information Processing Systems. vol. 33, pp. 18613–18624. Curran Associates, Inc. (2020), https://proceedings. neurips.cc/paper/2020/file/d85b63ef0ccb114d0a3bb7b7d808028f-Paper.pdf 9. Cubuk, E.D., Zoph, B., Shlens, J., Le, Q.: Randaugment: Practical automated data augmentation with a reduced search space. In: Larochelle, H., Ranzato, M., Hadsell, R., Balcan, M.F., Lin, H. (eds.) Advances in Neural Information Processing Systems. vol. 33, pp. 18613–18624. Curran Associates, Inc. (2020), https://proceedings. neurips.cc/paper/2020/file/d85b63ef0ccb114d0a3bb7b7d808028f-Paper.pdf 10. Fang, M., Cao, X., Jia, J., Gong, N.: Local model poisoning attacks to byzantinerobust federated learning. In: 29th USENIX Security Symposium (USENIX Security 20). pp. 1605–1622 (2020) 11. Guo, P., Wang, P., Zhou, J., Jiang, S., Patel, V.M.: Multi-institutional collaborations for improving deep learning-based magnetic resonance image reconstruction using federated learning. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR). pp. 2423–2432 (June 2021) 12. Haddadpour, F., Mahdavi, M.: On the convergence of local descent methods in federated learning. arXiv preprint arXiv:1910.14425 (2019) 13. Hamer, J., Mohri, M., Suresh, A.T.: Fedboost: A communication-eﬃcient algorithm for federated learning. In: International Conference on Machine Learning. pp. 3973–3983. PMLR (2020) 14. Hard, A., Rao, K., Mathews, R., Ramaswamy, S., Beaufays, F., Augenstein, S., Eichner, H., Kiddon, C., Ramage, D.: Federated learning for mobile keyboard prediction. arXiv preprint arXiv:1811.03604 (2018) 15. He, K., Zhang, X., Ren, S., Sun, J.: Deep residual learning for image recognition. In: Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR) (June 2016) 16. Hsu, T.M.H., Qi, H., Brown, M.: Federated visual classiﬁcation with real-world data distribution (2020)
+
+16
+
+H. Yuan et al.
+
+17. Jin, Y., Jiao, L., Qian, Z., Zhang, S., Lu, S., Wang, X.: Resource-eﬃcient and convergence-preserving online participant selection in federated learning. In: 2020 IEEE 40th International Conference on Distributed Computing Systems (ICDCS). pp. 606–616 (2020). https://doi.org/10.1109/ICDCS47774.2020.00049
+18. Kairouz, P., McMahan, H.B., Avent, B., Bellet, A., Bennis, M., Bhagoji, A.N., Bonawitz, K., Charles, Z., Cormode, G., Cummings, R., et al.: Advances and open problems in federated learning. arXiv preprint arXiv:1912.04977 (2019)
+19. Kather, J.N., Weis, C.A., Bianconi, F., Melchers, S.M., Schad, L.R., Gaiser, T., Marx, A., Zo¨llner, F.G.: Multi-class texture analysis in colorectal cancer histology. Scientiﬁc reports 6(1), 1–11 (2016)
+20. Kim, H., Park, J., Bennis, M., Kim, S.L.: Blockchained on-device federated learning. IEEE Communications Letters 24(6), 1279–1283 (2020). https://doi.org/10.1109/LCOMM.2019.2921755
+21. Kim, I., Kim, Y., Kim, S.: Learning loss for test-time augmentation. In: Proceedings of Advances in Neural Information Processing Systems (2020)
+22. Koneˇcny`, J., McMahan, H.B., Ramage, D., Richt´arik, P.: Federated optimization: Distributed machine learning for on-device intelligence. arXiv preprint arXiv:1610.02527 (2016)
+23. Koneˇcny`, J., McMahan, H.B., Yu, F.X., Richta´rik, P., Suresh, A.T., Bacon, D.: Federated learning: Strategies for improving communication eﬃciency. arXiv preprint arXiv:1610.05492 (2016)
+24. Koneˇcny´, J., McMahan, H.B., Ramage, D., Richt´arik, P.: Federated optimization: Distributed machine learning for on-device intelligence (2016)
+25. Krizhevsky, A.: Learning multiple layers of features from tiny images. Tech. rep. (2009)
+26. Laguel, Y., Pillutla, K., Malick, J., Harchaoui, Z.: Device heterogeneity in federated learning: A superquantile approach. arXiv preprint arXiv:2002.11223 (2020)
+27. Lemley, J., Bazrafkan, S., Corcoran, P.: Smart augmentation learning an optimal data augmentation strategy. IEEE Access 5, 5858–5869 (2017). https://doi.org/10.1109/ACCESS.2017.2696121
+28. Li, D., Wang, J.: Fedmd: Heterogenous federated learning via model distillation. arXiv preprint arXiv:1910.03581 (2019)
+29. Li, Q., He, B., Song, D.: Model-contrastive federated learning. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (2021)
+30. Li, T., Sahu, A.K., Talwalkar, A., Smith, V.: Federated learning: Challenges, methods, and future directions. IEEE Signal Processing Magazine 37(3), 50–60 (2020). https://doi.org/10.1109/MSP.2020.2975749
+31. Li, Y., Yu, Q., Tan, M., Mei, J., Tang, P., Shen, W., Yuille, A.L., Xie, C.: Shapetexture debiased neural network training. CoRR abs/2010.05981 (2020), https: //arxiv.org/abs/2010.05981
+32. Liu, W., Chen, L., Chen, Y., Zhang, W.: Accelerating federated learning via momentum gradient descent. IEEE Transactions on Parallel and Distributed Systems 31(8), 1754–1766 (2020). https://doi.org/10.1109/TPDS.2020.2975189
+33. Liu, Z., Luo, P., Wang, X., Tang, X.: Deep learning face attributes in the wild. In: Proceedings of International Conference on Computer Vision (ICCV) (December 2015)
+34. Luo, B., Li, X., Wang, S., Huang, J., Tassiulas, L.: Cost-eﬀective federated learning design. In: IEEE INFOCOM 2021-IEEE Conference on Computer Communications. pp. 1–10. IEEE (2021)
+
+FL Distributional Transformation
+
+17
+
+35. McMahan, B., Moore, E., Ramage, D., Hampson, S., y Arcas, B.A.: Communicationeﬃcient learning of deep networks from decentralized data. In: Artiﬁcial intelligence and statistics. pp. 1273–1282. PMLR (2017)
+36. Nasr, M., Shokri, R., Houmansadr, A.: Comprehensive privacy analysis of deep learning: Passive and active white-box inference attacks against centralized and federated learning. In: 2019 IEEE Symposium on Security and Privacy (SP). pp. 739–753. IEEE (2019)
+37. Nguyen, H.T., Sehwag, V., Hosseinalipour, S., Brinton, C.G., Chiang, M., Vincent Poor, H.: Fast-convergent federated learning. IEEE Journal on Selected Areas in Communications 39(1), 201–218 (2021). https://doi.org/10.1109/JSAC.2020.3036952
+38. P´erez, J.C., Alfarra, M., Jeanneret, G., Rueda, L., Thabet, A., Ghanem, B., Arbela´ez, P.: Enhancing adversarial robustness via test-time transformation ensembling. In: Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV) (2021)
+39. Shamsian, A., Navon, A., Fetaya, E., Chechik, G.: Personalized federated learning using hypernetworks. In: Proceedings of the 38th International Conference on Machine Learning (ICML), PMLR 139 (2021)
+40. Shanmugam, D., Blalock, D.W., Balakrishnan, G., Guttag, J.V.: Better aggregation in test-time augmentation. In: Proceedings of International Conference on Computer Vision (ICCV) (2021)
+41. Suresh, A.T., Felix, X.Y., Kumar, S., McMahan, H.B.: Distributed mean estimation with limited communication. In: International Conference on Machine Learning. pp. 3329–3337. PMLR (2017)
+42. Szegedy, C., Liu, W., Jia, Y., Sermanet, P., Reed, S., Anguelov, D., Erhan, D., Vanhoucke, V., Rabinovich, A.: Going deeper with convolutions. In: Proceedings of the IEEE conference on computer vision and pattern recognition. pp. 1–9 (2015)
+43. T Dinh, C., Tran, N., Nguyen, T.D.: Personalized federated learning with moreau envelopes. Advances in Neural Information Processing Systems 33 (2020)
+44. Wah, C., Branson, S., Welinder, P., Perona, P., Belongie, S.: The Caltech-UCSD Birds-200-2011 Dataset. Tech. Rep. CNS-TR-2011-001, California Institute of Technology (2011)
+45. Wang, J., Xu, Z., Garrett, Z., Charles, Z., Liu, L., Joshi, G.: Local adaptivity in federated learning: Convergence and consistency (2021)
+46. Xie, C., Tan, M., Gong, B., Wang, J., Yuille, A.L., Le, Q.V.: Adversarial examples improve image recognition. In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) (June 2020)
+47. Xu, J., Glicksberg, B.S., Su, C., Walker, P., Bian, J., Wang, F.: Federated learning for healthcare informatics. Journal of Healthcare Informatics Research 5(1), 1–19 (2021)
+48. Yang, Q., Liu, Y., Chen, T., Tong, Y.: Federated machine learning: Concept and applications. ACM Transactions on Intelligent Systems and Technology (TIST) 10(2), 1–19 (2019)
+49. Yao, X., Huang, T., Wu, C., Zhang, R., Sun, L.: Towards faster and better federated learning: A feature fusion approach. In: 2019 IEEE International Conference on Image Processing (ICIP). pp. 175–179 (2019). https://doi.org/10.1109/ICIP.2019.8803001
+50. Yu, F., Rawat, A.S., Menon, A., Kumar, S.: Federated learning with only positive labels. In: International Conference on Machine Learning. pp. 10946–10956. PMLR (2020)
+
+18
+
+H. Yuan et al.
+
+51. Zhang, H., Cisse, M., Dauphin, Y.N., Lopez-Paz, D.: mixup: Beyond empirical risk minimization. In: International Conference on Learning Representations (2018)
+52. Zhang, H., Moustapha Cisse, Yann N. Dauphin, D.L.P.: mixup: Beyond empirical risk minimization. International Conference on Learning Representations (ICLR) (2018), https://openreview.net/forum?id=r1Ddp1-Rb
+53. Zhang, X., Wang, Q., Zhang, J., Zhong, Z.: Adversarial autoaugment (2019)
+

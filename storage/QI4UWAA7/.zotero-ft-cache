@@ -1,0 +1,97 @@
+
+Skip to main content
+Support Ukraine 🇺🇦 Help Provide Humanitarian Aid to Ukraine .
+Hydra logo
+Hydra Docs
+Next
+
+    Next
+    1.3
+    1.2
+    1.1
+    1.0
+    0.11 
+
+Blog Hydra@GitHub
+🌜
+🌞
+Search ⌘ K
+
+    About
+    Tutorials
+    Common Patterns
+    Configuring Hydra
+    Available Plugins
+    Reference manual
+        Terminology
+        Hydra's command line flags
+        Override grammar
+        The Defaults List
+        Packages
+        Instantiating Objects
+        Compose API
+        Config Search Path
+        Plugins
+        Application packaging
+        Decorating the main function
+        Hydra in Jupyter Notebooks
+        Hydra in Unit Tests 
+    Experimental
+    Developer Guide
+    Upgrade Guide
+
+Version: Next
+Hydra's command line flags
+
+Hydra is using the command line for two things:
+
+    Controlling Hydra
+    Configuring your application (See Override Grammar )
+
+Arguments prefixed by - or -- control Hydra; the rest are used to configure the application.
+
+Information about Hydra:
+
+    --hydra-help : Shows Hydra specific flags
+    --version : Show Hydra's version and exit
+
+Information provided by the Hydra app:
+
+    --help,-h : Shows the application's help. This can be customized .
+
+Debugging assistance:
+
+    --cfg,-c : Show config instead of running. Takes as parameter one of job , hydra or all .
+    --resolve : Used in conjunction with the --cfg flag; resolve interpolations in the config before printing it.
+    --package,-p : Used in conjunction with --cfg to select a specific config package to show.
+    --info,-i : Print Hydra information. This includes installed plugins, Config Search Path, Defaults List, generated config and more.
+
+Running Hydra applications:
+
+    --run,-r : Run is the default mode and is not normally needed.
+    --multirun,-m : Run multiple jobs with the configured launcher and sweeper. See Multi-run .
+
+    --config-path,-cp : Overrides the config_path specified in hydra.main() . The config_path is absolute or relative to the Python file declaring @hydra.main() .
+    --config-name,-cn : Overrides the config_name specified in hydra.main() .
+    --config-dir,-cd : Adds an additional config directory to the config search path .
+    This is useful for installed apps that want to allow their users to provide additional configs.
+
+Misc:
+
+    --shell-completion,-sc : Install or Uninstall shell tab completion .
+
+Links
+
+    Blog
+    Docs
+    Hydra@GitHub
+    Powered by OmegaConf 
+
+Legal
+
+    Privacy
+    Terms
+    Cookies 
+
+Facebook Open Source Logo
+Copyright © 2022 Meta Platforms, Inc

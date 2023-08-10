@@ -1,0 +1,665 @@
+    首页
+    知学堂
+    会员
+    发现
+    等你来答 
+
+​
+提问
+​
+80
+消息
+​
+18
+私信
+​
+创作中心
+点击打开要爆了的主页
+深度学习科研，如何高效进行代码和实验管理？
+关注问题 ​ 写回答
+点击打开要爆了的主页
+科研
+机器学习
+自然语言处理
+计算机视觉
+深度学习（Deep Learning）
+深度学习科研，如何高效进行代码和实验管理？
+深度学习模型结构变化程度大，参数多，如何高效的进行代码和实验管理？可能的方面有： 1. 代码包 2. 目录创建原则 3. 优秀的管理软件 4. 好的个… 显示全部 ​
+关注者
+2,889
+被浏览
+478,896
+叶小飞也关注了该问题 叶小飞
+关注问题 ​ 写回答
+​ 邀请回答
+​ 好问题 154
+​ 2 条评论
+​ 分享
+​
+31 个回答
+默认排序
+叶小飞
+叶小飞
+​ ​
+北美奔驰研究院 高级深度学习工程师
+已关注
+882 人赞同了该回答
+
+我之前在北美奔驰落地时，曾有段时间为了测试不同的结构和参数， 一周能训练一百来个不同的模型 ，为此我结合公司前辈们的做法和自己的一点思考总结了一套高效的代码实验管理方法，成功帮助了项目落地, 现在在这里分享给大家。
+使用Yaml文件来配置训练参数
+
+我知道很多开源repo喜欢用 input argparse 来传输一大堆训练和模型相关的参数，其实非常不高效。一方面，你每次训练都需要手动输入大量参数会很麻烦，如果直接改默认值又要跑到代码里去改，会浪费很多时间。这里我推荐大家直接 使用一个Yaml file来控制所有模型和训练相关的参数，并将该yaml的命名与模型名字和时间戳联系起来 ，著名的3d点云检测库OpenPCDet就是这么做的，如下方这个链接所示。
+OpenPCDet/pointrcnn.yaml at master · open-mmlab/OpenPCDet ​ github.com/open-mmlab/OpenPCDet/blob/master/tools/cfgs/kitti_models/pointrcnn.yaml
+
+我从上方给的链接截了该yaml文件部分内容，如下图所示，这个 配置文件 涵盖了如何预处理点云，classification的种类，还有 backbone 各方面的参数、optimzer和loss的选择（图中未展示，完整请看上方链接）。也就是说， 基本所有能影响你模型的因素，都被涵括在了这个文件里 ，而在代码中，你只需要用一个简单的 yaml.load()就能把这些参数全部读到一个dict里。更关键的是， 这个配置文件可以随着你的checkpoint一起被存到相同的文件夹，方便你直接拿来做断点训练、finetune或者直接做测试，用来做测试时你也可以很方便把结果和对应的参数对上。
+代码模块化非常重要
+
+有些研究人员写代码时喜欢把整个系统写的过于耦合，比如把loss function和模型写到一起，这就会经常导致牵一发而动全身，你改动某一小块就会导致后面的接口也全变，所以代码模块化做的好，可以节省你许多时间。一般的深度学习代码基本可以分为这么几大块（以 pytorch 为例）：I/O模块、预处理模块、可视化模块、模型主体（如果一个大模型包含子模型则应该另起class)、 损失函数 、后处理，并在训练或者 测试脚本 里串联起来。代码模块化的另一好处，就是方便你在yaml里去定义不同方面的参数，便于阅览。另外很多成熟代码里都会用到 importlib 神库， 它可以允许你不把训练时用哪个模型或者哪个子模型在代码里定死，而是可以直接在yaml里定义 。
+Tensorboard, tqdm用起来
+
+这两个库我基本上每次必用。Tensorboard可以很好的追踪你训练的 loss曲线 变化，方便你判断模型是否还在收敛、是否overfit，如果你是做图像相关，还可以把一些可视化结果放在上面。很多时候你只需要看看 tensorboard 的收敛状态就基本知道你这个模型怎么样，有没有必要花时间再单独测试、finetune. Tqdm则可以帮你很直观地跟踪你的训练进度，方便你做early stop.
+充分利用Github
+
+无论你是多人合作开发还是单独项目，我都强烈建议使用Github（公司可能会使用 bitbucket , 差不多）记录你的代码。具体可以参考我这篇回答：
+作为一个研究生，有哪些你直呼好用的科研神器？ 3359 赞同 · 58 评论 回答
+记录实验结果
+
+我一般会保存一个总的excel来记录实验结果，第一列是模型对应的yaml的路径，第二列是模型训练epoches, 第三列是测试结果的log, 我一般会把这个过程自动化，只要在测试脚本中给定总excel路径，利用 pandas 可以很轻松地搞定。
+
+编辑于 2021-12-22 13:07
+​ 赞同 882 ​ ​ 12 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+Jason
+Jason
+无名低调NLPer
+​ 关注
+528 人赞同了该回答
+
+git管理代码是跟深度学习、科研都没关系的，写代码肯定要用版本管理工具。用不用github个人觉着倒是两可，毕竟公司内是不可能所有代码都挂外部git的。
+
+那么说几个写代码的时候需要注意的地方吧：
+
+    试验参数尽量使用config文件传入，并且config尽量与log文件同名保存。 
+
+一方面外部传入参数可以避免git上过多的版本修改是由于参数导致的，介于DL不好debug，有时候利用git做一下代码比对是在所难免的；
+
+另一方面当试验了万千版本之后，相信你不会知道哪个model是哪些参数了，好的习惯是非常有效的。另外新加的参数尽量提供default值，方便调用老版的config文件。
+
+2. 尽量让不同的模型之间解耦
+
+同一个项目里，好的复用性是编程的一种非常好的习惯，但是在飞速发展的DL coding中，假设项目是以任务驱动的，这也许有时候会成为牵绊，所以尽量把可复用的一些函数提取出来，模型结构相关的尽量让不同的模型解耦在不同的文件中，反而会更加方便日后的update。否则一些看似优美的设计几个月之后就变得很鸡肋。
+
+3. 在满足一定稳定性的同时，定期跟进新版的框架
+
+往往有个尴尬的情况，从一个项目开始到结束，框架update了好几个版本，新版有一些让人垂涎若滴的特性，但是无奈有些api发生了change。所以在项目内可以尽量保持框架版本稳定，项目开始前尽量考量一下不同版本的利弊，有时候适当的学习是必要的。
+
+另外，对不同的框架怀揣着一颗包容的心。
+
+4. 一次训练的时间挺长的， coding结束不要盲目的就开始跑实验 ，个人经验提供debug模式来实验小数据+更多的log是个不错的选择。
+
+5. 记录好随着模型update performance的变化，因为可能随时需要退回去重来。
+发布于 2018-08-16 17:27
+​ 赞同 528 ​ ​ 9 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+周晟
+周晟
+计算物理逃兵，现在AI芯片领域攻城狮
+​ 关注
+209 人赞同了该回答
+
+其实成熟的软件已经挺多了，包括Weights&Biases, MLFlow, Neptune等，解决实验管理以及其他问题，只需要添加几行代码就可以系统地区分和管理实验结果。个人版是免费的，很值得学习尝试。
+
+自己的个人或者Lab环境的话，也可以选用开源library自己整合，推荐如下:
+
+    代码包: git是必须的，尽量用venv/conda管理virtual env，如果熟悉的话，docker也可以用上。
+    目录创建原则：尽量根据model backbone或者模型的任务分开，这样可以尽量复用代码同时保证一定的modularity；其余就可以根据dataset/models/logger/app分开。
+    优秀的管理软件：这里分为不同方面的管理了，目标可以定位可复现能力reproducibility。
+        参数管理：YAML针对简单情况，更复杂情况目前最优方案组合应该是Hydra+OmegaConf。
+        实验管理：MLFlow/WandB/TensorBoard。
+        版本管理(包括数据集/checkpoint)：git+DVC+CML等。
+        依赖包管理：pip/conda/docker。
+    好的个人习惯: 比较宽泛了，能想到的是:
+        用好git, venv等;
+        处理好实验的random seed;
+        用好IDE；
+        可以使用tmux避免一些实验错误中断；
+        用好logger, debug mode和运行训练分开成不同mode，快速切换；
+        使用实验管理软件同时，使用spreadsheet记录好实验结果；
+        可以根据模型/数据集/模型版本/模型参数/超参数这样的结构管理实验结果；
+        可以多注意dataloader的效率，或许num_workers修改就可以加速不少；
+
+也可以参考资料:
+
+    ML Code Completeness Checklist https:// medium.com/paperswithco de/ml-code-completeness-checklist-e9127b168501
+    Improving Reproducibility in Machine Learning Research https:// arxiv.org/pdf/2003.1220 6.pdf
+    ML Reproducibility Challenge https:// paperswithcode.com/rc20 21 
+
+编辑于 2022-03-19 06:23
+​ 赞同 209 ​ ​ 8 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+骆梁宸
+骆梁宸
+​
+潜水半退乎
+​ 关注
+132 人赞同了该回答
+
+举一个例子
+https://github.com/MrGemy95/Tensorflow-Project-Template ​ github.com/MrGemy95/Tensorflow-Project-Template
+
+以前发过一个想法，表达我认为目前 DL 领域的开发是十分野蛮生长的。缺乏最佳实践，缺乏各类提高自动化的工具链，缺乏测试和调试工具。
+
+便于管理的重点在于模块化。解耦越彻底，就越方便使其逐渐自动化进而解放研究人员。
+
+可以参考的方式是引入类似生命周期的概念，例如 Maven 为 Java 工程带来的那样[1]。
+
+分包管理我认为和传统工程无差，运用的都是同一套思想。上边的那个 GitHub repo 算是一个 tiny example，当然就我看来还远远不够。
+
+其实我相信 big name 公司们内部肯定是有相当多提高自动化的手段的。只是对于大量高校和独立研究者而言这些工具可望而不可即。缺乏一整套通用而业界广泛接受的开发工具链是目前非常大的一个痛点。
+
+其实许多高校教授也在带领团队做这些事情。但是研究项目确实较传统开发而言自由度太高，抽象出通用模块的确难度很大。
+
+自己最近也在撸一些小轮子。是实际的提高了我的研发效率的。但我想受限于研究方向很可能这些轮子只有我自己和同方向的一些小伙伴能用着顺手。
+
+所以平时多总结些最佳实践的代码段，多造造小而精的轮子，对相对独立的研究者而言是蛮有用的。
+
+
+[1] Introduction to the Build Lifecycle
+编辑于 2018-03-24 18:52
+​ 赞同 132 ​ ​ 11 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+曲晓峰
+曲晓峰
+​ ​
+清华大学 深圳研究生院 博士后
+​ 关注
+436 人赞同了该回答
+
+代码管理一定是要用 github 的。学生可以申请学生大礼包。github 的教育优惠的说明： Discounted and free plans are available for educational use
+
+
+实验一定要有报告，要带有所用代码的 commit id （SHA1 hash value），如果数据不多，可以直接把数据塞进来，做一个 submodule 或者单独的 repo（单独的话也得记录预处理过的数据的 commit id）。报告主要是记得每个实验的目的，方法，和结果。实验做多了，忘了做哪个实验，或者忘了实验的目的是什么的，比比皆是。
+
+
+其实，最好论文、报告使用 overleaf，写作工具是 latex，然后可以与 github repo 或者本地 git repo 同步。这样，论文进度、实验进度、定期汇报、代码版本、数据，都有了统一的 版本管理 。具体根据情况，可以用 submodule，也可以就是分开几个 repo。
+
+
+论文、报告中的图表，尽量使用自动生成的（有点类似 函数式编程 的概念）。当然，实验太漫长的还是没办法。这个实现，可以使用 R 系的 knitr 实现，也可以简单的，实验代码（Matlab 或者 Python）输出 csv，绘图或者列表直接使用 latex 去读取。优点是，实验确保能够重复。同时，数据更新后，报告和论文直接重新编译，也跟着一起更新了。不推荐在实验代码中嵌入绘图输出，前端展示与后端计算，还是分离比较合适。这样不会遇到图片分辨率不够高的问题。同时图片和表格也容易根据环境调整。
+
+
+当然， latex 本身支持 input 和 include，还有功能更强大的 import 包，可以充分利用。可以复用一些写过的小段。
+
+
+参考文献 ，如果中文的比较少，就还是推荐 mendeley，毕竟被 elsevier 收了，还主导了开源 ref 的标准，然后 bib 可以直接同步到 overleaf。如果中文比较多，那还是得用 noteexpress 。
+
+
+@cyhone 提到 gitee 和 coding.net。我很早就用过 coding.net，早期 coding.net 主要是在线 IDE，git 托管都没有 pages 服务。还有 gitcafe ，现在也被 coding.net 收了。我还做过本地配置，可以同时同步 github/gitcafe/coding.net，其实也很简单，手动修改 .git 里面 remote 的 repo 的地址配置就行，多加几个就可以了，当然要小心。内地 git 的好处，是访问速度快，不会被 Ban。 但如果有心做学术，有心 软件工程师 职业发展，还是尽早建立起完整的 github credit 比较好。 github 非常开放，“事业心”没有内地那么重，上下游都有很多可以配套的生态环境。例如说，在 github 上的 jupyter/ipython 的 notebook，可以直接打开。写个教程、汇报、或者交流个实验结果，说明文档/代码/运行结果/图表可以集成在一起展示，非常方便。内地的等位产品，都要搞“生态”，想做点新东西的时候，会比较难搞。
+
+然后公有和私有的问题，可以酌情考虑。公有库确实 github 是最好的选择。私有库，内地服务确实快，海外也有 gitbucket.org 可以用。可以先用私有干活，差不多了，github 公有库发布，或者是有相应的需求了，再用 github。我个人觉得维持多个会有点麻烦，主要是我这边访问 github 也还算方便。但如果受限于网络条件（ 教育网 或者断网太频繁），也没太好的办法，也只能哪个顺手用哪个。我记得四五年前吧，有一段时间，教育网访问 github 比 coding.net 和 gitcafe 还快（捂脸
+编辑于 2018-03-27 09:20
+​ 赞同 436 ​ ​ 9 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+李欣宜
+李欣宜
+天地悠久，共奏乃音
+​ 关注
+90 人赞同了该回答
+
+关于这个问题我还专门和别人讨论交流过，如果所在的组的生产环境有专门开发的生产力工具，请无视我说的。我说的情况都是针对比较通用的情况。
+
+版本控制和代码托管可以用git，当然不是必须要用GitHub甚至我觉得不一定要用git，只是相对资源多上手容易而且熟悉的人也多，方便工作上的对接协作，这个问题上你自己觉得熟练和方便就好。
+
+快速试错。我很久不在本地执行代码了， surface pro 带回家以后主要也是用来看文章（和b站小姐姐跳舞）。可以试着在远程服务器（学校的/公司的/自己买的vps）上创建一个docker/conda环境，如果你主要在用Python写 数据挖掘 和建模方面的东西，可以在 远程服务器 上一直挂一个Jupyter server，平时有什么想法想试一下可以直接ssh -N -L把远程 端口映射 到本地，然后就可以随时在本地 网页浏览器 上写代码并快速看到结果了。如果有多个服务器，或者服务器与本地之间，经常需要同步，参考上面给出的用git的办法，ipynb确实太大可能不太适合VC工具，我的做法是用jupytext把经常需要同步的.ipynb文件关联生成一个.py文件，然后用gitignore忽略到ipynb，每次同步后从.py生成.ipynb再继续在ipynb进行探索。同理其他比较大的生成文件，写好gitignore可以解决很多问题。当然如果不想用Jupyter notebook的形式，其实现在很多IDE（比如Pycharm）也是支持本地编写代码用远程解释器的，也可以轻松实现本地和远程的同步。
+
+文献阅读笔记。我一般的习惯是在一个项目中维护一个 survey.md文件 ，可以向上面那样连同项目一起同步到远程端然后在网页中写你的记录，也可以在本地写。用GitHub Style Markdown形式
+
+ - [x] [Paper 1](url.pdf) 2017,conference name ([slides](.slides.pdf)) - Note 1, technique 1 - Note 2, technique 2 - Note 3, dataset - [ ] question: ...? - [ ] [Paper 2](url.pdf) 2018,conference name - Note 1, technique 1 - ... 
+
+这样就可以一目了然分享自己的进度和收获，也不局限于paper，talk，document相关的笔记只要你的科研中用到了都可以写。远程不一定要保留文献的原文件，原文件在本地surface和ipad上读方便做笔记。但md文档中要保留URL，方便以后想到什么随时点开找。我自认为我LaTeX比大部分PhD用的熟练，仍然无法在配置好的IDE（vs code+TeX插件/texstudio）中写笔记达到我写markdown的速度，但对于普遍的写给自己和同事看的非正式笔记， markdown 的功能已经足够了，而且很容易找到在线网页的渲染，也很轻量了，如果你们组会的要求不是特别高，我甚至觉得可以每次直接用 pandoc 生成一个slides然后直接用了，要求高也可以先转成TeX代码你再手动改改。当然你如果在 jupyter server 上写md的唯一烦恼是它不支持自然语法的检查，我准备在这阵子手头的事忙完以后做一个jupyter grammarly插件。（听见了鸽子的声音？）
+
+以上都是针对不分学科不分方向的科研经历，我自己已经很久没做任何AI/ML/DL方向的东西了，但习惯还是保留着。接下来介绍一下我做AI时用的东西。
+
+Colab ：支持GPU加速，方便对deep model快速试错，这点和Kaggle kernel在工作中的用途有点像。注意保护敏感数据不要传上去。
+
+HyperparameterHunter : 自动记录和调整超参数，根据performance生成leadboard
+
+然后我再 强势推销 一下我自己写的一个工具： https:// github.com/li-xin-yi/HK -journalist 可以自定义编写报告模板，嵌入到你的代码中以后，每次运行可自动记录你设置的变量的值，画图，表格全不在话下，最后生成pdf报告，可以作为slides使用，也可以作为每次运行的快照以找出你调整参数时带来的影响，支持时间戳自动命名，支持中英文。详细用法见文档，有任何问题欢迎给我提issue或知乎私信。
+
+最后的最后，一个非常重要的tip，定期复盘整理自己的代码，把好用的模型整理出来写成API的形式分享出去或者留着自用，效果不符合期望的地方也要尝试着推测它的原因整理写下来，下次再想到这个东西的时候能让自己翻着看看。
+
+发布于 2020-08-28 09:35
+​ 赞同 90 ​ ​ 4 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+Karbo
+Karbo
+Focused on 3D Computer Vision
+​ 关注
+55 人赞同了该回答
+
+不知道大家平时跑深度学习实验是用什么框架来管理呢？
+常用的深度学习框架
+
+对于科研，我们一般用PyTorch来编写深度学习代码。PyTorch考虑到Python语言的灵活性（动态类型）而采用了动态图可微计算；相比而言，另外一个日渐衰落的TensorFlow就显得繁琐得多，它需要预先定义网络的结构，通过插入各种操作运算节点来编写神经网络，一旦编写好，网络就仿佛是一个黑盒子，只露出了几个预定义好的输入节点placeholder来进行操作，就仿佛Python语言只是一个工具（换成其他语言也能类似做到，并没有充分利用Python的动态和灵活性），很难与Python语言自带的其他框架深度整合。因而PyTorch语言逐渐受到科研人员的青睐，其根本原因是框架的动态灵活性，以及十分易用简单的API接口和文档。
+
+由此看来，一个框架的是否足够 灵活 、 动态易修改 ，成为了判断框架是否足够好用的一个标准。
+常用的深度学习实验管理框架
+
+一般使用PyTorch来直接进行深度学习实验是已经可行了的，但是仍是过于繁琐。实验人员需要不断编写重复的代码来实现诸如 训练 、 保存读取模型文件 、 可视化loss曲线 等功能，并且仍需要根据具体的实验任务来进行细微调整。比如训练是根据iteration的数量来进行计数、还是根据epoch的数量来进行计数；恢复模型checkpoint的时候是否读取optimizer、是否读取scheduler；可视化的时候是否把中间步骤的可视化图片也保存下来（比如diffusion sampling时候的中间步骤的可视化）、是否禁用可视化；是否启用多张显卡并行训练、是否足够简单地切换单张还是多张显卡，等等。
+现有的主流实验管理工具
+
+    不使用。缺点显而易见，每次写都要编写重复的代码，得不到复用。
+    PyTorch Lightning 。特点是把相关的东西打包为一个class，即pl.LightningModule，包括模型定义、模型前传、optimizer、train/val step等等。其特点是不够灵活，把需要的变量和方法设置为其属性和成员才能访问得到。
+    MMDetection 等系列。其配置文件支持文本解析的数据类型（如字符串、数组、字典、浮点数等等），框架从配置文件读取并解析构建网络框架、训练配置参数等等。对于数据预处理（比如RandomFlip）流程，仅在配置文件通过字典来配置即可。对于自定义的东西（比如nn.Module等），需要调用register方法来注册到总框架中，并且配置文件也要相应地修改。简单地说，如果你要创建新的东西，需要在编写一段python code并把这个类注册到框架中，同时需要在配置文件进行相应的修改。要如果需要反复尝试的东西很多（不能一次性确定好要修改什么），那么就可能不断编写新的模型，比如ModelV1、ModelV2、ModelV3（第一天写了个ModelV1，发现效果不好又写了个ModelV2，如此迭代版本），并依次注册到模型中，并在配置文件相应地修改，造成了python code的冗余。而且配置文件的配置能力不够强，只能配置字符串，整数浮点数等属性，不能配置如np.ndarray的东西。
+    Hydra 、 OmegaConf 、 ConfigArgParse 等配置工具。这类工具本质上读取文本配置文件，读取命令行中输入的参数、整合配置参数，然后从中解析。
+
+自用深度学习实验管理框架 - recon
+
+针对上述提到的缺点，我简单地写了个深度学习的实验管理框架（基于PyTorch，只支持CUDA设备上训练）， recon ，其特点如下：
+
+    配置文件支持任意类型。 比如，不仅支持字典、字符串等常规类型，也支持比如np.ndarray、torch.Tensor、甚至nn.Module、Dataset、class和function等你任意想到的东西。这些东西默认都是全局共享的，你在任意地方都能够获取到并修改这些东西。这得益于 gorilla.Config.fromfile 的通用读取能力。
+    支持常见的训练流程。 比如，常规的训练管线（比如把train step、val step、saving checkpoint等都编写进for loop里头了），模型读取（是否读取optimizer、scheduler）、模型保存（每隔多久保存一个checkpoint、是否保存最优指标的checkpoint）、全精度（fp32）或半精度（fp16）训练、单卡或多卡训练（采用DistributedDataParallel来实现更均衡地负载）、多卡时候的DistributedSampler，等等。这里的训练逻辑都编写进 runner/train.py 里面了。
+
+安装
+
+以下为一个安装例子，当然其中的版本有略微差异也是允许的。但是要求python>=3.6，pytorch最低版本号不清楚（>=1.0），总之建议尽可能地使用高版本，当然低版本也应当可以运行。
+
+ # 下载 recon 仓库到 third_party/recon 文件夹中 git clone --depth=1 git@github.com:Karbo123/recon.git third_party/recon # 创建环境 conda create -n recon_env python=3.8 -y conda activate recon_env # 安装依赖 ## 安装PyTorch pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116 ## 安装其他包 pip install gorilla-core, opencv-python ## 可选地 pip install rich # 使得终端打印的字体是彩色的 pip install tensorboard # 可视化曲线 # 使其正确导入recon export PYTHONPATH=$PYTHONPATH:`pwd`/third_party 
+
+例子
+
+为了显示 recon 框架的灵活性，此处展示几个例子。
+
+ # 首先把自带的样例配置文件复制出来 cp -rf third_party/recon/config config # 然后尝试用样例配置文件跑一下 CIFAR-100 数据集的图像分类 CUDA_VISIBLE_DEVICES = 0 python -m recon.runner.train --cfg config/cfg_cifar100.py ## 多卡训练（只需要切换CUDA_VISIBLE_DEVICES所指定的显卡就可以自动切换成DistributedDataParallel了） CUDA_VISIBLE_DEVICES = 0,1,2,3 python -m recon.runner.train --cfg config/cfg_cifar100.py 
+
+得到类似的终端输出：
+
+以及文件夹结构：
+
+启动tensorboard后还可以得到类似的训练曲线：
+
+ tensorboard --port=12345 --logdir=./out 
+
+这些东西的生成过程都是自动的，相关训练逻辑都编写进 runner/train.py 里面了，有余力的可以仔细查看阅读，看支持什么样的配置参数。
+代码解读
+
+那么需要编写什么样的代码才能实现这样的功能呢？
+
+首先在最前面定义一些变量，这些变量能更方便后续的代码编写，也更容易修改：
+
+然后定义三个字典，用于告诉训练脚本 runner/train.py 流程参数：这里的rank是gpu的id、num_rank是gpu的数量、device是显卡设备，dist_info用于获取每个进程的这些信息（多卡的时候，每张卡分配一个独立的进程）；注意，这三个字典的名字以及其中的key是固定的，因为脚本通过这些名字读取进来，如果名字不对就读取不进来；如果把XXX_every设为-1那么就是禁用XXX。
+
+然后构造dataloaders字典，必须要有train和val关键字：
+
+以及模型，模型的名字必须是model，脚本会自动会转变model从cpu到cuda：
+
+和优化器等东西，他们的名字是固定的，否则读取不到他们：
+
+最后是训练training function，函数输入是training dataloader的输出，函数输出是loss字典，其字典的内容会自动记录到tensorboard中，当然函数的名字也必须是train_step_fn：
+
+以及用于validation的函数，用于评估准确度，同样返回的是一个字典，会被记录到tensorboard中，当然函数的名字也必须是evaluate_fn：
+
+个人感觉，这是我使用过最方便的实验框架了。
+
+    允许灵活的自定义，配置能力大大增强，甚至允许其他的数据类型（比如读入np.ndarray的图像数据）。
+    能够把全部相关的东西写进单个config file里面，做到一个config file一个实验，只需要备份config file就能够做到复现实验，而不必把其余的东西（比如模型定义的py文件）也备份了。
+    当然也允许import外部的东西（比如"from my_dataset import MyDataset"）等等。
+    当然也允许语法糖比如调用python的eval函数来从字符串计算东西。
+    不必担心配置文件过长，比如train_step_fn如果都是相同的，那么只写一份然后复制进去就好了，不用修改它。当然修改train_step_fn也是允许的，而其他的实验框架比如 MMDetection 要做到这一点可能就没那么容易了。
+    所定义的变量默认是全局的，甚至能够做到随着iteration而修改这些变量。
+    方便的实验流程，比如fp32/fp16训练，单卡多卡切换、模型自动保存、checkpoint的自动恢复，文件备份，等等。
+    如果 runner/train.py 不能够满足你，你可以自己仿写一份满足你需求的。
+
+展开阅读全文 ​
+​ 赞同 55 ​ ​ 添加评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+Introspector
+Introspector
+收藏不赞，等于没看
+​ 关注
+122 人赞同了该回答
+
+有一个比较邪道的管理方法，那就是不管理：把每次实验中所有代码，实验参数，日志，模型权重（或权重保存目录）全部写进一个随机命名的yaml文件中。
+
+这样以后要分析数据时，直接读yaml，出来的就是python里能用的变量。每次实验的所有变量都在同一个yaml文件中，不用担心多次实验的结果互相混淆。实验参数，实验数据，代码都在里面，需要时随时导出来，需要处理多次实验数据时只需要把这些yaml都拷进一个文件夹里遍历即可，也不用像logging那样还要手动解析字符串。而且实验正在跑的时候也可以方便地打开yaml看里面的日志部分。
+
+模板代码在github上，求个star： https:// github.com/chaihahaha/d l-template
+
+详细内容见：
+深度学习里面，请问有写train函数的模板吗？ 154 赞同 · 3 评论 回答
+
+编辑于 2022-12-02 22:20
+​ 赞同 122 ​ ​ 2 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+无猫之徒
+无猫之徒
+我不想做策略了，我想做机器学习
+​ 关注
+61 人赞同了该回答
+
+代码管理 推荐使用 Github 或其他版本控制系统。
+
+    我目前的工作习惯是对于每一个微小功能的变化都会做一次新的提交，这样每一个新功能会拥有一个独一无二的 commit id 。commit id可以用在实验日志中，追踪对应的实验环境。(避免因参数变化而产生的提交，可以使用 配置文件 /argprase/ sacred 控制实验参数)
+    Github的Issue可以方便地成为实验日志本。
+
+我目前的实践
+
+由于我使用sacred来管理实验参数，实验日志的主键是sacred生成的实验id。“实验开始时间，结束时间，commit id，实验动机，观察结果，下一步计划“是我习惯记录的信息，方便以后的复现。
+
+实验 的参数、环境、random seed 乃至于训练曲线可视化 管理 ，都可以由 sacred 一站式解决。
+
+    sacred只需很少的额外代码就能集成于已有的实验代码中。
+
+sacred提供的示例
+
+    sacred的 Observer 特性提供多种实验环境的保存选项。我推荐添加以下Observer(可以选择0-N个)：
+        File Storage Observer: 保存实验参数，运行时所需要的代码快照，硬件快照等到本地指定路径
+        Slack Observer: 发送实验成功、失败消息给 slack channel
+        Neptune Observe:免费在线版 tensorboard ，查看训练曲线和实验参数 (如果对隐私有担忧，可以选择其他本地版本的前端)
+
+Neptune的官方示例
+
+编辑于 2020-07-17 21:56
+​ 赞同 61 ​ ​ 4 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+猫猫坏心眼可多啦
+猫猫坏心眼可多啦
+​
+中国人民大学 软件工程硕士
+​ 关注
+47 人赞同了该回答
+
+分享我折腾许久后的收获(*ﾟДﾟ*) ：
+1.注重实验数据条理性
+
+做实验过程中会用很多的数据，比如：原始数据、预处理后的数据、train-valid-test划分记录、测试脚本文件...
+
+在实验项目下创建一个 dataset 目录，将这些数据整理好全放到里面，做实验时会方便不少，以下是我一个项目的例子：
+
+ dataset/ └── voxceleb ├── cluster │ ├── movie2jpg_path.pkl │ ├── movie2wav_path.pkl │ └── train_movie_list.pkl ├── eval │ ├── test_matching.pkl │ ├── test_retrieval.pkl │ ├── test_verification.pkl │ └── valid_verification.pkl ├── face_input.pkl └── voice_input.pkl 
+
+优点：
+
+1）数据集文件包含在项目之内，因此在使用数据集文件时可以直接用相对路径，不需要写一串绝对路径
+
+2）如果你有多台设备，那么他们的数据目录结构是一样的，这样就方便了在设备间进行同步。不需要在代码中给每台设备单独指定数据集路径
+2.善用软链接
+
+你可能会说数据集太大了无法放到项目目录下，或者在项目太多了，为每个项目都存一份数据集不现实。
+
+这个可以用软链接解决，以下是我项目中的一个例子：
+
+此外，软链接还有一个优点，它能让你在给文件起一个简洁名字的前提下，依旧能知晓这个文件来自何方。
+
+3.用Wandb进行实验记录
+
+Weights & Biases （Wandb）是顶尖的实验记录工具，相较于其他实验记录工具有两个优势：
+
+1.Wandb是中心化的网站服务
+
+这意味着：
+
+1）在查看实验结果时并不需要像使用 tensorboard 那样去手动启动日志服务器，即便实验服务器关机了依旧能查看记录
+
+2）不同设备的上获得的日志记录可以汇聚到一处进行分析，更换设备不用考虑日志的迁移问题
+
+2.高完成度
+
+wandb是商业化的工具，在功能完成度上有保证，覆盖了常见的功能，例如：超参数记录、各次运行间的分数对比、自动化调参、创建分析报告。
+此外，如果你使用Git进行版本控制，它还会自动记录运行时的Git 版本，方便回溯。
+
+不过wandb的显著缺点是服务器在国外，国内访问有时会遇到问题。但解决方案也很简单：wandb提供了私有化版本，可以自己架设一个，有兴趣详见我的这篇文章: Weights & Biases 私有化部署指南
+4.自动commit小工具
+
+以下代码可以实现git commit逻辑：
+
+ import git def commit(content): repo = git.Repo(search_parent_directories=True) try: g = repo.git g.add("--all") res = g.commit("-m " + content) print(res) except Exception as e: print("no need to commit") 
+
+可以将它封装为一个 git_util.py 文件，在运行实验时调用一次就好：
+
+ import git_util import datetime if __name__ == "__main__": date_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') git_util.commit("RUN_" + date_str ) ... 
+
+配合wandb，你就能清晰记录每次运行时的git版本，是个不错的代码回溯解决方案:
+5.更直观的参数传递
+
+argparse 的缺点在于风格冗长，为了几个参数写一堆 parser.add_argument ：
+
+ import argparse if __name__ == '__main__': parser = argparse.ArgumentParser() parser.add_argument("--int_val", default=1, type=int) parser.add_argument("--float_val", default=0.01, type=float) parser.add_argument("-- str_val ", default="str1") args = parser.parse_args() 
+
+yaml这类参数定义文件虽然直观，但它和python文件是分离，对于小型项目多少有点“小题大做”。
+
+为此我的做法是扩展一下argparse，让它能支持dict风格的语法，就像这样：
+
+ import my_parser if __name__ == "__main__": parser = my_parser.MyParser(epoch=100, batch_size=256, model_save_folder=model_save_folder, early_stop=10) parser.custom({ "ncentroids": 1000, "batch_ per_epoch ": 250, "eval_step": 250, " ratio_mse ": 0.0, "mts_alpha": 2.0, " mts_beta ": 50.0, " mts_base ": 1.0, "load_model": "", "cluster_type": "all", }) args = parser.parse () 
+
+这比写一大堆 parser.add_argument 清晰多了。功能实现起来并不复杂，有兴趣可以参考我在这个项目中的实现： https:// github.com/my-yy/sl_icm r2022/blob/main/sl.py
+
+编辑于 2022-09-17 09:52
+​ 赞同 47 ​ ​ 添加评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+OpenMMLab
+OpenMMLab
+​
+152 人赞同了该回答
+​
+目录
+收起
+Tensorboard 记录实验数据：
+配置文件：
+TensorBoard 数据可视化效果
+WandB 记录实验数据
+配置文件
+Wandb 数据可视化效果
+Neptume 记录实验数据
+配置文件
+Neptume 可视化效果
+mlflow 记录实验数据
+配置文件
+MLFlow 可视化效果
+dvclive 记录实验数据
+配置文件
+生成的 html 文件
+
+题主你好呀，前面的回答提到了使用 Tensorboard、Weights&Biases、MLFlow、Neptune 等工具来管理实验数据。然而随着实验 管理工具 的轮子越造越多，工具的学习成本也越来越高，我们又应该如何选择呢？
+
+MMCV 满足你的所有幻想，通过修改 配置文件 就能实现工具的切换。
+Tensorboard 记录实验数据：
+配置文件：
+
+ log_config = dict ( interval = 1 , hooks = [ dict ( type = 'TextLoggerHook' ), dict ( type = 'TensorboardLoggerHook' ) ])  
+
+TensorBoard 数据可视化效果
+WandB 记录实验数据
+配置文件
+
+ log_config = dict( interval=1, hooks=[ dict(type='TextLoggerHook'), dict(type='WandbLoggerHook') ])  
+
+Wandb 数据可视化效果
+
+（需要提前用 python api 登录 wandb）
+Neptume 记录实验数据
+配置文件
+
+ log_config = dict ( interval = 1 , hooks = [ dict ( type = 'TextLoggerHook' ), dict ( type = 'NeptuneLoggerHook' , init_kwargs = dict ( project = 'Your Neptume account/mmcv' )) ])  
+
+Neptume 可视化效果
+mlflow 记录实验数据
+配置文件
+
+ log_config = dict ( interval = 1 , hooks = [ dict ( type = 'TextLoggerHook' ), dict ( type = 'MlflowLoggerHook' ) ])  
+
+MLFlow 可视化效果
+dvclive 记录实验数据
+配置文件
+
+ log_config = dict ( interval = 1 , hooks = [ dict ( type = 'TextLoggerHook' ), dict ( type = 'DvcliveLoggerHook' ) ])  
+
+生成的 html 文件
+
+
+以上只使用了各种实验管理工具最基本的功能，我们可以进一步修改配置文件来解锁更多姿势。
+
+拥有了 MMCV，就相当于拥有了所有的实验管理工具。如果你以前是 tf boy，可以选择 TensorBoard 经典怀旧风；如果你想应有尽有的记录实验数据、实验环境，不妨尝试一下 Wandb（Weights & Biases）或者 Neptume；如果你的设备没法联网，可以选择 mlflow 将实验数据存到本地，总有一款工具适合你。
+
+此外 MMCV 也有自己的日志管理系统，那就是 TextLoggerHook ！ 它会将训练过程中产生的全量信息，例如设备环境、数据集、模型初始化方式、训练期间产生的 loss、metric 等信息，全部保存到本地的 xxx.log 文件。你可以在不借助任何工具的情况下，回顾之前的实验数据。
+
+还在纠结使用哪个实验管理工具？还在苦恼于各种工具的学习成本？赶快上车 MMCV ，几行配置文件无痛体验各种工具。
+
+发布于 2022-05-11 17:14
+​ 赞同 152 ​ ​ 1 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+林会东
+林会东
+iOS搬砖工程师
+18 人赞同了该回答
+
+代码管理当然是用 git
+
+实验管理的话，由于我用 pytorch 比较多，我在用 torchtracer 传送门: https:// oidiotlin.com/torchtrac er
+
+简单粗暴。
+发布于 2018-11-14 21:29
+​ 赞同 18 ​ ​ 添加评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+lalala
+lalala
+17 人赞同了该回答
+
+搬运自:reddit - r/MachineLearning，有人提了类似的问题。
+
+推荐的答案里有 sacred: IDSIA/sacred 。Sacred is a tool to configure, organize, log and reproduce computational experiments。没用用过，希望用过的大佬评论一下体验。
+
+Welcome to Sacred’s documen
+编辑于 2018-03-25 07:36
+​ 赞同 17 ​ ​ 添加评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+深度玻尔兹曼姬
+深度玻尔兹曼姬
+追逐幻影
+16 人赞同了该回答
+
+说一个虽然小众，但是是我迄今为止用过的 最好的 可以用于深度学习的实验管理框架
+
+AI2-Tango
+
+如果你用过allennlp，那么一定知道dependency injection这东西用来传参有多好用，而tango就是从allennlp里抽出来。
+缺点就是由于入门门槛高，目前用的人少，issue会回的也比较慢。
+
+配置管理建议使用jsonnet格式（我都不知道有jsonnet还有什么理由用yaml）
+编辑于 2023-05-22 04:48
+​ 赞同 16 ​ ​ 添加评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+王磊
+王磊
+​
+MindSpore架构师，关注AI和软件工程
+122 人赞同了该回答
+
+机器学习项目不同于传统的 软件开发过程 ，其从模型的构建到部署至生产环境的过程中，会存在诸多的代码分支用于实验，以验证哪些模型和代码能够值得投入生产。因此，良好的代码管理和实验数据记录将会变得尤为重要。
+代码管理
+
+推荐如下几种常用的商业和开源工具，实现代码的版本控制，如下：
+
+    Git ：Git过去常用在传统软件项目中，但仍然是机器学习项目中代码版本控制工具的最佳选择之一，例如 模型代码 、脚本、配置、参数等。然而，Git本身比较适合对小文件进行存储，对于体积较大的数据文件，可以考虑通过Git LFS这样的 扩展协议 进行存储，或是将大文件存储在Git仓库之外（如S3等对象存储服务），然后将文件地址在Git中进行 版本控制 。
+    DVC ：Git和Git LFS对于 非结构化 的大容量数据管理仍然存在不足，比如Git LFS就有上传单文件大小不得超过2GB的限制，对于视频文件等构成的大型 数据集 来说就不能满足需要。因此出现了一些专为机器学习项目而设计的版本控制开源工具， DVC （Data Version Control）就是其中之一。它的特点如下：
+
+    多个后端插件，用于在 源代码 管理存储库之外的外部存储器上获取和存储大型文件。
+    可以 跟踪文件 的版本，允许我们在数据更改时重新训练模型。
+    跟踪用于执行ML流水线的 依赖关系图 和命令，允许在其他环境中复现该过程。
+    它可以与Git分支集成，允许多个实验共存。
+
+实验管理
+
+无论是出于研究或者实验，通常会并存多个实验，根据实验结果再决定将哪个模型部署到生产环境中，其中很多实验可能永远无法投入生产，只有少数代码被认为值得投入生产。因此，需要定义一种方法来跟踪它们。
+
+建议采用DVC建议的方法，使用不同的Git分支来跟踪源代码中的不同实验。DVC可以从不同分支或标签的实验中获取和显示指标，从而可以轻松地在它们之间切换。对于ML实验，预计大多数分支永远不会被集成，并且实验之间的代码变化通常很小。从自动化持续集成角度看，确实希望为每个实验训练多个模型，并收集指标以告知哪个模型可以被用于下一阶段部署。
+
+对于实验结果，可以考虑制作一个Excel表格进行管理，记录所有实验结果、参数等。
+
+除了手动管理方式外，可以使用一些ML实验 管理工具 ：如Neptune、Weights&Biases、MLFlow、TensorBoard等，可同时实现环境、结果、代码、数据、参数等内容的管理，同时还支持比较好的可视化。
+发布于 2022-08-27 15:41
+​ 赞同 122 ​ ​ 4 条评论
+​ 分享
+​ 收藏 ​ 喜欢
+​
+收起 ​
+​ 写回答
+1 个回答被折叠 （ 为什么？ ）
+广告
+广告
+相关问题
+深度学习科研需要经常复现实验代码吗？复现的目的是为了验证实验结果还是提升自己的代码能力呢？ 6 个回答
+深度学习方面的科研工作中的实验代码有什么规范和写作技巧？如何妥善管理实验数据？ 18 个回答
+发深度学习论文应该如何设计实验？ 0 个回答
+一般发一篇深度学习论文需要跑多少实验？ 1 个回答
+深度学习论文追踪应该关注哪些板块？ 0 个回答
+相关推荐
+live
+国际贸易学国际理论前沿（谷臻小简·AI 导读版）
+10 人读过 ​ 阅读
+live
+深度学习：21 天实战 Caffe
+13 人读过 ​ 阅读
+live
+《深度学习》精华版
+特伦斯·谢诺夫斯基
+48 人读过 ​ 阅读
+广告
+刘看山 知乎指南 知乎协议 知乎隐私保护指引
+应用 工作 申请开通知乎机构号
+侵权举报 网上有害信息举报专区
+京 ICP 证 110745 号
+京 ICP 备 13052560 号 - 1
+京公网安备 11010802020088 号
+京网文[2022]2674-081 号
+药品医疗器械网络信息服务备案
+（京）网药械信息备字（2022）第00334号 广播电视节目制作经营许可证:（京）字第06591号 服务热线：400-919-0001 违法和不良信息举报：010-82716601 举报邮箱：jubao@zhihu.com
+儿童色情信息举报专区
+互联网算法推荐举报专区
+仿冒诈骗专区
+MCN 举报专区
+信息安全漏洞反馈专区
+内容从业人员违法违规行为举报
+网络谣言信息举报入口
+网络传播秩序举报专区
+涉企虚假不实信息举报专区
+证照中心 Investor Relations
+联系我们 © 2023 知乎
+北京智者天下科技有限公司版权所有
+本站提供适老化无障碍服务

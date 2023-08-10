@@ -1,0 +1,440 @@
+首发于 机器学习算法工程师
+写文章
+点击打开要爆了的主页
+PyTorch分布式训练简明教程(2022更新版)
+PyTorch分布式训练简明教程(2022更新版)
+小小将
+小小将
+​
+华中科技大学 工学硕士
+​ 关注他
+730 人赞同了该文章
+​
+目录
+收起
+概述
+DistributedDataParallel内部机制
+实例讲解
+普通单卡训练
+分布式训练
+分布式训练启动方式
+混合精度训练（采用apex）
+题外话
+参考
+
+概述
+
+神经网络训练加速的最简单方法是使用GPU，对弈神经网络中常规操作（矩阵乘法和加法）GPU运算速度要倍超于CPU。随着模型或数据集越来越大，一个GPU很快就会变得不足。例如，BERT和GPT-2等大型语言模型是在数百个GPU上训练的。对于多GPU训练，需要一种在不同GPU之间对模型和数据进行切分和调度的方法。
+
+PyTorch是非常流行的深度学习框架，它在主流框架中对于灵活性和易用性的平衡最好。Pytorch有两种方法可以在多个GPU上切分模型和数据： nn.DataParallel 和 nn.distributedataparallel 。 DataParallel 更易于使用（只需简单包装单GPU模型）。然而，由于它使用一个进程来计算模型权重，然后在每个批处理期间将分发到每个GPU，因此通信很快成为一个瓶颈，GPU利用率通常很低。而且， nn.DataParallel 要求所有的GPU都在同一个节点上（不支持分布式），而且不能使用 Apex 进行 混合精度训练 。 nn.DataParallel 和 nn.distributedataparallel 的主要差异可以总结为以下几点（译者注）：
+
+    DistributedDataParallel 支持模型并行，而 DataParallel 并不支持，这意味如果模型太大单卡显存不足时只能使用前者；
+    DataParallel 是单进程多线程的，只用于单机情况，而 DistributedDataParallel 是多进程的，适用于单机和多机情况，真正实现分布式训练；
+    DistributedDataParallel 的训练更高效，因为每个进程都是独立的Python解释器，避免GIL问题，而且通信成本低其训练速度更快，基本上 DataParallel 已经被弃用；
+    必须要说明的是 DistributedDataParallel 中每个进程都有独立的优化器，执行自己的更新过程，但是梯度通过通信传递到每个进程，所有执行的内容是相同的；
+
+总的来说，Pytorch文档是相当完备和清晰的，尤其是在1.0x版本后。但是关于 DistributedDataParallel 的介绍却较少，主要的文档有以下三个：
+
+    Writing Distributed Applications with PyTorch ：主要介绍分布式API，分布式配置，不同通信机制以及内部机制，但是说实话大部分人不太同意看懂，而且很少会直接用这些;
+    Getting Started with Distributed Data Parallel ：简单介绍了如何使用 DistributedDataParallel ，但是用例并不清晰完整；
+    ImageNet training in PyTorch ：比较完整的使用实例，但是仅有代码，缺少详细说明；（ apex 也提供了一个类似的训练用例 Mixed Precision ImageNet Training in PyTorch ）
+    (advanced) PyTorch 1.0 Distributed Trainer with Amazon AWS ：如何在亚马逊云上进行分布式训练，但是估计很多人用不到。
+
+这篇教程将通过一个MNISI例子讲述如何使用PyTorch的分布式训练，这里将一段段代码进行解释，而且也包括任何使用 apex 进行混合精度训练。
+DistributedDataParallel内部机制
+
+DistributedDataParallel 通过多进程在多个GPUs间复制模型，每个GPU都由一个进程控制（当然可以让每个进程控制多个GPU，但这显然比每个进程有一个GPU要慢；也可以多个进程在一个GPU上运行）。GPU可以都在同一个节点上，也可以分布在多个节点上。每个进程都执行相同的任务，并且每个进程都与所有其他进程通信。进程或者说GPU之间只传递梯度，这样网络通信就不再是瓶颈。
+
+在训练过程中，每个进程从磁盘加载batch数据，并将它们传递到其GPU。每一个GPU都有自己的前向过程，然后梯度在各个GPUs间进行All-Reduce。每一层的梯度不依赖于前一层，所以梯度的All-Reduce和后向过程同时计算，以进一步缓解网络瓶颈。在后向过程的最后，每个节点都得到了平均梯度，这样模型参数保持同步。
+
+这都要求多个进程（可能在多个节点上）同步并通信。Pytorch通过 distributed.init_process_group 函数来实现这一点。他需要知道进程0位置以便所有进程都可以同步，以及预期的进程总数。每个进程都需要知道进程总数及其在进程中的顺序，以及使用哪个GPU。通常将进程总数称为 world_size .Pytorch提供了 nn.utils.data.DistributedSampler 来为各个进程切分数据，以保证训练数据不重叠。
+
+更详细的DDP的内部机理见官方的文档介绍： https:// pytorch.org/docs/stable /notes/ddp.html
+实例讲解
+
+这里通过一个 MNIST实例 来讲解，我们先将其改成 分布式训练 ，然后增加 混合精度训练 。
+普通单卡训练
+
+首先，导入所需要的库（这里需要安装nvidia的混合精度训练库apex）：
+
+ import os from datetime import datetime import argparse import torch.multiprocessing as mp import torchvision import torchvision.transforms as transforms import torch import torch.nn as nn import torch.distributed as dist from apex.parallel import DistributedDataParallel as DDP from apex import amp  
+
+然后我们定义一个简单的CNN模型处理MNIST数据：
+
+ class ConvNet ( nn . Module ): def __init__ ( self , num_classes = 10 ): super ( ConvNet , self ) . __init__ () self . layer1 = nn . Sequential ( nn . Conv2d ( 1 , 16 , kernel_size = 5 , stride = 1 , padding = 2 ), nn . BatchNorm2d ( 16 ), nn . ReLU (), nn . MaxPool2d ( kernel_size = 2 , stride = 2 )) self . layer2 = nn . Sequential ( nn . Conv2d ( 16 , 32 , kernel_size = 5 , stride = 1 , padding = 2 ), nn . BatchNorm2d ( 32 ), nn . ReLU (), nn . MaxPool2d ( kernel_size = 2 , stride = 2 )) self . fc = nn . Linear ( 7 * 7 * 32 , num_classes ) def forward ( self , x ): out = self . layer1 ( x ) out = self . layer2 ( out ) out = out . reshape ( out . size ( 0 ), - 1 ) out = self . fc ( out ) return out  
+
+主函数 main() 接受参数，执行训练：
+
+ def main (): parser = argparse . ArgumentParser () parser . add_argument ( '-n' , '--nodes' , default = 1 , type = int , metavar = 'N' ) parser . add_argument ( '-g' , '--gpus' , default = 1 , type = int , help = 'number of gpus per node' ) parser . add_argument ( '-nr' , '--nr' , default = 0 , type = int , help = 'ranking within the nodes' ) parser . add_argument ( '--epochs' , default = 2 , type = int , metavar = 'N' , help = 'number of total epochs to run' ) args = parser . parse_args () train ( 0 , args )  
+
+其中训练部分主函数为：
+
+ def train ( gpu , args ): torch . manual_seed ( 0 ) model = ConvNet () torch . cuda . set_device ( gpu ) model . cuda ( gpu ) batch_size = 100 # define loss function (criterion) and optimizer criterion = nn . CrossEntropyLoss () . cuda ( gpu ) optimizer = torch . optim . SGD ( model . parameters (), 1e-4 ) # Data loading code train_dataset = torchvision . datasets . MNIST ( root = './data' , train = True , transform = transforms . ToTensor (), download = True ) train_loader = torch . utils . data . DataLoader ( dataset = train_dataset , batch_size = batch_size , shuffle = True , num_workers = 0 , pin_memory = True ) start = datetime . now () total_step = len ( train_loader ) for epoch in range ( args . epochs ): for i , ( images , labels ) in enumerate ( train_loader ): images = images . cuda ( non_blocking = True ) labels = labels . cuda ( non_blocking = True ) # Forward pass outputs = model ( images ) loss = criterion ( outputs , labels ) # Backward and optimize optimizer . zero_grad () loss . backward () optimizer . step () if ( i + 1 ) % 100 == 0 and gpu == 0 : print ( 'Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}' . format ( epoch + 1 , args . epochs , i + 1 , total_step , loss . item ()) ) if gpu == 0 : print ( "Training complete in: " + str ( datetime . now () - start ))  
+
+通过启动主函数来开始训练：
+
+ if __name__ == '__main__': main() 
+
+你可能注意到有些参数是多余的，但是对后面的分布式训练是有用的。我们通过执行以下语句就可以在单机单卡上训练：
+
+ python src/mnist.py -n 1 -g 1 -nr 0 
+
+分布式训练
+
+使用多进程进行分布式训练，我们需要为每个GPU启动一个进程。每个进程需要知道自己运行在哪个GPU上，以及自身在所有进程中的序号。对于多节点，我们需要在每个节点启动脚本。
+
+首先，我们要配置基本的参数：
+
+ def main (): parser = argparse . ArgumentParser () parser . add_argument ( '-n' , '--nodes' , default = 1 , type = int , metavar = 'N' ) parser . add_argument ( '-g' , '--gpus' , default = 1 , type = int , help = 'number of gpus per node' ) parser . add_argument ( '-nr' , '--nr' , default = 0 , type = int , help = 'ranking within the nodes' ) parser . add_argument ( '--epochs' , default = 2 , type = int , metavar = 'N' , help = 'number of total epochs to run' ) args = parser . parse_args () ######################################################### args . world_size = args . gpus * args . nodes # os . environ [ 'MASTER_ADDR' ] = '10.57.23.164' # os . environ [ 'MASTER_PORT' ] = '8888' # mp . spawn ( train , nprocs = args . gpus , args = ( args ,)) # #########################################################  
+
+其中 args.nodes 是节点总数，而 args.gpus 是每个节点的GPU总数（每个节点GPU数是一样的），而 args.nr 是当前节点在所有节点的序号。节点总数乘以每个节点的GPU数可以得到 world_size ，也即进程总数。所有的进程需要知道进程0的IP地址以及端口，这样所有进程可以在开始时同步，一般情况下称进程0是master进程，比如我们会在进程0中打印信息或者保存模型。PyTorch提供了 mp.spawn 来在一个节点启动该节点所有进程，每个进程运行 train(i, args) ，其中 i 从0到 args.gpus - 1 。
+
+同样，我们要修改训练函数：
+
+ def train ( gpu , args ): ############################################################ rank = args . nr * args . gpus + gpu dist . init_process_group ( backend = 'nccl' , init_method = 'env://' , world_size = args . world_size , rank = rank ) ############################################################ torch . manual_seed ( 0 ) model = ConvNet () torch . cuda . set_device ( gpu ) model . cuda ( gpu ) batch_size = 100 # define loss function (criterion) and optimizer criterion = nn . CrossEntropyLoss () . cuda ( gpu ) optimizer = torch . optim . SGD ( model . parameters (), 1e-4 ) ############################################################### # Wrap the model model = nn . parallel . DistributedDataParallel ( model , device_ids = [ gpu ]) ############################################################### # Data loading code train_dataset = torchvision . datasets . MNIST ( root = './data' , train = True , transform = transforms . ToTensor (), download = True ) ################################################################ train_sampler = torch . utils . data . distributed . DistributedSampler ( train_dataset , num_replicas = args . world_size , rank = rank ) ################################################################ train_loader = torch . utils . data . DataLoader ( dataset = train_dataset , batch_size = batch_size , ############################## shuffle = False , # ############################## num_workers = 0 , pin_memory = True , ############################# sampler = train_sampler ) # ############################# ...  
+
+这里我们首先计算出当前进程序号： rank = args.nr * args.gpus + gpu ，然后就是通过 dist.init_process_group 初始化分布式环境，其中 backend 参数指定通信后端，包括 mpi, gloo, nccl ，这里选择 nccl ，这是Nvidia提供的官方多卡通信框架，相对比较高效。 mpi 也是高性能计算常用的通信协议，不过你需要自己安装MPI实现框架，比如OpenMPI。 gloo 倒是内置通信后端，但是不够高效。 init_method 指的是如何初始化，以完成刚开始的进程同步；这里我们设置的是 env:// ，指的是环境变量初始化方式，需要在环境变量中配置4个参数：MASTER_PORT，MASTER_ADDR，WORLD_SIZE，RANK，前面两个参数我们已经配置，后面两个参数也可以通过 dist.init_process_group 函数中 world_size 和 rank 参数配置。其它的初始化方式还包括共享文件系统（ https:// pytorch.org/docs/stable /distributed.html#shared-file-system-initialization ）以及TCP（ https:// pytorch.org/docs/stable /distributed.html#tcp-initialization ），比如采用TCP作为初始化方法 init_method='tcp://10.1.1.20:23456' ，其实也是要提供master的IP地址和端口。注意这个调用是阻塞的，必须等待所有进程来同步，如果任何一个进程出错，就会失败。
+
+对于模型侧，我们只需要用 DistributedDataParallel 包装一下原来的model即可，在背后它会支持梯度的All-Reduce操作。对于数据侧，我们 nn.utils.data.DistributedSampler 来给各个进程切分数据，只需要在dataloader中使用这个sampler就好，值得注意的一点是你要训练循环过程的每个epoch开始时调用 train_sampler.set_epoch(epoch) ，（主要是为了保证每个epoch的划分是不同的）其它的训练代码都保持不变。
+
+最后就可以执行代码了，比如我们是4节点，每个节点是8卡，那么需要在4个节点分别执行：
+
+ python src/mnist-distributed.py -n 4 -g 8 -nr i 
+
+要注意的是，此时的有效batch_size其实是 batch_size_per_gpu * world_size ，对于有BN的模型还可以采用同步BN获取更好的效果：
+
+ model = torch . nn . SyncBatchNorm . convert_sync_batchnorm ( model )  
+
+上述讲述的是分布式训练过程，其实同样适用于评估或者测试过程，比如我们把数据划分到不同的进程中进行预测，这样可以加速预测过程。实现代码和上述过程完全一样，不过我们想计算某个指标，那就需要从各个进程的统计结果进行All-Reduce，因为每个进程仅是计算的部分数据的内容。比如我们要计算分类准确度，我们可以统计每个进程的数据总数total和分类正确的数量count，然后进行聚合。这里要提的一点，当用 dist.init_process_group 初始化分布式环境时，其实就是建立一个默认的分布式进程组（distributed process group），这个group同时会初始化Pytorch的 torch.distributed 包。这样我们可以直接用 torch.distributed 的API就可以进行分布式基本操作了，下面是具体实现：
+
+ # define tensor on GPU, count and total is the result at each GPU t = torch . tensor ([ count , total ], dtype = torch . float64 , device = 'cuda' ) dist . barrier () # synchronizes all processes dist . all_reduce ( t , op = torch . distributed . ReduceOp . SUM ,) # Reduces the tensor data across all machines in such a way that all get the final result. t = t . tolist () all_count = int ( t [ 0 ]) all_total = int ( t [ 1 ]) acc = all_count / all_total  
+
+分布式训练启动方式
+
+上述过程我们采用PyTorch的torch.multiprocessing包（ Multiprocessing package - torch.multiprocessing ）来启动分布式训练，目前官方给出的ImageNet训练例子是采用这种方式的，具体见 examples/imagenet at main · pytorch/examples ，detectron2库也是采用这种方式启动： https:// github.com/facebookrese arch/detectron2/blob/main/detectron2/engine/launch.py 。如果使用 torch.multiprocessing.spawn 启动，要注意送进入的训练function必须是 fn(i,*args) 这种格式，其中第一个参数 i 指代的是当前节点的进程编号，这个参数其实就充当了 local_rank , 所谓的 local_rank 是指的训练进程在当前节点的序号，前面说的 rank 其实是全局的进程序号，这个参数很重要，因为我们要根据这个参数来设置每个进程所使用的device设备，一般情况下，我们就直接认为 local_rank 即为所采用的GPU编号，设置如下：
+
+ torch . cuda . set_device ( args . local_rank ) # before your code runs # set DDP model = torch . nn . parallel . DistributedDataParallel ( model , device_ids = [ local_rank ], output_device = local_rank ) # 或者 with torch . cuda . device ( args . local_rank ): # your code to run  
+
+除了采用 mp.spawn ，我们还可以采用 torch.distributed.launch 来启动程序（ Distributed communication package - torch.distributed ），这个是更常用的启动方式。比如对于单机多卡训练，其启动方式如下：
+
+ python - m torch . distributed . launch -- nproc_per_node = NUM_GPUS_YOU_HAVE YOUR_TRAINING_SCRIPT . py ( -- arg1 -- arg2 -- arg3 and all other arguments of your training script )  
+
+其中 NUM_GPUS_YOU_HAVE 是GPU的总量，而 YOUR_TRAINING_SCRIPT.py 是训练的脚本，其和上述基本一致，不过区别是采用 torch.distributed.launch 启动，会自动设置一些环境变量（ https:// github.com/pytorch/pyto rch/blob/master/torch/distributed/run.py#L211 ），比如我们需要的 RANK 和 WORLD_SIZE 就直接可以从环境变量中获取：
+
+ rank = int ( os . environ [ "RANK" ]) world_size = int ( os . environ [ 'WORLD_SIZE' ])  
+
+对于 local_rank 的获取有两种方式，一种是在训练脚本添加一个命令行参数，程序启动时会对其自动赋值：
+
+ import argparse parser = argparse . ArgumentParser () parser . add_argument ( "--local_rank" , type = int ) args = parser . parse_args () local_rank = args . local_rank  
+
+另外一种方式采用 torch.distributed.launch 启动加上 --use_env=True ，此时情况下会设置 LOCAL_RANK 这个环境变量，我们就可以从环境变量中获取 local_rank ：
+
+ """ python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_YOU_HAVE --use_env=True YOUR_TRAINING_SCRIPT.py (--arg1 --arg2 --arg3 and all other arguments of your training script) """ import os local_rank = int ( os . environ [ "LOCAL_RANK" ])  
+
+对于多机多卡训练，比如2个node，其启动命令如下所示：
+
+ # Node 1: (IP: 192.168.1.1, and has a free port: 1234) python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_YOU_HAVE --nnodes=2 --node_rank=0 --master_addr="192.168.1.1" --master_port=1234 YOUR_TRAINING_SCRIPT.py (--arg1 --arg2 --arg3 and all other arguments of your training script) # Node 2 python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_YOU_HAVE --nnodes=2 --node_rank=1 --master_addr="192.168.1.1" --master_port=1234 YOUR_TRAINING_SCRIPT.py (--arg1 --arg2 --arg3 and all other arguments of your training script) 
+
+这里 --nnodes 传入node总量，而 --node_rank 传入node的编号，world_size=nnodes*nproc_per_node。
+
+不过最新版本的PyTorch推出了 torchrun （ https:// pytorch.org/docs/stable /elastic/run.html#launcher-api ）来替代 torch.distributed.launch 。 torchrun和torch.distributed.launch的用法基本一致，不过弃用了 --use_env 命令，直接将local_rank设置在环境变量中，目前最新版本的torchvision是采用torchrun启动方式，具体见 vision/references/classification at main · pytorch/vision 。
+混合精度训练（采用apex）
+
+混合精度训练（混合FP32和FP16训练）可以适用更大的batch_size，而且可以利用NVIDIA Tensor Cores加速计算。采用NVIDIA的apex进行混合精度训练非常简单，只需要修改部分代码：
+
+ rank = args . nr * args . gpus + gpu dist . init_process_group ( backend = 'nccl' , init_method = 'env://' , world_size = args . world_size , rank = rank ) torch . manual_seed ( 0 ) model = ConvNet () torch . cuda . set_device ( gpu ) model . cuda ( gpu ) batch_size = 100 # define loss function (criterion) and optimizer criterion = nn . CrossEntropyLoss () . cuda ( gpu ) optimizer = torch . optim . SGD ( model . parameters (), 1e-4 ) # Wrap the model ############################################################## model , optimizer = amp . initialize ( model , optimizer , opt_level = 'O2' ) model = DDP ( model ) ############################################################## # Data loading code ... start = datetime . now () total_step = len ( train_loader ) for epoch in range ( args . epochs ): for i , ( images , labels ) in enumerate ( train_loader ): images = images . cuda ( non_blocking = True ) labels = labels . cuda ( non_blocking = True ) # Forward pass outputs = model ( images ) loss = criterion ( outputs , labels ) # Backward and optimize optimizer . zero_grad () ############################################################## with amp . scale_loss ( loss , optimizer ) as scaled_loss : scaled_loss . backward () ############################################################## optimizer . step () ...  
+
+其实就两处变化，首先是采用 amp.initialize 来包装model和optimizer以支持混合精度训练，其中 opt_level 指的是优化级别，如果为 O0 或者 O3 不是真正的混合精度，但是可以用来确定模型效果和速度的baseline，而 O1 和 O2 是混合精度的两种设置，可以选择某个进行混合精度训练。另外一处是在进行根据梯度更新参数前，要先通过 amp.scale_loss 对梯度进行scale以防止梯度下溢（underflowing）。此外，你还可以用 apex.parallel.DistributedDataParallel 替换 nn.DistributedDataParallel 。
+
+新版本的PyTorch已经内置混合精度训练，具体见 https:// pytorch.org/docs/stable /amp.html 。
+题外话
+
+我觉得PyTorch官方的分布式实现已经比较完善，而且性能和效果都不错，可以替代的方案是 horovod ，不仅支持PyTorch还支持TensorFlow和MXNet框架，实现起来也是比较容易的，速度方面应该不相上下。
+参考
+
+    Distributed data parallel training in Pytorch (大部分内容来自此处)
+    torch.distributed 
+
+编辑于 2022-08-21 15:31
+「真诚赞赏，手留余香」
+赞赏
+还没有人赞赏，快来当第一个赞赏的人吧！
+PyTorch
+深度学习（Deep Learning）
+分布式计算
+​ 赞同 730 ​ ​ 84 条评论
+​ 分享
+​ 喜欢 ​ 收藏 ​ 申请转载
+​
+评论千万条，友善第一条
+
+84 条评论
+默认
+最新
+戚少商
+戚少商
+dataparallel是可以apex，只是需要特殊的姿势
+2020-03-17
+​ 回复 ​ 2
+戚少商
+戚少商
+小小将
+我现在卡在io上的，这个应该没啥用
+2020-03-23
+​ 回复 ​ 赞
+小小将
+小小将
+作者
+戚少商
+你可以换成多进程的试试，你会发现会快很多
+2020-03-23
+​ 回复 ​ 赞
+展开其他 3 条回复 ​
+钴蓝
+钴蓝
+
+update一下，现在apex的github上写着apex.amp和apex.parallel.DistributedDataParallel都已经deprecated了，直接用torch.amp和torch.parallel.DistributedDataParallel就可以
+2022-12-11
+​ 回复 ​ 2
+钴蓝
+钴蓝
+
+打漏了一个nn（torch.nn.parallel.DistributedDataParallel
+2022-12-11
+​ 回复 ​ 赞
+小狼
+小狼
+请问大佬， 一个节点可以承载多个进程，请问节点的概念是什么，具体指什么东西？
+2021-09-17
+​ 回复 ​ 1
+小小将
+小小将
+作者
+可以认为是一个device gpu
+2021-09-17
+​ 回复 ​ 1
+Dean
+Dean
+节点指physical server
+2021-10-12
+​ 回复 ​ 1
+iTennis
+iTennis
+大佬，分布式训练需要scale学习率？我看到horovod给的例子有将lr *hvd.size()
+2020-03-23
+​ 回复 ​ 1
+Quokka
+Quokka
+
+是的，大批量训练需要线性或者根号扩大学习率，详见 如何评价Facebook Training ImageNet in 1 Hour这篇论文? - 廉相如的回答 - 知乎
+https://www. zhihu.com/question/6087 4090/answer/181409544
+
+2020-06-04
+​ 回复 ​ 1
+小小将
+小小将
+作者
+Bruce
+horovod
+2020-04-05
+​ 回复 ​ 赞
+展开其他 2 条回复 ​
+李峰
+李峰
+
+mp.spawn那儿 nproces参数的值应该是world size而不是args.gpus吧，没把node算进去。
+2021-03-18
+​ 回复 ​ 1
+xmqv
+xmqv
+应该就是args.gpus，参考文档里那个没注释的imagenet的参数就是args.gpu，应该是告诉节点gpu的范围，然后节点启动args.gpus个进程。。。
+2021-08-24
+​ 回复 ​ 2
+小小将
+小小将
+作者
+
+就是每个node的gpus数量，不是world_size
+2022-08-21
+​ 回复 ​ 1
+黑凤梨
+黑凤梨
+
+作者你好，请问为什么程序是多进程，用python src/mnist.py -n 1 -g 1 -nr 0这个指令一直报连接不上的错误RuntimeError: The client socket has failed to connect to any network address of (172.20.10.62, 12355). The client socket has failed to connect to 172.20.10.62:12355 (errno: 110 - 连接超时).
+05-08
+​ 回复 ​ 赞
+SHIE
+SHIE
+
+看起来好复杂
+
+04-20
+​ 回复 ​ 赞
+海里的山贼
+海里的山贼
+
+GAN能用分布式训练吗
+
+03-27
+​ 回复 ​ 赞
+汪东城本成嘞
+汪东城本成嘞
+
+RuntimeError: Distributed package doesn't have NCCL built in
+
+报这个错怎么办呢，查了一圈全是windows不支持nccl，问题是我是咋linux下啊
+
+[发呆]
+03-18
+​ 回复 ​ 赞
+一只滑行的蜗牛
+一只滑行的蜗牛
+
+nn.utils.data.DistributedSample 请问加入我是在单机多卡训练，也得用这个分发数据吗？
+2020-05-16
+​ 回复 ​ 赞
+一只滑行的蜗牛
+一只滑行的蜗牛
+小小将
+
+这个分发，是将batchsize 分成n分，还是说每个GPU都分到了batch个数据
+2020-05-16
+​ 回复 ​ 赞
+小小将
+小小将
+作者
+是的
+2020-05-16
+​ 回复 ​ 赞
+如火而飞
+如火而飞
+
+并非只传梯度就没有网络瓶颈吧，训练Bert每轮要传的梯度+adam冲凉估计有0.5G不止。
+2020-04-09
+​ 回复 ​ 赞
+高飞
+高飞
+这路应该是与ps相比，传梯度和参数会更大吧，但是单从传梯度来看，all reduce本身传输量应该是比ps多的。主要还是all-reduce 平衡了每个卡的传输量 可扩展性更好，并且与backward有一定的overlap可以减少通信overhead，更进一步可以考虑减少通信频率，以及稀疏通信。
+2020-04-10
+​ 回复 ​ 赞
+brianshen
+brianshen
+不是缺少多gpu的软件包，而是缺少几百个gpu[不抬杠]
+2020-04-02
+​ 回复 ​ 赞
+MatthewHou
+MatthewHou
+
+python src/mnist-distributed.py -n 4 -g 8 -nr i
+这个 -nr i是什么意思
+2020-04-01
+​ 回复 ​ 赞
+小小将
+小小将
+作者
+节点的rank
+2020-04-01
+​ 回复 ​ 赞
+YANG
+YANG
+data parallel 只用于单卡情况？？？
+2020-03-21
+​ 回复 ​ 赞
+小小将
+小小将
+作者
+更正一个笔误
+2020-03-21
+​ 回复 ​ 赞
+Miracle
+Miracle
+请问master_port怎么获取？
+2021-09-09
+​ 回复 ​ 赞
+千堆雪99
+千堆雪99
+为啥用了apex训练minst显存并没有降低呢
+2021-09-03
+​ 回复 ​ 赞
+天真有邪
+天真有邪
+“每一层的梯度不依赖于前一层，所以梯度的All-Reduce和后向过程同时计算”请问怎么同时计算的
+2021-08-26
+​ 回复 ​ 赞
+小小将
+小小将
+作者
+其实是可以直接得到所有参数的梯度再做一次all-reduce。
+2021-08-26
+​ 回复 ​ 1
+与苏
+与苏
+天真有邪
+看原文感觉不是同时进行的
+每次bp的时候写入bucket
+bucket满了在allreduce
+之后再把model propagate到每个node
+2022-06-11
+​ 回复 ​ 赞
+展开其他 2 条回复 ​
+Navigation
+Navigation
+作者你好，我按照你的代码写了一遍发现程序可以运行，但是加断点到mp.spawn(train, nprocs=args.gpus, args=(args, ))时会报错，显示Can't get attribute 'train' on <module '__main__' (built-in)>，请问作者能否解惑一二。本人目前还只是处于深度学习入门阶段，请多多包含。
+2021-08-13
+​ 回复 ​ 赞
+小小将
+小小将
+作者
+看起来是train没定义？
+2021-08-13
+​ 回复 ​ 赞
+梦想成真
+梦想成真
+您好，请问学习率的设置是设置是根据总的batchsize 设置还是根据 每张卡的batchsize设置哪？
+2021-07-25
+​ 回复 ​ 赞
+小小将
+小小将
+作者
+一般是根据总的batch size设置lr
+2021-08-13
+​ 回复 ​ 赞
+Peniblast
+Peniblast
+如果是两台机器多卡分布式训练，两台机器的CUDA和NCCL版本号需要一致吗
+2021-06-21
+​ 回复 ​ 赞
+小小将
+小小将
+作者
+这个还真没测试过
+2021-06-21
+​ 回复 ​ 赞
+点击查看全部评论
+评论千万条，友善第一条
+
+文章被以下专栏收录
+
+    机器学习算法工程师
+    机器学习算法工程师
+    微信公众号，内容更精彩！
+    机器学习算法工程师
+    机器学习算法工程师
+    欢迎关注同名微信公众号
+
+推荐阅读
+
+    pytorch分布式训练
+    pytorch分布式训练
+    游凯超
+    pytorch分布式训练实践
+
+    最近需要训练OCR通用识别模型，单节点训练收敛一次大概需要一周。为了提升训练的效率，我就开始尝试在公司的平台上使用分布式的方式去训练，确实训练速度有很大的提升，这边主要介绍如何修…
+    布尔佛洛哥哥
+    Pytorch 分布式训练
+    Pytorch 分布式训练
+    会飞的闲鱼 发表于咸鱼也要学...
+    pytorch 分布式训练初探
+    pytorch 分布式训练初探
+    lbin 发表于Neuro...
+

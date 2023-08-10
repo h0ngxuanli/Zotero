@@ -1,0 +1,253 @@
+
+BrandImg
+3-3 Transformers Tokenizer API 的使用
+sergio
+sergio
+一个脱离了低级趣味的人
+137 赞同
+14 评论
+157 收藏
+【旗舰店正版】自然语言处理入门 HanLP作者何晗 NLP书
+天猫
+¥49.50
+去购买
+【旗舰店正版】自然语言处理入门 HanLP作者何晗 NLP书
+天猫
+¥49.50
+去购买
+【旗舰店正版】自然语言处理入门 HanLP作者何晗 NLP书
+天猫
+¥49.50
+去购买
+Transformers Tokenizer 的使用
+
+Tokenizer 分词器，在NLP任务中起到很重要的任务，其主要的任务是将文本输入转化为模型可以接受的输入，因为模型只能输入数字，所以 tokenizer 会将文本输入转化为数值型的输入，下面将具体讲解 tokenization pipeline.
+Tokenizer 类别
+
+例如我们的输入为：
+
+    Let's do tokenization!
+
+不同的tokenization 策略可以有不同的结果，常用的策略包含如下： - word base：按照词进行分词 - character base：按照单词进行分词 - subword tokenization：按照subword进行分词 等
+Word-based
+
+我们如果需要根据 word base 进行 tokenization 的话，有两种方式，一种是根据 whitespace 进行分割，一种是根据标点符号进行分割，然后再做数字的映射。
+
+
+
+每个 word 都被赋予一个ID，这个 ID 的范围是从0到 vocabulary size，这种方式有一种问题，就是很容易出现例如， dog 和 dogs ，虽然是相近的词，但是被分配了完全不同的无关的id。对于不在vocabulary 库里面的词，我们会分配 [UNK] ，代表未知词。
+Character base
+
+Char base的 tokenization 方式，就是用char，而不是word。 这种方式的好处在于：
+
+    vocabulary size 很小
+    比较少机会出现 out of vocabulary 的问题。
+
+
+
+但是这种方式的硬伤也很重，因为这种方式会导致文本无意义，每个character 都是无意义的，只有组成了单词才是有意义的，对于character 进行embedding无法满足文本的语义要求。当然这种问题主要出现在英文中或者拉丁语系中，中文的话，每个字的意思就丰富多了，所以也常用这种方式。
+
+此外，对于英文，一个单词可以分为N个字母，这就导致了每个模型都需要处理多个token，导致模型速度慢，可以输入的文本长度变小。
+Subword tokenization
+
+为了平衡上述两者的问题，聪明的科学家想出了使用 subword tokenization 的方式进行分词。subword tokenization 依赖的原则是：
+
+常见词不应该分成subword，不常见的词应该分为更有意义的subword
+
+例如： tokenization 代表不常见的词，可以被分为： token 和 ization ， annoyingly 被分为 annoying 和 ly ，这对于英文来说是很有意义的，因为英文本来就是由于词根和词缀组成的。
+
+下面可以看看 “Let’s do tokenization!“ 在经过subword tokenization 后的情况：
+
+
+其他的方式
+
+还有很多常见的方式例如：
+
+    Byte-level BPE, as used in GPT-2
+    WordPiece, as used in BERT
+    SentencePiece or Unigram, as used in several multilingual models
+
+load 和 save
+
+tokenizer 的加载和保存和 models 的方式一致，都是使用方法： from_pretrained , save_pretrained . 这个方法会加载和保存tokenizer使用的模型结构（例如sentence piece就有自己的模型结构），以及字典。
+
+下面是一个使用的example：
+
+ from transformers import BertTokenizer tokenizer = BertTokenizer . from_pretrained ( "bert-base-cased" , use_fast = True ) # 可以使用use fast加速  
+
+和 AutoModel 类似，也有 AutoTokenizer 这种class，它可以根据传入的 checkpoint，找到适当的 tokenizer class，并且加载 checkpoint：
+
+ from transformers import AutoTokenizer tokenizer = AutoTokenizer . from_pretrained ( "bert-base-cased" )  
+
+在加载完模型之后，我们可以直接使用tokenzer对文本进行tokenizer pipeline：
+
+ tokenizer ( "Using a Transformer network is simple" ) { 'input_ids' : [ 101 , 7993 , 170 , 11303 , 1200 , 2443 , 1110 , 3014 , 102 ], 'token_type_ids' : [ 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ], 'attention_mask' : [ 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 ]}  
+
+并且可以进行保存：
+
+ tokenizer . save_pretrained ( "directory_on_my_computer" )  
+
+Encoding
+
+将文本转化为数字的过程成为 encoding，encoding 主要包含了两个步骤： - 1. tokenization: 对文本进行分词 - 2. convert_tokens_to_ids：将分词后的token 映射为数字
+
+Tokenization
+
+Tokenization 的过程是通过 tokenize 的方法实现的：
+
+ from transformers import AutoTokenizer tokenizer = AutoTokenizer . from_pretrained ( "bert-base-cased" ) sequence = "Using a Transformer network is simple" tokens = tokenizer . tokenize ( sequence ) print ( tokens ) >>> [ 'Using' , 'a' , 'transform' , '##er' , 'network' , 'is' , 'simple' ]  
+
+这边使用的是wordpiece 的分词器，它将 transformer 分为了 transform 和 ##er
+
+convert_tokens_to_ids
+
+分完词之后，需要将每个token映射为 id， 这边是使用 convert_tokens_to_ids 的方法进行：
+
+ ids = tokenizer . convert_tokens_to_ids ( tokens ) print ( ids ) >>> [ 7993 , 170 , 11303 , 1200 , 2443 , 1110 , 3014 ]  
+
+Decoding
+
+Decoding 的作用是将输出的 ids 转化为文本，这可以使用 tokenizer 的 decode 方法：
+
+ decoded_string = tokenizer . decode ([ 7993 , 170 , 11303 , 1200 , 2443 , 1110 , 3014 ]) print ( decoded_string ) >>> 'Using a Transformer network is simple'  
+
+Handling multiple sequences
+
+我们在使用 tokenizer 的时候，可能会出现一些问题： - 对于batch的输入，如果我们输入了多个长度的句子，我们将如何处理？ - 只输入 tokens 对应id 是不是就足够了？ - 如果文本长度过长，怎么处理？
+模型只支持batch 的输入
+
+我们可以看下面的例子：
+
+ import torch from transformers import AutoTokenizer , AutoModelForSequenceClassification checkpoint = "distilbert-base-uncased-finetuned-sst-2-english" tokenizer = AutoTokenizer . from_pretrained ( checkpoint ) model = AutoModelForSequenceClassification . from_pretrained ( checkpoint ) sequence = "I've been waiting for a HuggingFace course my whole life." tokens = tokenizer . tokenize ( sequence ) ids = tokenizer . convert_tokens_to_ids ( tokens ) input_ids = torch . tensor ( ids ) # model 只支持 tensor # This line will fail. model ( input_ids )  
+
+可以看到，爆了如下的错误：
+
+ IndexError : Dimension out of range ( expected to be in range of [ - 1 , 0 ], but got 1 )  
+
+这是因为，模型需要传入的输入是 [batch_size, sequence_length] 的 tensor 。
+
+于是我们需要，对上面代码进行修改：
+
+ import torch from transformers import AutoTokenizer , AutoModelForSequenceClassification checkpoint = "distilbert-base-uncased-finetuned-sst-2-english" tokenizer = AutoTokenizer . from_pretrained ( checkpoint ) model = AutoModelForSequenceClassification . from_pretrained ( checkpoint ) sequence = "I've been waiting for a HuggingFace course my whole life." tokens = tokenizer . tokenize ([ sequence ]) # 变成batch size = 1 ids = tokenizer . convert_tokens_to_ids ( tokens ) input_ids = torch . tensor ([ ids ]) print ( "Input IDs:" , input_ids ) output = model ( input_ids ) print ( "Logits:" , output . logits ) >>> Input IDs : [[ 1045 , 1005 , 2310 , 2042 , 3403 , 2005 , 1037 , 17662 , 12172 , 2607 , 2026 , 2878 , 2166 , 1012 ]] Logits : [[ - 2.7276 , 2.8789 ]]  
+
+batch 内的 ids 需要 padding
+
+我们都知道 model 只接受 tensor 作为输入，不能接受 list of lists，而tensor 必须保证每个vector 都有相同的长度： 所以下面的数组是不能转华为 tensor 的。
+
+ batched_ids = [ [200, 200, 200], [200, 200] ] 
+
+为了解决这个问题，我们往往需要对输入进行 padding，使得每个输入的 vector 都具有相同的长度，如果我们有2个句子，其中一个句子只有3个字，一个句子2个字，我们为了导出为tensor，可以将其他的句子都进行padding，然后得到两个3个字的句子。
+
+ padding_id = 100 batched_ids = [ [ 200 , 200 , 200 ], [ 200 , 200 , padding_id ] ]  
+
+在 tokenizer 中，我们可以通过 tokenizer.pad_token_id 确认 padding id。
+
+ model = AutoModelForSequenceClassification . from_pretrained ( checkpoint ) sequence1_ids = [[ 200 , 200 , 200 ]] sequence2_ids = [[ 200 , 200 ]] batched_ids = [[ 200 , 200 , 200 ], [ 200 , 200 , tokenizer . pad_token_id ]] print ( model ( torch . tensor ( sequence1_ids )) . logits ) print ( model ( torch . tensor ( sequence2_ids )) . logits ) print ( model ( torch . tensor ( batched_ids )) . logits ) >>> tensor ([[ 1.5694 , - 1.3895 ]], grad_fn =< AddmmBackward > ) tensor ([[ 0.5803 , - 0.4125 ]], grad_fn =< AddmmBackward > ) tensor ([[ 1.5694 , - 1.3895 ], [ 1.3373 , - 1.2163 ]], grad_fn =< AddmmBackward > )  
+
+上面我们注意到，同样输入 [200, 200] 和 [200, 200, tokenizer.pad_token_id] , 我们在经过模型的时候，得到的结果是完全不同的。 这是因为我们的模型在做句子表征的时候，也将padding token id 进行了考虑，导致每个词对应的输出不同，为了告诉模型我们的输入中，某些词是不需要考虑的，我们需要传入 attention mask 。
+Attention masks
+
+Attention masks 和输入的 input ids 具有完全一样的shape，其中1 代表了这个id需要attention，0代表这个id不需要attention。
+
+ batched_ids = [ [ 200 , 200 , 200 ], [ 200 , 200 , tokenizer . pad_token_id ] ] attention_mask = [ [ 1 , 1 , 1 ], [ 1 , 1 , 0 ] ] outputs = model ( torch . tensor ( batched_ids ), attention_mask = torch . tensor ( attention_mask )) print ( outputs . logits ) >>> tensor ([[ 1.5694 , - 1.3895 ], [ 0.5803 , - 0.4125 ]], grad_fn =< AddmmBackward > )  
+
+Longer sequences 长句子
+
+每个预训练的语言模型在模型定义的时候，都限定了最长的输入长度，例如 BERT-base 为512， BERT-large 为1024 个tokens。 - 所以如果文本 tokenized 后的长度超过模型可以处理的长度，我们需要进行截断（truncate）。 - 或者选用可以处理更长文本的模型，例如 Longformer，LED，或者 Big Bird
+
+我们可以指定， max_sequence_length 参数对文本进行截断：
+
+ sequence = sequence [: max_sequence_length ]  
+
+Tokenizer 的封装
+
+我们了解了 tokenize，conver to ids， padding， attention mask，以及truncate 后，我们发现，对于文本的输入，我们需要进行一些列的 pipeline 才能得到模型的输入。这时候我们是否可以有封装的方法可以直接使用，而不用一次又一次地调用完整的步骤？
+
+其实可以的，我们可以直接使用 tokenizer(text(s)) 就可以直接获得所有的模型的输入。而且它支持输入单句子或者句子list。
+
+ from transformers import AutoTokenizer checkpoint = "distilbert-base-uncased-finetuned-sst-2-english" tokenizer = AutoTokenizer . from_pretrained ( checkpoint ) sequence = "I've been waiting for a HuggingFace course my whole life." model_inputs = tokenizer ( sequence )  
+
+或者直接输入句子串：
+
+ sequences = [ "I've been waiting for a HuggingFace course my whole life." , "So have I!" ] model_inputs = tokenizer ( sequences )  
+
+对于文本长度的限定，我们可以通过指定 padding，以及 max_length。 - padding = 'longest': padding 到batch 中句子最长的长度 - padding = 'max_length': padding 到模型最大的输入长度，如果指定了 max_length ， 则padding 到 max_length
+
+ # Will pad the sequences up to the maximum sequence length model_inputs = tokenizer ( sequences , padding = "longest" ) # Will pad the sequences up to the model max length # (512 for BERT or DistilBERT) model_inputs = tokenizer ( sequences , padding = "max_length" ) # Will pad the sequences up to the specified max length model_inputs = tokenizer ( sequences , padding = "max_length" , max_length = 8 )  
+
+同样，如果文本太长，可以设定 truncation=True
+
+ sequences = [ "I've been waiting for a HuggingFace course my whole life." , "So have I!" ] # Will truncate the sequences that are longer than the model max length # (512 for BERT or DistilBERT) model_inputs = tokenizer ( sequences , truncation = True ) # Will truncate the sequences that are longer than the specified max length model_inputs = tokenizer ( sequences , max_length = 8 , truncation = True )  
+
+tokenizer 默认返回的结果是np，但是模型的输入必须是tensor： - "np" returns NumPy arrays: - "pt" returns PyTorch tensors - "tf" returns TensorFlow tensors
+
+所以需要传入参数 return_tensors
+
+ sequences = [ "I've been waiting for a HuggingFace course my whole life." , "So have I!" ] # Returns PyTorch tensors model_inputs = tokenizer ( sequences , padding = True , return_tensors = "pt" ) # Returns TensorFlow tensors model_inputs = tokenizer ( sequences , padding = True , return_tensors = "tf" ) # Returns NumPy arrays model_inputs = tokenizer ( sequences , padding = True , return_tensors = "np" )  
+
+特殊的字符
+
+如果我们查看 tokenizer 的返回结果： model_inputs["input_ids"] 我们可以查看到，文本的输出和之前的输出不太一样。
+
+ sequence = "I've been waiting for a HuggingFace course my whole life." model_inputs = tokenizer ( sequence ) print ( model_inputs [ "input_ids" ]) tokens = tokenizer . tokenize ( sequence ) ids = tokenizer . convert_tokens_to_ids ( tokens ) print ( ids ) >>> [ 101 , 1045 , 1005 , 2310 , 2042 , 3403 , 2005 , 1037 , 17662 , 12172 , 2607 , 2026 , 2878 , 2166 , 1012 , 102 ] [ 1045 , 1005 , 2310 , 2042 , 3403 , 2005 , 1037 , 17662 , 12172 , 2607 , 2026 , 2878 , 2166 , 1012 ]  
+
+我们对输出ids 进行decode ，可以得到如下的结果：
+
+ print ( tokenizer . decode ( model_inputs [ "input_ids" ])) print ( tokenizer . decode ( ids )) >>> "[CLS] i've been waiting for a huggingface course my whole life. [SEP]" "i've been waiting for a huggingface course my whole life."  
+
+我们可以看到模型的输入增加了特殊的字符 [CLS] 和 [SEP] , 这是因为，bert 模型训练的时候，也增加了这些特殊字符，为了保证训练和预测一致，其tokenizer也对输入进行了改造。不同的model在训练的时候，新增特殊的字符也不一样，例如 roberta 加的 字符为 和 。所以我们尽量可以直接使用 tokenizer 对模型进行embedding 的构造，可以减少很多数据的处理流程。
+
+除此之外，模型还需要很多其他输入，例如BERT 需要输入 token type ids，代表文本的类型，具体每个模型都有点差异。
+Wrapping up: From tokenizer to model
+
+所以我们可以发现，tokenizer 帮我们处理了所有，
+
+    对文本进行特殊字符的添加
+    padding
+    truncation
+    encoding （tokenize，convert_tokens_to_ids）
+    转化为tensor
+    输出 model 需要的attention mask
+    （optional) 以及输出 token type ids
+
+ import torch from transformers import AutoTokenizer , AutoModelForSequenceClassification checkpoint = "distilbert-base-uncased-finetuned-sst-2-english" tokenizer = AutoTokenizer . from_pretrained ( checkpoint ) model = AutoModelForSequenceClassification . from_pretrained ( checkpoint ) sequences = [ "I've been waiting for a HuggingFace course my whole life." , "So have I!" ] tokens = tokenizer ( sequences , padding = True , truncation = True , return_tensors = "pt" ) output = model ( ** tokens )  
+
+正版预训练语言模型人工智能领域中自然语言处理领域预
+天猫
+¥79.00
+去购买
+正版预训练语言模型人工智能领域中自然语言处理领域预
+天猫
+¥79.00
+去购买
+正版预训练语言模型人工智能领域中自然语言处理领域预
+天猫
+¥79.00
+去购买
+基于PyTorch的自然语言处理
+京东
+¥40.50
+去购买
+基于PyTorch的自然语言处理
+京东
+¥40.50
+去购买
+基于PyTorch的自然语言处理
+京东
+¥40.50
+去购买
+
+编辑于 2022-04-25 · 著作权归作者所有
+推荐阅读
+男朋友32天改善了重度湿气导致的肥胖后，腰围瘦了８厘米
+喵了个咪的回答
+男朋友32天改善了重度湿气导致的肥胖后，腰围瘦了８厘米
+神奇！五个月快速瘦身49斤，女生心灵转变引爆成功瘦身背后的超能力！
+纯不了一点的回答
+神奇！五个月快速瘦身49斤，女生心灵转变引爆成功瘦身背后的超能力！
+2023最新骨传导耳机放榜！不懂的直接进来抄作业，一文评测13款热门骨传导运动耳机，「理性参考」墨觉/南卡/IKF/山水等究竟谁才是全能型运动CP？
+无聊鸭本鸭的回答
+2023最新骨传导耳机放榜！不懂的直接进来抄作业，一文评测13款热门骨传导运动耳机，「理性参考」墨觉/南卡/IKF/山水等究竟谁才是全能型运动CP？
+脱发真的能治好吗？
+毛发医生徐鲁的回答
+脱发真的能治好吗？

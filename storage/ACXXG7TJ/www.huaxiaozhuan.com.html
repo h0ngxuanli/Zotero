@@ -1,0 +1,1253 @@
+<!DOCTYPE html> <html lang=en style><!--
+ Page saved with SingleFile 
+ url: https://www.huaxiaozhuan.com/ 
+ saved date: Sun Aug 06 2023 11:53:42 GMT+0800 (中国标准时间)
+--><meta charset=utf-8>
+<title>AI算法工程师手册</title>
+<link rel=canonical href=https://www.huaxiaozhuan.com/><meta http-equiv=content-security-policy content="default-src 'none'; font-src 'self' data:; img-src 'self' data:; style-src 'unsafe-inline'; media-src 'self' data:; script-src 'unsafe-inline' data:; object-src 'self' data:; frame-src 'self' data:;"><style>img[src="data:,"],source[src="data:,"]{display:none!important}</style></head>
+ <body>
+ <p> 这是作者多年以来学习总结的笔记，经整理之后开源于世。考虑到正式出版的时间周期较长，而且书本购买成本高不利于技术广泛传播，因此作者采取开源的形式。
+ 笔记内容仅供个人学习使用，非本人同意不得应用于商业领域。</p>
+ <p> 笔记内容较多，可能有些总结的不到位的地方，欢迎大家探讨。联系方式:huaxz1986@163.com qq: 525875545 </p>
+ <p> 另有个人在 github 上的一些内容：
+ <ul>
+ <li>"《算法导论》的C++实现"代码：https://github.com/huaxz1986/cplusplus-_Implementation_Of_Introduction_to_Algorithms</li>
+ <li>《Unix 环境高级编程第三版》笔记：https://github.com/huaxz1986/APUE_notes</li>
+ </ul>
+ <p></p>
+ <h2>20230801 修订:</h2>
+ <p> 新增 36 篇关于 Prompt Engineering 的热门论文: </p>
+ <li> 《Chain of Thought Prompting Elicits Reasoning in Large Language Models》</li> 
+ <li> 《Least-to-Most Prompting Enables Complex Reasoning in Large Language Models》</li> 
+ <li> 《Automatic Chain of Thought Prompting in Large Language Models》</li> 
+ <li> 《Self-Consistency Improves Chain of Thought Reasoning in Language Models》</li> 
+ <li> 《Large Language Models are Zero-Shot Reasoners》</li> 
+ <li> 《Calibrate Before Use: Improving Few-Shot Performance of Language Models》</li> 
+ <li> 《What Makes Good In-Context Examples for GPT-3?》</li> 
+ <li> 《Making Pre-trained Language Models Better Few-shot Learners》</li> 
+ <li> 《It’s Not Just Size That Matters: Small Language Models Are Also Few-Shot Learners》</li> 
+ <li> 《Exploiting Cloze-Questions for Few-Shot Text Classification and Natural Language Inference》</li> 
+ <li> 《GPT Understands, Too》</li> 
+ <li> 《P-Tuning v2: Prompt Tuning Can Be Comparable to Fine-tuning Universally Across Scales and Tasks》</li> 
+ <li> 《Prefix-Tuning: Optimizing Continuous Prompts for Generation》</li> 
+ <li> 《The Power of Scale for Parameter-Efficient Prompt Tuning》</li> 
+ <li> 《How Can We Know What Language Models Know?》</li> 
+ <li> 《Eliciting Knowledge from Language Models Using Automatically Generated Prompts》</li> 
+ <li> 《Fantastically Ordered Prompts and Where to Find Them: Overcoming Few-Shot Prompt Order Sensitivity》</li> 
+ <li> 《Can language models learn from explanations in context?》</li> 
+ <li> 《Rethinking the Role of Demonstrations: What Makes In-Context Learning Work?》</li> 
+ <li> 《Multitask Prompted Training Enables Zero-Shot Task Generalization》</li> 
+ <li> 《Language Models as Knowledge Bases?》</li> 
+ <li> 《Do Prompt-Based Models Really Understand the Meaning of Their Prompts?》</li> 
+ <li> 《Finetuned Language Models Are Zero-Shot Learners》</li> 
+ <li> 《Factual Probing Is [MASK]: Learning vs. Learning to Recall》</li> 
+ <li> 《How many data points is a prompt worth?》</li> 
+ <li> 《Learning How to Ask: Querying LMs with Mixtures of Soft Prompts》</li> 
+ <li> 《Learning To Retrieve Prompts for In-Context Learning》</li> 
+ <li> 《PPT: Pre-trained Prompt Tuning for Few-shot Learning》</li> 
+ <li> 《Prompt Programming for Large Language Models: Beyond the Few-Shot Paradigm》</li> 
+ <li> 《Show Your Work: Scratchpads for Intermediate Computation with Language Models》</li> 
+ <li> 《True Few-Shot Learning with Language Models》</li> 
+ <li> 《Few-Shot Parameter-Efficient Fine-Tuning is Better and Cheaper than In-Context Learning》</li> 
+ <li> 《Improving and Simplifying Pattern Exploiting Training》</li> 
+ <li> 《MetaICL: Learning to Learn In Context》</li> 
+ <li> 《SPoT: Better Frozen Model Adaptation through Soft Prompt Transfer》</li> 
+ <li> 《Noisy Channel Language Model Prompting for Few-Shot Text Classification》</li> 
+ <h2>20230524 修订:</h2>
+ <li> 新增 Transformer 7、8、9 三章，包括：《Scaling Laws for Neural Language Models》、
+ 《Training Compute-Optimal Large Language Models》、LLaMA、GLM、GLM-130B、
+ GPT-NeoX-20B、Bloom、PaLM、PaLM2、Self-Instruct 等十篇论文。
+ </li>
+ <h2>20230516 修订:</h2>
+ <li> 新增 HuggingFace Transformer 应用、Gradio。 所有 <a href=#huggingface_transformer> HuggingFace Transformer 官方教程和 API </a>，
+ 包括 Tokenizer、Dataset、Trainer、Evaluator、Pipeline、Model、Accelerate、AutoClass、应用，等九章内容</li>
+ <p>历史更新请参考 <a href=https://www.huaxiaozhuan.com/release.html>这里</a> </p>
+ <h2>数学基础</h2>
+<ul>
+<li><a href=https://www.huaxiaozhuan.com/%E6%95%B0%E5%AD%A6%E5%9F%BA%E7%A1%80/chapters/1_algebra.html target=_blank>1.线性代数基础</a>
+ <ul>
+ <li>一、基本知识</li>
+ <li>二、向量操作</li>
+ <li>三、矩阵运算</li>
+ <li>四、特殊函数</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%95%B0%E5%AD%A6%E5%9F%BA%E7%A1%80/chapters/2_probability.html target=_blank>2.概率论基础</a>
+ <ul>
+ <li>一、概率与分布</li>
+ <li>二、期望和方差</li>
+ <li>三、大数定律及中心极限定理</li>
+ <li>五、常见概率分布</li>
+ <li>六、先验分布与后验分布</li>
+ <li>七、信息论</li>
+ <li>八、其它</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%95%B0%E5%AD%A6%E5%9F%BA%E7%A1%80/chapters/3_numerical_computaion.html target=_blank>3.数值计算基础</a>
+ <ul>
+ <li>一、数值稳定性</li>
+ <li>二、梯度下降法</li>
+ <li>三、二阶导数与海森矩阵</li>
+ <li>四、牛顿法</li>
+ <li>五、拟牛顿法</li>
+ <li>六、 约束优化</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%95%B0%E5%AD%A6%E5%9F%BA%E7%A1%80/chapters/4_monte_carlo.html target=_blank>4.蒙特卡洛方法与 MCMC 采样</a>
+ <ul>
+ <li>一、蒙特卡洛方法</li>
+ <li>二、马尔可夫链</li>
+ <li>三、MCMC 采样</li>
+ </ul>
+</li>
+</ul>
+<h2>统计学习</h2>
+<ul>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/0_introduction.html target=_blank>0.机器学习简介</a>
+ <ul>
+ <li>一、基本概念</li>
+ <li>二、监督学习</li>
+ <li>三、机器学习三要素</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/1_linear.html target=_blank>1.线性代数基础</a>
+ <ul>
+ <li>一、线性回归</li>
+ <li>二、广义线性模型</li>
+ <li>三、对数几率回归</li>
+ <li>四、线性判别分析</li>
+ <li>五、感知机</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/2_svm.html target=_blank>2.支持向量机</a>
+ <ul>
+ <li>一、 线性可分支持向量机</li>
+ <li>二、线性支持向量机</li>
+ <li>三、非线性支持向量机</li>
+ <li>四、支持向量回归</li>
+ <li>五、SVDD</li>
+ <li>六、序列最小最优化方法</li>
+ <li>七、其它讨论</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/3_bayesian.html target=_blank>3.朴素贝叶斯</a>
+ <ul>
+ <li>一、贝叶斯定理</li>
+ <li>二、朴素贝叶斯法</li>
+ <li>三、半朴素贝叶斯分类器</li>
+ <li>四、其它讨论</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/4_decision_tree.html target=_blank>4.决策树</a>
+ <ul>
+ <li>一、 原理</li>
+ <li>二、 特征选择</li>
+ <li>三、生成算法</li>
+ <li>四、剪枝算法</li>
+ <li>五、CART 树</li>
+ <li>六、连续值、缺失值处理</li>
+ <li>七、多变量决策树</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/5_knn.html target=_blank>5.knn</a>
+ <ul>
+ <li>一、k 近邻算法</li>
+ <li>二、 kd树</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/6_ensemble_learning.html target=_blank>6.集成学习</a>
+ <ul>
+ <li>一、集成学习误差</li>
+ <li>二、 Boosting</li>
+ <li>三、Bagging</li>
+ <li>四、集成策略</li>
+ <li>五、多样性分析</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/7_GBT.html target=_blank>7.梯度提升树</a>
+ <ul>
+ <li>一、提升树</li>
+ <li>二、xgboost</li>
+ <li>三、LightGBM</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/8_feature_selection.html target=_blank>8.特征工程</a>
+ <ul>
+ <li>一、缺失值处理</li>
+ <li>二、特征编码</li>
+ <li>三、数据标准化、正则化</li>
+ <li>四、特征选择</li>
+ <li>五、稀疏表示和字典学习</li>
+ <li>六、多类分类问题</li>
+ <li>七、类别不平衡问题</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/9_model_selection.html target=_blank>9.模型评估</a>
+ <ul>
+ <li>一、泛化能力</li>
+ <li>二、过拟合、欠拟合</li>
+ <li>三、偏差方差分解</li>
+ <li>四、参数估计准则</li>
+ <li>五、泛化能力评估</li>
+ <li>六、训练集、验证集、测试集</li>
+ <li>七、性能度量</li>
+ <li>八、超参数调节</li>
+ <li>九、传统机器学习的挑战</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/10_PCA.html target=_blank>10.降维</a>
+ <ul>
+ <li>一、维度灾难</li>
+ <li>二、主成分分析 PCA</li>
+ <li>三、核化线性降维 KPCA</li>
+ <li>四、流形学习</li>
+ <li>五、度量学习</li>
+ <li>六、概率PCA</li>
+ <li>七、独立成分分析</li>
+ <li>八、t-SNE</li>
+ <li>九、LargeVis</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/11_cluster.html target=_blank>11.聚类</a>
+ <ul>
+ <li>一、性能度量</li>
+ <li>二、原型聚类</li>
+ <li>三、密度聚类</li>
+ <li>四、层次聚类</li>
+ <li>五、谱聚类</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/12_semi_supervised.html target=_blank>12.半监督学习</a>
+ <ul>
+ <li>半监督学习</li>
+ <li>一、生成式半监督学习方法</li>
+ <li>二、半监督 SVM</li>
+ <li>三、图半监督学习</li>
+ <li>四、基于分歧的方法</li>
+ <li>五、半监督聚类</li>
+ <li>六、 总结</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/13_EM.html target=_blank>13.EM算法</a>
+ <ul>
+ <li>一、示例</li>
+ <li>二、EM算法原理</li>
+ <li>三、EM算法与高斯混合模型</li>
+ <li>四、EM 算法与 kmeans 模型</li>
+ <li>五、EM 算法的推广</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/14_maxent.html target=_blank>14.最大熵算法</a>
+ <ul>
+ <li>一、最大熵模型MEM</li>
+ <li>二、分类任务最大熵模型</li>
+ <li>三、最大熵的学习</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/15_HMM.html target=_blank>15.隐马尔可夫模型</a>
+ <ul>
+ <li>一、隐马尔可夫模型HMM</li>
+ <li>二、 HMM 基本问题</li>
+ <li>三、 最大熵马尔科夫模型MEMM</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/16_CRF.html target=_blank>16.概率图与条件随机场</a>
+ <ul>
+ <li>一、概率图模型</li>
+ <li>二、贝叶斯网络</li>
+ <li>三、马尔可夫随机场</li>
+ <li>四、条件随机场 CRF</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/17_prob_infer.html target=_blank>17.边际概率推断</a>
+ <ul>
+ <li>一、精确推断</li>
+ <li>二、近似推断</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E7%BB%9F%E8%AE%A1%E5%AD%A6%E4%B9%A0/chapters/18_topic_model.html target=_blank>18.主题模型</a>
+ <ul>
+ <li>一、Unigram Model</li>
+ <li>二、pLSA Model</li>
+ <li>三、LDA Model</li>
+ <li>四、LDA优化</li>
+ <li>五、sentence-LDA</li>
+ <li>六、模型讨论</li>
+ </ul>
+</li>
+</ul>
+<h2>深度学习</h2>
+<ul>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/0_dl_introduction.html target=_blank>0.深度学习简介</a>
+ <ul>
+ <li>一、 介绍</li>
+ <li>二、历史</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/1_deep_forward.html target=_blank>1.深度前馈神经网络</a>
+ <ul>
+ <li>一、基础</li>
+ <li>二、损失函数</li>
+ <li>三、输出单元</li>
+ <li>四、隐单元</li>
+ <li>五、结构设计</li>
+ <li>六、历史小记</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/2_bp.html target=_blank>2.反向传播算法</a>
+ <ul>
+ <li>一、链式法则</li>
+ <li>二、反向传播</li>
+ <li>三、算法实现</li>
+ <li>四、自动微分</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/3_regularization.html target=_blank>3.正则化</a>
+ <ul>
+ <li>一、参数范数正则化</li>
+ <li>二、显式约束正则化</li>
+ <li>三、数据集增强</li>
+ <li>四、噪声鲁棒性</li>
+ <li>五、早停</li>
+ <li>六、参数相对约束</li>
+ <li>七、dropout</li>
+ <li>八、对抗训练</li>
+ <li>九、正切传播算法</li>
+ <li>十、其它相关</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/4_optimization.html target=_blank>4.最优化基础</a>
+ <ul>
+ <li>一、代价函数</li>
+ <li>二、神经网络最优化挑战</li>
+ <li>三、 mini-batch</li>
+ <li>四、基本优化算法</li>
+ <li>五、自适应学习率算法</li>
+ <li>六、二阶近似方法</li>
+ <li>七、共轭梯度法</li>
+ <li>八、优化策略和元算法</li>
+ <li>九、参数初始化策略</li>
+ <li>十、Normalization</li>
+ <li>十一、Online Learning</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/5_CNN.html target=_blank>5.卷积神经网络</a>
+ <ul>
+ <li>一、卷积运算</li>
+ <li>二、卷积层、池化层</li>
+ <li>三、基本卷积的变体</li>
+ <li>四、应用</li>
+ <li>五、 历史和现状</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/5_CNN_classfication1.html target=_blank>5.卷积神经网络(图片分类)</a>
+ <ul>
+ <li>一、LeNet</li>
+ <li>二、AlexNet</li>
+ <li>三、VGG-Net</li>
+ <li>四、Inception</li>
+ <li>五、ResNet</li>
+ <li>六、ResNet 变种</li>
+ <li>七、SENet</li>
+ <li>八、 DenseNet</li>
+ <li>九、小型网络</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/6_RNN.html target=_blank>6.循环神经网络</a>
+ <ul>
+ <li>一、RNN计算图</li>
+ <li>二、训练算法</li>
+ <li>三、长期依赖</li>
+ <li>四、常见 RNN 变种</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/7_Transformer1.html target=_blank>7.Transformer(1)</a>
+ <ul>
+ <li>一、Transformer[2017]</li>
+ <li>二、Universal Transformer[2018]</li>
+ <li>三、Transformer-XL[2019]</li>
+ <li>四、GPT1[2018]</li>
+ <li>五、GPT2[2019]</li>
+ <li>六、GPT3[2020]</li>
+ <li>七、OPT[2022]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/7_Transformer2.html target=_blank>7.Transformer(2)</a>
+ <ul>
+ <li>八、BERT[2018]</li>
+ <li>九、XLNet[2019]</li>
+ <li>十、RoBERTa[2019]</li>
+ <li>十一、ERNIE1.0 [2019]</li>
+ <li>十二、ERNIE2.0 [2019]</li>
+ <li>十三、ERNIE3.0 [2021]</li>
+ <li>十四、ERNIE-Huawei [2019]</li>
+ <li>十五、MT-DNN [2019]</li>
+ <li>十六、BART [2019]</li>
+ <li>十七、mBART[2020]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/7_Transformer3.html target=_blank>7.Transformer(3)</a>
+ <ul>
+ <li>十八、SpanBERT [2019]</li>
+ <li>十九、ALBERT [2019]</li>
+ <li>二十、UniLM [2019]</li>
+ <li>二十一、MASS [2019]</li>
+ <li>二十二、MacBERT [2019]</li>
+ <li>二十三、Fine-Tuning Language Models from Human Preferences [2019]</li>
+ <li>二十四 Learning to summarize from human feedback[2020]</li>
+ <li>二十五、InstructGPT [2022]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/7_Transformer4.html target=_blank>7.Transformer(4)</a>
+ <ul>
+ <li>二十六、T5 [2020]</li>
+ <li>二十七、mT5[2020]</li>
+ <li>二十八、ExT5[2021]</li>
+ <li>二十九、Muppet[2021]</li>
+ <li>三十、Self-Attention with Relative Position Representations[2018]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/7_Transformer5.html target=_blank>7.Transformer(5)</a>
+ <ul>
+ <li>三十一、USE[2018]</li>
+ <li>三十二、Sentence-BERT[2019]</li>
+ <li>三十三、SimCSE[2021]</li>
+ <li>三十四、BERT-Flow[2020]</li>
+ <li>三十五、BERT-Whitening [2021]</li>
+ <li>三十六、Comparing the Geometry of BERT, ELMo, and GPT-2 Embeddings[2019]</li>
+ <li>三十七、CERT [2020]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/7_Transformer6.html target=_blank>7.Transformer(6)</a>
+ <ul>
+ <li>三十八、DeCLUTR[2020]</li>
+ <li>三十九、CLEAR[2020]</li>
+ <li>四十、ConSERT [2021]</li>
+ <li>四十一、Sentence-T5[2021]</li>
+ <li>四十二、ULMFiT[2018]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/7_Transformer7.html target=_blank>7.Transformer(7)</a>
+ <ul>
+ <li>四十三、Scaling Laws for Neural Language Models[2020]</li>
+ <li>四十四、Chinchilla[2022]</li>
+ <li>四十五、LLaMA[2023]</li>
+ <li>四十六、GLM[2021]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/7_Transformer8.html target=_blank>7.Transformer(8)</a>
+ <ul>
+ <li>四十七、GLM-130B[2022]</li>
+ <li>四十八、GPT-NeoX-20B[2022]</li>
+ <li>四十九、Bloom[2022]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/7_Transformer9.html target=_blank>7.Transformer(9)</a>
+ <ul>
+ <li>五十、PaLM[2022] （粗读）</li>
+ <li>五十一、PaLM2[2023]（粗读）</li>
+ <li>五十二、Self-Instruct[2022]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/8_nlp_sentence_embedding.html target=_blank>8.句子向量</a>
+ <ul>
+ <li>一、Paragraph Vector[2014]</li>
+ <li>二、Skip-Thought Vectors[2015]</li>
+ <li>三、FastSent[2016]</li>
+ <li>四、InferSent[2017]</li>
+ <li>五、Simple-But-Tough-To-Beat Baseline For Sentence Embedding [2017]</li>
+ <li>六、QuickThoughts[2018]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/8_word_representation.html target=_blank>8.词向量</a>
+ <ul>
+ <li>一、向量空间模型 VSM</li>
+ <li>二、LSA</li>
+ <li>三、Word2Vec</li>
+ <li>四、GloVe</li>
+ <li>五、FastText</li>
+ <li>六、ELMo</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/9_ctr_prediction1.html target=_blank>9.CTR 预估模型(传统方法)</a>
+ <ul>
+ <li>一、LR 模型[2007]</li>
+ <li>二、POLY2 模型[2010]</li>
+ <li>三、FM模型[2011]</li>
+ <li>四、FFM模型[2016]</li>
+ <li>五、GBDT-LR 模型[2014]</li>
+ <li>六、FTRL工程应用[2013]</li>
+ <li>七、LS-PLM 模型[2017]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/9_ctr_prediction2.html target=_blank>9.CTR 预估模型(神经网络方法 1)</a>
+ <ul>
+ <li>一、DSSM[2013]</li>
+ <li>二、FNN[2016]</li>
+ <li>三、PNN[2016]</li>
+ <li>四、DeepCrossing[2016]</li>
+ <li>五、Wide&amp;Deep[2016]</li>
+ <li>六、DCN[2017]</li>
+ <li>七、DeepFM[2017]</li>
+ <li>八、NFM[2017]</li>
+ <li>九、AFM[2017]</li>
+ <li>十、xDeepFM[2018]</li>
+ <li>十一、ESMM[2018]</li>
+ <li>十二、DIN[2017]</li>
+ <li>十三、DIEN[2019]</li>
+ <li>十四、DSIN[2019]</li>
+ <li>十五、DICM[2017]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/9_ctr_prediction3.html target=_blank>9.CTR 预估模型(神经网络方法 2)</a>
+ <ul>
+ <li>十六、DeepMCP[2019]</li>
+ <li>十七、MIMN[2019]</li>
+ <li>十八、DMR[2020]</li>
+ <li>十九、MiNet[2020]</li>
+ <li>二十、DSTN[2019]</li>
+ <li>二十一、BST[2019]</li>
+ <li>二十二、SIM[2020]</li>
+ <li>二十三、ESM2[2019]</li>
+ <li>二十四、MV-DNN[2015]</li>
+ <li>二十五、CAN[2020]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/9_ctr_prediction4.html target=_blank>9.CTR 预估模型(神经网络方法 3)</a>
+ <ul>
+ <li>二十六、AutoInt[2018]</li>
+ <li>二十七、Fi-GNN[2019]</li>
+ <li>二十八、FwFM[2018]</li>
+ <li>二十九、FM2[2021]</li>
+ <li>三十、FiBiNET[2019]</li>
+ <li>三十一、AutoFIS[2020]</li>
+ <li>三十二、DCN V2[2020]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/9_ctr_prediction5.html target=_blank>9.CTR 预估模型(神经网络方法 4)</a>
+ <ul>
+ <li>三十三、AFN [2020]</li>
+ <li>三十四、FGCNN[2019]</li>
+ <li>三十五、AutoCross[2019]</li>
+ <li>三十六、InterHAt[2020]</li>
+ <li>三十七、xDeepInt[2023]</li>
+ <li>三十八、BarsCTR[2021]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/9_ctr_prediction6.html target=_blank>9.CTR 预估模型(神经网络方法 5)</a>
+ <ul>
+ <li>三十九、AutoDis[2021]</li>
+ <li>四十、MDE[2020]</li>
+ <li>四十一、NIS[2020]</li>
+ <li>四十二、AutoEmb[2020]</li>
+ <li>四十三、AutoDim[2021]</li>
+ <li>四十四、PEP[2021]</li>
+ <li>四十五、DeepLight[2021]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/10_graph_embedding.html target=_blank>10.Graph Embedding(1)</a>
+ <ul>
+ <li>一、DeepWalk[2014]</li>
+ <li>二、LINE[2015]</li>
+ <li>三、GraRep[2015]</li>
+ <li>四、TADW[2015]</li>
+ <li>五、DNGR[2016]</li>
+ <li>六、Node2Vec[2016]</li>
+ <li>七、WALKLETS[2016]</li>
+ <li>八、SDNE[2016]</li>
+ <li>九、CANE[2017]</li>
+ <li>十、EOE[2017]</li>
+ <li>十一、metapath2vec[2017]</li>
+ <li>十二、GraphGAN[2018]</li>
+ <li>十三、struc2vec[2017]</li>
+ <li>十四、GraphWave[2018]</li>
+ <li>十五、NetMF[2017]</li>
+ <li>十六、NetSMF[2019]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/10_graph_embedding2.html target=_blank>10.Graph Embedding(2)</a>
+ <ul>
+ <li>十七、PTE[2015]</li>
+ <li>十八、HNE[2015]</li>
+ <li>十九、AANE[2017]</li>
+ <li>二十、LANE[2017]</li>
+ <li>二十一、MVE[2017]</li>
+ <li>二十二、PMNE[2017]</li>
+ <li>二十三、ANRL[2018]</li>
+ <li>二十四、DANE[2018]</li>
+ <li>二十五、HERec[2018]</li>
+ <li>二十六、GATNE[2019]</li>
+ <li>二十七、MNE[2018]</li>
+ <li>二十八、MVN2VEC[2018]</li>
+ <li>二十九、SNE[2018]</li>
+ <li>三十、ProNE[2019]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/10_graph_embedding_survey.html target=_blank>10.Graph Embedding(综述)</a>
+ <ul>
+ <li>一、A Comprehensive Survey of Graph Embedding[2017]</li>
+ <li>二、Graph Embedding Techniques, Applications, and Performance[2017]</li>
+ <li>三、Representation Learning on Graphs[2017]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/11_GNN.html target=_blank>11.图神经网络(1)</a>
+ <ul>
+ <li>一、GNN[2009]</li>
+ <li>二、Spectral Networks &amp; Deep Locally Connected Networks [2013]</li>
+ <li>三、Fast Localized Spectral Filtering On Graph[2016]</li>
+ <li>四、GCN[2016]</li>
+ <li>六、GGS-NN[2016]</li>
+ <li>七、PATCHY-SAN[2016]</li>
+ <li>八、GraphSAGE[2017]</li>
+ <li>九、GAT[2017]</li>
+ <li>十、R-GCN[2017]</li>
+ <li>十一、 AGCN[2018]</li>
+ <li>十二、FastGCN[2018]</li>
+ <li>十三、PinSage[2018]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/11_GNN2.html target=_blank>11.图神经网络(2)</a>
+ <ul>
+ <li>十四、GCMC[2017]</li>
+ <li>十五、JK-Net[2018]</li>
+ <li>十六、PPNP[2018]</li>
+ <li>十七、VRGCN[2017]</li>
+ <li>十八、ClusterGCN[2019]</li>
+ <li>十九、LDS-GNN[2019]</li>
+ <li>二十、DIAL-GNN[2019]</li>
+ <li>二十一、HAN[2019]</li>
+ <li>二十二、HetGNN[2019]</li>
+ <li>二十三、HGT[2020]</li>
+ <li>二十四、GPT-GNN[2020]</li>
+ <li>二十五、Geom-GCN[2020]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/11_GNN3.html target=_blank>11.图神经网络(3)</a>
+ <ul>
+ <li>二十六、Graph Network[2018]</li>
+ <li>二十七、GIN[2019]</li>
+ <li>二十八、MPNN[2017]</li>
+ <li>二十九、UniMP[2020]</li>
+ <li>三十、Correct and Smooth [2020]</li>
+ <li>三十一、LGCN[2018]</li>
+ <li>三十二、DGCNN[2018]</li>
+ <li>三十三、AS-GCN</li>
+ <li>三十四、DGI[2018]</li>
+ <li>三十五、DIFFPOLL[2018]</li>
+ <li>三十六、DCNN[2016]</li>
+ <li>三十七、IN[2016]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/11_GNN4.html target=_blank>11.图神经网络(4)</a>
+ <ul>
+ <li>一、Deeper Insights into GCN[2018]</li>
+ <li>二、GNNEXPLAINER[2019]</li>
+ <li>三、GCN 自监督学习[2020]</li>
+ <li>四、GNN 公平比较[2019]</li>
+ <li>五、GNN 评估陷阱[2018]</li>
+ <li>六、AGL [2020]</li>
+ <li>七、AliGraph [2019]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/11_GNN_survey.html target=_blank>11.图神经网络(综述)</a>
+ <ul>
+ <li>一、Deep Learning On Graph[2018]</li>
+ <li>二、GNN : A Review of Methods and Applications[2018]</li>
+ <li>三、A Comprehensive Survey On GNN[2019]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/12_classic_rec_system.html target=_blank>12.推荐算法(传统方法)</a>
+ <ul>
+ <li>一、Tapestry[1992]</li>
+ <li>二、GroupLens[1994]</li>
+ <li>三、ItemBased CF[2001]</li>
+ <li>四、Amazon I-2-I CF[2003]</li>
+ <li>五、Slope One Rating-Based CF[2005]</li>
+ <li>六、Bipartite Network Projection[2007]</li>
+ <li>七、Implicit Feedback CF[2008]</li>
+ <li>八、PMF[2008]</li>
+ <li>九、SVD++[2008]</li>
+ <li>十、MMMF 扩展[2008]</li>
+ <li>十一、OCCF[2008]</li>
+ <li>十二、BPR[2009]</li>
+ <li>十三、MF for RS[2009]</li>
+ <li>十四、 Netflix BellKor Solution[2009]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/13_dnn_rec_system.html target=_blank>13.推荐算法（神经网络方法 1)</a>
+ <ul>
+ <li>一、MIND[2019]（用于召回）</li>
+ <li>二、DNN For YouTube[2016]</li>
+ <li>三、Recommending What Video to Watch Next[2019]</li>
+ <li>四、ESAM[2020]</li>
+ <li>五、Facebook Embedding Based Retrieval[2020]（用于检索）</li>
+ <li>六、Airbnb Search Ranking[2018]</li>
+ <li>七、MOBIUS[2019]（用于召回）</li>
+ <li>八、TDM[2018]（用于检索）</li>
+ <li>九、DR[2020]（用于检索）</li>
+ <li>十、JTM[2019]（用于检索）</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/13_dnn_rec_system2.html target=_blank>13.推荐算法（神经网络方法 2)</a>
+ <ul>
+ <li>十一、Pinterest Recommender System[2017]</li>
+ <li>十二、DLRM[2019]</li>
+ <li>十三、Applying Deep Learning To Airbnb Search[2018]</li>
+ <li>十四、Improving Deep Learning For Airbnb Search[2020]</li>
+ <li>十五、HOP-Rec[2018]</li>
+ <li>十六、NCF[2017]</li>
+ <li>十七、NGCF[2019]</li>
+ <li>十八、LightGCN[2020]</li>
+ <li>十九、Sampling-Bias-Corrected Neural Modeling[2019]（检索）</li>
+ <li>二十、EGES[2018]（Matching 阶段）</li>
+ <li>二十一、SDM[2019]（Matching 阶段）</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/13_dnn_rec_system3.html target=_blank>13.推荐算法（神经网络方法 3)</a>
+ <ul>
+ <li>二十二、COLD[2020 ] (Pre-Ranking 模型)</li>
+ <li>二十三、ComiRec[2020] (matching阶段)</li>
+ <li>二十四、EdgeRec[2020]</li>
+ <li>二十五、DPSR[2020]（检索）</li>
+ <li>二十六、PDN[2021]（mathcing）</li>
+ <li>二十七、时空周期兴趣学习网络ST-PIL[2021]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/14_session_based_rec.html target=_blank>14.推荐算法之序列推荐(1)</a>
+ <ul>
+ <li>一、FPMC[2010]</li>
+ <li>二、GRU4Rec[2015]</li>
+ <li>三、HRM[2015]</li>
+ <li>四、DREAM[2016]</li>
+ <li>五、Improved GRU4Rec[2016]</li>
+ <li>六、NARM[2017]</li>
+ <li>七、HRNN[2017]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/14_session_based_rec2.html target=_blank>14.推荐算法之序列推荐(2)</a>
+ <ul>
+ <li>八、RRN[2017]</li>
+ <li>九、Caser[2018]</li>
+ <li>十、p-RNN[2016]</li>
+ <li>十一、GRU4Rec Top-k Gains [2018]</li>
+ <li>十二、SASRec[2018]</li>
+ <li>十三、RUM[2018]</li>
+ <li>十四、SHAN[2018]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/14_session_based_rec3.html target=_blank>14.推荐算法之序列推荐(3)</a>
+ <ul>
+ <li>十五、Phased LSTM[2016]</li>
+ <li>十六、Time-LSTM[2017]</li>
+ <li>十七、STAMP[2018]</li>
+ <li>十八、Latent Cross[2018]</li>
+ <li>十九、CSRM[2019]</li>
+ <li>二十、SR-GNN[2019]</li>
+ <li>二十一、GC-SAN[2019]</li>
+ <li>二十二、BERT4Rec[2019]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/14_session_based_rec4.html target=_blank>14.推荐算法之序列推荐(4)</a>
+ <ul>
+ <li>二十三、MCPRN[2019]</li>
+ <li>二十四、RepeatNet[2019]</li>
+ <li>二十五、LINet(2019)</li>
+ <li>二十六、NextItNet[2019]</li>
+ <li>二十七、GCE-GNN[2020]</li>
+ <li>二十八、LESSR[2020]</li>
+ <li>二十九、HyperRec[2020]</li>
+ <li>三十、DHCN[2021]</li>
+ <li>三十一、TiSASRec[2020]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/15_rec_survey.html target=_blank>15.推荐算法(综述)</a>
+ <ul>
+ <li>一、A Survey on Accuracy-oriented Neural Recommendation: From Collaborative Filtering to Information-rich Recommendation[2022]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/16_multi_task.html target=_blank>16.多任务学习</a>
+ <ul>
+ <li>一、MMOE[2018]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/17_system.html target=_blank>17.系统架构</a>
+ <ul>
+ <li>一、Hidden Technical Debt[2015]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/18_practical.html target=_blank>18.工程实践指导原则</a>
+ <ul>
+ <li>一、性能度量</li>
+ <li>二、默认的基准模型</li>
+ <li>三、决定是否收集更多数据</li>
+ <li>四、选择超参数</li>
+ <li>五、调试策略</li>
+ <li>六、示例：数字识别系统</li>
+ <li>七、数据预处理</li>
+ <li>八、变量初始化</li>
+ <li>九、结构设计</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/19_Deep_RL.html target=_blank>19.深度强化学习(1)</a>
+ <ul>
+ <li>一、PPO [2017]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/20_Application_AutoProgram.html target=_blank>20.自动代码生成</a>
+ <ul>
+ <li>一、CodeGen[2022]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/21_prompt_engineering1.html target=_blank>21. Prompt 工程 (1)</a>
+ <ul>
+ <li>一、LAMA[2019]</li>
+ <li>二、LPAQA [2019]</li>
+ <li>三、AutoPrompt[2020]</li>
+ <li>四、PET[2020]</li>
+ <li>五、PET-2[2021]</li>
+ <li>六、Do Prompt-Based Models Really Understand the Meaning of Their Prompts?[2021]</li>
+ <li>七、How Many Data Points is a Prompt Worth[2021]</li>
+ <li>八、Rethinking the Role of Demonstrations[2022]</li>
+ <li>九、Overcoming Few-Shot Prompt Order Sensitivity [2021]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/21_prompt_engineering2.html target=_blank>21. Prompt 工程 (2)</a>
+ <ul>
+ <li>十、Calibrate Before Use[2021]</li>
+ <li>十一、KATE [2021]</li>
+ <li>十二、LM-BFF[2021]</li>
+ <li>十三、EPR[2021]</li>
+ <li>十四、ADAPET[2021]</li>
+ <li>十五、Noisy Channel Prompt Tuning [2021]</li>
+ <li>十六、True Few-Shot Learning with Language Models【2021】</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/21_prompt_engineering3.html target=_blank>21. Prompt 工程 (3)</a>
+ <ul>
+ <li>十七、FLAN[2021]</li>
+ <li>十八、T0[2021]</li>
+ <li>十九、MetaPrompt[2021]</li>
+ <li>二十、Scratchpad[2021]</li>
+ <li>二十一、Can language models learn from explanations in context? [2022]</li>
+ <li>二十二、COT[2022]</li>
+ <li>二十三、Self-Consistency COT[2022]</li>
+ <li>二十四、Zero-Shot CoT[2022]</li>
+ <li>二十五、Auto COT[2022]</li>
+ <li>二十六、Least-To-Most Prompting [2022]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/21_prompt_engineering4.html target=_blank>21. Prompt 工程 (4)</a>
+ <ul>
+ <li>二十七、Prefix-Tuning[2021]</li>
+ <li>二十八、P-Tuning[2021]</li>
+ <li>二十九、P-Tuning V2[2021]</li>
+ <li>三十、The Power of Scale for Parameter-Efficient Prompt Tuning[2021]</li>
+ <li>三十一、Querying LMs with Mixtures of Soft Prompts[2021]</li>
+ <li>三十二、PPT[2021]</li>
+ <li>三十三、SPOT[2021]</li>
+ <li>三十四、OptiPrompt[2021]</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/chapters/21_prompt_engineering5.html target=_blank>21. Prompt 工程 (5)</a>
+ <ul>
+ <li>三十五、T-Few[2022]</li>
+ <li>三十六、MetaICL [ 2021]</li>
+ </ul>
+</li>
+</ul>
+<h2><a name=工具_anchor>工具</a></h2>
+<h3><a name=CRF>CRF</a></h3>
+<ul>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/CRF/chapters/crfpp.html target=_blank>CRF++</a>
+ <ul>
+ <li>一、安装</li>
+ <li>二、使用</li>
+ <li>三、Python接口</li>
+ <li>四、常见错误</li>
+ </ul>
+</li>
+</ul>
+<h3><a name=lightgbm>lightgbm</a></h3>
+<ul>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/lightgbm/chapters/lightgbm_usage.html target=_blank>lightgbm使用指南</a>
+ <ul>
+ <li>一、安装</li>
+ <li>二、调参</li>
+ <li>三、进阶</li>
+ <li>四、API</li>
+ <li>五、Docker</li>
+ </ul>
+</li>
+</ul>
+<h3><a name=xgboost>xgboost</a></h3>
+<ul>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/xgboost/chapters/xgboost_usage.html target=_blank>xgboost使用指南</a>
+ <ul>
+ <li>一、安装</li>
+ <li>二、调参</li>
+ <li>三、外存计算</li>
+ <li>四、 GPU计算</li>
+ <li>五、单调约束</li>
+ <li>六、 DART booster</li>
+ <li>七、Python API</li>
+ </ul>
+</li>
+</ul>
+<h3><a name=scikit-learn>scikit-learn</a></h3>
+<ul>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/scikit-learn/chapters/1.preprocess.html target=_blank>1.预处理</a>
+ <ul>
+ <li>一、特征处理</li>
+ <li>二、特征选择</li>
+ <li>三、字典学习</li>
+ <li>四、PipeLine</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/scikit-learn/chapters/2.dimension_reduce.html target=_blank>2.降维</a>
+ <ul>
+ <li>一、PCA</li>
+ <li>二、MDS</li>
+ <li>三、Isomap</li>
+ <li>四、LocallyLinearEmbedding</li>
+ <li>五、FA</li>
+ <li>六、FastICA</li>
+ <li>七、t-SNE</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/scikit-learn/chapters/3.supervised_model.html target=_blank>3.监督学习模型</a>
+ <ul>
+ <li>一、线性模型</li>
+ <li>二、支持向量机</li>
+ <li>三、贝叶斯模型</li>
+ <li>四、决策树</li>
+ <li>五、KNN</li>
+ <li>六 、AdaBoost</li>
+ <li>七、梯度提升树</li>
+ <li>八、Random Forest</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/scikit-learn/chapters/4.model_select.html target=_blank>4.模型评估</a>
+ <ul>
+ <li>一、数据集切分</li>
+ <li>二、性能度量</li>
+ <li>三、验证曲线 &amp;&amp; 学习曲线</li>
+ <li>四、超参数优化</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/scikit-learn/chapters/5.cluster.html target=_blank>5.聚类模型</a>
+ <ul>
+ <li>一、KMeans</li>
+ <li>二、DBSCAN</li>
+ <li>三、MeanShift</li>
+ <li>四、AgglomerativeClustering</li>
+ <li>五、BIRCH</li>
+ <li>六、GaussianMixture</li>
+ <li>七、SpectralClustering</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/scikit-learn/chapters/6.semi_supervised.html target=_blank>6.半监督学习模型</a>
+ <ul>
+ <li>一、标签传播算法</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/scikit-learn/chapters/7.HMM.html target=_blank>7.隐马尔可夫模型</a>
+ <ul>
+ <li>一、Hmmlearn</li>
+ <li>二、seqlearn</li>
+ </ul>
+</li>
+</ul>
+<h3><a name=spark>spark</a></h3>
+<ul>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/spark/chapters/01_basic.html target=_blank>1.基础概念</a>
+ <ul>
+ <li>一、核心概念</li>
+ <li>二、安装和使用</li>
+ <li>三、 pyspark shell</li>
+ <li>四、独立应用</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/spark/chapters/02_rdd.html target=_blank>2.rdd使用</a>
+ <ul>
+ <li>一、概述</li>
+ <li>二、创建 RDD</li>
+ <li>三、转换操作</li>
+ <li>四、行动操作</li>
+ <li>五、其他方法和属性</li>
+ <li>六、持久化</li>
+ <li>七、分区</li>
+ <li>八、混洗</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/spark/chapters/03_dataframe.html target=_blank>3.dataframe使用</a>
+ <ul>
+ <li>一、概述</li>
+ <li>二、SparkSession</li>
+ <li>三、DataFrame 创建</li>
+ <li>四、 DataFrame 保存</li>
+ <li>五、DataFrame</li>
+ <li>六、Row</li>
+ <li>七、Column</li>
+ <li>八、GroupedData</li>
+ <li>九、functions</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/spark/chapters/04_acc_broadcast.html target=_blank>4.累加器和广播变量</a>
+ <ul>
+ <li>一、累加器</li>
+ <li>二、广播变量</li>
+ </ul>
+</li>
+</ul>
+<h3><a name=numpy>numpy</a></h3>
+<ul>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/numpy/chapters/numpy.html target=_blank>numpy 使用指南</a>
+ <ul>
+ <li>一、 ndarray</li>
+ <li>二、 ufunc 函数</li>
+ <li>三、 函数库</li>
+ <li>四、数组的存储和加载</li>
+ </ul>
+</li>
+</ul>
+<h3><a name=scipy>scipy</a></h3>
+<ul>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/scipy/chapters/scipy.html target=_blank>scipy 使用指南</a>
+ <ul>
+ <li>一、 常数和特殊函数</li>
+ <li>二、 拟合与优化</li>
+ <li>三、线性代数</li>
+ <li>四、 统计</li>
+ <li>五、数值积分</li>
+ <li>六、 稀疏矩阵</li>
+ </ul>
+</li>
+</ul>
+<h3><a name=matplotlib>matplotlib</a></h3>
+<ul>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/matplotlib/chapters/matplotlib.html target=_blank>matplotlib 使用指南</a>
+ <ul>
+ <li>一、matplotlib配置</li>
+ <li>二、 matplotlib Artist</li>
+ <li>三、基本概念</li>
+ <li>四、布局</li>
+ <li>五、 Path</li>
+ <li>六、 path effect</li>
+ <li>七、坐标变换</li>
+ <li>八、 3D 绘图</li>
+ <li>九、技巧</li>
+ </ul>
+</li>
+</ul>
+<h3><a name=pandas>pandas</a></h3>
+<ul>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/pandas/chapters/pandas.html target=_blank>pandas 使用指南</a>
+ <ul>
+ <li>一、基本数据结构</li>
+ <li>二、 内部数据结构</li>
+ <li>三、 下标存取</li>
+ <li>四、 运算</li>
+ <li>五、变换</li>
+ <li>六、数据清洗</li>
+ <li>七、 字符串操作</li>
+ <li>八、 聚合与分组</li>
+ <li>九、时间序列</li>
+ <li>十、 DataFrame 绘图</li>
+ <li>十一、 移动窗口函数</li>
+ <li>十二、 数据加载和保存</li>
+ </ul>
+</li>
+</ul>
+<h3><a name=huggingface_transformer>huggingface_transformer</a></h3>
+<ul>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/huggingface_transformer/chapters/1_tokenizer.html target=_blank>一、Tokenizer</a>
+ <ul>
+ <li>一、Subword Tokenization 算法</li>
+ <li>二、算法原理</li>
+ <li>三、Hugging Face Tokenizer 库</li>
+ <li>四、Tokenizer 库的应用</li>
+ <li>五、Tokenizer in Transformers</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/huggingface_transformer/chapters/2_datasets.html target=_blank>二、Datasets</a>
+ <ul>
+ <li>一、基本概念</li>
+ <li>二、load_dataset() 原理</li>
+ <li>三、API</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/huggingface_transformer/chapters/3_model.html target=_blank>三、Model</a>
+ <ul>
+ <li>一、Configuration</li>
+ <li>二、Data Collator</li>
+ <li>三、Models</li>
+ <li>四、Model outputs</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/huggingface_transformer/chapters/4_trainer.html target=_blank>四、Trainer</a>
+ <ul>
+ <li>一、Trainer</li>
+ <li>二、Callbacks</li>
+ <li>三、Keras callbacks</li>
+ <li>四、Logger</li>
+ <li>五、Optimization</li>
+ <li>六、Processors</li>
+ <li>七、分享预训练的模型</li>
+ <li>八、示例</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/huggingface_transformer/chapters/5_evaluator.html target=_blank>五、Evaluator</a>
+ <ul>
+ <li>一、基本概念</li>
+ <li>二、API</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/huggingface_transformer/chapters/6_pipeline.html target=_blank>六、Pipeline</a>
+ <ul>
+ <li>一、基本概念</li>
+ <li>二、pipeline abstraction</li>
+ <li>三、实现一个新的 pipeline</li>
+ <li>四、API</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/huggingface_transformer/chapters/7_accelerate.html target=_blank>七、Accelerate</a>
+ <ul>
+ <li>一、基础概念</li>
+ <li>二、API</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/huggingface_transformer/chapters/8_autoclass.html target=_blank>八、Autoclass</a>
+ <ul>
+ <li>一、基本概念</li>
+ <li>二、API</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/huggingface_transformer/chapters/9_application.html target=_blank>九、应用</a>
+ <ul>
+ <li>一、Token classification</li>
+ <li>二、微调 Masked Language Model</li>
+ <li>三、从头开始训练因果语言模型</li>
+ <li>四、文本摘要</li>
+ <li>五、翻译</li>
+ <li>六、问答</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/%E5%B7%A5%E5%85%B7/huggingface_transformer/chapters/10_gradio.html target=_blank>十、Gradio</a>
+ <ul>
+ <li>一、基础概念</li>
+ <li>二、高级功能</li>
+ <li>三、示例</li>
+ </ul>
+</li>
+</ul>
+<h2>Scala</h2>
+<ul>
+<li><a href=https://www.huaxiaozhuan.com/Scala/chapters/0_install.html target=_blank>环境搭建</a>
+ <ul>
+ <li>一、安装 scala</li>
+ <li>二、安装 Jupyter 支持</li>
+ <li>三、Scala 解释器</li>
+ <li>四、IntelliJ 使用</li>
+ <li>五、Maven 使用</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/Scala/chapters/1_basic.html target=_blank>基础知识</a>
+ <ul>
+ <li>一、Scala 特点</li>
+ <li>二、入门</li>
+ <li>三、For 表达式</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/Scala/chapters/2_function.html target=_blank>函数</a>
+ <ul>
+ <li>一、函数定义</li>
+ <li>二、函数分类</li>
+ <li>三、闭包</li>
+ <li>四、递归函数</li>
+ <li>五、自定义控制结构</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/Scala/chapters/3_class.html target=_blank>类</a>
+ <ul>
+ <li>一、类的定义</li>
+ <li>二、单例对象</li>
+ <li>三、访问级别</li>
+ <li>四、继承</li>
+ <li>五、Trait</li>
+ <li>五、包和导入</li>
+ <li>五、隐式类型转换</li>
+ <li>六、编译和执行</li>
+ <li>七、可变对象</li>
+ <li>八、类型参数化</li>
+ <li>九、抽象成员</li>
+ <li>十、模块化编程</li>
+ <li>十一、对象相等性</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/Scala/chapters/4_matching.html target=_blank>样式类和模式匹配</a>
+ <ul>
+ <li>一、样例类</li>
+ <li>二、模式匹配</li>
+ <li>三、Option 类型</li>
+ <li>四、一切皆模式</li>
+ <li>五、提取器</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/Scala/chapters/5_debug_annotation.html target=_blank>测试和注解</a>
+ <ul>
+ <li>一、断言</li>
+ <li>二、测试</li>
+ <li>三、注解</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/Scala/chapters/6_collection.html target=_blank>集合collection</a>
+ <ul>
+ <li>一、Traversable</li>
+ <li>二、Iterable</li>
+ <li>三、Seq</li>
+ <li>四、LinearSeq/IndexedSeq</li>
+ <li>五、Buffer</li>
+ <li>六、Array</li>
+ <li>七、List</li>
+ <li>八、ListBuffer/ArrayBuffer</li>
+ <li>九、Set</li>
+ <li>十、Map</li>
+ <li>十一、String&amp;StringOps</li>
+ <li>十二、元组</li>
+ <li>十三、其它不可变集合</li>
+ <li>十四、其它可变集合</li>
+ <li>十五、性能</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/Scala/chapters/7_collection2.html target=_blank>集合collection(二)</a>
+ <ul>
+ <li>一、视图</li>
+ <li>二、迭代器</li>
+ <li>三、集合相等性</li>
+ <li>四、创建集合对象</li>
+ <li>五、List 原理</li>
+ <li>六、Java 和 Scala 集合</li>
+ <li>七、Scala 集合框架</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/Scala/chapters/8_%E9%9B%86%E6%88%90java.html target=_blank>集成Java</a>
+ <ul>
+ <li>一、通用规则</li>
+ <li>二、特殊规则</li>
+ <li>三、注解</li>
+ <li>四、通配类型</li>
+ <li>五、同时编译 Scala 和 Java</li>
+ <li>六、Scala2.12 和 Java 8 的集成</li>
+ </ul>
+</li>
+<li><a href=https://www.huaxiaozhuan.com/Scala/chapters/9_%E5%B9%B6%E5%8F%91.html target=_blank>并发</a>
+ <ul>
+ <li>一、基本概念</li>
+ <li>二、使用 Future</li>
+ <li>三、测试</li>
+ </ul>
+</li>
+</ul>
+ 
+ 
+ 

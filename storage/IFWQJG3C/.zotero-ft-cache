@@ -1,0 +1,86 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2008.10587
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 24 Aug 2020]
+Title: What-If Motion Prediction for Autonomous Driving
+Authors: Siddhesh Khandelwal , William Qi , Jagjeet Singh , Andrew Hartnett , Deva Ramanan
+Download a PDF of the paper titled What-If Motion Prediction for Autonomous Driving, by Siddhesh Khandelwal and 4 other authors
+Download PDF
+
+    Abstract: Forecasting the long-term future motion of road actors is a core challenge to the deployment of safe autonomous vehicles (AVs). Viable solutions must account for both the static geometric context, such as road lanes, and dynamic social interactions arising from multiple actors. While recent deep architectures have achieved state-of-the-art performance on distance-based forecasting metrics, these approaches produce forecasts that are predicted without regard to the AV's intended motion plan. In contrast, we propose a recurrent graph-based attentional approach with interpretable geometric (actor-lane) and social (actor-actor) relationships that supports the injection of counterfactual geometric goals and social contexts. Our model can produce diverse predictions conditioned on hypothetical or "what-if" road lanes and multi-actor interactions. We show that such an approach could be used in the planning loop to reason about unobserved causes or unlikely futures that are directly relevant to the AV's intended route. 
+
+Comments: 	16 pages, 6 tables, 6 figures
+Subjects: 	Machine Learning (cs.LG) ; Machine Learning (stat.ML)
+Cite as: 	arXiv:2008.10587 [cs.LG]
+  	(or arXiv:2008.10587v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2008.10587
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Siddhesh Khandelwal [ view email ]
+[v1] Mon, 24 Aug 2020 17:49:30 UTC (5,247 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled What-If Motion Prediction for Autonomous Driving, by Siddhesh Khandelwal and 4 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2008
+Change to browse by:
+cs
+stat
+stat.ML
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+DBLP - CS Bibliography
+listing | bibtex
+Siddhesh Khandelwal
+Deva Ramanan
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

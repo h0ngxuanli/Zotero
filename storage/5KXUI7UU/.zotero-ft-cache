@@ -1,0 +1,180 @@
+首发于 炼丹攻略
+写文章
+点击打开要爆了的主页
+机器学习科研：如何高效管理代码和实验
+机器学习科研：如何高效管理代码和实验
+千与千寻千般苦
+千与千寻千般苦
+​ 关注他
+203 人赞同了该文章
+
+投顶会论文时往往需要做很多实验，对比很多算法，不同算法可能需要在不同运行环境下运行，如不同Python版本、tensorflow版本；需要记录不同算法的不同随机种子的运行结果，然后用这些数据对不同种子求平均画曲线图；投论文周期又很长，我们需要严格记住每条曲线是使用什么超参数跑出来的。。。非常复杂。
+所以我们需要一个略微规范一点的方式来管理我们的代码和实验。这篇文章介绍的是规范实验管理的一些工具：
+
+    使用Conda管理Python的运行环境。
+    使用WandB管理实验，完成记录数据、画图的任务。WandB不需要写任何保存数据、可视化数据的代码就能很轻松的画出多条曲线，便捷地选择隐藏或显示某条曲线，修改曲线名称等等，能够自动记录每个曲线对应的超参数和服务器配置等等。
+    使用Hydra管理算法的超参数。能够更加高效地配置不同算法在不同benchmark上的超参数。
+    使用Git在不同服务器之间同步代码。
+
+另外我也写了一个简单的使用WandB和Hydra管理实验的demo代码，见 GitHub 。
+Conda基础
+
+Conda主要用来管理代码运行环境。不同实验可能需要使用不同版本的python，使用不同版本的库函数，或者是在多台主机上配置相同的环境，这些需求都可以通过conda解决。
+
+    创建环境。创建一个名叫 test_env 的虚拟环境，指定python版本为 x.x 。
+        conda create -n test_env python=x.x 和 conda create -n test_env python=x.x anaconda 。
+        区别是第一条只会包含最基础的几个库，像常用的 numpy 、 matplotlib 都需要用户自己安装；而第二条会自动携带多个Anaconda本身自带的库函数。
+    切换环境。 conda activate test_env 后，命令行最左边就变成了环境名 (test_env) ，说明我们现在是处于虚拟环境中的。
+        切换后可以通过 which python 的命令查看当前使用的是哪里的python，正常情况下应该是 anaconda3/envs/test_env/bin/python 中的，如果显示使用的 /usr/bin 或 anaconda3/bin 等路径，则说明是有问题的，需要去检查环境变量等东西。
+    安装包。在虚拟环境中安装时，可以使用conda或pip命令。
+        如果使用pip安装后发现还是没有这个包时，可能需要检查你使用的pip是否是 anaconda3/envs/test_env/bin/pip 而不是其他地方的pip。
+    查看当前安装的包。 conda list 或 pip list 。
+    查看所有虚拟环境： conda info -e 或 conda info --envs 。
+    退出环境。 conda deactivate 退出当前环境，返回 base 中。
+    删除环境。 conda remove -n test_env --all 。
+    复制环境。通常我们可能需要在多台机器上跑我们的不同实验，所以需要对环境进行复制。
+        如果只是想复制本地的环境，使用命令 conda create -n env_name --clone clone_env ， env_name 为新环境名字， clone_env 为被复制的环境名字。
+        如果跨主机复制，可以先导出为 yml 文件， conda env export > env.yml ，复制到另一台主机上， conda env create -f env.yml 。这两条命令都不需要指定环境名，第一条是导出当前环境，第二条新环境和原环境名字相同。
+
+WandB基础
+WandB的作用
+
+WandB主要用来记录实验，分为两个方面：
+
+    用来记录每轮的准确率、loss等数据，并且不需要写任何可视化代码，使用WandB提供的网站就能画出曲线，并且可以对不同seed的曲线求平均、实现或隐藏某条曲线等。
+    能够记录实验的超参数、服务器状态等。
+
+WandB使用
+
+使用pip安装后，在命令行里用 wandb login 登录自己的账号，然后使用。代码主要是涉及三个函数：
+
+    wandb.init(project=project, name=name, config=config) ，先了解这三个参数就够了， project 是实验项目的名字，比如我想写一个代码模板项目，所以命名为 project='template-test' 。 name 参数是曲线的名字，用来区分不同曲线，保证每个图中每条曲线有一个独一无二的名字就可以，我一般命名为算法+seed，比如跑的是resnet，种子是2022，那么 name='resnet-2022' ，如果你做的是消融实验，那么不同曲线之间不同的是某个参数值，则可以用参数值+seed的形式，总之，这个名字能够区分不同的曲线就可以。config的输入是存储的超参数的字典。
+    wandb.log({'epoch': epoch, 'acc': acc}) 用于记录数据，传入一个字典就可以了。但是我们在做实验时，通常不只是在一个benchmark上测试，比如我需要在mnist和cifar10上测试，两个测试的结果应该分开画，可以加上benchmark名字做前缀，即 wandb.log({f'{task_name}-epoch': epoch, f'{task_name}-acc': acc}) ，类似tensorboard。
+    wandb.run.summary[] = xxx 用于跟踪某一个指标，比如最高准确率可以用 wandb.run.summary['val_acc'] = val_acc 。
+
+我的demo代码里的结果用wandb画出来就是这样，两个benchmark，两个对比算法，每个曲线是在2021-2023共三个随机种子上跑的共12条曲线，结果如下（LeNet在Cifar10上后期表现下降，应该是过拟合了，需要加Dropout或BN或正则化，这里就不管了，毕竟也不是比sota）
+
+
+然后我可以在左侧选择对曲线分组，先按benchmark分组，再按算法种类分组，wandb会对组内的曲线自动求平均，然后修改标题、图例名等等，就有点像论文里通常放的图了：
+其他
+
+    在实验时，有一些实验可能我们不想同步到云端，可以用 wandb offline 关闭同步，使用 wandb online 重新打开同步或用 wandb sync 同步。
+    看文档的时候看到一个对做RL很有用的功能：wandb可以自动记录gym中的动画，也就是我们代码中 env.render() 渲染出的那个界面，具体见对 wandb open ai 的介绍。另外WandB也提供了很多其他的功能，比如对数据的可视化、将模型存储到WandB的云端等等，具体看WandB的官方文档。
+
+Hydra基础
+Hydra作用
+
+Hydra主要用来管理实验的超参数。Hydra使用yaml文件分层配置参数，通过Hydra实现超参数的分组：即把模型相关的参数放在一个文件夹里，把数据集相关的放在一个里面。当实验参数比较多的时候，使用Hydra对超参数进行管理能够极大的提高实验效率。
+Hydra使用
+
+    目录结构：我们单独创建一个叫 configs 的文件夹存储yaml格式的超参数。将不同类型的参数分类，放在不同的yaml文件中，比如我一般把算法相关超参数放在一起，数据集相关参数放在一起，目录结构如下：
+
+ ├── configs │ ├── algorithm │ │ ├── lenet.yaml │ │ └── resnet.yaml │ ├── config.yaml │ └── task │ ├── cifar10.yaml │ ├── mnist.yaml │ └── smoke_test.yaml  
+
+algorithm 文件夹下存储的是不同算法的超参数， task 文件夹下存储的是不同benchmark的超参数，比如mnist和cifar10的分类的类别数量、数据存储位置等。 config.yaml 文件则是用来将所有的参数整合。
+
+    使用yaml文件时，可以使用 ${node.key} 的方式引用yaml中的其他变量；如果超参数的值确实，可以使用 ??? 输入缺失值，或使用 null 输入空值。
+
+    代码像下面这样写，传入的参数 cfg 是 config.yaml 文件中的参数的字典，可以直接通过 cfg['key'] 的方式获得对应参数值。注意除了hydra的引入外，其他的包如 torch 、 wandb 等的import建议写在 main() 函数中，具体原因见这个 issue 。
+
+ import hydra from omegaconf import DictConfig @hydra.main(version_base=None, config_path='configs', config_name='config') def main(cfg: DictConfig) -> None: import torch import wandb pass if __name__ == '__main__': main() 
+
+    运行：
+        运行时可以直接 python main.py 的方式运行，如果需要修改超参数，比如指定算法为resnet，可以用 python main.py algorithm=resnet 的方式修改，如果需要添加新的超参数(也就是yaml文件中没有的超参数)，可以用 +key=value 的方式。
+        另外Hydra提供了用Tab补全超参数的功能，感觉也很实用，具体见 Tab completion 。
+        如果需要同时运行多组超参数，可以使用参数 --multirun 或 -m ，比如我们想用2022、2023、2024三个随机种子，运行resnet和lenet两个算法，可以用 python main.py -m algorithm=resnet,lenet seed=2022,2023,2024 ，注意参数之间不能有空格，该条命令会把6种参数组合串行运行（Hydra也提供了并行运行的功能，可以去查官方文档。
+    打印log：Hydra对 logging 标准库进行了包装，在 hydra.main 装饰器中，对log输出格式规范为 "[%(asctime)s][%(name)s][%(levelname)s] - %(message)s" ，并设置level为info，自动构建输出文件夹，并写入到文件中。并且可以通过命令行的 hydra.verbose 参数修改log的显示level。
+
+用Git同步多台服务器之间的代码
+
+只要把平时git命令中的地址换成 user_name@ip:path 就可以从另一台服务器上下载、同步、上传代码了。
+
+    在主机A上更新代码：用命令 git add . 和 git commit -m "some message" 。
+    更新后，另一台主机B上可以用 git pull origin master 的方式下拉代码，就完成A到B的同步。
+    另一个可能用到的命令是： git remote -v 显示远程仓库的信息。
+
+公众号：炼丹攻略。定期更新计算机、人工智能相关的文章。
+编辑于 2022-09-21 21:12
+机器学习
+深度学习（Deep Learning）
+科研
+​ 赞同 203 ​ ​ 8 条评论
+​ 分享
+​ 喜欢 ​ 收藏 ​ 申请转载
+​
+评论千万条，友善第一条
+
+8 条评论
+默认
+最新
+butterbum
+butterbum
+
+如果我跑的是GBM， 这些也能帮我记录和管理参数吗
+2022-10-07 · IP 属地美国
+​ 回复 ​ 赞
+千与千寻千般苦
+千与千寻千般苦
+作者
+
+可以看一下这个链接，是wandb官方的文档中介绍怎么用lightgbm： https:// docs.wandb.ai/v/zh-hans /integrations/lightgbm
+2022-10-07 · IP 属地江苏
+​ 回复 ​ 赞
+Tang
+Tang
+还要求对种子求平均吗 可能我这个领域没人提这个 一般用交叉验证求平均 但深度学习很少这么用了 我自己随机试过几个种子 基本没差别。 就算做 多少种子合适呢？
+2022-09-04 · IP 属地英国
+​ 回复 ​ 赞
+千与千寻千般苦
+千与千寻千般苦
+作者
+
+像CV、NLP关心最后准确率的，好像就很少画，最后只写最终准确率；像RL、优化领域就比较关心这个，RL画reward随样本量变化的图，优化领域画目标值随评估次数变化的值，就需要对不同种子求平均。
+
+种子数要看你的算法随机性大不大，有做5个、10个的，也有做100个的，比如RL里如果你的环境随机性大、算法也有随机性，那么一般就会要求多做一些。
+2022-09-04 · IP 属地江苏
+​ 回复 ​ 1
+Kevinpro
+Kevinpro
+
+现在服务器都不联网了，很多方法都不好用了[潜水]
+2022-09-03 · IP 属地福建
+​ 回复 ​ 赞
+Kevinpro
+Kevinpro
+金志超
+我们现在都是用笔记本当中转，服务器的流量从笔记本过去[捂脸] 不过需要插校园网网线接口（稳定的ip）
+2022-09-26 · IP 属地江苏
+​ 回复 ​ 赞
+金志超
+金志超
+如果局域网内有一台双网卡的主机可以连外网的话，可以用代理的方式辅助内网中的服务器联网
+2022-09-10 · IP 属地浙江
+​ 回复 ​ 赞
+展开其他 1 条回复 ​
+文章被以下专栏收录
+
+    炼丹攻略
+    炼丹攻略
+    深度学习炼丹的一些文章。
+    人工智能相关工作·分享与总结
+    人工智能相关工作·分享与总结
+    主要收录关于人工智能，机器学习，深度学习等方面内容
+
+推荐阅读
+
+    深度学习科研，如何高效进行代码和实验管理
+
+    From 知乎用户：深度学习科研，如何高效进行代码和实验管理？我本科的专业是软件工程，自从开始接触机器学习以来，越来越感觉到平时的实验代码其实很大程度上根本没有遵守软件工程的一些准…
+    Benji... 发表于V2AI
+    自动化机器学习(AutoML)文献/工具/项目资源大列表分享
+    自动化机器学习(AutoML)文献/工具/项目资源大列表分享
+    深度学习与... 发表于深度学习与...
+    机器学习(深度学习)跑实验——如何找相关代码/获取源代码&如何使用github
+
+    一、一些查找代码的可用网站【主推github。其他网站是各网友的经验集合，供参考】 GitHub: Where the world builds software · GitHubResearch CodeThe latest in Machine Learning | Pape…
+    龙哥学Py... 发表于科普：关于...
+    良心GitHub项目：各种机器学习任务的顶级结果（论文）汇总
+    良心GitHub项目：各种机器学习任务的顶级结果（论文）汇总
+    机器之心 发表于机器之心
+

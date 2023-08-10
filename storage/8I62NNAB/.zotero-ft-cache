@@ -1,0 +1,309 @@
+
+Kushajveer Singh
+Projects
+Complete tutorial on how to use Hydra in Machine Learning projects
+
+Learn everything you need to know on how to use Hydra in your machine learning projects. All features of Hydra are discussed with a dummy ML example.
+
+Mar 16, 2021 • 17 min read
+
+    Understanding Hydra setup process
+        How hydra handles different runs
+        Contents of each subfolder
+        How to use logging
+    Quick OmegaConf overview
+    Using Hydra for ML projects
+        Dataset
+        Model
+    Random things
+        Show config file
+        Multi-run
+        Add color to terminal
+        Specify help message
+        Output directory name
+
+hydra website
+
+In an effort to increase standardization across the PyTorch ecosystem Facebook AI in a recent blog post told that they would be leveraging Facebook’s open source Hydra framework to handle configs, and also offer an integration with PyTorch Lightning . This post is about Hydra.
+
+If you are reading this post then I assume you are familiar with what are config files, why are they useful and how they increase reproducibility. And you also know what nightmare is argparse . In general, with config files you can pass all the hyperparameters to your model, you can define all the global constants, define dataset splits and … without touching the core code of your project.
+
+On Hydra website the following are listed as the key features of Hydra
+
+    Hierarchical configuration composable from multiple sources
+    Configuration can be specified or overridden from the command line
+    Dynamic command line tab completion
+    Run your application locally or launch it to run remotely
+    Run multiple jobs with different arguments with a single command
+
+For the rest of the post, I will introduce Hydra features one-by-one with an example of use case. So follow along, it would be a fun ride.
+Understanding Hydra setup process
+
+Install Hydra (I am using version 1.0 )
+
+ pip install hydra-core --upgrade  
+
+For this blog post I would assume the following directory structure, where all the configs are stored in a config folder, with the main config file being named config.yaml . And for simplicity assume main.py is all the source code of our project.
+
+ src ├── config │   └── config.yaml └── main.py  
+
+Let’s start with a simple example that will show you the main syntax of using Hydra,
+
+ ### config/config.yaml batch_size : 10 lr : 1e-4  
+
+And the corresponding main.py file
+
+ ### main.py import hydra from omegaconf import DictConfig @ hydra . main ( config_path = "config" , config_name = "config" ) def func ( cfg : DictConfig ): working_dir = os . getcwd () print ( f"The current working directory is { working_dir } " ) # To access elements of the config print ( f"The batch size is { cfg . batch_size } " ) print ( f"The learning rate is { cfg [ 'lr' ] } " ) if __name__ == "__main__" : func ()  
+
+Running the script would give the following output
+
+ > python main.py The current working directory is src/outputs/2021-03-13/16-22-21 The batch size is 10 The learning rate is 0.0001  
+
+    Note : The path is shortened to not include the complete path from root. Also, you can pass either config.yaml or config to config_name .
+
+A lot happened, let’s parse it one by one.
+
+    omegaconf is installed by default with hydra . It is only used to provide the type annotation for cfg argument in func .
+
+    @hydra.main(config_path="config", config_name="config") This is the main decorator function that is used when any function requires contents from a configuration file.
+
+    Current working directory is changed . main.py exists in src/main.py but the output shows the current working directory is src/outputs/2021-03-13/16-22-21 . This is the most important point when using Hydra. An explanation follows below.
+
+How hydra handles different runs
+
+Whenever a program is executed using python main.py Hydra will create a new folder in outputs directory with the following naming scheme outputs/YYYY-mm-dd/HH-MM-SS i.e. the data and time at which the file was executed. Think about this for a second. Hydra provides you a way to maintain a log of every run without you having to worry about it.
+
+The directory structure after executing python main.py is (Let’s not worry about the contents of each folder for now)
+
+ src ├── config │   └── config.yaml ├── main.py ├── outputs │   └── 2021-03-13 │   └── 17-14-24 │   ├── .hydra │   │   ├── config.yaml │   │   ├── hydra.yaml │   │   └── overrides.yaml │   ├── main.log  
+
+What happens actually? When you run src/main.py , hydra moves this file to src/outputs/2021-03-13/16-22-21/main.py and then runs it. You can verify this by checking the output of os.getcwd() as shown in the above example. This means if your main.py relied on some external file, say test.txt , then you would have to use ../../../test.txt instead, as you are no longer running the program in src directory. This also means that everything you save to disk would be saved relative to src/outputs/2021-03-13/16-22-21/ .
+
+Hydra provides two utility functions to handle this situation
+
+    hydra.utils.get_original_cwd() : Get the original current working directory i.e. src .
+
+     orig_cwd = hydra . utils . get_original_cwd () path = f" { orig_cwd } /test.txt" # path = src/test.txt  
+
+    hydra.utils.to_absolute_path(file_name) :
+
+     path = hydra . utils . to_absolute_path ( 'test.txt' ) # path = src/test.txt  
+
+Let’s recap this using a short example. Suppose we want to read src/test.txt and write the output to output.txt . The corresponding function to do this would be as shown below
+
+ @ hydra . main ( config_path = "config" , config_name = "config" ) def func ( cfg : DictConfig ): orig_cwd = hydra . utils . get_original_cwd () # Read file path = f" { orig_cwd } /test.txt" with open ( path , "r" ) as f : print ( f . read ()) # Write file path = f"output.txt" with open ( path , "w" ) as f : f . write ( "This is a dog" )  
+
+We can check the directory structure again, after running python main.py .
+
+ src ├── config │   └── config.yaml ├── main.py ├── outputs │   └── 2021-03-13 │   └── 17-14-24 │   ├── .hydra │   │   ├── config.yaml │   │   ├── hydra.yaml │   │   └── overrides.yaml │   ├── main.log │   └── output.txt └── test.txt  
+
+The file was written to the folder created by hydra. This is a good way to save intermediate results when you are developing something. You can use this feature to save the accuracy results of your model with different hyperparameters. Now you do not have to spend time on manually saving the configuration file or the command line arguments you used to run the script and creating a new folder for each run to store the outputs.
+
+    Note : Each python main.py is run in a new folder. To keep the above output short I removed all the subfolders of previous runs.
+
+The main point is use orig_cwd = hydra.utils.get_original_cwd() to get the original working directory path and then you do not have to worry about hydra running your code in different folder.
+Contents of each subfolder
+
+Each subfolder has the following substructure
+
+ src/outputs/2021-03-13/17-14-24/ ├── .hydra │   ├── config.yaml │   ├── hydra.yaml │   └── overrides.yaml └── main.log  
+
+    config.yaml - Copy of the config file passed to the function (It dosen’t matter if you pass foo.yaml , this file would still be named config.yaml )
+    hydra.yaml - Copy of the hydra config file. We will later see how to change some of the defaults used by hydra. (You can specify the message of python main.py --help here)
+    overrides.yaml - Copy of any argument that you provide through command line and which changes one of the default value would be stored here
+    main.log - Output of logger would be stored here. (For foo.py this file would be named foo.log )
+
+How to use logging
+
+With Hydra you can easily use the logging package provided by Python in your code without any setup. The output of the log is stored in main.log . Usage example is shown below
+
+ import logging log = logging . getLogger ( __name__ ) @ hydra . main ( config_path = "config" , config_name = "config" ) def main_func ( cfg : DictConfig ): log . debug ( "Debug level message" ) log . info ( "Info level message" ) log . warning ( "Warning level message" )  
+
+The log of python main.py in this case would be (in main.log )
+
+ [2021-03-13 17:36:06,493][__main__][INFO] - Info level message [2021-03-13 17:36:06,493][__main__][WARNING] - Warning level message  
+
+If you want to include DEBUG also, then override hydra.verbose=true or hydra.verbose=__main__ (i.e. python main.py hydra.version=true ). The output in main.log in this case would be
+
+ [2021-03-13 17:36:38,425][__main__][DEBUG] - Debug level message [2021-03-13 17:36:38,425][__main__][INFO] - Info level message [2021-03-13 17:36:38,425][__main__][WARNING] - Warning level message  
+
+Quick OmegaConf overview
+
+OmegaCong is a YAML based hierarchical configuration system, with support for merging configurations from multiple sources (files, CLI argument, environment variables). You just need to know YAML to use Hydra. OmegaConf is used by Hydra in the background to handle everything for you.
+
+The main things you need to know are shown in the config file below
+
+ server : ip : " 127.0.0.1" port : ??? # Missing value. Must be provided at command line address : " ${server.ip}:${server.port}" # String interpolation  
+
+Now in main.py you can access the server address as follows
+
+ @ hydra . main ( config_path = "config" , config_name = "config" ) def main_func ( cfg : DictConfig ): server_address = cfg . server . address print ( f"The server address = { server_address } " ) # python main.py server.port=10 # The server address = 127.0.0.1:10  
+
+As you can guess from the above example, if you want some variable to take the same value as another variable you should use the following syntax address:${server.ip} . We will later see some interesting use cases of this.
+Using Hydra for ML projects
+
+Now you know the basic working’s of hydra, we can focus on using Hydra to develop a machine learning project. Check the hydra documentation after this post for some of the things not discussed here. And I do not discuss Structured Configs (alternate to yaml files) in this post as you can get everything done without them also.
+
+Recall, the src directory of our project has the following structure
+
+ src ├── config │   └── config.yaml └── main.py  
+
+We have a separate folder to store all our config files ( config ) and the source code of our project is main.py . Now let’s get started.
+Dataset
+
+Every ML project begins by collecting data and creating a dataset. When working on an image classification project, we use many different datasets like ImageNet, CIFAR10, and more. And each of these datasets will have different hyperparameters associated with them like batch size, the size of input images, the number of classes, the number of layers of the model to use for a particular dataset and many more.
+
+Instead of using a particular dataset, I use a random dataset as it would make the things general and you can apply the things discussed here on your own datasets. Also, let’s not worry about creating dataloaders, as they are the same thing.
+
+Before discussing the details, let me show you the code and you can easily guess what is happening. The 4 files involved in this example are
+
+    src/main.py
+    src/config/config.yaml
+    src/config/dataset/dataset1.yaml
+    src/config/dataset/dataset2.yaml
+
+ ### src/main.py ### import torch import hydra from omegaconf import DictConfig @ hydra . main ( config_path = "config" , config_name = "config.yaml" ) def get_dataset ( cfg : DictConfig ): name_of_dataset = cfg . dataset . name num_samples = cfg . num_samples if name_of_dataset == "dataset1" : feature_size = cfg . dataset . feature_size x = torch . randn ( num_samples , feature_size ) print ( x . shape ) return x elif name_of_dataset == "dataset2" : dim1 = cfg . dataset . dim1 dim2 = cfg . dataset . dim2 x = torch . randn ( num_samples , dim1 , dim2 ) print ( x . shape ) return x else : raise ValueError ( "You outplayed the developer" ) if __name__ == "__main__" : get_dataset ()  
+
+And the corresponding config files are,
+
+ ### src/config/config.yaml defaults : - dataset : dataset1 num_samples : 2  
+
+ ### src/config/dataset/dataset1.yaml # @package _group_ name : dataset1 feature_size : 5  
+
+ ### src/config/dataset/dataset1.yaml # @package _group_ name : dataset2 dim1 : 10 dim2 : 20  
+
+To be honest this is pretty much everything you need to use hydra in your projects. Let us see what is actually happening in the above code
+
+    In src/main.py , you will see that there are some common variables, namely cfg.dataset and cfg.num_samples that are shared across all the datasets. These are defined in our main config file that we pass to hydra using the command @hydra.main(...) .
+
+    Next, we need to define some variables specific to every dataset (like number of classes in ImageNet and CIFAR10). To achieve this in hydra, we use the following syntax
+
+     defaults : - dataset : dataset1  
+
+    Here dataset is the name of the folder that will contain all the corresponding yaml files for each dataset (i.e. dataset1 and dataset2 in our case). So the directory structure would look something like this
+
+     config ├── config.yaml └── dataset ├── dataset1.yaml └── dataset2.yaml  
+
+    And that is it. Now you can define the variables specific to your every dataset in each of the above files, independent of each other.
+    These are called config groups . Every config file is independent of other config files in the folder and we can only choose one of the config files. To define these config groups you need to include a special comment at the beginning of every file # @package _group_ .
+
+    We can only choose one config file out of dataset1.yaml and dataset2.yaml as the value of dataset . And to tell hydra that these are config groups, we need to include the special comment # @package _group_ at the start of these files.
+
+    Note : In Hydra 1.1, _group_ will become the default package and there will be no need to add the special comment.
+
+    What is defaults ? In our main config file we need some way to distinguish normal string values from config group values. Like in this case, we want dataset: dataset1 to be interpreted as a config group value rather than a string value. To do this we define all the config groups in defaults . And as you guessed it you provide a default value to it.
+
+     defaults : - dataset : dataset1 # By default use `dataset/dataset1.yaml ## OR defaults : - dataset : ??? # Must be specified at command line  
+
+    Note : defaults takes a list as input, so you need to start every name with a - .
+
+We can check the output for the above code.
+
+ > python dataset.py torch.Size([2, 5])  
+
+and
+
+ > python dataset.py dataset=dataset2 torch.Size([2, 10, 20])  
+
+Now pause and think for a second. You can use this same technique to define hyperparameter values for all your optimizers. Just create a new folder called optimizer and write sgd.yaml , adam.yaml files. And in the main config.yaml , you only need to add one more line
+
+ defaults : - dataset : dataset1 - optimizer : adam  
+
+and you use this to also create config files for learning rate schedulers, models, evaluation metrics and almost everything else without having to actually hard code any of these values in the main codebase. You no longer need to remember which learning rate you used to run that model, as a backup of the config file used to run the python script is always stored in the folder created by hydra.
+Model
+
+There is one special case that you also need to know. What if you want your ResNet model to have different number of layers when using ImageNet vs CIFAR10. The naive solution would be to add if-else conditions in your model definition for every dataset, but that is a bad choice. What if tomorrow you add a new dataset. Now you would have to modify your model if-else condition to handle this new dataset. So instead we define a value num_layers in the config file and then we can use this value to create how every many layers we want.
+
+Suppose we use two models, resnet and vgg. Based on the discussion in previous topic, we would have a separate config file for each model. The directory structure of the config folder would be
+
+ config ├── config.yaml ├── dataset │   ├── cifar10.yaml │   └── imagenet.yaml └── model ├── resnet.yaml └── vgg.yaml  
+
+Now suppose we want the resnet model to have 34 layers when using CIFAR10 and 50 layers for every other dataset. In this case the config/model/resnet.yaml file would be
+
+ # @package _group_ name : resnet num_layers : 50 # As 50 is the default value  
+
+Now we want to set the value num_layers=34 when the user specifies CIFAR10 dataset. To do this we can define a new config group in which we can define all the combinations of the special cases. In the main config/config.yaml we would make the following changes
+
+ defaults : - dataset : imagenet - model : resnet - dataset_model : ${defaults.0.dataset}_${defaults.1.model} optional : true  
+
+Here we created a new config group named dataset_model that takes the value specified by dataset and model (like imagenet_resnet , cifar10_resnet ). This is some weird syntax as defaults is a list, so you need to specify index before the name i.e. defaults.0.dataset . Now we can define the config file in dataset_model/cifar10_resnet.yaml
+
+ # @package _global_ model : num_layers : 5  
+
+    Note : Here we used # @package _global_ instead of # @package _group_ .
+
+We can test the code as follows, where we simply print out the number of features returned by the config file
+
+ @ hydra . main ( config_path = "config" , config_name = "config" ) def main_func ( cfg : DictConfig ): print ( f"Num features = { cfg . model . num_layers } " )  
+
+ > python main.py dataset=imagenet Num features = 50 > python main.py dataset=cifar10 Num features = 34  
+
+We have to specify optional: true , as without it we would need to specify all combinations of dataset and model (if a user enters a value of dataset and model such that we have no config file for that option, then Hydra will throw an error for missing config file).
+
+documentation of this topic.
+
+The rest of the process is same, create separate config groups for optimizer, learning rate scheduler, callbacks, evaluation metrics, losses, training scripts. In terms of creating config files and using them in your project this is all you need to know.
+Random things
+Show config file
+
+Prints the config file that is being passed to a function without running the function. Usage --cfg [OPTION] Valid OPTION are
+
+    job : Your config file
+    hydra : Hydra’s config
+    all : job + hydra
+
+This is useful for quick debugging when you want to check what is being passed to a function. Example,
+
+ > python main.py --cfg job # @package _global_ num_samples: 2 dataset: name: dataset1 feature_size: 5  
+
+Multi-run
+
+This is a very useful feature of hydra. Check the docs for more details. The main idea is you can run your model for different values of learning rate, different values of weight decay using a single command. An example is shown below
+
+ ❯ python main . py lr = 1e-3 , 1e-2 wd = 1e-4 , 1e-2 - m [ 2021 - 03 - 15 04 : 18 : 57 , 882 ][ HYDRA ] Launching 4 jobs locally [ 2021 - 03 - 15 04 : 18 : 57 , 882 ][ HYDRA ] #0 : lr=0.001 wd=0.0001 [ 2021 - 03 - 15 04 : 18 : 58 , 016 ][ HYDRA ] #1 : lr=0.001 wd=0.01 [ 2021 - 03 - 15 04 : 18 : 58 , 149 ][ HYDRA ] #2 : lr=0.01 wd=0.0001 [ 2021 - 03 - 15 04 : 18 : 58 , 275 ][ HYDRA ] #3 : lr=0.01 wd=0.01  
+
+Hydra will run your script with all combinations of lr and wd . The output will be stored in a new folder called multirun (instead of outputs ). This folder also follows the same syntax of storing the contents in a date and time subfolder. The directory structure after running the above command is shown below
+
+ multirun └── 2021-03-15 └── 04-21-32 ├── 0 │   ├── .hydra │   └── main.log ├── 1 │   ├── .hydra │   └── main.log ├── 2 │   ├── .hydra │   └── main.log ├── 3 │   ├── .hydra │   └── main.log └── multirun.yaml  
+
+It is same as outputs except four folders are created here for the run instead of one. You can check the documentation on different ways of specifying the value of the variables to run the script on (these are called sweeps ).
+
+Also, this would run your script locally and sequentially. If you want to run your script in parallel across multiple nodes or run it on AWS, you can check the documentation for the following plugins
+
+    Joblib - Uses Joblib.Parallel
+    Ray - Run jobs on aws cluster or local cluster
+    RQ
+    Submitit
+
+Add color to terminal
+
+You can add color to the output of terminal output of Hydra by installing this plugin
+
+ pip install hydra_colorlog -- upgrade  
+
+and then changing these defaults in your config file
+
+ defaults : - hydra/job_logging : colorlog - hydra/hydra_logging : colorlog  
+
+Specify help message
+
+You can check the logs of one of your runs (under .hydra/hydra.yaml and then going to help.template ) to see the default help message printed by hydra. But you can modify that message in your main config file as follows
+
+ ### config.yaml hydra : help : template : ' This is the help message'  
+
+ > python main.py --help This is the help message  
+
+Output directory name
+
+If you want something more specific, than the DATE/TIME naming scheme using by hydra to store the output of all your runs, you can specify the folder name at command line
+
+ python main.py hydra.run.dir=outputs/my_run OR python main.py lr=1e-2,1e-3 hydra.sweep.dir=multirun/my_run -m  
+
+That would be it for today. Hope this helps you in using Hydra in your projects.
+
+twitter , linkedin , github
+
+Subscribe
+
+Software Engineer working in Full Stack Development, Computer Vision, and Graph Machine Learning.
+

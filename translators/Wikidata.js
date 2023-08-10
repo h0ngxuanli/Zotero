@@ -1,15 +1,15 @@
 {
 	"translatorID": "eaef8d43-2f17-45b3-a5cb-affb49bc5e81",
+	"translatorType": 4,
 	"label": "Wikidata",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://(www\\.)?wikidata\\.org/wiki/Q",
 	"minVersion": "3.0",
-	"maxVersion": "",
+	"maxVersion": null,
 	"priority": 100,
 	"inRepository": true,
-	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2021-07-29 16:07:10"
+	"lastUpdated": "2023-07-28 20:25:00"
 }
 
 /*
@@ -72,6 +72,7 @@ var typeMapping = {
 	Q10870555: "report",
 	Q820655: "statute",
 	Q1266946: "thesis",
+	Q187685: "thesis", // doctoral thesis
 	Q15416: "tvBroadcast",
 	Q30070675: "videoRecording",
 	Q36774: "webpage",

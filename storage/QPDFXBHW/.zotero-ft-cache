@@ -1,0 +1,269 @@
+
+[CSDN首页]
+
+    博客
+    下载
+    学习
+    社区
+    false
+    GitCode
+    InsCode 
+
+搜索
+登录
+会员中心
+历史
+创作中心
+发布
+torch.load_state_dict()函数的用法总结
+ChaoMartin 于 2021-07-12 23:31:44 发布 81295 收藏 217
+分类专栏： pytorch目标检测 pytorch深度学习 Python基础 文章标签： 人工智能 python 目标检测
+版权
+华为云开发者联盟 该内容已被华为云开发者联盟社区收录
+加入社区
+pytorch目标检测 同时被 3 个专栏收录
+2 篇文章 1 订阅
+订阅专栏
+pytorch深度学习
+5 篇文章 0 订阅
+订阅专栏
+Python基础
+6 篇文章 2 订阅
+订阅专栏
+
+在 Pytorch 中构建好一个模型后，一般需要进行预训练权重中加载。torch.load_state_dict()函数就是用于将预训练的参数权重加载到新的模型之中，操作方式如下所示：
+
+ 
+
+    sd_net = torchvision.models.resnte50(pretrained= False )
+    sd_net.load_state_dict(torch.load( '*.pth' ), strict= True )
+
+ 
+ 
+
+在本博文中重点关注的是 属性 strict; 当strict=True,要求预训练权重层数的键值与新构建的模型中的权重层数名称完全吻合；如果新构建的模型在层数上进行了部分微调，则上述代码就会报错：说key对应不上。
+
+此时，如果我们采用strict=False 就能够完美的解决这个问题。也即， 与训练权重中与新构建网络中匹配层的键值就进行使用，没有的就默认初始化 。
+文章知识点与官方知识档案匹配，可进一步学习相关知识
+Python入门技能树 基础语法 函数 311952 人正在系统学习中
+ChaoMartin
+关注 关注
+
+    93
+    217
+    觉得还不错? 一键收藏
+    打赏
+    23
+
+专栏目录
+py torch 中 load 和 load _ state _ dict 区别
+东方佑
+05-06 13万+
+简单的解析
+torch . load () 、 torch . load _ state _ dict () 详解
+you 是 mine
+03-08 2931
+torch . load () 、 torch . load _ state _ dict () 详解
+【py torch 系列】 torch .nn.Module. load _ state _ dict 详解_大黑山修道的...
+7-3
+load _ state _ dict ( state _ dict ,strict=True) 1 作用: 使用 state _ dict 反序列化模型参数字典。用来加载模型参数。将 state _ dict 中的 parameters 和 buffers 复制到此 module 及其子节点中。
+关于Py torch 加载模型参数的避坑指南_ load _ state _ dict strict_墨...
+7-4
+一、 load _ state _ dict (strict)中参数 strict的使用 load _ state _ dict (strict)中的参数strict默认是True,这时候就需要严格按照模型中参数的Key值来加载参数,如果增删了模型的结构层,或者改变了原始层中的参数,加载就会报错。
+one hot编码：` torch .Tensor.scatter_()` 函数 用法 详解
+01-07
+torch .Tensor.scatter_()是 torch .gather() 函数 的方向反向操作。两个 函数 可以看成一对兄弟 函数 。gather用来解码one hot，scatter_用来编码one hot。 scatter_(dim, index, src) → Tensor dim ( python :int) – 用来...
+关于 torch 框架 load _ state _ dict 失效的问题
+最新发布
+qq_58158487的博客
+04-25 101
+【代码】关于 torch 框架 load _ state _ dict 失效的问题。
+load _ state _ dict ( state _ dict , strict=True)
+weixin_36670529的博客
+08-19 1万+
+load _ state _ dict ( state _ dict , strict=True)[source] Copies parameters and buffers from state _ dict into this module and its descendants. If strict is True, then the keys of state _ dict must exactly match ...
+Py torch 保存和加载模型( load 和 load _ state _ dict )
+木盏
+04-02 2万+
+Py torch 目前成为学术界最流行的DL框架，没有之一。很大程度上，简洁直观地操作有关。模型的保存和加载，于py torch 而言，也是很简单的。本文做了一个比较实验，方便大家理解。 首先，要清楚几个 函数 ： torch .save， torch . load ， state _ dict ()， load _ state _ dict ()。 先举最简单的例子： import torch model = torch . load ('my_model.pth') torch .save(model, 'new_model.pth') 上面的代码非
+torch 之模型加载 load _ state _ dict
+热门推荐
+Nicola.Zhang
+09-02 9万+
+ERROR：Py Torch 加载模型model. load _ state _ dict ()问题，Unexpected key(s) in state _ dict : "module.features…，Expected . 希望将训练好的模型加载到新的网络上。如上面题目所描述的，Py Torch 在加载之前保存的模型参数的时候，遇到了问题。 Unexpected key(s) in state _ dict : "mod...
+神经网络 load _ state _ dict ()进阶使用
+weixin_45007507的博客
+09-02 5935
+神经网络 load _ state _ dict ()进阶使用
+py torch : load _ state _ dict
+weixin_41391619的博客
+03-18 6335
+       在训练比较大、耗时较久的网络时，如果突然停电、断网或者一些意外情况发生导致训练中断，那么已经训练好的内容可能全部丢失，这时我们就需要在训练过程中把一些时间点的checkpoint保存下来，及时训练意外中断，那么我们也可以在之后把这些checkpoint下载下来，重新开始训练。 (谁能想到我刚刚码好这段话就停电了呢？...
+py torch 模型保存与加载： state _ dict 、 load _ state _ dict
+weixin_42187536的博客
+03-31 6227
+简而言之，py torch 保存模型时用的映射关系。 py torch 中的 state _ dict 是一个简单的 python 字典对象，将每一层与之对应的参数建立映射关系。只有参数可训练的layer才会保存到模型 的 state _ dict 中，如卷积层、线性层。 优化器optimizer也有一个 state _ dict ，包含了优化器的状态以及被使用的超参数（lr、momentum、weight_decay） state _ dict 是定义了model或optimizer之后py torch 自动生成的，可直接调用。常用的保存sta
+【Py torch -6】-模型保存与加载
+zeiyousao的博客
+03-27 1934
+其实Py torch 模型保存还是挺简单的，但是不同方式也有好坏之分吧。有时候，我们不仅仅需要保存模型参数，实际上有时需要保存训练的所有现场，包括优化器的内容。即有时候是只保存参数，但有时候需要保存模型训练的全过程。 最为常用 如果直接保存模型，其实很直接了当；如果model是py torch 的nn.module继承而来的，那么如下： model_path = os.path.join(output, 'model.pth') torch .save(model. state _ dict (), model_path)
+model. load _ state _ dict ( state _ dict )报错出现参数与模型不匹配
+weixin_40198079的博客
+06-27 1746
+model. load _ state _ dict ( state _ dict )报错出现参数与模型不匹配
+torch .cuda.is_available（）返回False解决方案
+12-21
+但是在查看代码是看到这里是一个and，参数args.no_cuda是设置的Flase，所以问题因为在 torch .cuda.is_available()，没有获得cuda加速。 查看深度学习环境搭建 torch .cuda.is_available()这里返回了
+torch .cuda.is_available()返回False的问题解决
+04-02
+torch .cuda.is_available()返回False的问题解决
+seq2seq_tutorial_ torch .rar_ Torch tutorial_seq2seq_ torch _英文到数字的转化
+09-21
+这个是一个端到端的英文到数字转化的教程代码，欢迎大家下载！
+Tensorflow中的降维 函数 tf.reduce_*使用 总结
+01-21
+在使用tensorflow时常常会使用到tf.reduce_*这类的 函数 ，在此对一些常见的 函数 进行汇总 1.tf.reduce_sum tf.reduce_sum(input_tensor ， axis = None ， keep_dims = False ， name = None ， reduction_indices = ...
+state _ dict ()和 load _ state _ dict ()
+weixin_47414034的博客
+05-28 1024
+这两个 函数 其实就是py torch 中用来保存模型参数和加载模型参数的方式 顾名思义： state _ dict ()就是状态字典（把模型的参数保存到一个对象里面） load _ state _ dict ()就是加载状态字典（加载模型参数） ...
+model. load _ state _ dict ( state _ dict )构造模型和预训练模型的结构不一样的情况
+weixin_61445075的博客
+01-10 2753
+预训练的模型可以很好的学到特征，我们想利用预训练的模型再加上分类器，实现分类任务，需要在自己的模型上添加新的层，直接使用 model. load _ state _ dict ( state _ dict ) 会报错： RuntimeError: Error(s) in load ing state _ dict for Model: Missing key(s) in state _ dict 可以逐个的查找自己的模型如果和预训练的模型有相同的参数名称，那么就复制过来，这样就可以避免直接全部加载出现的错误。 如果预训练模...
+通过实例学习Py torch 加载权重. load _ state _ dict ()与保存权重.save()
+m0_49963403的博客
+04-02 429
+在深度学习实际应用中，往往涉及到的神经元网络模型都很大，权重参数众多，因此会导致训练epoch次数很多，训练时间长。如果每次调整非模型相关的参数（训练数据集、优化 函数 类型、学习率、迭代次数）都要重新训练一次模型，这显然会浪费大量的训练时间。而且，对于一些成熟的网络模型，已经有前人做过大量的“预训练”，这时如果能基于前人预训练的结果，训练自己的数据集，明显会事半功倍。因此，加载与保存权重在深度学习实际使用中有很大的必要。
+model. load _ state _ dict ( torch . load
+04-10
+这条代码是Py Torch 中加载已保存的训练模型参数的命令。其中的“model”表示训练好的模型，而“ load _ state _ dict ” 函数 则用于将已保存的模型参数加载到模型中。在括号内通常会指定已保存模型参数文件的路径。
+“相关推荐”对你有帮助么？
+
+    非常没帮助
+    没帮助
+    一般
+    有帮助
+    非常有帮助
+
+    关于我们
+    招贤纳士
+    商务合作
+    寻求报道
+    400-660-0108
+    kefu@csdn.net
+    在线客服
+    工作时间 8:30-22:00
+
+    公安备案号11010502030143
+    京ICP备19004658号
+    京网文〔2020〕1039-165号
+    经营性网站备案信息
+    北京互联网违法和不良信息举报中心
+    家长监护
+    网络110报警服务
+    中国互联网举报中心
+    Chrome商店下载
+    账号管理规范
+    版权与免责声明
+    版权申诉
+    出版物许可证
+    营业执照
+    ©1999-2023北京创新乐知网络技术有限公司
+
+ChaoMartin CSDN认证博客专家 CSDN认证企业博客
+码龄11年 暂无认证
+
+13
+    原创
+
+18万+
+    周排名
+
+67万+
+    总排名
+
+17万+
+    访问
+
+    等级
+
+630
+    积分
+
+13
+    粉丝
+
+120
+    获赞
+
+37
+    评论
+
+338
+    收藏
+
+分享学徒
+签到新秀
+创作能手
+阅读者勋章
+私信
+关注
+热门文章
+
+    torch.load_state_dict()函数的用法总结 81272
+    matlab中如何从一个矩阵的行列中找出 0 元素的个数 或者位置 并作为判断条件 40527
+    Python中列表 list 的加减乘除运算总结 30803
+    空列表，空数组 --append（）尾部追加数据 5382
+    一种高效率的排序方法-归并排序的实现（主要解决matlab中多维数组排序的问题） 5004
+
+分类专栏
+
+    Python基础 6篇
+    pytorch深度学习 5篇
+    pytorch目标检测 2篇
+    数据分析+可视化 1篇
+    NMS 1篇
+    matlab编程 3篇
+    matlab数值编程
+    object proposal 1篇
+
+最新评论
+
+    torch.load_state_dict()函数的用法总结
+
+    @我在b站上大学: self.model.load_state_dict(torch.load(weight_file)) _pickle.UnpicklingError: invalid load key, 'v'. 可以问一下这个错误是什么吗
+    torch.load_state_dict()函数的用法总结
+
+    J_Baymax: 感谢博主！！！添加注意力机制时遇到这种问题表情包 ，不知道该怎么办
+    torch.load_state_dict()函数的用法总结
+
+    ChaoMartin: 正解
+    torch.load_state_dict()函数的用法总结
+
+    ChaoMartin: 这就属于算法设计与改进的范畴了。我改了网络结构，有些许涨点，不明显。
+    torch.load_state_dict()函数的用法总结
+
+    ChaoMartin: 是的，但是可以改，我空了上传我的代码。
+
+您愿意向朋友推荐“博客详情页”吗？
+
+    强烈不推荐
+    不推荐
+    一般般
+    推荐
+    强烈推荐
+
+最新文章
+
+    Python中list, ndarry数据中元素的统计方法
+    Python中图片处理方法 （总结）
+    matplotlib.pyplot画图--进阶
+
+2022年 1篇
+2021年 1篇
+2020年 7篇
+2019年 1篇
+2018年 1篇
+2016年 2篇
+新手引导 客服 举报 返回顶部

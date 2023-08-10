@@ -1,0 +1,165 @@
+
+JavaScript is disabled on your browser. Please enable JavaScript to use all the features on this page. Skip to main content Skip to article
+Elsevier logo ScienceDirect
+
+    Journals & Books 
+
+    Search 
+
+Register Sign in
+
+    Access through  your institution
+    Purchase PDF 
+
+Search ScienceDirect
+Article preview
+
+    Abstract
+    Introduction
+    Section snippets
+    References (63)
+    Recommended articles (6) 
+
+Elsevier
+Knowledge-Based Systems
+Volume 260 , 25 January 2023, 110150
+Knowledge-Based Systems
+A disentangled linguistic graph model for explainable aspect-based sentiment analysis
+Author links open overlay panel Xiaoyong Mei a , Yougen Zhou a , Chenjing Zhu a , Mengting Wu a , Ming Li a , Shirui Pan b
+Show more
+Add to Mendeley
+Share
+Cite
+https://doi.org/10.1016/j.knosys.2022.110150 Get rights and content
+Abstract
+
+Aspect-based sentiment analysis (ABSA) aims to use interactions between aspect terms and their contexts to predict sentiment polarity for given aspects in sentences. Current mainstream approaches use deep neural networks (DNNs) combined with additional linguistic information to improve performance. DNN-based methods, however, lack explanation and transparency to support predictions, and no existing model completely solves the trade-off between explainability and performance. In contrast, most previous studies explain the relationship between input and output by attribution; however, this approach is insufficient to mine hidden semantics from abstract features. To overcome the aforementioned limitations, we propose a disentangled linguistic graph model (DLGM) to enhance transparency and performance by guiding the signal flow. First, we propose a disentangled linguistic representation learning module that extracts a specific linguistic property via neurons to help capture finer feature representations. To further boost explainability , we propose a supervised disentangling module, in which labeled linguistic data help reduce information redundancy . Finally, a cross-linguistic routing mechanism is introduced into the signal propagation of linguistic chunks to overcome the defect of distilling information in an intralinguistic property. Quantitative and qualitative experiments verify the effectiveness and superiority of the proposed DLGM in sentiment polarity classification and explainability.
+Introduction
+
+In recent years, aspect-based sentiment analysis (ABSA) [1], [2] has emerged as a significant focus in affective computing and sentiment analysis [3] regarding the ability of ABSA to predict the sentiment polarity of specific aspects in sentences. For example, a review about restaurants contains the statement “I like the food here, but the service is dreadful”. . The aspect term “food” has a positive sentiment polarity according to “like” ; in contrast, the sentiment polarity of “service” is negative, as indicated by “dreadful” . The key idea behind ABSA is to model the information about interactions between aspect terms and their corresponding contexts. Along this line, a variety of deep neural network (DNN)-based methods have been proposed to learn a good representation with additional linguistic information.
+
+DNNs, especially graph neural network (GNN) approaches [4], [5], [6], [7], [8], have performed very well in ABSA; however, they lack explanation and transparency to support predictions. Intuitively, detailing a reason for a prediction helps gain trust from users. To develop a human-interpretable approach to ABSA, [9] proposed an explainable method based on a Tsetlin Machine to illustrate what drove the model to learn the corresponding context information for aspects. However, the model’s performance still fell short of the performance of existing DNN-based ABSA models. Certain classic models, such as decision trees, are particularly easy to understand. However, these models do not offer optimal performance in terms of sentiment polarity prediction. Therefore, no existing model truly excels at both performance and explainability.
+
+In addition, classification performance metrics, such as classification accuracy, are not sufficient to precisely reflect the capabilities of the model. For example, when different aspects express the same sentiment polarity, classification may be affected by other aspects or the entire sentence. As shown in Fig. 1, the model based on different regions can give the same prediction. Intuitively, the fusion of the multiple linguistic features can gradually mark the most helpful aspect terms and opinion words for sentiment polarity classification. We observe that the aspect-opinion pair tends to consist of a noun and an adjective, and the dependency types can help match the aspect-opinion pair. The distances can also boost the relevance of two words. To this end, we propose an explainable ABSA task that can be easily understood and can explain the linguistic features the model has learned from the sentence to infer the sentiment result of the target aspect; achieving such a task requires a certain transparency of the model.
+
+More importantly, we argue that existing explainable models for ABSA are inadequate for associating abstract semantic features with linguistic properties. Additionally, as shown in Fig. 1, the available explainable methods can infer a direct connection between the underlined words and sentiment polarity by attribution [10]; however, the hidden relation is not sufficient to mine out which linguistic feature is the most important. The key reason for this is that attribution-based models calculate the contribution of each word to the prediction according to the original word embedding vector, which ignores the fundamental fact that neural vector representations often contain much linguistic information. Disregarding this fact, the explanation is coarse and fails to reflect the impact of linguistic features on predictions.
+
+To address the aforementioned issues, we propose a unified model to classify sentiment polarities and provide better explainability. We first formulate the explainable ABSA as an index generation task, which could enable sentiment polarity prediction by class index generation and generating textual or visual explanations by using sequence index generation. Specifically, we transform the raw text into a graph and introduce an ego node representing the aspect term, for which the proposed model can perform the index generation and leverage the powerful modeling capabilities of the GNN to achieve high performance. Simultaneously, we introduce a linguistic disentangling module in the GNN to provide explanations for the model by investigating the individual dimensions in the original word embedding vector as input signals to linguistic property neurons. Our goal is to encourage neurons to learn different linguistic information through the loss function. After the linguistic signals are extracted, a routing mechanism is employed to direct the information flow between the collections of chunks containing specific linguistic information for prediction.
+
+In summary, our core research contributions are as follows:
+
+    1.
+
+    A novel model (termed DLGM), which facilitates the multilinguistic properties in word embeddings for enhancing finer feature representation and provides graph-based model transparency, is proposed for explainable aspect-based sentiment analysis (ABSA).
+    2.
+
+    An improved disentangling module under a supervised learning task is developed; labeled linguistic data help reduce information redundancy over various linguistic properties through independence regulation.
+    3.
+
+    We develop a cross-linguistic routing mechanism in GNN, to overcome the exchange barriers among different linguistic information flows and to some extent offer explainable ABAS results from the perspective of linguistic properties.
+
+The remainder of this article is organized as follows. Section 2 revisits prior works on ABSA and the background of explainability. Section 3 describes the details of our methods. Section 4 discusses the experimental results and analyzes the ablation studies. Finally, Section 5 presents the conclusion.
+Section snippets
+Related works
+
+In this section, we primarily revisit prior works on ABSA; these works can be generally classified into two types: ABSA without linguistic information and ABSA with linguistic information. Additionally, we briefly review the existing works on explainability.
+Methodology
+
+For our proposed method, we first formalize the explainable ABSA under a unified framework to generate explanations and classify sentiment polarities classification. Then, we detail our proposed disentangled linguistic graph model (DLGM), which consists of three components to distangle linguistic graphs. The overall framework of the proposed DLGM is illustrated in Fig. 2.
+Experiments
+
+We provide details of the comprehensive experiments evaluating the classification performance and explainability of DLGM. For the classification performance, we compare our model to the baselines on four widely used and publicly available datasets. For explainability, we provide the quantitative and qualitative results on two benchmarks. In addition, we discuss our analysis to verify the effectiveness of DLGM.
+Conclusion
+
+In this article, we jointly model POS, distance, and syntactic dependency by using a disentangled linguistic graph model (DLGM) in a supervised manner for a new task named explainable ABSA. By using the proposed aspect-oriented bipartite graph, we can simulate the information transfer process within the model in a unified graph structure. Moreover, we adopt independent regulation loss to minimize the information redundancy between neurons to ensure a faithful explanation. Finally, a linguistic
+CRediT authorship contribution statement
+
+Xiaoyong Mei: Conceptualization, Methodology, Investigation, Supervision. Yougen Zhou: Conceptualization, Methodology, Writing – original draft, Investigation, Software, Validation. Chenjing Zhu: Investigation, Software, Validation. Mengting Wu: Investigation, Software, Validation. Ming Li: Writing – review & editing. Shirui Pan: Writing – review & editing.
+Declaration of Competing Interest
+
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+Acknowledgments
+
+This work was supported in part by the National Key Research and Development Program of China under Grant No. 2022YFC3303600 , in part by the Key Research and Development Program of Zhejiang Province, China under Grant No. 2021C03141 and No. 2022C03106 , and in part by the National Natural Science Foundation of China under Grant No. 61877020 , No. 62037001 , and No. 62172370 .
+References (63)
+
+    Huang B. et al.
+    Aspect-level sentiment analysis with aspect-specific context position information
+    Knowl.-Based Syst.
+    (2022)
+    Liang B. et al.
+    Aspect-based sentiment analysis via affective knowledge enhanced graph convolutional networks
+    Knowl.-Based Syst.
+    (2022)
+    Pham D.-H. et al.
+    Exploiting multiple word embeddings and one-hot character vectors for aspect-based sentiment analysis
+    Internat. J. Approx. Reason.
+    (2018)
+    Konstantinov A.V. et al.
+    Interpretable machine learning with an ensemble of gradient boosting machines
+    Knowl.-Based Syst.
+    (2021)
+    Li W. et al.
+    BiERU: Bidirectional emotional recurrent unit for conversational sentiment analysis
+    Neurocomputing
+    (2022)
+    M. Pontiki, D. Galanis, H. Papageorgiou, S. Manandhar, I. Androutsopoulos, Semeval-2015 task 12: Aspect based sentiment...
+    M. Pontiki, D. Galanis, H. Papageorgiou, I. Androutsopoulos, S. Manandhar, M. AL-Smadi, M. Al-Ayyoub, Y. Zhao, B. Qin,...
+    Cambria E.
+    Affective computing and sentiment analysis
+    IEEE Intell. Syst.
+    (2016)
+    K. Wang, W. Shen, Y. Yang, X. Quan, R. Wang, Relational graph attention network for aspect-based sentiment analysis,...
+    Bai X. et al.
+    Investigating typed syntactic dependencies for targeted sentiment classification using graph attention neural network
+    IEEE/ACM Trans. Audio Speech Lang. Process.
+    (2021)
+
+View more references
+Cited by (0)
+Recommended articles (6)
+
+    Research article
+    EIAASG: Emotional Intensive Adaptive Aspect-Specific GCN for sentiment classification
+    Knowledge-Based Systems, Volume 260, 2023, Article 110149
+    Show abstract
+    Research article
+    Exploring fine-grained syntactic information for aspect-based sentiment classification with dual graph neural networks
+    Neurocomputing, Volume 471, 2022, pp. 48-59
+    Show abstract
+    Research article
+    Bi-graph attention network for aspect category sentiment classification
+    Knowledge-Based Systems, Volume 258, 2022, Article 109972
+    Show abstract
+    Research article
+    Knowledge-guided multi-granularity GCN for ABSA
+    Information Processing & Management, Volume 60, Issue 2, 2023, Article 103223
+    Show abstract
+    Research article
+    Aspect opinion routing network with interactive attention for aspect-based sentiment classification
+    Information Sciences, Volume 616, 2022, pp. 52-65
+    Show abstract
+    Research article
+    Learn from structural scope: Improving aspect-level sentiment analysis with hybrid graph convolutional networks
+    Neurocomputing, Volume 518, 2023, pp. 373-383
+    Show abstract
+
+View full text
+© 2022 Elsevier B.V. All rights reserved.
+Elsevier logo with wordmark
+
+    About ScienceDirect
+    Remote access
+    Shopping cart
+    Advertise
+    Contact and support
+    Terms and conditions
+    Privacy policy 
+
+We use cookies to help provide and enhance our service and tailor content and ads. By continuing you agree to the use of cookies .
+
+Copyright © 2023 Elsevier B.V. or its licensors or contributors. ScienceDirect® is a registered trademark of Elsevier B.V.
+
+ScienceDirect® is a registered trademark of Elsevier B.V.
+RELX group home page
+Feedback 

@@ -1,0 +1,435 @@
+
+Stack Overflow
+
+    About
+    Products
+    For Teams
+
+    Log in
+    Sign up
+
+    Home
+        Public
+        Questions
+        Tags
+        Users
+        Companies
+        Collectives
+        Explore Collectives
+    Teams
+    Stack Overflow for Teams – Start collaborating and sharing organizational knowledge. Create a free Team Why Teams?
+
+Is __init__.py not required for packages in Python 3.3+
+Ask Question
+Asked 7 years, 1 month ago
+Modified 2 months ago
+Viewed 182k times
+This question shows research effort; it is useful and clear
+388
+This question does not show any research effort; it is unclear or not useful
+Save this question.
+Show activity on this post.
+
+I am using Python 3.5.1. I read the document and the package section here: https://docs.python.org/3/tutorial/modules.html#packages
+
+Now, I have the following structure:
+
+ /home/wujek/Playground/a/b/module.py  
+
+module.py :
+
+ class Foo : def __init__ ( self ): print ( 'initializing Foo' )  
+
+Now, while in /home/wujek/Playground :
+
+ ~/Playground $ python3 >>> import a.b.module >>> a.b.module.Foo() initializing Foo <a.b.module.Foo object at 0x100a8f0b8 >  
+
+Similarly, now in home , superfolder of Playground :
+
+ ~ $ PYTHONPATH=Playground python3 >>> import a.b.module >>> a.b.module.Foo() initializing Foo <a.b.module.Foo object at 0x10a5fee10 >  
+
+Actually, I can do all kinds of stuff:
+
+ ~ $ PYTHONPATH=Playground python3 >>> import a >>> import a.b >>> import Playground.a.b  
+
+Why does this work? I though there needed to be __init__.py files (empty ones would work) in both a and b for module.py to be importable when the Python path points to the Playground folder?
+
+This seems to have changed from Python 2.7:
+
+ ~ $ PYTHONPATH=Playground python >>> import a ImportError: No module named a >>> import a.b ImportError: No module named a.b >>> import a.b.module ImportError: No module named a.b.module  
+
+With __init__.py in both ~/Playground/a and ~/Playground/a/b it works fine.
+
+    python
+    python-3.x
+    package 
+
+Share
+Improve this question
+Follow
+Follow this question to receive notifications
+edited Apr 11 at 11:41
+yacc's user avatar
+yacc
+2,848 3 3 gold badges 19 19 silver badges 33 33 bronze badges
+asked May 10, 2016 at 13:19
+wujek's user avatar
+wujek wujek
+9,912 12 12 gold badges 51 51 silver badges 88 88 bronze badges
+Add a comment  | 
+5 Answers 5
+Sorted by: Reset to default
+This answer is useful
+471
+This answer is not useful
+Save this answer.
+Show activity on this post.
+Overview
+
+@Mike's answer is correct but too imprecise . It is true that Python 3.3+ supports Implicit Namespace Packages that allows it to create a package without an __init__.py file. This is called a namespace package in contrast to a regular package which does have an __init__.py file (empty or not empty).
+
+However, creating a namespace package should ONLY be done if there is a need for it. For most use cases and developers out there, this doesn't apply so you should stick with EMPTY __init__.py files regardless.
+Namespace package use case
+
+To demonstrate the difference between the two types of python packages, lets look at the following example:
+
+ google_pubsub/ <- Package 1 google/ <- Namespace package (there is no __init__.py) cloud/ <- Namespace package (there is no __init__.py) pubsub/ <- Regular package ( with __init__.py) __init__.py <- Required to make the package a regular package foo.py google_storage/ <- Package 2 google/ <- Namespace package (there is no __init__.py) cloud/ <- Namespace package (there is no __init__.py) storage/ <- Regular package ( with __init__.py) __init__.py <- Required to make the package a regular package bar.py  
+
+google_pubsub and google_storage are separate packages but they share the same namespace google/cloud . In order to share the same namespace, it is required to make each directory of the common path a namespace package, i.e. google/ and cloud/ . This should be the only use case for creating namespace packages, otherwise, there is no need for it.
+
+It's crucial that there are no __init__py files in the google and google/cloud directories so that both directories can be interpreted as namespace packages . In Python 3.3+ any directory on the sys.path with a name that matches the package name being looked for will be recognized as contributing modules and subpackages to that package . As a result, when you import both from google_pubsub and google_storage , the Python interpreter will be able to find them.
+
+This is different from regular packages which are self-contained meaning all parts live in the same directory hierarchy. When importing a package and the Python interpreter encounters a subdirectory on the sys.path with an __init__.py file, then it will create a single directory package containing only modules from that directory, rather than finding all appropriately named subdirectories outside that directory. This is perfectly fine for packages that don't want to share a namespace . I highly recommend taking a look at Traps for the Unwary in Python’s Import System to get a better understanding of how Python importing behaves with regular and namespace package and what __init__.py traps to watch out for.
+Summary
+
+    Only skip __init__.py files if you want to create namespace packages . Only create namespace packages if you have different libraries that reside in different locations and you want them each to contribute a subpackage to the parent package, i.e. the namespace package.
+    Keep on adding empty __init__.py to your directories because 99% of the time you just want to create regular packages . Also, Python tools out there such as mypy and pytest require empty __init__.py files to interpret the code structure accordingly. This can lead to weird errors if not done with care.
+
+Resources
+
+My answer only touches the surface of how regular packages and namespace packages work, so take a look at the following resources for further information:
+
+    PEP 420 -- Implicit Namespace Packages
+    The import system - Regular packages
+    The import system - Namespace packages
+    Traps for the Unwary in Python’s Import System
+
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+edited Jun 1, 2022 at 8:36
+hakre's user avatar
+hakre
+191k 52 52 gold badges 432 432 silver badges 832 832 bronze badges
+answered Feb 15, 2018 at 10:16
+Andi's user avatar
+Andi Andi
+8,024 3 3 gold badges 30 30 silver badges 34 34 bronze badges
+9
+
+    2
+    Suppose I have run_script.py in same dir as parent_package so can I just import like from parent_package.child_package import child1 without __init__.py ?
+    –  mrgloom
+    May 16, 2018 at 15:10
+    17
+    In my experience, even with python 3.3+, an empty __init__.py is still needed sometimes, like when you want to refer a subfolder as a package. For example, if I run python -m test.foo it didn't work until I created an empty __init__.py under the test folder. And I'm talking about 3.6.6 version here!
+    –  Prahlad Yeri
+    Jun 18, 2019 at 16:20
+    3
+    @PrahladYeri This deserves to be an answer.
+    –  Flimm
+    Nov 27, 2020 at 17:01
+    2
+    It makes more sense to only add a __init__.py if you need it. Python looks like a silly language when not creating a file still works exactly the same but is supposed to be a conscious, informed choice.
+    –  Marcos Pereira
+    Feb 1 at 17:45
+    2
+    This argument strikes me as bizarre. "You should only do nothing if you have a good reason why you need to do nothing, otherwise you can get away with doing something"... ? "I highly recommend taking a look at Traps for the Unwary in Python’s Import System" - this link advises (correctly) that a missing __init__.py only caused an error in 3.2 and below, and that adding __init__.py reduces flexibility (can be a plus or a minus, but I can hardly see a reason to do it preemptively).
+    –  Karl Knechtel
+    Feb 6 at 7:28
+
+ |  Show 4 more comments
+This answer is useful
+276
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+Python 3.3+ has Implicit Namespace Packages that allow it to create a packages without an __init__.py file.
+
+    Allowing implicit namespace packages means that the requirement to provide an __init__.py file can be dropped completely , and affected ... .
+
+The old way with __init__.py files still works as in Python 2.
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+edited Dec 13, 2018 at 1:46
+martineau's user avatar
+martineau
+119k 25 25 gold badges 165 165 silver badges 297 297 bronze badges
+answered May 10, 2016 at 13:35
+Mike Müller's user avatar
+Mike Müller Mike Müller
+82.2k 19 19 gold badges 164 164 silver badges 161 161 bronze badges
+12
+
+    15
+    I will read the document, but it's a bit long. Is it possible to quickly summarize? Could you just tell me: does it still support init .py, or completely ignores them? If it does support them, what is the difference in functionality and why this duality?
+    –  wujek
+    May 10, 2016 at 13:38
+    13
+    I'm still upset that this defies the Zen Of Python line 2: Explicit is better than implicit. ....
+    –  JayRizzo
+    Jun 11, 2018 at 6:23
+    14
+    @JayRizzo But: "Although practicality beats purity."
+    –  Mike Müller
+    Jun 11, 2018 at 6:58
+    46
+    @JayRizzo IMO it is even more explicit. Sometimes it happens to do init stuff in __init__.py , sometimes not. In Python 3 when I need these stuff I create a new __init__.py with specific code, otherwise I don't. This comes handy to know, visually, which packages have custom init. Instead in python 2 I always have to place an __init__.py (often empty), making a great number of them and finally harder to remember where you placed your init code. This should also fit "There should be one-- and preferably only one --obvious way to do it.".
+    –  Paolo
+    Jul 14, 2018 at 18:22
+    5
+    Yes, there are several uses. One of them would "flattening the name space", i.e. importing modules from sub-packages to make them available directly under package. For a large example look a NumPy github.com/numpy/numpy/blob/master/numpy/__init__.py Here from .core import * imports all names from core and they can be accessed via numpy.name , where 'name' actually lives in 'numpy.core`.
+    –  Mike Müller
+    Feb 1, 2019 at 10:07
+
+ |  Show 7 more comments
+This answer is useful
+32
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+If you have setup.py in your project and you use find_packages() within it, it is necessary to have an __init__.py file in every directory for packages to be automatically found.
+
+    Packages are only recognized if they include an __init__.py file
+
+UPD : If you want to use implicit namespace packages without __init__.py you just have to use find_namespace_packages() instead
+
+Docs
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+edited Apr 12, 2020 at 15:26
+answered May 23, 2019 at 14:21
+techkuz's user avatar
+techkuz techkuz
+3,528 5 5 gold badges 34 34 silver badges 62 62 bronze badges
+Add a comment  | 
+This answer is useful
+17
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+I would say that one should omit the __init__.py only if one wants to have the implicit namespace package . If you don't know what it means, you probably don't want it and therefore you should continue to use the __init__.py even in Python 3.
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+answered Mar 5, 2019 at 8:29
+Mi-La's user avatar
+Mi-La Mi-La
+685 10 10 silver badges 18 18 bronze badges
+2
+
+    4
+    I think it's the other way around because there is a trap related to init with Python 3.3+. Wouldn't it be cleaner to just not have to init if it is empty? Especially if you have people coming from other languages. A question regarding why an empty init exists gets brought up often. If you have a specific need for init then one should use it imo.
+    –  NomNomNom
+    Sep 29, 2020 at 23:47
+    1
+    I guess that the rules come from older versions of Python and changing it dramatically would break all the backward compatibility. I had also problems to understand how the __init__.py works and I don't really like it, but we must live with what we get :-). Also note that there are also still some tools that expect __init__.py to be present in each package to work correctly. I remember that even pylint had some problems to implement implicit namespace packages logic correctly.
+    –  Mi-La
+    Sep 30, 2020 at 7:21
+
+Add a comment  | 
+This answer is useful
+14
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+Based on my experience, even with python 3.3+, an empty __init__.py is still needed sometimes. One situation is when you want to refer a subfolder as a package. For example, when I ran python -m test.foo , it didn't work until I created an empty __init__.py under the test folder. And I'm talking about 3.6.6 version here which is pretty recent.
+
+Apart from that, even for reasons of compatibility with existing source code or project guidelines, its nice to have an empty __init__.py in your package folder.
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+answered Nov 28, 2020 at 4:08
+Prahlad Yeri's user avatar
+Prahlad Yeri Prahlad Yeri
+3,547 4 4 gold badges 25 25 silver badges 54 54 bronze badges
+1
+
+    2
+    Can confirm. Using pytest 6.2.2 and python 3.8, I get a AttributeError: 'NoneType' object has no attribute 'endswith' when running pytest . --doctest-modules . The error disappeared after I added an empty __init__.py to one of my directories containing a python file containing doctests. It's NOT necessary to add that file to a different directory also containing a python file containing doctests. I don't understand it at all.
+    –  iron9
+    Jan 27, 2021 at 16:25
+
+Add a comment  | 
+Your Answer
+
+Draft saved
+Draft discarded
+Sign up or log in
+Sign up using Google
+Sign up using Facebook
+Sign up using Email and Password
+Submit
+Post as a guest
+Name
+Email
+
+Required, but never shown
+Post as a guest
+Name
+Email
+
+Required, but never shown
+Post Your Answer Discard
+
+By clicking “Post Your Answer”, you agree to our terms of service and acknowledge that you have read and understand our privacy policy and code of conduct .
+Not the answer you're looking for? Browse other questions tagged
+
+    python
+    python-3.x
+    package 
+
+or ask your own question .
+
+    The Overflow Blog
+    How Bloomberg’s engineers built a culture of knowledge sharing
+    Making computer science more humane at Carnegie Mellon (ep. 585)
+    Featured on Meta
+    Starting the Prompt Design Site: A New Home in our Stack Exchange Neighborhood
+    Colors update: A more detailed look
+    Does the policy change for AI-generated content affect users who (want to)...
+    Temporary policy: Generative AI (e.g., ChatGPT) is banned
+
+9 people chatting
+Python
+13 hours ago - roganjosh
+[Mikhail: 1 hour ago] [inspectorG4dget: 15 hours ago] [Aran-Fey: 17 hours ago] [metatoaster: Jun 21 at 11:03] [Karl Knechtel: Jun 14 at 6:46] [ThiefMaster: Apr 15 at 3:55] [Delrius Euphoria: Jan 23 at 19:13]
+python-canon-discussion
+2 days ago - metatoaster
+[metatoaster: 2 days ago] [Karl Knechtel: 2 days ago]
+Linked
+1
+possibility of python packages without __init__.py
+0
+What's the difference between a Python Package and a folder that contains modules?
+2413
+Importing files from different folder
+3577
+What is __init__.py for?
+629
+Import a file from a subdirectory?
+235
+Import local function from a module housed in another directory with relative imports in Jupyter Notebook using Python 3
+257
+Importing module from string variable using "__import__" gives different results than a normal import statement
+120
+Py.test No module named *
+143
+Import module from subfolder
+40
+Python - why can I import modules without __init__.py at all?
+See more linked questions
+Related
+3577
+What is __init__.py for?
+2691
+How to upgrade all Python packages with pip
+1359
+How do I find the location of my Python site-packages directory?
+1717
+Replacements for switch statement in Python?
+1830
+What's the canonical way to check for type in Python?
+118
+How to import a module in Python with importlib.import_module
+874
+"TypeError: a bytes-like object is required, not 'str'" when handling file content in Python 3
+741
+What does 'super' do in Python? - difference between super().__init__() and explicit superclass __init__()
+Hot Network Questions
+
+    why does music become less harmonic if we transpose it down to the extreme low end of the piano?
+    Why is there inconsistency about integral numbers of protons in NMR in the Clayden: Organic Chemistry 2nd ed.?
+    Why do CRT TVs need a HSYNC pulse in signal?
+    How can negative potential energy cause mass decrease?
+    Does FunctionRange work with Interpolation?
+    Is there a relation between spacetime curvature and radiation?
+    How to safely use euro 16A 250V plug in UK sockets
+    Why can C not be lexed without resolving identifiers?
+    How can I delete in Vim all text from current cursor position line to end of file without using End key?
+    Bike too large, if I change the wheels to a smaller size will this lower the height?
+    Is it morally wrong to use tragic historical events as character background/development?
+    From the "inverted spectrum" to the "music transposed by 12" problem?
+    Representation of two Gaussian vectors as sums of independent Gaussian vectors
+    Crontab never works on ubuntu server
+    How to print a vertical bar in text mode without the use of the "|" symbol?
+    Dropping disordered numbers in a list
+    pgfplots: How to get xtick=data at a table-plot
+    Did Minecraft sell 600 million copies?
+    US citizen, with a clean record, needs license for armored car with 3 inch cannon
+    Which fighter jet is seen here at Centennial Airport Colorado?
+    Short story about two human space travelers who learn to transform into energy beings
+    How does one transpile valid code that corresponds to undefined behavior in the target language?
+    Can one go to a postdoc second time to another mathematical field after receiving a tenure track position?
+    Pitch accent of ～ざる
+
+Question feed
+Subscribe to RSS
+Question feed
+
+To subscribe to this RSS feed, copy and paste this URL into your RSS reader.
+lang-py
+Stack Overflow
+
+    Questions
+    Help
+
+Products
+
+    Teams
+    Advertising
+    Collectives
+    Talent
+
+Company
+
+    About
+    Press
+    Work Here
+    Legal
+    Privacy Policy
+    Terms of Service
+    Contact Us
+    Cookie Settings
+    Cookie Policy
+
+Stack Exchange Network
+
+    Technology
+    Culture & recreation
+    Life & arts
+    Science
+    Professional
+    Business
+    API
+    Data
+
+    Blog
+    Facebook
+    Twitter
+    LinkedIn
+    Instagram
+
+Site design / logo © 2023 Stack Exchange Inc; user contributions licensed under CC BY-SA . rev 2023.6.29.43520
+ 

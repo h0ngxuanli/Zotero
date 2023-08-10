@@ -1,0 +1,692 @@
+
+Stack Overflow
+
+    About
+    Products
+    For Teams
+
+    Log in
+    Sign up
+
+    Home
+        Public
+        Questions
+        Tags
+        Users
+        Companies
+        Collectives
+        Explore Collectives
+    Teams
+    Stack Overflow for Teams – Start collaborating and sharing organizational knowledge. Create a free Team Why Teams?
+
+python: get directory two levels up
+Ask Question
+Asked 8 years, 6 months ago
+Modified 23 days ago
+Viewed 180k times
+This question shows research effort; it is useful and clear
+149
+This question does not show any research effort; it is unclear or not useful
+Save this question.
+Show activity on this post.
+
+Ok...I dont know where module x is, but I know that I need to get the path to the directory two levels up.
+
+So, is there a more elegant way to do:
+
+ import os two_up = os.path.dirname(os.path.dirname(__file__))  
+
+Solutions for both Python 2 and 3 are welcome!
+
+    python
+    path
+    operating-system
+    directory 
+
+Share
+Improve this question
+Follow
+Follow this question to receive notifications
+edited Oct 25, 2018 at 21:24
+Shubham's user avatar
+Shubham
+2,847 4 4 gold badges 24 24 silver badges 37 37 bronze badges
+asked Jan 8, 2015 at 15:49
+jramm's user avatar
+jramm jramm
+6,365 4 4 gold badges 34 34 silver badges 72 72 bronze badges
+3
+
+    2
+    I think your solution is perfectly fine. A pathlib solution is a little nicer and more readable, but isn't included with Python 2.7. I'd say stick with what you've got, maybe add a comment.
+    –  jme
+    Jan 8, 2015 at 17:02
+    Perhaps worth adding the pip install pathlib2 option to maintain sanity in 2.7.
+    –  jonathan
+    Mar 19, 2018 at 9:11
+    In case you want to get the directory two levels up of your current working directory you can perfectly use: os.path.abspath(os.path.join(os.getcwd(), os.path.pardir, os.path.pardir))
+    –  Elias
+    May 3, 2022 at 12:29
+
+Add a comment  | 
+17 Answers 17
+Sorted by: Reset to default
+This answer is useful
+199
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+You can use pathlib . Unfortunately this is only available in the stdlib for Python 3.4. If you have an older version you'll have to install a copy from PyPI here . This should be easy to do using pip .
+
+ from pathlib import Path p = Path(__file__).parents[ 1 ] print (p) # /absolute/path/to/two/levels/up  
+
+This uses the parents sequence which provides access to the parent directories and chooses the 2nd one up.
+
+Note that p in this case will be some form of Path object, with their own methods. If you need the paths as string then you can call str on them.
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+edited Jan 8, 2015 at 16:02
+answered Jan 8, 2015 at 15:56
+Ffisegydd's user avatar
+Ffisegydd Ffisegydd
+51.4k 15 15 gold badges 146 146 silver badges 125 125 bronze badges
+9
+
+    Thats a nice answer thanks and great for py3. For py2 it is possible not any better than my initial attempt as it creates and extra dependency
+    –  jramm
+    Jan 9, 2015 at 8:31
+    20
+    This should not be the accepted answer as the Path class's parents is dependent upon the execution location. If you execute your __file__ from its current directory the Path class will have no parents. Either @Sebi2020's answer should be accepted, or your original method should be used. I believe your original method is more readable.
+    –  Red-Tune-84
+    Jun 20, 2017 at 15:35
+    1
+    You may need to do p = Path(os.path.abspath(__file__)).parents[1]
+    –  Adam Raudonis
+    Jun 15, 2018 at 16:50
+    6
+    @AdamRaudonis Instead of os.path.abspath , you can also use Path(__file__).resolve().parents[1]
+    –  Tulio Casagrande
+    Jul 4, 2018 at 15:33
+    10
+    As @Kazanz mentioned, this solution doesn't work when executing from other paths. The best solution is: p = Path(__file__).resolve().parents[1] . I also added it as an answer.
+    –  pythinker
+    Nov 6, 2018 at 9:50
+
+ |  Show 4 more comments
+This answer is useful
+77
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+Very easy:
+
+Here is what you want:
+
+ import os.path as path two_up = path.abspath(path.join(__file__ , "../.." ))  
+
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+edited Nov 19, 2019 at 14:56
+Tim Cooper's user avatar
+Tim Cooper
+157k 38 38 gold badges 330 330 silver badges 279 279 bronze badges
+answered Jan 8, 2015 at 16:11
+Sebi2020's user avatar
+Sebi2020 Sebi2020
+1,936 1 1 gold badge 23 23 silver badges 40 40 bronze badges
+10
+
+    14
+    And perhaps use os.pardir rather than .. .
+    –  jme
+    Jan 8, 2015 at 16:56
+    does sys.argv[0] not return module that was run by python.exe? So this wouldn't necessary work if the module im interested in was imported from some other package..am I right here?
+    –  jramm
+    Jan 8, 2015 at 17:07
+    If you want to use it in a module instead use __file__ .
+    –  Sebi2020
+    Jan 8, 2015 at 18:33
+    2
+    @jme do you know an OS where you get the parent directory with another string than".."???
+    –  Sebi2020
+    Jan 8, 2015 at 18:42
+    1
+    @Sebi2020 Yep, notably the old Mac OS. Here's a list: en.wikipedia.org/wiki/Path_(computing)
+    –  jme
+    Jan 8, 2015 at 18:49
+
+ |  Show 5 more comments
+This answer is useful
+33
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+I was going to add this just to be silly, but also because it shows newcomers the potential usefulness of aliasing functions and/or imports.
+
+Having written it, I think this code is more readable (i.e. lower time to grasp intention) than the other answers to date, and readability is (usually) king.
+
+ from os.path import dirname as up two_up = up(up(__file__))  
+
+Note: you only want to do this kind of thing if your module is very small, or contextually cohesive.
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+answered Jun 24, 2017 at 3:35
+andyhasit's user avatar
+andyhasit andyhasit
+14k 7 7 gold badges 48 48 silver badges 50 50 bronze badges
+Add a comment  | 
+This answer is useful
+31
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+The best solution (for python >= 3.4) when executing from any directory is:
+
+ from pathlib import Path two_up = Path(__file__).resolve().parents[ 1 ]  
+
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+answered Nov 6, 2018 at 9:48
+pythinker's user avatar
+pythinker pythinker
+553 5 5 silver badges 12 12 bronze badges
+Add a comment  | 
+This answer is useful
+11
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+For getting the directory 2 levels up:
+
+ import os.path as path curr_dir=Path(os.path.dirname(os.path.abspath(__file__))) two_dir_up_=os.fspath(Path(curr_dir.parent.parent).resolve())  
+
+I have done the following to go up two and drill down on other dir
+
+ default_config_dir=os.fspath(Path(curr_dir.parent.parent, 'data/config' ).resolve())  
+
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+edited Aug 19, 2021 at 0:46
+answered May 31, 2017 at 18:01
+zerocog's user avatar
+zerocog zerocog
+1,693 21 21 silver badges 31 31 bronze badges
+2
+
+    Location of file and your cwd don't have to be the same. Thus your solution does not always produce the same result.
+    –  Sebi2020
+    Aug 15, 2021 at 14:08
+    Gives the path relative to the working directory not module
+    –  jramm
+    Sep 22, 2021 at 6:37
+
+Add a comment  | 
+This answer is useful
+5
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+Personally, I find that using the os module is the easiest method as outlined below. If you are only going up one level, replace ('../..') with ('..').
+
+ import os os.chdir( '../..' ) --Check: os.getcwd()  
+
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+answered Jun 29, 2015 at 19:47
+user4816510 user4816510
+2
+
+    3
+    Is it acceptable to hardcode the '/' I would have expected to read os.chdir(os.join('..', '..'))
+    –  GreenAsJade
+    May 26, 2016 at 22:59
+    Gives the path relative to the working directory not module
+    –  jramm
+    Sep 22, 2021 at 6:39
+
+Add a comment  | 
+This answer is useful
+4
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+More cross-platform implementation will be:
+
+ import pathlib two_up = (pathlib.Path(__file__) / ".." / ".." ).resolve()  
+
+Using parent is not supported on Windows. Also need to add .resolve() , to:
+
+    Make the path absolute, resolving all symlinks on the way and also normalizing it (for example turning slashes into backslashes under Windows)
+
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+edited Oct 25, 2018 at 22:35
+Shubham's user avatar
+Shubham
+2,847 4 4 gold badges 24 24 silver badges 37 37 bronze badges
+answered Aug 21, 2017 at 6:50
+zhukovgreen's user avatar
+zhukovgreen zhukovgreen
+1,542 15 15 silver badges 26 26 bronze badges
+3
+
+    3
+    Do you have a source for parent not working on Windows? This seems to have been fixed sometime since you wrote this comment. It works fine for me using Python 3.7.2 on Windows 10.
+    –  Nathan
+    Feb 16, 2019 at 18:03
+    i could get parent working on windows 10 with python 3.6.5. Which version of python are you talking about @Zhukovgeen?
+    –  ggulgulia
+    May 13, 2020 at 13:05
+    @ggulgulia I believe it was 3.7
+    –  zhukovgreen
+    May 13, 2020 at 13:16
+
+Add a comment  | 
+This answer is useful
+3
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+(pathlib.Path('../../') ).resolve()
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+answered May 1, 2020 at 18:29
+Alexis's user avatar
+Alexis Alexis
+498 4 4 silver badges 13 13 bronze badges
+1
+
+    Gives the path relative to the working directory not module
+    –  jramm
+    Nov 1, 2020 at 9:20
+
+Add a comment  | 
+This answer is useful
+3
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+Surprisingly it seems no one has yet explored this nice one-liner option:
+
+ import os two_up = os.path.normpath(__file__).rsplit(os.sep, maxsplit= 2 )[ 0 ]  
+
+rsplit is interesting since the maxsplit parameter directly represents how many parent folders to move up and it always returns a result in just one pass through the path.
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+answered Dec 14, 2021 at 5:34
+glopes's user avatar
+glopes glopes
+3,988 3 3 gold badges 26 26 silver badges 29 29 bronze badges
+Add a comment  | 
+This answer is useful
+2
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+I have found that the following works well in 2.7.x
+
+ import os two_up = os.path.normpath(os.path.join(__file__, '../' ))  
+
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+answered Jan 31, 2017 at 18:08
+Lucidious's user avatar
+Lucidious Lucidious
+21 1 1 bronze badge
+Add a comment  | 
+This answer is useful
+2
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+You can use this as a generic solution:
+
+ import os def getParentDir ( path, level= 1 ): return os.path.normpath( os.path.join(path, *([ ".." ] * level)) )  
+
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+answered Apr 16, 2017 at 19:47
+Axel Heider's user avatar
+Axel Heider Axel Heider
+547 4 4 silver badges 14 14 bronze badges
+3
+
+    @JanSila: can be more specific, why is it not pythonic? For readability, it could have more comments what this does, yes - but in the end it's using standard python language features, see e.g. stackoverflow.com/questions/36901
+    –  Axel Heider
+    Oct 17, 2017 at 4:43
+    It is a little dense, but I don't think this is too abstract and not readable. It is just a generalized version of other answers posted here. I would like a standard library way of doing things without the need for implementing a function, though.
+    –  ryanjdillon
+    Aug 15, 2019 at 7:55
+    Gives the path relative to the working directory not module
+    –  jramm
+    Sep 22, 2021 at 6:38
+
+Add a comment  | 
+This answer is useful
+1
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+Assuming you want to access folder named xzy two folders up your python file. This works for me and platform independent.
+
+".././xyz"
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+answered Jan 24, 2020 at 18:18
+user11770816's user avatar
+user11770816 user11770816
+29 2 2 bronze badges
+1
+
+    Gives the path relative to the working directory not module
+    –  jramm
+    Sep 22, 2021 at 6:37
+
+Add a comment  | 
+This answer is useful
+1
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+100% working answer:
+
+ os.path.abspath(os.path.join(os.getcwd() , "../.." ))  
+
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+answered Sep 20, 2021 at 17:01
+Jason Lim Ji Chen's user avatar
+Jason Lim Ji Chen Jason Lim Ji Chen
+172 8 8 bronze badges
+1
+
+    1
+    Nope, that gets the directory two levels up relative to the current working directory, not the current module.
+    –  jramm
+    Sep 21, 2021 at 6:05
+
+Add a comment  | 
+This answer is useful
+1
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+There is already an accepted answer, but for two levels up I think a chaining approach is arguably more readable:
+
+ pathlib.Path(__file__).parent.parent.resolve()  
+
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+answered Nov 4, 2021 at 9:25
+tek's user avatar
+tek tek
+31 2 2 bronze badges
+2
+
+    This has already been mentioned in some of the other answers. When answering older questions that already have answers, please make sure you provide either a novel solution or a significantly better explanation than existing answers.
+    –  Tyler2P
+    Nov 4, 2021 at 16:46
+    No, it hasn't been mentioned for pathlib.
+    –  Martin
+    Jan 20, 2022 at 0:04
+
+Add a comment  | 
+This answer is useful
+1
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+With Pathlib (recommended after Python 3.5, the/a general solution that works not only in file.py files, but also in Jupyter (or other kind of) notebook and Python shell is:
+
+p = Path.cwd().resolve().parents[1]
+
+You only need to substitute (__file__) for cwd() (current working directory).
+
+Indeed it would even work just with:
+
+p = Path().resolve().parents[1]
+
+(and of course with .parent.parent instead of parents[1] )
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+answered Jan 20, 2022 at 0:51
+Martin's user avatar
+Martin Martin
+414 7 7 silver badges 21 21 bronze badges
+Add a comment  | 
+This answer is useful
+0
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+Only with os.path
+
+ os.path.abspath(os.path.join(os.path.dirname(__file__), "../.." ))  
+
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+answered Jun 12 at 16:05
+jkhadka's user avatar
+jkhadka jkhadka
+2,413 7 7 gold badges 33 33 silver badges 55 55 bronze badges
+Add a comment  | 
+This answer is useful
+-1
+This answer is not useful
+Save this answer.
+Show activity on this post.
+
+I don't yet see a viable answer for 2.7 which doesn't require installing additional dependencies and also starts from the file's directory. It's not nice as a single-line solution, but there's nothing wrong with using the standard utilities.
+
+ import os grandparent_dir = os.path.abspath( # Convert into absolute path string os.path.join( # Current file's grandparent directory os.path.join( # Current file's parent directory os.path.dirname( # Current file's directory os.path.abspath(__file__) # Current file path ), os.pardir ), os.pardir ) ) print grandparent_dir  
+
+And to prove it works, here I start out in ~/Documents/notes just so that I show the current directory doesn't influence outcome. I put the file grandpa.py with that script in a folder called "scripts". It crawls up to the Documents dir and then to the user dir on a Mac.
+
+ (testing)AlanSE-OSX:notes AlanSE$ echo ~/Documents/scripts/grandpa.py /Users/alancoding/Documents/scripts/grandpa.py (testing)AlanSE-OSX:notes AlanSE$ python2 .7 ~/Documents/scripts/grandpa.py /Users/alancoding  
+
+This is the obvious extrapolation of the answer for the parent dir . Better to use a general solution than a less-good solution in fewer lines.
+Share
+Improve this answer
+Follow
+Follow this answer to receive notifications
+edited May 23, 2017 at 11:47
+Community's user avatar
+Community Bot
+1 1 1 silver badge
+answered Dec 22, 2016 at 16:29
+AlanSE's user avatar
+AlanSE AlanSE
+2,587 2 2 gold badges 29 29 silver badges 22 22 bronze badges
+Add a comment  | 
+Your Answer
+
+Draft saved
+Draft discarded
+Sign up or log in
+Sign up using Google
+Sign up using Facebook
+Sign up using Email and Password
+Submit
+Post as a guest
+Name
+Email
+
+Required, but never shown
+Post as a guest
+Name
+Email
+
+Required, but never shown
+Post Your Answer Discard
+
+By clicking “Post Your Answer”, you agree to our terms of service and acknowledge that you have read and understand our privacy policy and code of conduct .
+Not the answer you're looking for? Browse other questions tagged
+
+    python
+    path
+    operating-system
+    directory 
+
+or ask your own question .
+
+    The Overflow Blog
+    Do large language models know what they are talking about?
+    Developers use AI tools, they just don’t trust them (Ep. 586)
+    Featured on Meta
+    Starting the Prompt Design Site: A New Home in our Stack Exchange Neighborhood
+    Colors update: A more detailed look
+    Testing native, sponsored banner ads on Stack Overflow (starting July 6)
+    Temporary policy: Generative AI (e.g., ChatGPT) is banned
+
+Linked
+3292
+What does ** (double star/asterisk) and * (star/asterisk) do for parameters?
+524
+How do I get the parent directory in Python?
+0
+Error while resizing image using open cv
+Related
+169
+How to get the parent dir location
+524
+How do I get the parent directory in Python?
+2
+Getting a specific parent folder with Python
+0
+Find top-level directory from subdirectory on Linux in Python
+3
+How can I get the path of the higher level directory of the current .py file in python?
+2
+Pythons finding parent directory alternatives
+4
+Get name (not full path) of subdirectories in python
+0
+How to get the path up to a specific sub-directory?
+3
+How to get the path of the parent directory in python
+0
+How get path of specific parent directory in python
+Hot Network Questions
+
+    Overvoltage protection with ultra low leakage current for 3.3 V
+    Does a Michigan law make it a felony to purposefully use the wrong gender pronouns?
+    Is there a non-combative term for the word "enemy"?
+    What are some examples of open sets that are NOT neighborhoods?
+    dmitri shostakovich vs Dimitri Schostakowitch vs Shostakovitch
+    Scottish idiom for people talking too much
+    How to calculate the reverberation time RT60 given dimensions of a room?
+    How to take large amounts of money away from the party without causing player resentment?
+    Why schnorr signatures uses H(R||m) instead of H(m)?
+    Non-anarchists often say the existence of prisons deters violent crime. How it is then that the USA is so high in violent crime?
+    Should i refrigerate or freeze unopened canned food items?
+    Why is it better to control a vertical/horizontal than diagonal?
+    Question of Venn Diagrams and Subsets on a Book
+    What conjunctive function does "ruat caelum" have in "Fiat justitia, ruat caelum"?
+    Making sense of the Jeans mass
+    Telling a child about a playmate's death
+    Is Linux swap still needed with Ubuntu 22.04
+    Are old AC transformers dangerous?
+    Why do most languages use the same token for `EndIf`, `EndWhile`, `EndFunction` and `EndStructure`?
+    Name of a movie where a guy is committed to a hospital because he sees patterns in everything and has to make gestures so that the world doesn't end
+    Why are lights very bright in most passenger trains, especially at night?
+    How can we compare expressive power between two Turing-complete languages?
+    How to model a binary variable
+    Why did CJ Roberts apply the Fourteenth Amendment to Harvard, a private school?
+
+Question feed
+Subscribe to RSS
+Question feed
+
+To subscribe to this RSS feed, copy and paste this URL into your RSS reader.
+lang-py
+Stack Overflow
+
+    Questions
+    Help
+
+Products
+
+    Teams
+    Advertising
+    Collectives
+    Talent
+
+Company
+
+    About
+    Press
+    Work Here
+    Legal
+    Privacy Policy
+    Terms of Service
+    Contact Us
+    Cookie Settings
+    Cookie Policy
+
+Stack Exchange Network
+
+    Technology
+    Culture & recreation
+    Life & arts
+    Science
+    Professional
+    Business
+    API
+    Data
+
+    Blog
+    Facebook
+    Twitter
+    LinkedIn
+    Instagram
+
+Site design / logo © 2023 Stack Exchange Inc; user contributions licensed under CC BY-SA . rev 2023.7.5.43524
+ 

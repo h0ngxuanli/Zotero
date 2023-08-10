@@ -1,0 +1,81 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2108.12055
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 26 Aug 2021]
+Title: Towards Self-Explainable Graph Neural Network
+Authors: Enyan Dai , Suhang Wang
+Download a PDF of the paper titled Towards Self-Explainable Graph Neural Network, by Enyan Dai and 1 other authors
+Download PDF
+
+    Abstract: Graph Neural Networks (GNNs), which generalize the deep neural networks to graph-structured data, have achieved great success in modeling graphs. However, as an extension of deep learning for graphs, GNNs lack explainability, which largely limits their adoption in scenarios that demand the transparency of models. Though many efforts are taken to improve the explainability of deep learning, they mainly focus on i.i.d data, which cannot be directly applied to explain the predictions of GNNs because GNNs utilize both node features and graph topology to make predictions. There are only very few work on the explainability of GNNs and they focus on post-hoc explanations. Since post-hoc explanations are not directly obtained from the GNNs, they can be biased and misrepresent the true explanations. Therefore, in this paper, we study a novel problem of self-explainable GNNs which can simultaneously give predictions and explanations. We propose a new framework which can find K -nearest labeled nodes for each unlabeled node to give explainable node classification, where nearest labeled nodes are found by interpretable similarity module in terms of both node similarity and local structure similarity. Extensive experiments on real-world and synthetic datasets demonstrate the effectiveness of the proposed framework for explainable node classification. 
+
+Subjects: 	Machine Learning (cs.LG)
+Cite as: 	arXiv:2108.12055 [cs.LG]
+  	(or arXiv:2108.12055v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2108.12055
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Enyan Dai [ view email ]
+[v1] Thu, 26 Aug 2021 22:45:11 UTC (1,309 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Towards Self-Explainable Graph Neural Network, by Enyan Dai and 1 other authors
+    PDF
+    Other formats 
+
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2108
+Change to browse by:
+cs
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+DBLP - CS Bibliography
+listing | bibtex
+Suhang Wang
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

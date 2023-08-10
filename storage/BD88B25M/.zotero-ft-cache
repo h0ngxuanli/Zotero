@@ -1,0 +1,82 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2212.06325
+
+Help | Advanced Search
+Search
+Computer Science > Cryptography and Security
+(cs)
+[Submitted on 13 Dec 2022]
+Title: AFLGuard: Byzantine-robust Asynchronous Federated Learning
+Authors: Minghong Fang , Jia Liu , Neil Zhenqiang Gong , Elizabeth S. Bentley
+Download a PDF of the paper titled AFLGuard: Byzantine-robust Asynchronous Federated Learning, by Minghong Fang and 3 other authors
+Download PDF
+
+    Abstract: Federated learning (FL) is an emerging machine learning paradigm, in which clients jointly learn a model with the help of a cloud server. A fundamental challenge of FL is that the clients are often heterogeneous, e.g., they have different computing powers, and thus the clients may send model updates to the server with substantially different delays. Asynchronous FL aims to address this challenge by enabling the server to update the model once any client's model update reaches it without waiting for other clients' model updates. However, like synchronous FL, asynchronous FL is also vulnerable to poisoning attacks, in which malicious clients manipulate the model via poisoning their local data and/or model updates sent to the server. Byzantine-robust FL aims to defend against poisoning attacks. In particular, Byzantine-robust FL can learn an accurate model even if some clients are malicious and have Byzantine behaviors. However, most existing studies on Byzantine-robust FL focused on synchronous FL, leaving asynchronous FL largely unexplored. In this work, we bridge this gap by proposing AFLGuard, a Byzantine-robust asynchronous FL method. We show that, both theoretically and empirically, AFLGuard is robust against various existing and adaptive poisoning attacks (both untargeted and targeted). Moreover, AFLGuard outperforms existing Byzantine-robust asynchronous FL methods. 
+
+Comments: 	Accepted by ACSAC 2022
+Subjects: 	Cryptography and Security (cs.CR) ; Distributed, Parallel, and Cluster Computing (cs.DC); Machine Learning (cs.LG)
+Cite as: 	arXiv:2212.06325 [cs.CR]
+  	(or arXiv:2212.06325v1 [cs.CR] for this version)
+  	https://doi.org/10.48550/arXiv.2212.06325
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Minghong Fang [ view email ]
+[v1] Tue, 13 Dec 2022 02:07:58 UTC (282 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled AFLGuard: Byzantine-robust Asynchronous Federated Learning, by Minghong Fang and 3 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.CR
+< prev   |   next >
+new | recent | 2212
+Change to browse by:
+cs
+cs.DC
+cs.LG
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

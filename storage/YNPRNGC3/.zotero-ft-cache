@@ -1,0 +1,646 @@
+Skip to content
+Skip to search
+1 1
+Try Quora+
+Profile photo for Li Hongxuan
+Add question
+What is the difference between transfer learning and federated machine learning?
+Answer
+Follow
+·
+99 12
+Request
+All related (35)
+Sort
+Recommended
+Profile photo for ChatGPT
+ChatGPT
+·
+AI bot
+Beta
+
+Transfer learning is a technique where a model trained on one task is fine-tuned on a different but related task. This can be useful when there is limited data available for the target task. The idea is to use knowledge learned from the sou
+Continue reading
+Icon for Pro Technical
+Pro Technical
+·
+Follow
+Answered by
+Suvajeet
+ 
+· · Apr 10 ·
+
+Transfer learning and federated machine learning are both techniques used in the field of machine learning, but they have some key differences in their approach and application.
+
+    Transfer Learning: Transfer learning is a machine learning technique where a pre-trained model, typically trained on a large dataset, is used as a starting point for a new, related task. The idea is to leverage the knowledge learned from one task to improve the performance of a different but related task. The pre-trained model, often called the "source model," is fine-tuned on the new task using a smaller dataset specific to the new task, called the "target task." Transfer learning can save computational resources and training time, as the pre-trained model has already learned useful features from the source task that can be beneficial for the target task.
+    Federated Machine Learning: Federated machine learning, on the other hand, is a distributed machine learning approach where multiple entities collaborate to train a shared machine learning model while keeping their data locally, without sharing the raw data with a central server. Each entity, often referred to as a "node" or "client," has its own local dataset and trains the model on that dataset using its own computational resources. The updates to the model are typically shared with a central server or coordinator, which aggregates the updates and updates the shared model. The idea behind federated machine learning is to enable collaborative model training without sharing raw data, which can be beneficial in scenarios where data privacy and security are concerns, such as in healthcare or finance. 
+
+In summary, transfer learning is a technique that uses a pre-trained model to improve the performance of a related task by leveraging knowledge from a source task, while federated machine learning is a distributed approach where multiple entities collaborate to train a shared model without sharing raw data. Transfer learning focuses on reusing learned features from one task to another, while federated machine learning focuses on distributed training of a shared model across multiple entities with local data.
+50 views ·
+View 2 upvotes
+· Submission accepted by
+Technical Sky
+· Answer requested by
+Technical Sky
+Upvote ·
+9 2
+Profile photo for Yariv Adan
+Yariv Adan
+·
+Follow
+Works at Google Assistant · 4y ·
+
+Transfer learning is the ability to take a complex model that was trained for some task A, using a HUGE amount of training data and compute resources, and then with a tiny bit of incremental work (small amount of data, small amount of resources) - you tune it to support a new task B. It's usually driven mostly by sample efficiency (especially when you simply don't have a lot of samples for task B), and compute efficiency. Some examples are:
+
+    Train a large CNN on the general task of image classification for the most common 1000 image classes (often such a task may run for a few days over billions 
+
+… (more)
+Upvote ·
+99 12
+9 1
+Icon for Pro Technical
+Pro Technical
+·
+Follow
+Answered by
+Web Tech Support
+· · Apr 10 ·
+
+Transfer learning is the process of optimising a previously trained model's performance on a new task, whereas federated machine learning is the process of training a model across numerous devices without exchanging data, protecting privacy. When training data is few, transfer learning is helpful, whereas federated machine learning is helpful when training data is dispersed among several devices.
+Upvote ·
+9 1
+Related questions
+More answers below
+What is the definition of transfer learning? What is the definition of homogeneous transfer learning?
+What is the difference in one-shot learning, transfer learning, and finetuning?
+What is the main drawback of federated learning? Would federated learning become the future of machine leaning?
+Icon for Pro Technical
+Pro Technical
+·
+Follow
+Answered by
+Bryan Phillip Nova
+· · Apr 10 ·
+
+Transfer learning is used to transfer the learning of a model trained on a similar data or task distribution to a new situation. It mostly consists of finding a better starting point to begin training.
+
+Federated learning is just any environment where the training is spread out over multiple computers and generally incurs network latency in certain parts of the algorithms due to this but it also allows better parallelization for faster training at the cost of more compute power.
+Upvote ·
+9 1
+Icon for Pro Technical
+Pro Technical
+·
+Follow
+Answered by
+Waris Khan
+· · Apr 11 ·
+
+Transfer learning is a technique where a pre-trained model is used as a starting point for a new task. The pre-trained model has already learned features from a large dataset, and these features can be used as a starting point for a new task. The pre-trained model is then fine-tuned on the new dataset to improve its performance on the new task.
+
+Federated machine learning, on the other hand, is a technique where multiple devices or servers collaborate to train a machine learning model without sharing their data. Each device or server trains the model on its local data, and the model is updated b
+… (more)
+Upvote ·
+9 1
+Profile photo for Sridhar Mahadevan
+Sridhar Mahadevan
+·
+Follow
+PhD in Computer Science , Rutgers University (Graduated 1990) · Upvoted by
+Marco Aurelio Sterpa
+, B.A. Computer Science, Sapienza University of Rome (2009) and
+Antonio Moretti
+, PhD Computer Science, Columbia University (2020) · 5y ·
+Related
+What is the difference between machine learning and statistics?
+
+Great question! I always begin my first lecture of my graduate ML course with this question. I like analogies, so the best way to explain the answer is through an analogy.
+
+ML is to statistics as engineering is to physics.
+
+How does civil or electrical or mechanical engineering differ from physics? The latter is the study of fundamental laws of the universe, of matter, of conservation of energy and symmetry etc. The former engineering fields are attempts to build structures, gadgets, machines that build on the deep knowledge of the universe that physics gives us. It is laughable to think that we c
+… (more)
+Upvote ·
+1.3K 1.3K
+99 28
+99 51
+Profile photo for Daniel Tunkelang
+Daniel Tunkelang
+·
+Follow
+Led machine learning projects at Endeca, Google, LinkedIn. · Featured on HuffPost , Forbes , Inc , Apple News and Hacker Noon Upvoted by
+Naran Bayanbat
+, MSCS with focus in machine learning and
+Anand Bhattad
+, MS Computer Science & Artificial Intelligence, University of Illinois at Urbana-Champaign (2019) · Updated 5y ·
+Related
+What should everyone know about machine learning?
+
+As someone who often finds himself explaining machine learning to non-experts, I offer the following list as a public service announcement.
+
+    Machine learning means learning from data ; AI is a buzzword. Machine learning lives up to the hype: there are an incredible number of problems that you can solve by providing the right training data to the right learning algorithms. Call it AI if that helps you sell it, but know that AI, at least as used outside of academia, is often a buzzword that can mean whatever people want it to mean.
+    Machine learning is about data and algorithms, but mostly data. Ther 
+
+… (more)
+Upvote ·
+999 929
+99 36
+99 15
+Profile photo for Sanjay Kumar
+Sanjay Kumar
+·
+Follow
+Data scientist | ML Engineer | Statistician · 2y ·
+Related
+What is federated learning in artificial intelligence and machine learning?
+
+Federated learning is a special distributed architectural approach of machine learning where a collective model is constructed from the data which is spread across the hardware of multiple users.
+
+Let us understand this architecture with an example,
+
+Imagine that we have to create a machine learning model which can predict whether a credit card transaction is a fraud or not. Assume that we are owning a bank that has almost 10000 credit card transactions per month. Now, the easiest way to build the machine learning model is to collect the data regarding all the credit card transactions that happene
+… (more)
+Upvote ·
+9 3
+9 6
+Profile photo for Delton Antony Myalil
+Delton Antony Myalil
+·
+Follow
+M.Tech in Artificial Intelligence , University of Hyderabad  (Graduated 2020) · 2y ·
+Related
+What is the main drawback of federated learning? Would federated learning become the future of machine leaning?
+
+Personally, an issue I am facing right now is that, while doing cross-silo FL, the characteristics of the data available with each silo will be very different from each other. Even for simple numeric datasets, if the distribution of features in one silo is different from that in another, during model aggregation, the global model will suffer, despite local models being accurate models independently. This violation of IID across different silos/devices is one of the problems associated with FL that increases overall bias.
+
+PS: If anyone know some good approach/papers about tackling this, please c
+… (more)
+Upvote ·
+9 3
+9 1
+Profile photo for Aleks Jakulin
+Aleks Jakulin
+·
+Follow
+10 years in machine learning · Upvoted by
+Thach Nguyen
+, PhD in CS and
+Kiran Kannar
+, Master's Computer Science, University of California, San Diego (2018) · Updated 10y ·
+Related
+What is the difference between statistics and machine learning?
+
+    Machine Learning is AI people doing data analysis.
+    Data Mining is database people doing data analysis.
+    Applied Statistics is statisticians doing data analysis (mathematical statistics is mathematicians doing statistics, a meta-activity analogous to theoretical computer scientists investigating, say, PAC and convergence - which sometimes gets put into machine learning).
+    Infographics is Graphic Designers doing data analysis.
+    Data Journalism is Journalists doing data analysis.
+    Econometrics is Economists doing data analysis (and here you can win a Nobel Prize ).
+    Psychometrics is Psychologists doing data 
+
+… (more)
+Upvote ·
+999 871
+99 10
+9 4
+Profile photo for Rohit Malshe
+Rohit Malshe
+·
+Follow
+Chem Engineer, Programmer, Amazon research scientist · Upvoted by
+Alan Davis
+, M.S. Computer Science & Machine Learning, The University of Texas at Dallas (2010) and
+Manel Bm
+, M.S Computer Science & Data Visualization, École Polytechnique de Montréal (2020) · 6y ·
+Related
+What is the difference between Data Analytics, Data Analysis, Data Mining, Data Science, Machine Learning, and Big Data?
+
+I had been wanting to take a stab at this one since a few days, but it always looked like an enormous task, because this question has used too many words. In addition, this is a question on which a lot of people have their eyes, and a lot of others have already written elaborate answers.
+
+Let me first re-order all the important words:
+
+    Big data
+    Data mining
+    Data analysis
+    Analytics
+    Machine learning
+    Data science 
+
+Imagine that you want to become a data scientist, and work in a big organization like Amazon, Intel, Google, FB, Apple and so on.
+
+How would that look like?
+
+    You would have to deal with big data , you w 
+
+… (more)
+Upvote ·
+1.4K 1.4K
+99 24
+99 68
+Profile photo for Monica Anderson
+Monica Anderson
+·
+Follow
+Understanding Machines and Deep Neural Networks since 2001 · Featured on SiliconAngle Upvoted by
+Abhishek Tripathi
+, MS Computer Science, University of North Carolina at Charlotte and
+Rahul Vishwakarma
+, M.Sc Computer Science & Computer Hacking, Banaras Hindu University (2016) · Updated 5y ·
+Related
+What is the difference between machine learning and artificial intelligence?
+
+Machine Learning is the only kind of AI there is.
+
+AI is changing. We are now recognizing that most things called "AI" in the past are nothing more than advanced programming tricks. As long as the programmer is the one supplying all the intelligence to the system by programming it in as a World Model, the system is not really an Artificial Intelligence. It's "just a program".
+
+Don't model the World; Model the Mind.
+
+When you Model the Mind you can create systems capable of Learning everything about the world. It is a much smaller task, since the world is very large and changes behind your back, whic
+… (more)
+Upvote ·
+999 827
+99 29
+99 16
+Profile photo for Dennis Michalopoulos
+Dennis Michalopoulos
+·
+Follow
+Principal AI Researcher (2020–present) · 3y ·
+Related
+What is transfer learning in the context of artificial intelligence?
+
+Within the context of deep learning (DL), transfer learning is the process of taking all, or a portion (subset of layers and their learned parameters) of an existing, i.e., pre-trained model, and applying to a different yet related task.
+
+For example, suppose you want to build a model to identify and locate (place a bounding box around) your family’s cat in images. Instead of starting completely from scratch, you can start by taking all or part of a high-performing convolutional neural network (a.k.a. ConvNet/CNN) model that has already been trained to identify and locate animals (dogs, cats, bi
+… (more)
+Upvote ·
+9 3
+9 1
+Profile photo for Sridhar Mahadevan
+Sridhar Mahadevan
+·
+Follow
+PhD in Computer Science , Rutgers University (Graduated 1990) · Upvoted by
+Samridh Khaneja
+, M. S Mathematics, Sardar Vallabhbhai National Institute of Technology, Surat (2021) and
+Anuran Roychowdhury
+, MS Computer Engineering & Machine Learning, University of Florida (2018) · Updated 5y ·
+Related
+How do I learn mathematics for machine learning?
+
+Great question! How indeed does one prepare oneself for a (research or otherwise) career in machine learning, in particular in terms of familiarizing oneself with the underlying mathematics? I’m going to resist the temptation of trotting out some standard books, and instead, focus on giving broad advice.
+
+There’s some bad news on this front, and it’s best to get this out of the way as quickly as possible. Having spent 35+ years studying machine learning, let me put this in the most direct way possible: no matter how much time and effort you devote to it, you can never know enough math to read th
+… (more)
+Upvote ·
+1.2K 1.2K
+99 28
+99 49
+Profile photo for Mustafa Orkun Acar
+Mustafa Orkun Acar
+·
+Follow
+Studied at Middle East Technical University · 7y ·
+Related
+In machine learning, what is the difference between the terms transfer learning, multitask learning, inductive transfer, meta-learning, and learning to learn?
+Originally Answered: In machine learning, what is the difference between the terms 'transfer learning', 'multitask learning', 'inductive transfer', 'meta-learning', and 'learning to learn'?
+
+Meta learning is a part of machine learning theory in which some algorithms are applied on meta data about the case to improve a machine learning process. The meta data includes properties about the algorithm used, learning task itself etc. Using the meta data, one can make a better decision of chosen learning algorithm(s) to solve the problem more efficiently.
+
+Transfer learning aims at improving the process of learning new tasks using the experience gained by solving predecessor problems which are somewhat similar. In practice, most of the time, machine learning models are designed to accompli
+… (more)
+Upvote ·
+99 22
+Profile photo for Rajesh Sampathkumar
+Rajesh Sampathkumar
+·
+Follow
+Lives in India · 5y ·
+Related
+Has federated learning been successful?
+
+If the Gboard feature powered by federated learning can be considered a success, then yes.
+
+Federated Learning: Collaborative Machine Learning without Centralized Training Data
+
+Federated learning doesn’t stop there, it can be used for numerous tasks where there are different versions of a model required, based on locale, context, sub-domains within a domain, and so on. In this sense, this is an exciting development and is probably set for more widespread adoption.
+
+A couple of things that could impact the development of federated learning techniques and their adoption:
+
+    The need to deploy ML at senso 
+
+… (more)
+Upvote ·
+9 3
+9 1
+Profile photo for M Andreux
+M Andreux
+·
+Follow
+Senior Data Scientist, FL Research @ Owkin · 2y ·
+Related
+Why do we use federated learning?
+
+There are many reasons why federated learning (FL) is used. These include, but are not limited to, privacy concerns, the hunt for fresh data, cooperation between competitors and compute cost mitigation.
+
+Privacy With FL, machine learning models are trained in a decentralized fashion and data samples never leave their original location. While the FL process can indirectly leak information on the underlying data samples, it prevents a direct data vacuuming. Therefore, FL is appealing for sensitive data whose owners do not want to share in a blind fashion. This applies e.g. to phones’ keyboards his
+… (more)
+Upvote ·
+9 1
+Profile photo for Ruohan Zhang
+Ruohan Zhang
+·
+Follow
+P.h.D. in Computer Science & Neuroscience , The University of Texas at Austin (Graduated 2019) · 6y ·
+Related
+What is the relationship between artificial intelligence, machine learning, deep learning, and artificial neural networks?
+
+Roughly, deep learning < artificial neural networks (ANN) < machine learning (ML) < artificial intelligence (AI), where “<” indicates subset or sub-field.
+
+Deep learning refers to a set of recent techniques in training and applying *deep* ANNs to problems like computer vision, language, reinforcement learning, etc. There are also shallow ANNs before deep learning.
+
+ANN is a model in ML research. People often use it as a non-linear/non-convex function approximator, i.e., it is more powerful than simple things like linear function models.
+
+ML is an approach in AI. The emphasis is on “learning”, so we
+… (more)
+Upvote ·
+99 54
+9 7
+Profile photo for Avi Stiefel
+Avi Stiefel
+·
+Follow
+Computer Vision Researcher at ImageSat International (2018–present) · 3y ·
+Related
+What is the difference between transfer learning and reinforcement learning?
+
+Reinforcement learning is a learning model that acts as a feedback-response loop. Given a specific task, the network will estimate the best output, automatically receive feedback, and update itself if it sees that it failed. It is a model that falls somewhere between supervised and unsupervised learning
+
+Transfer learning is not really a model of learning, but more of a tool to simplify future, similar tasks. The idea is to take a deep learning model already trained for a specific task, and use it as the basis for a different problem, generally as a starting point. It is a useful tool for simpli
+… (more)
+Upvote ·
+9 1
+9 2
+Profile photo for Slater Ryan Victoroff
+Slater Ryan Victoroff
+·
+Follow
+CTO of indico · 2y ·
+Related
+How does transfer learning differ for Deep Learning and traditional ML approaches? Does it differ?
+
+Yea, it differs quite a lot. In fact it even differs from older deep learning (5+ years old) to more modern deep learning. There are even transfer learning techniques that rely on neither Deep Learning nor traditional ML, but instead on sophisticated taxonomies.
+
+Deep Learning vs Traditional ML
+
+The biggest difference here is in model capacity. A model’s capacity refers to how much complexity it can handle. A simple linear regression model has very little capacity, while the bigger the network the more the capacity. You see, the key difference between traditional ML and Deep Learning is that tradi
+… (more)
+Upvote ·
+9 2
+9 1
+Profile photo for Eric Jang
+Eric Jang
+·
+Follow
+Research Engineer at Google Brain · 6y ·
+Related
+What is the difference between deep learning and transfer learning?
+
+Broadly speaking, Deep Learning (DL) is an umbrella term that “lumps together any neural network techniques used in the last 6 years or so”.
+
+Deep Learning does not refer to any one specific algorithm, but rather a general “philosophy of machine learning” that uses very big neural networks, often trained on huge amounts of data. Deep Learning has also been married with other fields to produce sub-topics like “Deep Reinforcement Learning”, “Deep Representation Learning”, “Deep Bayesian Inference”, “Deep Generative Models”, and so on.
+
+Transfer Learning as a field has existed before DL, and attempts
+… (more)
+Upvote ·
+99 29
+9 1
+Profile photo for Steven Schmatz
+Steven Schmatz
+·
+Follow
+BSE/MSE in Computer Science , University of Michigan College of Engineering (Graduated 1900) · 5y ·
+Related
+What is the difference between “transfer learning”, "domain adaptation” and “multitask learning" in machine learning?
+
+Transfer learning is a subfield of machine learning focused on sharing knowledge / representations between problems. You can achieve this in two ways:
+
+    Domain adaptation is a sequential process, where you train a model on Problem A and then you tweak the model for Problem B. For example, a common pattern for doing so is by training a shallow model on top of features learned on a bigger dataset. 
+
+    Multitask learning is a parallel process, where a model is jointly trained to minimize several loss functions on different problems. This builds a representation that is useful for several problems, from t 
+
+… (more)
+Upvote ·
+99 17
+Profile photo for Peter Harris
+Peter Harris
+·
+Follow
+Senior Data Scientist at ACNielsen (2018–present) · 4y ·
+Related
+What are some examples of machine learning applications in which transfer learning is used?
+
+Transfer learning is the technique of taking a model that has been trained to do one thing and retraining to do another. So, an example might be taking a model that has been trained to classify objects in photos (people, cars, toasters, etc.) and retraining that model to distinguish between different species of plant.
+
+Transfer learning has two main uses. The first is to give the process of training a model a head-start. So, in the example above, although the ability to distinguish a toaster from car might seem a long way from distinguishing a rose from a tulip, it has been found in practice tha
+… (more)
+Upvote ·
+9 7
+9 2
+Profile photo for Ji-Sung Kim
+Ji-Sung Kim
+·
+Follow
+Former Intern at Google Research (2017–2018) · Upvoted by
+Nikhil Badugu
+, M.S Computer Science & Machine Learning, Northeastern University · 5y ·
+Related
+What is federated learning?
+
+Check out my answer about federated learning to: What are the most interesting developments in industrial deep learning research in 2017?
+
+In the answer linked above, I provide an easy-to-understand explanation of the federal learning algorithm; an exercept is shown here:
+
+“I think Google Research’s work on federated learning is very interesting and relevant in the current age of mobile phones. The general idea is to maintain a master model, and to update this master model using many small updates from individual devices. The updates can be merged immediately and in an encrypted fashion so that no
+… (more)
+Upvote ·
+99 17
+Profile photo for Sai Charan (సాయి చరణ్)
+Sai Charan (సాయి చరణ్)
+·
+Follow
+Bachelor of Technology in Mechanical Engineering , ACE Engineering College (Graduated 2017) · 3y ·
+Related
+What are the disadvantages of transfer learning?
+
+    Currently, one of the biggest limitations to transfer learning is the problem of negative transfer. Transfer learning only works if the initial and target problems are similar enough for the first round of training to be relevant. Developers can draw reasonable conclusions about what type of training counts as “similar enough” to the target, but the algorithm doesn’t have to agree. If the first round of training is too far off the mark, the model may actually perform worse than if it had never been trained at all. Right now, there are still no clear standards on what types of training are suff 
+
+… (more)
+Upvote ·
+99 11
+9 2
+Profile photo for Aatika Kaleem
+Aatika Kaleem
+·
+Follow
+Bachelor of Science (B.S in Computer Science & Computer Security , University of California, Berkeley (Graduated 2008) · Apr 12 ·
+Related
+What is the difference between deep learning and machine learning? What is transfer deep learning? What is transfer machine learning?
+
+Deep learning and machine learning are both subfields of artificial intelligence, but they differ in their approach to solving problems.
+
+Machine learning involves training models on large datasets to recognize patterns and make predictions or decisions. It is typically used for tasks such as image classification, speech recognition, and natural language processing. Machine learning algorithms can be supervised, unsupervised, or semi-supervised, depending on the amount of labeled data available for training.
+
+Deep learning is a type of machine learning that uses neural networks with many layers to
+… (more)
+Upvote ·
+Profile photo for Kashif Ali Siddiqui
+Kashif Ali Siddiqui
+·
+Follow
+Have taken courses, and worked on projects. · 5y ·
+Related
+What is the definition of bottleneck features in transfer learning?
+
+In transfer learning, we take a pre-trained model (network + weights), and then removes the FC network, and construct our own in place of it. Doing so, it will remove the pre-trained weights at those layers. Now the original network before the FC network is frozen so that, when the training is start on the new data set, only the newly added FC network are trained. Here the input to the FC network is called the bottleneck features . They represent the activation map from the last conv. layer in the network.
+
+Hence with frozen weights in the main network, we will get to use the pre-trained weights
+… (more)
+Upvote ·
+9 6
+Profile photo for HoopoeHoopla
+HoopoeHoopla
+·
+Follow
+Knows English · Jan 13 ·
+Related
+What’s the best way to use transfer learning to build efficient ML solutions?
+
+Transfer learning is an effective method of building efficient machine learning solutions by utilizing the knowledge gained from previously trained models. To use transfer learning effectively, it's crucial to have a clear understanding of the problem and dataset at hand. This will aid in determining the most suitable pre-trained model and how to fine-tune it. A wide range of pre-trained models are available across various libraries and platforms such as TensorFlow, PyTorch, and Keras. Once a pre-trained model is selected, it can be fine-tuned by training it on your dataset. This process typic
+… (more)
+Upvote ·
+Profile photo for Noman Sajid
+Noman Sajid
+·
+Follow
+Studied Computer Science & Information Technology (Graduated 2021) · Apr 7 ·
+Related
+What is the difference between transfer learning and learning from scratch?
+
+The main difference between transfer learning and learning from scratch is that transfer learning involves using the knowledge gained from a pre-trained model to solve a new, related problem, while learning from scratch involves training a model from scratch on a new dataset without using any pre-existing knowledge.
+
+When training a neural network from scratch, the weights and biases of the model are initialized randomly, and the model is trained on the new dataset using an optimization algorithm like stochastic gradient descent. The model learns to recognize patterns in the data and optimize it
+… (more)
+Your response is private
+Was this worth your time?
+This helps us sort answers on the page.
+Absolutely not
+Definitely yes
+Upvote ·
+Profile photo for Saad Muhammad
+Saad Muhammad
+·
+Follow
+AI & DataScience Blog @ https://medium.com/@itssaad.muhammad · Feb 15 ·
+Related
+What are the advantages of transfer learning over the from scratch approach in machine learning?
+
+Transfer learning is a machine learning technique in which knowledge learned from one task is used to improve performance on another related task. The main advantages of transfer learning over the "from scratch" approach are:
+
+    More Data Efficient: Transfer learning allows you to use a pre-trained model that has already been trained on a large amount of data, which can be especially useful in cases where there is limited data available for the new task.
+    Access to Pre-Trained Models: Transfer learning provides access to pre-trained models that have already been trained on large amounts of data, whi 
+
+… (more)
+Upvote ·
+Profile photo for Milad Khademi Nori
+Milad Khademi Nori
+·
+Follow
+PhD in Machine Learning & Deep Learning , Queen's University at Kingston (Graduated 2023) · 1y ·
+Related
+Is federated learning also a part of machine learning?
+
+Yes, but there’s a little bit difference. Federated Learning (FL) is a training paradigm where a large number of workers collectively train a model using Stochastic Gradient Descent (SGD). Each worker holds a local (often private) training dataset, with which it contributes to training a global model. Specifically, in each FL round, each worker computes the error of the global model by forward-propagating the samples of its own dataset through the model, followed by comparing the model’s outputs with samples’ labels and applying an appropriate loss function. By backpropagating this error, each
+… (more)
+Upvote ·
+Profile photo for Tanmoy Mukherjee
+Tanmoy Mukherjee
+·
+Follow
+Live and work on it · 9y ·
+Related
+What is the difference between one-shot learning and transfer learning?
+Originally Answered: What is the difference between one-shot learning and transfer learning?
+
+Let me start with transfer learning.
+Normally in any standard ML problem, we are given a input space and label space . Inductive transfer is concerned with
+when the label space changes between train and test distribution.
+
+Generally in Transfer learning [1] typically questions posed are
+1)What to transfer ?
+2)How to transfer ?
+3)When to transfer ?
+
+The settings are set with "source" and "target"
+tasks. The possibility of settings are:-
+
+1) when source is labeled, target is unlabeled
+2)source unlabeled, targer labeled
+3)source and target are labeled
+
+Generally for problems people follow 3
+… (more)
+Upvote ·
+9 6
+Profile photo for Cory Hicks
+Cory Hicks
+·
+Follow
+VP of Engineering At Boomtrain: Interested in being a geek and Crossfit · Upvoted by
+Sreehari P V
+, M.Sc Computer Science & Artificial Intelligence and
+Frederick T. Williams
+, M.S. Data Science, Regis University (2020) · 7y ·
+Related
+What's the easiest way to learn machine learning?
+Originally Answered: What's the easiest way to learn machine learning ?
+
+My recommendation is a little different from others answering this question; I assume you want to become a star at both Machine Learning AND Engineering.
+
+Why do I draw the distinction? Well, there are lots of folks in the market that are great engineers and there are also lots of folks who are great at machine learning, but there is a severe shortage of great Machine Learning Engineers.
+
+Engineers who are great in both fields are basically unicorns and are at least 10x as valuable as someone who is great in just one of the fields. These are the engineers who don’t just work on algorithms or syste
+… (more)
+Upvote ·
+999 616
+9 5
+9 8
+Related questions
+What is the definition of transfer learning? What is the definition of homogeneous transfer learning?
+What is the difference in one-shot learning, transfer learning, and finetuning?
+What is the main drawback of federated learning? Would federated learning become the future of machine leaning?
+What’s the best way to use transfer learning to build efficient ML solutions?
+What is the difference between transfer learning, fine tuning, and learning from scratch?
+What is the definition of homogeneous transfer learning? What is the definition of heterogeneous transfer learning?
+What's the difference between the terms "machine learning", "deep learning", and "AI"?
+What is the current progress of learning with less data (nowadays known as one-shot learning) as well as transfer learning?
+In machine learning, what is the difference between the terms transfer learning, multitask learning, inductive transfer, meta-learning, and learning to learn?
+What is a pretrained model and how can it be used for transfer learning? What are the pros and cons of this method in terms of accuracy vs. speed/time to train an accurate model?
+What is federated machine learning?
+What is the key difference between AI, machine learning and deep learning? What are some real life examples?
+What is the difference between using a pretrained network and starting from scratch when using transfer learning?
+How does transfer learning differ for Deep Learning and traditional ML approaches? Does it differ?
+What is the definition of transfer learning? Can transfer learning be used on very small datasets for classification tasks? If so, how would you go about doing this efficiently?
+Related questions
+What is the definition of transfer learning? What is the definition of homogeneous transfer learning?
+What is the difference in one-shot learning, transfer learning, and finetuning?
+What is the main drawback of federated learning? Would federated learning become the future of machine leaning?
+What’s the best way to use transfer learning to build efficient ML solutions?
+What is the difference between transfer learning, fine tuning, and learning from scratch?
+What is the definition of homogeneous transfer learning? What is the definition of heterogeneous transfer learning?
+Add question
+Advertisement
+Messages
+No messages
+Connect with others on Quora by beginning a new conversation.
+New message
+Please enable Javascript and refresh the page to continue

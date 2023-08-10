@@ -1,0 +1,679 @@
+Expressive and Interpretable Graph Neural Networks
+Pan Li
+10/03/2022 Talk at FastML workshop
+1
+
+Collaborators
+
+Siqi Miao
+
+Daniel F. Guerrero
+
+Mia Liu
+
+Jacobo Konigsberg Zhenbin Wu
+
+Tianchun Li
+
+Shikun Liu
+
+Yongbin Feng
+
+Lisa Paspalaki
+
+Nhan Tran
+
+Yanbang Wang
+
+Hongwei Wang
+
+Jure Leskovec
+
+Yunan Luo
+2
+
+Deep Learning on Graphs in Science
+• Protein folding
+[Senior et al., Nature 2019] [Jumper et al., Nature 2021]
+• Simulation of glass dynamics
+[Baspt et al, Nature Physics 2021]
+• Molecular Property Prediction • Jet Tagging in HEP
+
+[Duvenaud et al., NeurIPS 2015]
+
+Refined based on [Qu, Li, Qian, 2022] 3
+
+Graph Neural Networks
+Graph Data 𝐴, 𝑋 : the adjacency matrix 𝐴, possibly with node attributes 𝑋.
+
+ℎ)(#)
+
+ℎ'(#)
+
+0.1 0.6 …
+
+e
+
+Node (feature) representation
+• Transformation of node attributes
+
+d ℎ!(#) a
+
+f ℎ&(#)
+
+ℎ%(#) c
+
+b ℎ((#)
+
+4
+
+Graph Neural Networks
+Graph Data 𝐴, 𝑋 : the adjacency matrix 𝐴, possibly with node attributes 𝑋.
+
+ℎ)(#) d
+
+ℎ'(#)
+
+0.1 0.6 …
+
+e
+
+ℎ!(#) a
+
+f ℎ&(#)
+
+ℎ%(#) c
+
+b ℎ((#)
+
+Update (A feed-forward NN)
+ℎ((*)b
+
+𝑓+,)!-'(… )
+
+𝑓!..(… ) Sum or
+
+…
+
+mean or
+
+max
+
+ℎ!(#) a ℎ%(#) c f
+
+Graph neural network: one layer
+Aggregation (sum, mean, max pooling, attention, etc.)
+
+ℎ!(#$%) = 𝑓'()*#+ ℎ!# , 𝑓*,, {ℎ'# 𝑢 ∈ 𝑁!} , where 𝑁! denotes the set of the neighbors of node 𝑣.
+5
+
+Graph Neural Networks
+
+Graph Data 𝐴, 𝑋 : the adjacency matrix 𝐴, possibly with node attributes 𝑋.
+
+ℎ)(*) d
+
+ℎ'(*)
+
+0.2 0.5 …
+
+e
+
+ℎ!(*) a
+
+f ℎ&(*)
+
+ℎ%(*) c
+
+b ℎ((*)
+
+ℎ((,) a
+
+ℎ((*) a
+
+ℎ.(/) b
+
+ce
+
+ℎ-(,) c f a b d a f ℎ0(,)
+
+Make prediction
+1. [node level] Use node representations separately to predict node labels
+2. [graph level] Aggregate all node representations to predict the graph label
+ℎ- = POOL ℎ!(.) ∣ 𝑣 ∈ 𝑉
+
+ℎ!(#$%) = 𝑓'()*#+ ℎ!# , 𝑓*,, {ℎ'# 𝑢 ∈ 𝑁!} , where 𝑁! denotes the set of the neighbors of node 𝑣.
+6
+
+Limitations of GNNs in Science
+• Limited Expressive Power • Fail to represent some relations between input features and labels
+• Hard to Interpret • Complicated architectures • Capture spurious correlations not effective patterns
+• Subpar Generalization • Performance drop due to distribution shifts (simulation-based training -> real-data testing)
+7
+
+Limitations of GNNs in Science
+
+• Limited Expressive Power • Fail to represent some relations between input features and labels
+
+• Hard to Interpret • Complicated architectures • Capture spurious correlations not effective patterns
+
+• Subpar Generalization
+
+• Performance drop due to distribution shifts (simulation-based training -> real-data testing)
+
+Image source: HOW CMS WEEDS OUT PARTICLES THAT PILE UP
+Observed in
+
+Please check this with Shikun Liu on Wednesday.
+
+pileup mitigation
+
+8 Li et al., Semi-supervised Graph Neural Networks for Pileup Noise Removal, Neurips AI4Science workshop, 2021
+
+Limitations of GNNs in Science
+• Limited Expressive Power • Fail to represent some relations between input features and labels
+• Hard to Interpret • Complicated architectures • Capture spurious correlations not effective patterns
+• Subpar Generalization • Performance drop due to distribution shifts (simulation-based training -> real-data testing)
+9
+
+Expressive Power
+
+• The target function 𝑓: 𝒳 → 𝒴 --- unknown • A model 𝑓!: 𝒳 → 𝒴 --- 𝜃 denotes the parameters
+Can we expect sup |𝑓 𝑋 − 𝑓! 𝑋 | to be small for some 𝜃?
+"∈𝒳
+For regular inputs 𝒳 = ℝ) and a fully-connected feedforward 𝑓/ For graph inputs 𝒳 = 𝒢 = {0,1}0×0 and a GNN 𝑓/
+
+Hornik et al., Multilayer Feedforward Networks are Universal Approximators, Neural Networks, 1989
+
+Xu et al., How powerful are graph neural networks? ICLR 2019,
+
+10
+
+Expressive Power for Graph-level Tasks
+GNNs predict graph-level properties:
+
+• Solubility
+
+• Toxicity
+
+GNN
+
+• HOMO-LUMO
+energy gap
+
+• effectiveness to certain disease
+
+An illustration showing the different stages involved in developing a drug. Image credit: Genome Research Limited
+
+11
+
+Expressive Power for Graph-level Tasks
+GNNs fail in many cases. E.g., fail to give predictions of any different properties regarding the following molecules
+
+Decalin
+
+GNNs yield same prediction
+
+limited expressive power
+
+Bicyclopentyl
+
+12
+
+Expressive Power for Graph-level Tasks
+Node attributes
+“one carbon atom with two hydrogen atoms” as a node
+13
+
+Expressive Power for Graph-level Tasks
+ℎ"($%&) = 𝑓()*+$, ℎ"$ , 𝑓+-- {ℎ($ 𝑢 ∈ 𝑁"}
+Iteration I Iteration II
+14
+
+Expressive Power for Graph-level Tasks
+
+ℎ"($%&) = 𝑓()*+$, ℎ"$ , 𝑓+-- {ℎ($ 𝑢 ∈ 𝑁"}
+Iteration I
+
+Iteration II
+
+…
+Predict based on ℎ- = POOL ℎ!(.) ∣ 𝑣 ∈ 𝑉
+
+The multi-sets of colors (node representations) on two graphs keep the same
+
+No valid predictions…
+
+15
+
+Expressive Power for Graph-level Tasks
+• Too symmetric? This is not an extreme case… • Consider 𝐴 ∈ ℝ%×%, 𝑓 𝐴 = 𝑡𝑟𝑎𝑐𝑒(𝐴)) • If let 𝐴 ∈ 0,1 %×% represent a graph, 𝐴'( = 1 if (𝑢, 𝑣) is an edge, 𝑓 𝐴 outputs the number of 3-cycles.
+16
+
+Expressive Power for Graph-level Tasks
+• Too symmetric? This is not an extreme case… • Consider 𝐴 ∈ ℝ%×%, 𝑓 𝐴 = 𝑡𝑟𝑎𝑐𝑒(𝐴)) • If let 𝐴 ∈ 0,1 %×% represent a graph, 𝐴'( = 1 if (𝑢, 𝑣) is an edge, 𝑓 𝐴 outputs the number of 3-cycles. • Consider a GNN 𝑓!(⋅).
+Have different numbers of 3-cycles while GNNs give them the same prediction
+v.s.
+17
+
+Expressive Power for Graph-level Tasks
+
+• Too symmetric? This is not an extreme case…
+• Consider 𝐴 ∈ ℝ%×%, 𝑓 𝐴 = 𝑡𝑟𝑎𝑐𝑒(𝐴))
+• If let 𝐴 ∈ 0,1 %×% represent a graph, 𝐴'( = 1 if (𝑢, 𝑣) is an edge, 𝑓 𝐴 outputs the number of 3-cycles.
+• Consider a GNN 𝑓!(⋅). 𝑓!(⋅) cannot approximate 𝑓 ⋅ • A lot of input 𝐴’s may cause such errors
+
+Error for 𝐴 ∈ ℝ0×0 : |𝑓/ 𝐴 − 𝑓 𝐴 |
+
+Error is expanded 𝐴
+
+Note that 𝑓. is continuous
+
+18
+
+Solutions for Graph-level Expressive Power
+19
+
+Solutions for Graph-level Expressive Power
+Let us consider the 0-1 case: 𝐴 ∈ 0,1 %×% (a graph without weights on edges)
+
+One key idea: Injecting structural (e.g., distance) features
+
+u
+
+u v
+
+v
+For any node u, there is at most one node v whose shortest path distance to u is 5.
+
+v
+There exists a node u such that there are two nodes whose shortest path distance to u are 5.
+
+20 Li et al., Distance encoding: Design provably more powerful neural networks for graph representation learning, NeurIPS 2020
+
+Solutions for Graph-level Expressive Power
+
+Let us consider the 0-1 case: 𝐴 ∈ 0,1 %×%
+
+u
+
+u
+
+• Build a new fully connected graphs (transformers) • Use distance over the original graph as edge features
+on the new graph
+Graphomer achieves top-1 in KDD Cup's 2021 to predict molecular properties
+21 Ying et al., Do Transformers Really Perform Bad for Graph Representation? NeurIPS 2021
+
+Solutions for Graph-level Expressive Power
+
+How about the case when 𝐴 ∈ ℝ%×%?
+
+u
+
+u
+
+[ 𝐴+ (", 𝐴+/ (", 𝐴+0 (", … ] Use as extra edge features
+
+• Build a new fully connected graph (transformers)
+
+•
+
+Use [
+
+𝐴?
+
+,
+'(
+
+𝐴?*
+
+,
+'(
+
+𝐴?)
+
+,
+'(
+
+…
+
+]
+
+as
+
+edge
+
+features
+
+for
+
+(u,v)
+
+𝐴+: Adding some row/column normalization is good for numerical stability
+
+A more general structural feature
+22 Chen et al., on the equivalence between graph isomorphism testing and function approximation with gnns. NeurIPS 2019
+
+Solutions for Graph-level Expressive Power
+
+How about the case when 𝐴 ∈ ℝ%×%?
+
+u
+
+u
+
+[ 𝐴+ (", 𝐴+/ (", 𝐴+0 (", … ] Use as extra edge features
+v
+
+For complexity consideration, this can be removed.
+• Build fully connected graphs (transformers)
+
+•
+
+Use [
+
+𝐴?
+
+,
+'(
+
+𝐴?*
+
+,
+'(
+
+𝐴?)
+
+'( … ] as edge features
+
+𝐴+: Adding some row/column normalization is good for numerical stability
+
+23
+
+Solutions for Graph-level Expressive Power
+• Higher-order tensors: Computation complexity is high
+Maron et al., Provably powerful graph networks, NeurIPS 2019
+• Add random node features: Training is hard to converge
+Sato et al., Random features strengthen graph neural networks, SDM 2021 Abboud et al., The surprising power of graph neural networks with random node initialization, IJCAI 2021
+24
+
+Limitations of GNNs in Science
+• Limited Expressive Power • Fail to represent some relations between input features and labels
+• Hard to Interpret • Complicated architectures • Capture spurious correlations not effective patterns
+• Subpar Generalization • Performance drop due to distribution shifts (simulation-based training -> real-data testing)
+25
+
+𝜏 → 3μ Detection
+
+q Motivation
+§ Physics beyond the Standard Model
+• Search for charged lepton flavor violating decays • 𝜏 → 3μ is the cleanest signature
+§ Extremely small branching ratio
+• Though may be enhanced by BSM physics • BR(𝜏 → 3𝜇) ∼ 𝑂 10!"
+q Given an ML model, we want
+§ High trigger efficiency § Low trigger rate
+
+The Large Hadron Collider
+
+26
+
+GNNs give super performance
+q We use muon hits left in the muon stations to make prediction. Traditional methods (pattern matching)
+The three 𝜇’s
+GNN-based methods
+92% efficiency @ 10kHz rate Can we trust this performance?
+27
+
+Problem: Spurious Correlations
+• Positive samples: Only use the endcap (a half of space Eta>0 or Eta< 0 ) without true signals
+• Negative samples: Randomly choose one endcap (a half of space Eta>0 or Eta< 0 )
+The three 𝜏’s
+Now, we get 87% efficiency @ 10kHz rate
+28
+
+Problem: Spurious Correlations
+• Positive samples: Only use the endcap (a half of space Eta>0 or Eta< 0 ) without true signals
+• Negative samples: Randomly choose one endcap (a half of space Eta>0 or Eta< 0 )
+
+The three 𝜏’s
+
+Why can it happen？
+Either the simulator or pre-processing injects spurious correlations.
+
+Now, we get 87% efficiency @ 10kHz rate
+
+Two endcaps: 92% efficiency @ 10kHz rate Traditional: 24% efficiency @ 77kHz rate29
+
+Design Interpretable and Trustworthy GNNs
+Can we check patterns learned by GNNs to see if we can trust them?
+
+We expect GNNs to tell us
+
+We expect GNNs to tell us
+
+30
+
+Solution: Learnable Randomness Injection
+Constrain the amount of information that the model can use from the data
+
+Miao et al., Interpretable geometric deep learning via learnable randomness injection, in submission
+
+31
+
+Miao et al., Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism, ICML 2022
+
+Solution: Learnable Randomness Injection
+• A trainable model output the probabilities to drop/keep points
+
+Add randomness
+
+0.7
+
+0.7
+
+0.7
+
+0.7
+
+0.7 0.7
+
+keeping prob.
+
+a trainable model
+
+(graph construction + GNN)
+
+32
+
+Miao et al., Interpretable geometric deep learning via learnable randomness injection, in submission
+
+Solution: Learnable Randomness Injection
+• A trainable model output the probabilities to drop/keep points • Another trainable model encodes the perturbed data to predict labels
+
+Add randomness
+
+0.7 0.7
+
+0.7 0.7
+0.7 0.7
+
+Driven by Classification
+Loss
+Another trainable model
+
+0.7 0.7
+
+0.7 1
+1 1
+
+keeping prob.
+
+a trainable model
+
+(graph construction + GNN)
+
+33
+
+Miao et al., Interpretable geometric deep learning via learnable randomness injection, in submission
+
+Solution: Learnable Randomness Injection
+• A trainable model output the probabilities to drop/keep points • Another trainable model encodes the perturbed data to predict labels • Rank the probabilities to provide important patterns
+
+Add randomness
+
+0.7 0.7
+
+0.7 0.7
+0.7 0.7
+
+Driven by Classification
+Loss
+Another trainable model
+
+0.7 0.7
+
+0.7 1
+1 1
+
+keeping prob.
+
+a trainable model
+
+(graph construction + GNN)
+
+Provide interpretation for checking
+34
+
+Miao et al., Interpretable geometric deep learning via learnable randomness injection, in submission
+
+Solution: Learnable Randomness Injection
+
+• A trainable model output the probabilities to drop/keep points
+• Another trainable model encodes the perturbed data to predict labels
+• Rank the probabilities to provide important patterns • The detected points by our methods match the 𝜏 → 3μ signals with
+80% ROC AUC
+
+Add randomness
+
+0.7 0.7
+
+0.7 0.7
+0.7 0.7
+
+Driven by Classification
+Loss
+Another trainable model
+
+0.7 0.7
+
+0.7 1
+1 1
+
+keeping prob.
+
+a trainable model
+
+(graph construction + GNN)
+
+Provide interpretation for checking
+35
+
+Miao et al., Interpretable geometric deep learning via learnable randomness injection, in submission
+
+Check Papers and Code
+More Applications
+
+Point cloud part is under review at ICLR 2023
+
+Applied to 2-D molecules
+
+Code is online:
+https://github.com/Graph-COM/GSAT
+
+Miao et al., Interpretable and Generalizable Graph Learning via Stochastic Attention Mechanism, ICML 2022
+
+36
+
+Miao et al., Interpretable geometric deep learning via learnable randomness injection, in submission
+
+Takeaways
+
+Three problems of GNNs in scientific applications…
+
+• Limited Expressive Power
+
+Adding structural features, e.g., [
+
+𝐴8
+
+,
+#$
+
+𝐴8%
+
+,
+#$
+
+𝐴8&
+
+,
+#$
+
+…
+
+]
+
+as
+
+edge
+
+features
+
+• Hard to Interpret
+Constraining information during the model training by adding randomness
+
+• Subpar Generalization
+
+37
+
+Takeaways
+
+Three problems of GNNs in scientific applications…
+
+• Limited Expressive Power
+
+Adding structural features, e.g., [
+
+𝐴8
+
+,
+#$
+
+𝐴8%
+
+,
+#$
+
+𝐴8&
+
+,
+#$
+
+…
+
+]
+
+as
+
+edge
+
+features
+
+• Hard to Interpret and trust
+Constraining information during the model training by adding randomness
+
+• Subpar Generalization
+
+Thank you!
+38
+

@@ -1,15 +1,15 @@
 {
 	"translatorID": "31659710-d04e-45d0-84ba-8e3f5afc4a54",
+	"translatorType": 4,
 	"label": "Twitter",
 	"creator": "Bo An, Dan Stillman",
 	"target": "^https?://([^/]+\\.)?twitter\\.com/",
 	"minVersion": "4.0",
-	"maxVersion": "",
+	"maxVersion": null,
 	"priority": 100,
 	"inRepository": true,
-	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2022-02-01 20:17:45"
+	"lastUpdated": "2023-08-03 02:55:00"
 }
 
 /*
@@ -37,7 +37,7 @@
 */
 
 
-let titleRe = /^(?:\(\d+\) )?(.+) .* Twitter: .([\S\s]+). \/ Twitter/;
+let titleRe = /^(?:\(\d+\) )?(.+) .* Twitter: .([\S\s]+). \/ (?:Twitter|X)/;
 
 function detectWeb(doc, url) {
 	if (url.includes('/status/')) {

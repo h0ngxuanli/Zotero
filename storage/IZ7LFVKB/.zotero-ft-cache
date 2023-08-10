@@ -1,0 +1,782 @@
+Causal Attention for Interpretable and Generalizable Graph Classification
+
+arXiv:2112.15089v2 [cs.LG] 13 Jun 2022
+
+Yongduo Sui
+syd2019@mail.ustc.edu.cn University of Science and Technology
+of China
+
+Xiang Wang∗
+xiangwang1223@gmail.com University of Science and Technology
+of China
+
+Jiancan Wu
+wujcan@gmail.com University of Science and Technology
+of China
+
+Min Lin
+linmin@sea.com Sea AI Lab
+
+Xiangnan He
+xiangnanhe@gmail.com University of Science and Technology
+of China
+
+Tat-Seng Chua
+dcscts@nus.edu.sg National University of Singapore
+
+ABSTRACT
+In graph classification, attention- and pooling-based graph neural networks (GNNs) prevail to extract the critical features from the input graph and support the prediction. They mostly follow the paradigm of “learning to attend”, which maximizes the mutual information between the attended graph and the ground-truth label. However, this paradigm makes GNN classifiers recklessly absorb all the statistical correlations between input features and labels in the training data, without distinguishing the causal and noncausal effects of features. Instead of underscoring the causal features, the attended graphs are prone to visit the noncausal features as the shortcut to predictions. Such shortcut features might easily change outside the training distribution, thereby making the GNN classifiers suffer from poor generalization.
+In this work, we take a causal look at the GNN modeling for graph classification. With our causal assumption, the shortcut feature serves as a confounder between the causal feature and prediction. It tricks the classifier to learn spurious correlations that facilitate the prediction in in-distribution (ID) test evaluation, while causing the performance drop in out-of-distribution (OOD) test data. To endow the classifier with better interpretation and generalization, we propose the Causal Attention Learning (CAL) strategy, which discovers the causal patterns and mitigates the confounding effect of shortcuts. Specifically, we employ attention modules to estimate the causal and shortcut features of the input graph. We then parameterize the backdoor adjustment of causal theory — combine each causal feature with various shortcut features. It encourages the stable relationships between the causal estimation and the prediction, regardless of the changes in shortcut parts and distributions. Extensive experiments on synthetic and real-world datasets demonstrate the effectiveness of CAL.
+∗Xiang Wang is the corresponding author.
+Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for profit or commercial advantage and that copies bear this notice and the full citation on the first page. Copyrights for components of this work owned by others than ACM must be honored. Abstracting with credit is permitted. To copy otherwise, or republish, to post on servers or to redistribute to lists, requires prior specific permission and/or a fee. Request permissions from permissions@acm.org. KDD ’22, August 14–18, 2022, Washington, DC, USA © 2022 Association for Computing Machinery. ACM ISBN 978-1-4503-9385-0/22/08. . . $15.00 https://doi.org/10.1145/3534678.3539366
+
+CCS CONCEPTS
+• Mathematics of computing → Graph algorithms; • Computing methodologies → Learning latent representations.
+KEYWORDS
+Graph Neural Networks, Graph Classification, Causal Intervention
+ACM Reference Format: Yongduo Sui, Xiang Wang, Jiancan Wu, Min Lin, Xiangnan He, and TatSeng Chua. 2022. Causal Attention for Interpretable and Generalizable Graph Classification. In Proceedings of the 28th ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD ’22), August 14–18, 2022, Washington, DC, USA. ACM, New York, NY, USA, 10 pages. https://doi.org/ 10.1145/3534678.3539366
+1 INTRODUCTION
+Graph neural networks (GNNs) [8, 17] have exhibited impressive performance of graph classification across various domains, such as chemical molecules, social networks, and transaction graphs. Such a success mainly comes from the powerful representation learning of GNNs, which incorporates the graph structure and encodes them into the representations in an end-to-end way. Hence, it is crucial to emphasize the critical part of the input graph, while filtering the trivial part out [23, 37–39]. For example, when classifying the mutagenic property of a molecular graph [24], GNNs are expected to latch on the functional groups (i.e., nitrogen dioxide (NO2)), instead of the irrelevant patterns (i.e., carbon rings) [5, 46]; when detecting fraud in a transaction network, malicious behaviors or coalitions of users are more informative than benign features.
+Towards specifying the critical parts in graphs, some follow-on studies [10, 16, 35, 45] adopt the paradigm of “learning to attend” [34, 40] — maximizing the mutual information between the attended graph and the ground-truth label — to find the attended graph that maximizes the predictive performance. Specifically, there are two research lines in this paradigm: (1) Attention-based methods [4, 16, 22, 33, 35]. They often utilize the attention modules for nodes or edges to locate the attended graphs. These attention modules act like soft masks to identify the importance of each edge and node to the final representations and predictions. (2) Pooling-based methods [10, 19, 45, 49]. They directly adopt hard masks to select a subset of nodes or edges as the attended graphs, to perform the information propagations. These attended graphs aim to approach
+
+the features that are beneficial for minimizing the training loss, instead of distinguishing the causal and noncausal effects.
+Unfortunately, recent efforts [2, 11, 12, 18] have shown that the current attention or pooling learning methods are prone to exploit the shortcut features to make decisions. These shortcuts usually come from the data selection biases, noisy features, or some trivial patterns from graphs, which are noncausal but discriminative in training data. Due to the existence of these shortcuts, models can capture shortcut features to finish the classification tasks without struggling to learn causal features. For example, instead of probing into the causal effect of the functional groups, the attended graphs prefer “carbon rings” as the cues of the “mutagenic” class, because most training “mutagenic” molecules are in the “carbon rings” context. While such correlations represent statistical relations inherent in the training data and are beneficial to the in-distribution (ID) test evaluations, they inevitably cause a huge performance drop in the out-of-distribution (OOD) test data that are at odds with the training distribution. Taking the molecule classification as an example again, when most test “non-mutagenic” molecules appear in the “carbon rings” context, the attended graphs mislead the GNNs to still predict “mutagenic”. As the assumption that the test data conforms to the training distribution is often infeasible in real-world scenarios, the poor generalization of these methods hinders their deployment on critical applications.
+To resolve this issue, we first take a causal look at the decisionmaking process of GNNs for graph classification, which delineates the relationships among the causal feature, shortcut feature, and prediction. With our causal assumption in Figure 1, the shortcut feature serves as a confounder [27]. It opens a backdoor path [26] and makes the causal feature and prediction spuriously correlated, e.g., misclassifying “non-mutagenic” molecules with “carbon rings” to the “mutagenic” molecules. Hence, mitigating the confounding effect is promising to exploit the causal features while filtering out the shortcut patterns, thereby enhancing the generalization.
+Towards this end, we propose the Causal Attention Learning (CAL) strategy — maximizing the causal effect of the attended graph on predicting the label, while reducing the confounding effect of the shortcut features. Our attended graph aims to approach the causal features in the graph (e.g., nitrogen dioxide), while its complement targets the shortcut features (e.g., carbon rings). Specifically, we first apply attention modules to generate the estimations of the causal and shortcut features from the input graphs. We then parameterize the backdoor adjustment in the causal theory [26, 27], which combines each causal estimation with various shortcut estimations and encourages these combinations to maintain a stable prediction. It encourages the invariant relationships between the causal patterns and the predictions, regardless of the changes in the shortcut parts and distribution shifts. We apply CAL to various GNN architectures for graph classification. Experimental results on numerous synthetic and real-world datasets demonstrate the better generalization and insightful interpretations of CAL.
+Our technical contributions are summarized as:
+• We emphasize the generalization issue of current attention- and pooling-based GNNs in graph classification. From the causal perspective, we ascribe such an issue to the confounding effect of the shortcut features.
+
+• We present a novel Causal Attention Learning (CAL) strategy for graph classification. It makes GNNs exploit the causal features while filtering out the shortcut patterns.
+• Extensive experiments on synthetic and real-world datasets justify the effectiveness of CAL. More visualizations with in-depth analyses demonstrate the interpretability and rationality of CAL.
+
+2 PRELIMINARIES
+2.1 Notations
+We denote a graph by G = {A, X} with the node set V and edge set E. Let X ∈ R|V |×F be the node feature matrix, where x𝑖 = X[𝑖, :] is the F-dimensional attribute vector of node 𝑣𝑖 ∈ V. We use the adjacency matrix A ∈ R|V |×|V | to delineate the whole graph structure, where A[𝑖, 𝑗] = 1 if edge (𝑣𝑖, 𝑣 𝑗 ) ∈ E, otherwise A[𝑖, 𝑗] = 0. We define GConv(·) as a GNN layer module and denote the node representation matrix by H ∈ R|V |×𝑑 , whose 𝑖-th row h𝑖 = H[𝑖, :] denotes the representation of node 𝑣𝑖 .
+
+2.2 Attention Mechanism in GNNs
+
+In GNNs, attention can be defined over edges or nodes. For edge-
+level attentions [4, 16, 21, 33, 35], they utilize weighted message passing and aggregation to update node representations H′:
+
+H′ = GConv (A ⊙ M𝑎, H)
+
+(1)
+
+where M𝑎 ∈ R|V |×|V | denotes the attention matrix that is often derived from trainable parameters and node representations. For node-level attention, several studies [18, 19, 22] define the selfattention mask to select the most attentive node representations:
+
+H′ = GConv (A, H ⊙ M𝑥 )
+
+(2)
+
+where M𝑥 ∈ R|V |×1 represents the node-level attentions, which can be generated by a network (e.g., GNNs or MLPs); ⊙ is the
+broadcasted element-wise product. Hereafter, we can make further pooling operation [19] for the output node representations H𝑜𝑢𝑡 and summarize the graph representation hG for graph G via the readout function 𝑓readout (·). Then we use a classifier Φ to project the graph representation into a probability distribution zG:
+
+hG = 𝑓readout {h𝑜𝑖 𝑢𝑡 |𝑖 ∈ V } , 𝑧 G = Φ(hG ).
+
+(3)
+
+These methods follow the paradigm of "learning to attend" by minimizing the following empirical risk:
+
+1 LCE = − |D |
+
+∑︁
+
+y⊤G log (z G ) .
+
+(4)
+
+G∈D
+
+where LCE is the cross-entropy loss over the training data D, and yG is the ground-truth label vector of G. However, this learning strategy heavily relies on the statistical correlations between the
+input graphs and labels. Hence, they will inevitably capture the
+noncausal shortcut features to make predictions.
+
+3 METHODOLOGY
+In this section, we first analyze the GNN learning from the perspective of causality. From our causal assumption, we identify the shortcut feature as a confounder. Then we propose the causal attention learning strategy to alleviate the confounding effect.
+
+𝑆
+
+𝐺
+
+𝑅
+
+𝐶
+
+𝐺 : graph data 𝐶 : causal feature
+𝑌 𝑆 : shortcut feature
+𝑅 : representation 𝑌 : prediction
+
+Figure 1: Structural causal model for graph classification.
+
+3.1 A Causal View on GNNs
+We take a causal look at the GNN modeling and construct a Structural Causal Model (SCM) [27] in Figure 1. It presents the causalities among five variables: graph data 𝐺, causal feature 𝐶, shortcut feature 𝑆, graph representation 𝑅, and prediction 𝑌 , where the link from one variable to another indicates the cause-effect relationship: cause → effect. We list the following explanations for SCM:
+• 𝑪 ← 𝑮 → 𝑺. The variable 𝐶 denotes the causal feature that truly reflects the intrinsic property of the graph data 𝐺. While 𝑆 represents the shortcut feature which is usually caused by the data biases or trivial patterns. Since 𝐶 and 𝑆 naturally coexist in graph data 𝐺, these causal effects are established.
+• 𝑪 → 𝑹 ← 𝑺. The variable 𝑅 is the representation of the given graph data 𝐺. To generate 𝑅, the conventional learning strategy takes the shortcut feature 𝑆 and the causal feature 𝐶 as input to distill discriminative information.
+• 𝑹 → 𝒀 . The ultimate goal of graph representation learning is to predict the properties of the input graphs. The classifier will make prediction 𝑌 based on the graph representation 𝑅.
+Scrutinizing this SCM, we recognize a backdoor path between 𝐶 and 𝑌 , i.e., 𝐶 ← 𝐺 → 𝑆 → 𝑅 → 𝑌 , wherein the shortcut feature 𝑆 plays a confounder role between 𝐶 and 𝑌 . Even if 𝐶 has no direct link to 𝑌 , the backdoor path will cause 𝐶 to establish a spurious correlation with 𝑌 , e.g., making wrong predictions based on shortcut feature 𝑆 instead of causal feature 𝐶. Hence, it is crucial to cut off the backdoor path and make the GNN exploit causal features.
+
+3.2 Backdoor Adjustment
+We have realized that shielding the GNNs from the confounder 𝑆 is the key to exploiting causal features. Instead of modeling the confounded 𝑃 (𝑌 |𝐶) in Figure 1, we should achieve the graph representation learning by eliminating the backdoor path. But how to achieve this? Fortunately, causal theory [26, 27] provides us with a feasible solution: we can exploit the do-calculus on the variable 𝐶 to remove the backdoor path by estimating 𝑃𝑚 (𝑌 |𝐶) = 𝑃 (𝑌 |𝑑𝑜 (𝐶)). It needs to stratify the confounder 𝑆 between 𝐶 and 𝑌 . Therefore, we can obtain the following three essential conclusions:
+• The marginal probability 𝑃 (𝑆 = 𝑠) is invariant under the intervention, because the shortcut feature will not be affected by cutting off the backdoor path. Thus, 𝑃 (𝑠) = 𝑃𝑚 (𝑠).
+• The conditional probability 𝑃 (𝑌 |𝐶, 𝑠) is invariant, because 𝑌 ’s response to 𝐶 and 𝑆 has nothing to do with the causal effect between 𝐶 and 𝑆. Then we can get: 𝑃𝑚 (𝑌 |𝐶, 𝑠) = 𝑃 (𝑌 |𝐶, 𝑠).
+• Obviously, the variables 𝐶 and 𝑆 are independent under the causal intervention, which we have: 𝑃𝑚 (𝑠 |𝐶) = 𝑃𝑚 (𝑠).
+
+Based on the above conclusions, we have:
+
+𝑃 (𝑌 |𝑑𝑜 (𝐶)) = 𝑃𝑚 (𝑌 |𝐶)
+
+∑︁
+
+= 𝑠 ∈T 𝑃𝑚 (𝑌 |𝐶, 𝑠)𝑃𝑚 (𝑠 |𝐶) (𝐵𝑎𝑦𝑒𝑠 𝑅𝑢𝑙𝑒)
+
+∑︁
+
+(5)
+
+= 𝑠 ∈T 𝑃𝑚 (𝑌 |𝐶, 𝑠)𝑃𝑚 (𝑠) (𝐼𝑛𝑑𝑒𝑝𝑒𝑛𝑑𝑒𝑛𝑐𝑦)
+
+∑︁
+
+=
+
+𝑃 (𝑌 |𝐶, 𝑠)𝑃 (𝑠),
+
+𝑠∈T
+
+where T denotes the confounder set; 𝑃 (𝑌 |𝐶, 𝑠) represents the conditional probability given the causal feature 𝐶 and confounder 𝑠; 𝑃 (𝑠) is the prior probability of the confounder. Equation (5) is usually called backdoor adjustment [26], which is a powerful tool to eliminate the confounding effect. However, there exist two challenges for implementing Equation (5): i) The confounder set T is commonly unobservable and hard to obtain. ii) Due to the discrete nature of graph data, it seems difficult to directly manipulate the graph data, conditioning on domain-specific constraints (e.g., valency rules in molecule graphs). In section 3.4.3, we will introduce a simple yet effective solution to overcome these issues.
+
+3.3 Causal and Trivial Attended-graph
+Given a graph G = {A, X}, we formulate the soft masks on the graph structure and node feature as M𝑎 ∈ R|V |×|V | and M𝑥 ∈ R|V |×1, respectively. Wherein, each element of the masks indicates the attention score relevant to the task of interest, which often falls into the range of (0, 1). Given an arbitrary mask M, we define its complementary mask as M = 1 − M, where 1 is the all-one matrix. Therefore, we can divide the full graph G into two attended-graphs: G1 = {A ⊙ M𝑎, X ⊙ M𝑥 } and G2 = {A ⊙ M𝑎, X ⊙ M𝑥 }.
+With the inspection on the data-generating process, recent studies [18, 23, 39, 44] argue that the label of a graph is usually determined by its causal part. Considering a molecular graph, its mutagenic property relies on the existence of relevant functional groups [37]; Taking the digit image in the form of superpixel graph as another example, the coalition of digit-relevant nodes determines its label. Formally, given a graph G, we define the attended graph collecting all causal features as the causal attended-graph G𝑐 , while the counterpart forms the trivial attended-graph G𝑡 . However, the ground-truth attended-graph is usually unavailable in real-world applications. Hence, we aim to capture the causal and trivial attended-graph from the full graph by learning the masks: G𝑐 = {A ⊙ M𝑎, X ⊙ M𝑥 } and G𝑡 = {A ⊙ M𝑎, X ⊙ M𝑥 }. Learning to identify causal attended-graphs not only guides the representation learning of GNNs, but also answers "What knowledge does the GNN use to make predictions?", which is crucial to the applications on explainability, privacy, and fairness.
+
+3.4 Causal Attention Learning
+To implement the aforementioned backdoor adjustment, we propose the Causal Attention Learning (CAL) framework:
+3.4.1 Estimating soft masks. Towards effective causal intervention, it is necessary to separate the causal and shortcut features from the full graphs. To this end, we hire attention modules, which yield two branches for the causal and trivial proposals. Given a GNN-based encoder 𝑓 (·) and a graph G = {A, X}, we can obtain
+
+Graphs
+
+GNN Encoder
+
+Edge Attention
+
+Node Attention
+
+Trivial Attended-graph
+
+GraphConv
+
+GraphConv
+
+Causal Attended-graph
+
+ℒunif
+
+Readout Classifier
+
+Readout Classifier
+
+ℒsup
+
+Uniform Label Class
+0 123
+
+Random Addition Classifier
+ℒcaus
+
+One-hot Label Class
+0 123
+
+Figure 2: The overview of the proposed Causal Attention Learning (CAL) framework.
+
+the node representations:
+
+H = 𝑓 (A, X).
+
+(6)
+
+Then we adopt two MLPs: MLPnode (·) and MLPedge (·) to estimate the attention scores from two orthogonal perspectives: node-level
+and edge-level. For node 𝑣𝑖 and edge (𝑣𝑖, 𝑣 𝑗 ) we can obtain:
+
+𝛼𝑐𝑖 , 𝛼𝑡𝑖 = 𝜎 (MLPnode (h𝑖 )),
+
+(7)
+
+𝛽𝑐𝑖𝑗 , 𝛽𝑡𝑖𝑗 = 𝜎 (MLPedge (h𝑖 ||h𝑗 )),
+
+(8)
+
+where 𝜎 (·) is softmax function, || denotes concatenation opera-
+
+tion; 𝛼𝑐𝑖 , 𝛽𝑐𝑖𝑗 represent the node-level attention score for node 𝑣𝑖 and edge-level attention score for edge (𝑣𝑖, 𝑣 𝑗 ) in causal attended-
+
+graph; analogously, 𝛼𝑡𝑖 , 𝛽𝑡𝑖𝑗 are for trivial attended-graph. Note that 𝛼𝑐𝑖 + 𝛼𝑡𝑖 = 1, and 𝛽𝑐𝑖𝑗 + 𝛽𝑡𝑖𝑗 = 1. These attention scores indicate how much the model pays attention to each node or edge
+
+in the corresponding attended-graph. Now we can construct the
+
+soft masks M𝑥 , M𝑥 , M𝑎, and M𝑎 based on the attention scores
+
+𝛼𝑐𝑖 , 𝛼𝑡𝑖 , 𝛽𝑐𝑖𝑗 , and 𝛽𝑡𝑖𝑗 , respectively. Finally, we can decompose the original graph G into the initial causal and trivial attended-graphs:
+
+G𝑐 = {A ⊙ M𝑎, X ⊙ M𝑥 } and G𝑡 = {A ⊙ M𝑎, X ⊙ M𝑥 }.
+
+3.4.2 Disentanglement. Until now, we have distributed the attention scores at the granularity of nodes and edges to create the initial attended-graphs. Now we need to make the causal and trivial attended-graphs to capture the causal and shortcut features from the input graphs, respectively. Specifically, we adopt two GNN layers to obtain the representations of attended-graphs and make predictions via readout function and classifiers:
+
+hG𝑐 = 𝑓readout (GConv𝑐 (A ⊙ M𝑎, X ⊙ M𝑥 )), zG𝑐 = Φ𝑐 (hG𝑐 ), (9)
+
+hG𝑡 = 𝑓readout (GConv𝑡 (A⊙M𝑎, X⊙M𝑥 )), zG𝑡 = Φ𝑡 (hG𝑡 ). (10) The causal attended-graph aims to estimate the causal features, so we classify its representation to the ground-truth label. Thus, we define the supervised classification loss as:
+
+Lsup
+
+=
+
+−
+
+1 |D|
+
+∑︁
+
+y⊤G log(zG𝑐 ).
+
+(11)
+
+G∈D
+
+where Lsup is the cross-entropy loss over the training data D. The trivial attended-graph aims to approach the trivial patterns that are unnecessary for classification. Hence, we push its prediction evenly to all categories and define the uniform classification loss as:
+
+Lunif
+
+=
+
+1 |D|
+
+∑︁
+
+KL(yunif , zG𝑡 ).
+
+(12)
+
+G∈D
+
+where KL denotes the KL-Divergence, yunif represents the uniform distribution. By optimizing the above two objectives, we can effectively disentangle causal and trivial features. Please note that prior efforts [18, 23, 37, 38, 44] have shown that the mutual information between the causal part and label is greater than that between the full graph and label, due to the widespread trivial patterns or noise. Hence, the proposed disentanglement will not make the captured causal attended-graph converge to the full graph (noiseless full graph is a special case), which is not an optimal solution. See Section 4.5 for more supporting evidence and analyses.
+
+3.4.3 Causal intervention. As shown in Equation (5), one promising solution to alleviating the confounding effect is the backdoor adjustment — that is, stratifying the confounder and pairing the target causal attended-graph with every stratification of trivial attended-graph to compose the “intervened graphs”. However, due to the irregular graph data, it is impossible to make the intervention on data-level, e.g., changing a graph’s trivial part to generate a counterfactual graph data. Towards this end, we make the implicit intervention on representation-level and propose the following loss guided by the backdoor adjustment:
+
+zG′ = Φ(hG𝑐 + hG𝑡′ ),
+
+(13)
+
+Lcaus
+
+=
+
+−1 |D| · |Tˆ |
+
+∑︁ ∑︁ y⊤G
+G ∈ D 𝑡′ ∈ Tˆ
+
+log (zG′),
+
+(14)
+
+where zG′ is the prediction from a classifier Φ on “implicit intervened graph” G′; hG𝑐 is the representation of causal attended-graph G𝑐 derived from Equation (9); while hG𝑡′ is the representation of stratification G𝑡′ obtained via Equation (10); Tˆ is the estimated stratification set of the trivial attended-graph, which collects the appearing trivial features from training data. In practice, we apply random addition to make the intervention in Equation (13). We define the Equation (14) as the causal intervention loss. It pushes the predictions of such intervened graphs to be invariant and stable across different stratifications, due to the shared causal features. Finally, the objective of CAL can be defined as the sum of the losses:
+
+L = Lsup + 𝜆1Lunif + 𝜆2Lcaus
+
+(15)
+
+where 𝜆1 and 𝜆2 are hyper-parameters that determine the strength of disentanglement and causal intervention, respectively. The detailed algorithm of CAL is provided in Appendix A.1, Alg.1, and the overview of CAL is depicted in Figure 2.
+
+4 EXPERIMENTS
+To verify the superiority and effectiveness of the proposed CAL, we conduct experiments to answer the following research questions:
+• RQ1: How effective is the proposed CAL in alleviating the outof-distribution (OOD) issue?
+
+Trivial subgraphs:
+
+Tree
+
+BA
+
+Causal subgraphs:
+
+House Cycle
+
+Grid Diamond
+
+SYN-𝑏
+
+The proportion of Tree
+
+𝑏 1−𝑏
+…
+
+Figure 3: Illustration of the synthetic datasets.
+
+• RQ2: Can the proposed CAL achieve performance improvements on real-world datasets?
+• RQ3: For the different components in CAL, what are their roles and impacts on performance?
+• RQ4: Does CAL capture the causal attended-graphs with significant patterns and insightful interpretations?
+
+4.1 Experimental Settings
+
+4.1.1 Datasets. We conduct experiments on both synthetic datasets and real-world datasets.
+• Synthetic graphs: Following [44], we create the synthetic dataset for graph classification, which contains a total of 8,000 samples with 4 classes, and keeps balance (2,000 samples) for each class. As shown in Figure 3, each sample consists of two parts: causal subgraph and trivial subgraph. More details about the causal and trivial subgraph are provided in Appendix A.2. The task is to predict the type of the causal part in the whole graph. For simplicity, we choose the “House” class to define the bias-level:
+
+#Tree-House
+
+𝑏=
+
+(16)
+
+#House
+
+where #Tree-House denotes the number of “House” causal subgraphs with the “Tree” trivial subgraphs, and #House presents the number of graphs in the “House” class, which is 2,000. We set the proportion of “Tree” in the other three classes to 1 − 𝑏. Obviously, for the unbiased dataset, 𝑏 = 0.5. We abbreviate the synthetic dataset with bias-level 𝑏 as SYN-𝑏. We keep the same bias-level on the training/validation set and keep the testing set unbiased. Please refer to Appendix A.2 for more details. • Real-world graphs: We conduct experiments on three biological datasets (MUTAG, NCI1, PROTEINS), three social datasets (COLLAB, IMDB-B, IMDB-M) [24], and two superpixel datasets (MNIST, CIFAR-10) [18]. More details, such as statistics and splitting of datasets, are provided in Appendix A.2.
+
+4.1.2 Baselines. To verify the superiority of CAL, we adopt the following prevalent graph classification solutions as baselines:
+• Attention-based methods: GAT [35], GATv2 [4], SuperGAT [16], GlobalAttention [22], AGNN [33].
+• Pooling-based methods: SortPool [49], DiffPool [45], Top-𝑘 Pool [10], SAGPool [19].
+• Kernel-based methods: Graphlet kernel (GK) [31], Weisfeiler Lehman Kernel (WL) [30], Deep Graph kernels (DGK) [42].
+• GNN-based methods: GCN [17], GIN [41]
+Besides these methods, we also consider the state-of-the-art algorithms: IRM [2] and DRO [29], which are particularly designed for OOD issues. Please note that these methods require specific environments or group annotations for each training example, therefore we consider them as the methods with upper bound performance.
+4.1.3 Hyper-parameters. All training hyper-parameters and model configurations are summarized in Appendix A.3. Codes are released at https://github.com/yongduosui/CAL.
+4.2 Performance on Synthetic Graphs (RQ1)
+To explore whether CAL can alleviate the OOD issue, we first conduct experiments on SYN-𝑏 with different biases: 𝑏 ∈ {0.1, 0.2, ..., 0.9}. The experimental results are summarized in Table 1 and Figure 4. We have the following Observations:
+Obs 1: Refining discriminative features without considering the causality leads to poor OOD generalization. For the unbiased dataset, most attention- and pooling-based baselines, such as GlobalAtt, SuperGAT, SortPool, Top-𝑘 Pool, outperform GCN. It indicates the effectiveness of extracting discriminative features in the ID setting. However, as the bias-level goes to extremes, the performance dramatically deteriorates. For instance, the performance drop of attention-based methods ranges from 7.37% ∼ 12.75% on SYN-0.1, and 3.79% ∼ 13.79% on SYN-0.9; Pooling-based methods drop from 7.82% ∼ 14.24% and 3.99% ∼ 12.10% for SYN-0.1 and SYN0.9. These indicate that simply extracting discriminative features by attention or pooling module is prone to capture the data biases. These are also beneficial for reducing the training loss but lead to poor OOD generalization. Taking SYN-0.9 as an example, most “House” co-occur with “Tree” in the training data, so the model will mistakenly learn shortcut features from the “Tree”-type trivial subgraphs to make predictions, instead of probing the “House”-type causal subgraphs. This will mislead the model to adopt the “Tree” pattern to make decisions in the inference stage.
+Obs 2: GNNs with better ID performance tend to have worse OOD generalization. For the unbiased dataset, GIN achieves the best performance (96.74%), while GAT (92.69%) outperforms the GCN (90.94%). This indicates that the in-distribution (ID) performance of these models exhibits such an order: GIN > GAT > GCN. However, when the bias is changed to 0.1 and 0.9, the performance of GIN drops by 9.55% and 7.36%, GAT drops by 8.71% and 5.47% and GCN drops by 6.60% and 5.43%, respectively. It shows that the rankings of models’ robustness against OOD issues are in the opposite order: GCN > GAT > GIN. This indicates that GNNs with better ID performance are prone to learn more shortcut features. Similar trends also occur in other baselines. After adopting the proposed CAL, this phenomenon is significantly alleviated, which verifies the effectiveness of CAL in overcoming the OOD issue.
+
+Table 1: Test Accuracy (%) of graph classification on synthetic datasets with diverse biases. The number in brackets represents the performance degradation compared with the unbiased dataset. Our methods are highlighted with a gray background.
+
+Method
+GATv2 [4] SuperGAT [16] GlobalAtt [22] AGNN [33] DiffPool [45] SortPool [49] Top-𝑘 Pool [10] SAGPool [19] GCN [17] GCN + CAL GIN [41] GIN + CAL GAT [35] GAT + CAL
+
+SYN-0.1
+87.25 (↓ 7.37%) 83.81 (↓ 12.75%) 87.19 (↓ 10.40%) 84.56 (↓ 11.69%) 82.28 (↓ 8.69%) 80.70 (↓ 14.24%) 84.31 (↓ 11.81%) 88.08 (↓ 7.82%) 84.94 (↓ 6.60%) 89.38 (↓ 6.03%) 87.50 (↓ 9.55%) 93.19 (↓ 3.87%) 84.62 (↓ 8.71%) 92.44 (↓ 4.37%)
+
+SYN-0.3
+92.19 (↓ 2.12%) 91.94 (↓ 4.29%) 93.75 (↓ 3.66%) 93.06 (↓ 2.81%) 88.02 (↓ 2.32%) 92.33 (↓ 1.88%) 93.53 (↓ 2.17%) 90.86 (↓ 4.91%) 89.38 (↓ 1.72%) 93.50 (↓ 1.70%) 93.94 (↓ 2.89%) 96.31 (↓ 0.65%) 89.50 (↓ 3.44%) 96.25 (↓ 0.42%)
+
+Unbiased
+94.19 96.06 97.31 95.75 90.11 94.10 95.60 95.55 90.94 95.12 96.74 96.94 92.69 96.66
+
+SYN-0.7
+93.31 (↓ 0.93%) 88.50 (↓ 7.89%) 94.62 (↓ 2.76%) 94.81 (↓ 0.98%) 88.83 (↓ 1.42%) 92.14 (↓ 2.08%) 94.44 (↓ 1.21%) 92.22 (↓ 3.49%) 90.25 (↓ 0.76%) 95.06 (↓ 0.06%) 94.88 (↓ 1.92%) 96.56 (↓ 0.39%) 92.31 (↓ 0.41%) 96.12 (↓ 0.56%)
+
+SYN-0.9
+90.62 (↓ 3.79%) 82.81 (↓ 13.79%) 91.50 (↓ 5.97%) 88.12 (↓ 7.97%) 84.50 (↓ 6.23%) 90.35 (↓ 3.99%) 88.02 (↓ 7.93%) 83.99 (↓ 12.10%) 86.00 (↓ 5.43%) 93.31 (↓ 1.90%) 89.62 (↓ 7.36%) 95.25 (↓ 1.74%) 87.62 (↓ 5.47%) 92.56 (↓ 4.24%)
+
+Table 2: Test Accuracy (%) of classification. For TUDataset, we perform 10-fold cross-validation and report the mean and standard derivations. Our methods are highlighted with gray background. If the performance improves, the number is bolded.
+
+Dataset
+GK [31] WL [30] DGK [42] GlobalAtt [22] AGNN [33] DiffPool [45] SortPool [49] GCN [17] GCN + CAL GIN [41] GIN + CAL GAT [35] GAT + CAL
+
+MUTAG
+81.58±2.11 82.05±0.36 87.44±2.72 88.27±8.65 79.77±8.54 85.61±6.22 86.17±7.53 88.20±7.33 89.24±8.72 89.42±7.40 89.91±8.34 88.58±7.54 89.94±8.78
+
+NCI1
+62.49±0.27 82.19±0.18 80.31±0.46 81.17±1.04 79.96±2.37 75.06±3.66 79.00±1.68 82.97±2.34 83.48±1.94 82.71±1.52 83.89±1.93 82.11±1.43 83.55±1.42
+
+PROTEINS
+71.67±0.55 74.68±0.50 75.68±0.54 72.60±4.37 75.66±3.94 76.25±4.21 75.48±1.62 75.65±3.24 76.28±3.65 76.21±3.83 76.92±3.31 75.96±3.26 76.39±3.65
+
+COLLAB
+72.84±0.28 79.02±1.77 73.09±0.25 81.48±1.46 81.10±2.39 79.24±1.66 77.84±1.22 81.72±1.64 82.08±2.40 82.08±1.51 82.68±1.25 81.42±1.41 82.12±1.95
+
+IMDB-B
+65.87±0.98 73.40±4.63 66.96±0.56 69.10±3.80 73.10±4.07 74.47±3.84 73.00±3.50 73.89±5.74 74.40±4.55 73.40±3.78 74.13±5.21 72.70±4.37 73.30±4.16
+
+IMDB-M
+43.89±0.38 49.33±4.75 44.55±0.52 51.40±2.91 49.73±3.72 49.20±3.10 49.53±2.29 51.53±3.28 52.13±2.96 51.53±2.97 52.60±2.36 50.60±3.75 50.93±3.84
+
+MNIST
+90.49 94.58 96.51 96.93 95.53 95.91
+
+CIFAR-10
+54.68 56.21 56.36 56.63 64.22 66.16
+
+Obs 3: Mitigating the confounder achieves more stable performance on OOD datasets. We first define the performance discount on SYN-𝑏 as the accuracy on SYN-𝑏 normalized by the accuracy on unbiased SYN-0.5. It indicates the degree of the performance degradation on biased synthetic datasets, without considering the model’s ID generalization. We plot the performance discount curves on SYN-𝑏 with 𝑏 ∈ {0.1, 0.2, ..., 0.9}. As depicted in Figure 4, we observe that pooling-based methods outperform GIN in a small range of bias-levels (0.2 ∼ 0.8), while the performance drops sharply when 𝑏 = 0.1 or 0.9. For example, the performance discount of Top-𝑘 Pool drops from 0.95 to 0.88 as 𝑏 reduces from 0.2 to 0.1. Attentionbased methods perform worse than GIN when 𝑏 < 0.5. For 𝑏 > 0.5, AGNN achieves better performance than GIN, while GlobalAttention often performs worse. These results reflect that attention- or pooling-based methods all have their own weaknesses, such that they cannot consistently overcome the diverse distribution shifts. Equipped with CAL, GIN (red curve) consistently outperforms all
+
+the baselines on all ranges of bias-levels and obviously keeps a large gap, which further demonstrates the significance of mitigating the confounding effect, and the effectiveness of CAL. For comprehensive comparisons, we also plot two upper bound methods: IRM and DRO (dash lines), which require additional annotation information of trivial subgraphs for training. We observe that, even without additional information, CAL achieves comparable performance with these upper bound methods.
+4.3 Performance on Real-world Graphs (RQ2)
+Unlike synthetic graphs, there may not exist visible or specific patterns of the causal/trivial subgraphs in real-world graphs. However, there still exist irregular core-subgraphs [18, 23, 38, 44] that determine the predictions, which will inevitably involve different degrees of biases caused by the complementary parts. Similar to SYN-𝑏, they mislead the GNNs to learn the spurious correlations. Hence, we verify the practicability of CAL on eight real-world
+
+1.00
+
+0.98
+
+Performance discount
+
+0.96
+
+GlobalAtt
+
+0.94
+
+AGNN DiffPool
+
+0.92
+
+Top-kPool GIN
+
+0.90
+
+GIN+DRO (Upper Bound) GIN+IRM (Upper Bound)
+
+GIN+CAL (Ours) 0.88
+0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 Bias-level
+
+Figure 4: The performance discount on synthetic datasets with different bias-levels.
+
+GCN
+
+GCN+CAL w/o RD
+
+GCN+CAL w/o NA
+
+GCN+CAL (Ours)
+
+GCN+CAL w/o EA
+
+96
+
+94
+
+Accuracy (%)
+
+92
+
+90
+
+88
+
+86
+
+84 SYN-0.1 SYN-0.3 SYN-0.7 SYN-0.9 MUTAG MNIST Dataset
+Figure 5: The comparison of different components in CAL.
+
+datasets. We report the results of the baselines from the original papers by default and reproduce the missing results. The results are summarized in Table 2 and we make the following Observations:
+Obs 4: The OOD issue is widespread in real-world datasets. Attention-based and pooling-based methods are on a par with GNNs, and they both outperform graph kernel-based methods in most cases. It can be seen from the last six rows in Table 2, when CAL is applied to different GNN models, it consistently produces further performance improvements. It demonstrates that the distribution shifts also widely exist in real-world datasets. Specifically, we can find that GCN often performs worse than other GNNs, attention-based or pooling-based methods, while the performance significantly improves after adopting CAL. For instance, on IMDB-B and MNIST datasets, GCN+CAL achieves 1.92% and 4.52% relative improvements, respectively. This indicates that GCN is vulnerable to the distribution shift in certain datasets. Thanks to the causality, CAL will push GCN to pay more attention to causal features, which can establish robustness against the widespread OOD issues and achieve better generalization.
+4.4 Ablation Study (RQ3)
+In this section, we investigate the impact of the node/edge attention, random combination and the loss coefficients 𝜆1 and 𝜆2.
+Node Attention v.s. Edge Attention. Node Attention (NA) and Edge Attention (EA) refine the features from two orthogonal views: node-level and edge-level. Here we want to examine the effect of adopting NA or EA alone. We adopt GCN as the encoder to conduct experiments on four biased synthetic datasets and two real-world datasets. GCN+CAL w/o NA or EA represents the node/edge attention scores in Equation (7)/(8) are evenly set as 0.5. The experimental results are shown in Figure 5. We can find that: (1) Comparing NA with EA, the performance of CAL without NA is significantly worse than that without EA, which indicates that the node feature contains more significant information compared with graph structure. (2) Just adopting NA or EA alone still achieves better performance than baselines, which demonstrates that only applying NA or EA can also disentangle the causal/trivial attended-graph and achieve causal intervention to some extent.
+
+MNIST
+
+MUTAG
+
+SYN-0.1
+
+SYN-0.9
+
+95
+
+95
+
+93
+
+93
+
+Accuracy (%)
+
+91
+
+91
+
+89
+
+89
+
+87 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 87 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+
+λ1
+
+λ2
+
+Figure 6: Parameter sensitivity of loss coefficients 𝜆1 and 𝜆2.
+
+Random Combination. We need to stratify the confounder distribution for causal intervention. With the random combination, each causal feature will combine with different types of trivial patterns. To verify its importance, we change the "Random Addition" module in Figure 2 to "Addition", which just adopts the addition operation orderly, and we rename it as “GCN+CAL w/o RD”. The experimental results are shown in Figure 5. We can find that: (1) The performance drops severely compared with GCN+CAL, which demonstrates the importance of the causal intervention. (2) GCN+CAL w/o RD can also outperform the GCN baselines. We conjecture that just implementing disentanglement makes GNN pay more attention to the causal features, which will slightly ignore the data biases or trivial patterns. These results also reflect that disentanglement and causal intervention will help each other to improve their own effectiveness.
+Loss coefficients 𝜆1 and 𝜆2. According to Equation (15), 𝜆1 denotes the strength of the disentanglement for the causal/trivial features, while 𝜆2 controls the strength of the causal intervention. To explore their impacts, we use GCN as the encoder and conduct experiments on two biased synthetic datasets and two real-world datasets. We fix one coefficient as 0.5 and change the other one in (0, 1) with a step size of 0.1. The experimental results are shown in Figure 6. We can find that: (1) 𝜆1 achieves better performance in a range of 0.3 ∼ 0.7. Too small or too large values will cause performance degradation. (2) 𝜆2 is not as stable as 𝜆1. The optimal range is around 0.3 ∼ 0.5. It leads to a strong decline at 0.5 ∼ 0.8, which indicates that coefficient 𝜆2 should be set prudently.
+
+0
+
+0.2
+
+House
+
+0.4
+Cycle
+
+0.6
+
+0.8
+
+1.0
+
+Original Image Attention Graph
+
+BA
+
+Tree
+
+Figure 7: Visualizations of causal attended-graphs. (Left): Synthetic graphs, (Right): MNIST superpixel graphs.
+4.5 Visualization and Analysis (RQ4)
+Causal attended-graphs. We plot node/edge attention areas of the causal attended-graphs based on the attention scores in CAL. We adopt a GCN-based encoder and apply CAL on SYN-𝑏 and MNIST superpixel graphs. The visualizations are shown in Figure 7. Nodes with darker colors and edges with wider lines indicate higher attention scores. We surprisingly find that almost all the darker colors and wider lines precisely distribute on the deterministic areas, such as the causal subgraphs we defined in the synthetic dataset and the nodes located on digit pixels in MNIST superpixel graphs. It further demonstrates that the proposed CAL can effectively capture the causal features with insightful interpretations. The explanation for performance improvements. Figure 8 displays the distribution of misclassification on SYN-𝑏. The abscissa represents the predictions, and the ordinate denotes the groundtruth types. The numbers in each row denote the proportion for each class. Figure 8 (Left) shows that the wrong predictions of graphs with “BA” are mainly distributed in “Cycle”, “Grid” and “Diamond” classes, while the wrong predictions of graphs with “Tree” mainly concentrate on the “House” class (highlighted by the red circle). On one hand, most of the “House” co-occur with “Tree” in the training data, GCN tends to capture the shortcut features, e.g., “Tree” patterns, to make decisions. Therefore, the other three causal subgraphs with “Tree” will mainly be misclassified as “House” in the testing set. On the other hand, only a few “House” causal subgraphs co-occur with “BA”, so the other three causal subgraphs with “BA” will almost not be misclassified as “House”. In contrast, Figure 8 (Right) shows that, by applying CAL, the concentration of misclassification is obviously alleviated. This demonstrates that CAL improves performance by mitigating the confounding effect.
+5 RELATED WORK
+Attention Mechanism selects the informative features from data, which has obtained great success in computer vision [7, 14, 36, 43] and natural language processing tasks [6, 34]. In recent years, attention mechanism has gradually become prevalent in the GNN field. The attention modules for GNNs can be defined over edges [4, 16, 21, 33, 35] or over nodes [19, 20, 22]. Despite effectiveness, attention learning still stays at how to better fit the statistical correlations between data and labels. Hence, the learned attentions are inherently biased in OOD settings. Recent studies [36, 43] propose the causal attention modules to alleviate the bias. CaaM [36]
+
+Ground Truths
+
+GCN
+
+BA-House BA-Cycle
+BA-Grid
+
+26.2% 56.6% 17.2%
+
+0.0%
+
+90.9% 9.1%
+
+3.2% 69.4%
+
+27.4%
+
+BA-Diam 0.0% 40.0% 60.0%
+
+Tree-House Tree-Cycle Tree-Grid
+
+nan% 33.3% 16.7% 50.0% 60.0% nan% 40.0% 0.0% 96.6% 2.2% nan% 1.1%
+
+Tree-Diam
+
+90.0%
+House
+
+3.3%
+Cycle
+
+6.7%
+Grid
+
+nan%
+Diam
+
+Predicted labels
+
+GCN+CAL
+11.8% 71.8% 16.5%
+
+12.5%
+
+87.5% 0.0%
+
+7.3% 78.0%
+
+14.6%
+
+12.5% 12.5% 75.0%
+
+nan% 33.3% 33.3% 33.3%
+
+40.0% nan% 60.0% 0.0%
+
+70.0% 30.0% nan% 0.0%
+
+68.4% 0.0% 31.6% nan%
+
+House
+
+Cycle
+
+Grid
+
+Diam
+
+Predicted labels
+
+100% 75% 50% 25% 0%
+
+Figure 8: The misclassification distribution. Red circle high-
+
+lights the concentration degree of misclassification.
+
+adopts the adversarial training to generate the data partition in each iteration to achieve the causal intervention. CATT [43] proposes in-sample and cross-sample attentions based on front-door adjustment. However, they are both tailored for computer vision tasks, while cannot transfer to graph learning tasks, due to the irregular and challenging graph-structure data. Distinct from them, we utilize the disentanglement and causal intervention strategies to strengthen the attention modules for GNNs. OOD Generalization [2, 13, 28, 29] has been extensively explored in recent years. IRM [2] minimizes the empirical risk under different environments. Group-DRO [29] adversarially explores the group with the worst risk and achieves generalization by minimizing the empirical risk of the worst group. Existing efforts [2, 28, 29] mainly focus on computer vision or natural language processing tasks, while the GNN field is of great need but largely unexplored. Furthermore, these methods require the environment or group prior information for each training sample, which is expensive in practice. To alleviate this dilemma, we adopt causal intervention to strengthen the causal relationship between the causal feature and prediction, thereby achieving better generalization. Causal Inferences [26, 27] endows the model with the ability to pursue real causality. A growing number of studies [15, 25, 32, 48] have shown that causal inference is beneficial to diverse computer vision tasks. CONTA [48] uses backdoor adjustment to eliminate the confounder in weakly supervised semantic segmentation tasks. DDE [15] proposes to distill the colliding effect between the old and the new data to improve class-incremental learning. Unlike computer vision, the application of causal intervention in the GNN community is still in its infancy. CGI [9] explores how to select trustworthy neighbors for GNN in the inference stage, and demonstrates its effectiveness in node classification. Recent work [47] studies the connection between GNNs and SCM from a theoretical perspective. Different from them, we introduce a causal attention learning strategy to mitigate the confounding effect for GNNs. It encourages GNNs to pay more attention to causal features, which will enhance the robustness against the distribution shift.
+
+6 CONCLUSION
+In this work, we revisit the GNN modeling for graph classification from a causal perspective. We find that current GNN learning strategies are prone to exploit the shortcut features to support their predictions. However, the shortcut feature actually plays a confounder role. It establishes a backdoor path between the causal feature and the prediction, which misleads the GNNs to learn spurious correlations. To mitigate the confounding effect, we propose the causal attention learning (CAL) strategy for GNNs. CAL is guided by the backdoor adjustment from the causal theory. It encourages the GNNs to exploit causal features while ignoring the shortcut parts. Extensive experimental results and analyses verify its effectiveness. Future studies include adopting powerful disentanglement methods and more advanced causal intervention strategies to improve the CAL. We will also make efforts to apply CAL to other graph learning tasks, such as node classification or link prediction.
+7 ACKNOWLEDGMENTS
+This work is supported by the National Key Research and Development Program of China (2020AAA0106000), and the National Natural Science Foundation of China (U19A2079, U21B2026). This research is also supported by CCCD Key Lab of Ministry of Culture and Tourism and Sea-NExT Joint Lab.
+REFERENCES
+[1] Radhakrishna Achanta, Appu Shaji, Kevin Smith, Aurelien Lucchi, Pascal Fua, and Sabine Süsstrunk. 2012. SLIC superpixels compared to state-of-the-art superpixel methods. IEEE TPAMI 34, 11 (2012), 2274–2282.
+[2] Martin Arjovsky, Léon Bottou, Ishaan Gulrajani, and David Lopez-Paz. 2019. Invariant risk minimization. arXiv preprint arXiv:1907.02893 (2019).
+[3] Albert-László Barabási and Réka Albert. 1999. Emergence of scaling in random networks. science 286, 5439 (1999), 509–512.
+[4] Shaked Brody, Uri Alon, and Eran Yahav. 2022. How Attentive are Graph Attention Networks?. In ICLR.
+[5] Asim Kumar Debnath, Rosa L Lopez de Compadre, Gargi Debnath, Alan J Shusterman, and Corwin Hansch. 1991. Structure-activity relationship of mutagenic aromatic and heteroaromatic nitro compounds. correlation with molecular orbital energies and hydrophobicity. Journal of medicinal chemistry 34, 2 (1991).
+[6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. 2019. BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. In NAACL. 4171–4186.
+[7] Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov, Dirk Weissenborn, Xiaohua Zhai, Thomas Unterthiner, Mostafa Dehghani, Matthias Minderer, Georg Heigold, Sylvain Gelly, et al. 2020. An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale. In ICLR.
+[8] Vijay Prakash Dwivedi, Chaitanya K Joshi, Thomas Laurent, Yoshua Bengio, and Xavier Bresson. 2020. Benchmarking graph neural networks. arXiv preprint arXiv:2003.00982 (2020).
+[9] Fuli Feng, Weiran Huang, Xiangnan He, Xin Xin, Qifan Wang, and Tat-Seng Chua. 2021. Should graph convolution trust neighbors? a simple causal inference method. In SIGIR. 1208–1218.
+[10] Hongyang Gao and Shuiwang Ji. 2019. Graph u-nets. In ICML. 2083–2092. [11] Robert Geirhos, Jörn-Henrik Jacobsen, Claudio Michaelis, Richard Zemel,
+Wieland Brendel, Matthias Bethge, and Felix A Wichmann. 2020. Shortcut learning in deep neural networks. Nature Machine Intelligence 2, 11 (2020), 665–673. [12] Robert Geirhos, Patricia Rubisch, Claudio Michaelis, Matthias Bethge, Felix A. Wichmann, and Wieland Brendel. 2019. ImageNet-trained CNNs are biased towards texture; increasing shape bias improves accuracy and robustness. In ICLR. [13] Dan Hendrycks and Kevin Gimpel. 2017. A Baseline for Detecting Misclassified and Out-of-Distribution Examples in Neural Networks. In ICLR. [14] Jie Hu, Li Shen, and Gang Sun. 2018. Squeeze-and-excitation networks. In CVPR. [15] Xinting Hu, Kaihua Tang, Chunyan Miao, Xian-Sheng Hua, and Hanwang Zhang. 2021. Distilling Causal Effect of Data in Class-Incremental Learning. In CVPR. [16] Dongkwan Kim and Alice Oh. 2020. How to find your friendly neighborhood: Graph attention design with self-supervision. In ICLR. [17] Thomas N. Kipf and Max Welling. 2017. Semi-Supervised Classification with Graph Convolutional Networks. In ICLR.
+
+[18] Boris Knyazev, Graham W. Taylor, and Mohamed R. Amer. 2019. Understanding Attention and Generalization in Graph Neural Networks. In NeurIPS. 4204–4214.
+[19] Junhyun Lee, Inyeop Lee, and Jaewoo Kang. 2019. Self-attention graph pooling. In ICML. 3734–3743.
+[20] John Boaz Lee, Ryan Rossi, and Xiangnan Kong. 2018. Graph classification using structural attention. In SIGKDD. 1666–1674.
+[21] John Boaz Lee, Ryan A Rossi, Xiangnan Kong, Sungchul Kim, Eunyee Koh, and Anup Rao. 2019. Graph convolutional networks with motif-based attention. In CIKM. 499–508.
+[22] Yujia Li, Daniel Tarlow, Marc Brockschmidt, and Richard S. Zemel. 2016. Gated Graph Sequence Neural Networks. In ICLR.
+[23] Wanyu Lin, Hao Lan, and Baochun Li. 2021. Generative causal explanations for graph neural networks. In ICML. 6666–6679.
+[24] Christopher Morris, Nils M Kriege, Franka Bause, Kristian Kersting, Petra Mutzel, and Marion Neumann. 2020. Tudataset: A collection of benchmark datasets for learning with graphs. ICMLW.
+[25] Yulei Niu, Kaihua Tang, Hanwang Zhang, Zhiwu Lu, Xian-Sheng Hua, and JiRong Wen. 2021. Counterfactual vqa: A cause-effect look at language bias. In CVPR. 12700–12710.
+[26] Judea Pearl. 2014. Interpretation and identification of causal mediation. Psychological methods 19, 4 (2014), 459.
+[27] Judea Pearl et al. 2000. Models, reasoning and inference. Cambridge, UK: Cambridge University Press 19 (2000).
+[28] Elan Rosenfeld, Pradeep Kumar Ravikumar, and Andrej Risteski. 2020. The Risks of Invariant Risk Minimization. In ICLR.
+[29] Shiori Sagawa, Pang Wei Koh, Tatsunori B Hashimoto, and Percy Liang. 2020. Distributionally robust neural networks for group shifts: On the importance of regularization for worst-case generalization. In ICLR.
+[30] Nino Shervashidze, Pascal Schweitzer, Erik Jan Van Leeuwen, Kurt Mehlhorn, and Karsten M Borgwardt. 2011. Weisfeiler-Lehman graph kernels. Journal of Machine Learning Research 12, 9 (2011).
+[31] Nino Shervashidze, S. V. N. Vishwanathan, Tobias Petri, Kurt Mehlhorn, and Karsten M. Borgwardt. 2009. Efficient graphlet kernels for large graph comparison. In AISTATS.
+[32] Kaihua Tang, Jianqiang Huang, and Hanwang Zhang. 2020. Long-Tailed Classification by Keeping the Good and Removing the Bad Momentum Causal Effect. In NeurIPS.
+[33] Kiran K Thekumparampil, Chong Wang, Sewoong Oh, and Li-Jia Li. 2018. Attention-based graph neural network for semi-supervised learning. arXiv preprint arXiv:1803.03735 (2018).
+[34] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, and Illia Polosukhin. 2017. Attention is All you Need. In NeurIPS. 5998–6008.
+[35] Petar Veličković, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Liò, and Yoshua Bengio. 2018. Graph Attention Networks. In ICLR.
+[36] Tan Wang, Chang Zhou, Qianru Sun, and Hanwang Zhang. 2021. Causal Attention for Unbiased Visual Recognition. In CVPR. 3091–3100.
+[37] Xiang Wang, Yingxin Wu, An Zhang, Fuli Feng, Xiangnan He, and Tat-Seng Chua. 2022. Reinforced Causal Explainer for Graph Neural Networks. TPAMI (2022).
+[38] Xiang Wang, Yingxin Wu, An Zhang, Xiangnan He, and Tat seng Chua. 2021. Towards Multi-Grained Explainability for Graph Neural Networks. In NeurIPS.
+[39] Yingxin Wu, Xiang Wang, An Zhang, Xiangnan He, and Tat-Seng Chua. 2022. Discovering Invariant Rationales for Graph Neural Networks. In ICLR.
+[40] Kelvin Xu, Jimmy Ba, Ryan Kiros, Kyunghyun Cho, Aaron C. Courville, Ruslan Salakhutdinov, Richard S. Zemel, and Yoshua Bengio. 2015. Show, Attend and Tell: Neural Image Caption Generation with Visual Attention. In ICML.
+[41] Keyulu Xu, Weihua Hu, Jure Leskovec, and Stefanie Jegelka. 2019. How Powerful are Graph Neural Networks?. In ICLR.
+[42] Pinar Yanardag and SVN Vishwanathan. 2015. Deep graph kernels. In SIGKDD. [43] Xu Yang, Hanwang Zhang, Guojun Qi, and Jianfei Cai. 2021. Causal attention
+for vision-language tasks. In CVPR. 9847–9857. [44] Zhitao Ying, Dylan Bourgeois, Jiaxuan You, Marinka Zitnik, and Jure Leskovec.
+2019. GNNExplainer: Generating Explanations for Graph Neural Networks. In NeurIPS. 9240–9251. [45] Zhitao Ying, Jiaxuan You, Christopher Morris, Xiang Ren, William L. Hamilton, and Jure Leskovec. 2018. Hierarchical Graph Representation Learning with Differentiable Pooling. In NeurIPS. 4805–4815. [46] Hao Yuan, Jiliang Tang, Xia Hu, and Shuiwang Ji. 2020. XGNN: Towards ModelLevel Explanations of Graph Neural Networks. In SIGKDD. 430–438. [47] Matej Zečević, Devendra Singh Dhami, Petar Veličković, and Kristian Kersting. 2021. Relating Graph Neural Networks to Structural Causal Models. arXiv preprint arXiv:2109.04173 (2021). [48] Dong Zhang, Hanwang Zhang, Jinhui Tang, Xian-Sheng Hua, and Qianru Sun. 2020. Causal Intervention for Weakly-Supervised Semantic Segmentation. In NeurIPS. [49] Muhan Zhang, Zhicheng Cui, Marion Neumann, and Yixin Chen. 2018. An end-to-end deep learning architecture for graph classification. In AAAI.
+
+A APPENDIX
+A.1 Algorithm
+We provide the detailed implementation of the proposed casual attention learning (CAL) in Algorithm 1. We adopt the causal attended-graph for prediction in the inference stage.
+
+Algorithm 1: Casual Attention Learning
+
+Input: Dataset D, 𝑓 (·), attention modules, classifiers, 𝜆1, 𝜆2 Output: The trained parameters.
+
+1: for sampled 𝑀 graphs {G𝑘 = {A𝑘, X𝑘 }}𝑘𝑀=1 do 2: for 𝑘 ← 1 to 𝑀 do
+
+3:
+
+H𝑘 ← 𝑓 (A𝑘, X𝑘 })
+
+4:
+
+Compute 𝛼𝑐𝑖 , 𝛼𝑡𝑖 ← Equation (7) for all nodes of G𝑘
+
+5:
+
+Compute 𝛽𝑐𝑖𝑗 , 𝛽𝑡𝑖𝑗 ← Equation (8) for all edges of G𝑘
+
+6:
+
+Get masks M𝑘𝑎 and M𝑘𝑥 based on 𝛽𝑐𝑖𝑗 and 𝛼𝑐𝑖
+
+7:
+
+Get masks M𝑘𝑎 and M𝑘𝑥 based on 𝛽𝑡𝑖𝑗 and 𝛼𝑡𝑖
+
+8:
+
+G𝑐𝑘 ← {A𝑘 ⊙ M𝑘𝑎, X𝑘 ⊙ M𝑘𝑥 } // causal
+
+9:
+
+G𝑘
+𝑡
+
+← {A𝑘
+
+⊙ M𝑘𝑎, X𝑘
+
+⊙ M𝑘𝑥 } //
+
+trivial
+
+10:
+
+hG𝑐𝑘 , zG𝑐𝑘 ← Equation (9)
+
+11:
+
+hG𝑘 , zG𝑘 ← Equation (10)
+
+𝑡𝑡
+
+12: end for
+
+13: Supervised loss: Lsup ← Equation (11) 14: Uniform loss: Lunif ← Equation (12) 15: 𝐼 ← Shuffle( [1, ..., 𝑀])
+
+16: for 𝑘 ← 1 to 𝑀 do
+
+17:
+
+𝑖 ← 𝐼 [𝑘]
+
+18:
+
+hG𝑘
+
+← hG𝑐𝑘
+
++ hG𝑖 𝑡
+
+//
+
+random
+
+combination
+
+19:
+
+zG𝑘 ← Φ(hG𝑘 )
+
+20: end for
+
+21: Causal loss: Lcaus ← Equation (14) 22: Total loss: L ← Lsup + 𝜆1Lunif + 𝜆2Lcaus 23: Update all the trainable parameters to minimize L
+
+24: end for
+
+A.2 Datasets Details
+In this section, we give more details about the synthetic datasets and real-world datasets.
+1) Synthetic graphs. For each synthetic graph instance, it consists of two subgraphs: trivial and critical subgraphs. We introduce the proposed trivial subgraph and critical subgraph as follows:
+• Trivial subgraph. There exist two types of trivial subgraphs: BA-SHAPES and Tree. The BA-SHAPES is a Barabási-Albert (BA) graph [3], and we abbreviate it as “BA” in this paper. The “Tree” graph is a base 12-level balanced binary tree [44]. To reduce the influence, we control the number of nodes in the two kinds of trivial subgraphs to be similar.
+• Causal subgraph. There are four types of causal subgraphs: “House”, “Cycle”, “Grid”, “Diamond”. The visualizations of these trivial subgraphs and causal subgraphs are depicted in Figure 3.
+For each synthetic graph instance, a causal subgraph is randomly attached on one node of a trivial subgraph. Then the resulting graph is further perturbed by adding 10% random edges. We take
+
+the one-hot form of the node degree as the node feature and set the dimension of node feature to 20. The synthetic graph examples are displayed in Figure 3. The statistics of the synthetic datasets are summarized in Table 3. We split the dataset into training, validation and testing set with the ratio of 7: 1: 2.
+Table 3: Statistics of datasets used in experiments.
+
+Dataset
+SYN-𝑏 MUTAG NCI1 PROTEINS COLLAB IMDB-B IMDB-M MNIST CIFAR-10
+
+#Graphs
+8000 188 4110 1113 5000 1000 1500 70000 60000
+
+#Nodes
+230∼247 17.93 29.87 39.06 74.49 19.77 13.00 70.57 117.63
+
+#Edges
+542∼1000 19.79 32.30 72.82 2457.78 96.53 65.94 564.66 941.04
+
+#Classes
+4 2 2 2 3 2 3 10 10
+
+2) Real-world graphs. To demonstrate the practicality of the proposed CAL, we conduct experiments on TUDataset [24] and Superpixel graphs [18]. For TUDataset, we gather three biological datasets (MUTAG, NCI1, PROTEINS) and three social networks datasets (COLLAB, IMDB-B, IMDB-M), which are commonly used in graph classification benchmarks [8, 41]. Following [8, 41, 45], we use 10-fold cross-validation and report average accuracy and standard deviation. The superpixel graphs [8, 18] includes MNIST and CIFAR-10, which are classical image classification datasets converted into graphs using superpixels technology [1] and assigning each node’s features as the superpixel coordinates and intensity. Following [8, 18], we split the MNIST and CIFAR-10 to 55K training/5K validation/10K testing, and 45K training/5K validation/10K testing, respectively. All the detailed statistics about the real-world datasets are summarized in Table 3.
+
+A.3 Hyper-parameters
+As for training parameters, we train the models for 100 epochs with batch size of 128. We optimize all models with the Adam optimizer. For SYN-𝑏 and TUDataset, we use GCN, GIN and GAT as GNN encoders with 3 layers and 128 hidden units. For Superpixel graphs MNIST and CIFAR-10, we use the GNN encoders with 4 layers and 146 hidden units as [8]. For all the baselines, we follow the default settings from original papers and reproduce the missing results. For the proposed CAL, we search 𝜆1 and 𝜆2 in (0.1, 1.0) with a step size of 0.1 and report the results with the best settings. We adopt NVIDIA 2080 Ti (11GB GPU) to conduct all our experiments, the training time comparison is shown as Table 4.
+Table 4: Training time (minutes) comparison.
+
+Method
+
+SYN-𝑏 MUTAG NCI1 IMDB-M MNIST
+
+GCN
+
+4.16
+
+GCN + CAL 6.67
+
+1.03 12.71 4.61 1.35 17.37 6.16
+
+57.20 75.80
+

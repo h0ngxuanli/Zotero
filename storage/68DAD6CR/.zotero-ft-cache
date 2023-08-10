@@ -1,0 +1,251 @@
+
+GIT基础（十）：Git更新代码到本地仓库
+关注 mb5fdb09c3c3319
+GIT基础（十）：Git更新代码到本地仓库
+转载
+
+mb5fdb09c3c3319 2021-02-22 23:44:00
+
+文章标签 git 主机名 原理图 .net 远程仓库 文章分类 PHP 后端开发 阅读数 4385
+
+来源:https://blog.csdn.net/qq_46135352/article/details/106305329
+1. 简单做法
+
+ git pull // 简单粗暴，一句搞定
+git pull origin master:feature-wxDemo #git pull <远程主机名> <远程分支名>:<本地分支名>
+ 
+
+    1.
+    2.
+
+ 
+
+    正如下面原理图，这个命令直接从远程克隆到本地，省去中间过程
+
+ 
+
+GIT基础（十）：Git更新代码到本地仓库_主机名
+
+ 
+
+ 
+
+效果如下：
+GIT基础（十）：Git更新代码到本地仓库_主机名_02
+2.上面的操作有时可能不安全，你可以选择下面的常用流程：
+
+ $ git fetch <远程主机名> <分支名>  
+
+    1.
+
+ 
+
+ 1 .git fetch origin master:temp // 从远程仓库获取新版本并创建一个temp分支 
+2 .git diff temp // 比较分支master和刚下载下来的temp分支的差异 
+3 .git merge temp // 比较过后，你觉得没有问题就可以将temp分支合并到master分支 
+4 .git branch -d temp // 你不想保留temp分支，就可以使用这个命令删除temp分支 
+
+    1.
+    2.
+    3.
+    4.
+
+ 
+
+ps:
+
+1.temp就是个分支名字，你可以随意起名，你叫它123都行。
+2.如果该分支的代码之前没有merge到本地，那么删除该分支会报错，可以使用git branch -D temp强制删除该分支。
+效果如下
+
+GIT基础（十）：Git更新代码到本地仓库_.net_03
+其他更新相关命令
+
+        git status查看本地分支文件信息
+
+        git branch 查看分支 ，*表示当前分支，比如下图，说明处于master分支
+        GIT基础（十）：Git更新代码到本地仓库_主机名_04
+
+        git chechout 123 切换到分支123
+        GIT基础（十）：Git更新代码到本地仓库_.net_05
+
+        git branck 123 创建分支 123
+
+ 
+本文章为转载内容，我们尊重原作者对文章享有的著作权。如有内容错误或侵权问题，欢迎原作者联系我们进行内容更正或删除文章。
+
+    打赏
+    赞
+    收藏
+    2 评论
+    分享
+    举报
+
+上一篇： GIT基础（十一）：Git 基本操作（二） git init 命令
+
+下一篇： GIT基础（九）：Git 远程仓库(Github)
+提问和评论都可以，用心的回复会被更多人看到 评论
+全部评论 ( 2 ) 最热 最新
+803522a55393 2年前
+挺好的，点赞！
+回复 点赞
+e96d94cb56e9 2年前
+有幸看到博主的博文！感谢博主的细致介绍！
+回复 点赞
+相关文章
+
+    Git更新远程仓库代码到本地
+
+    1、查看远程分支root@linuxnode1opslinuxgitremotevoriginhttps://github.com/Lancger/opslinux.git(fetch)originhttps://github.com/Lancger/opslinux.git(push)2、从远程获取最新版本到本地使用如下命令可以在本地新建一个temp分支，并将远程origin仓库的master分
+    linux git github
+    eclipse创建git本地仓库,并将本地仓库更新到远端git服务器
+
+    目的：将本地代码更新到远端服务器1.点击eclipsewindows->preference->team->git->Configuration配置git的基础环境2.点击add entry在里面添加user.email="注册邮箱";user.name="注册用户名"3.新建一个Maven项目，右键teamshare Project然后项目提交到本地仓库点击下面的`cr
+    git 右键 本地代码
+    git fetch 的简单用法:更新远程代码到本地仓库
+
+    方式一 1. 查看远程仓库123456$ git remote -veoecn https://github.com/eoecn/android-app.git (fetch)eoecn https://github.com/eoecn/android-app.git (push)origin https://github.com/com360/android-app.git (f
+    git github android
+    本地仓库同步到线上仓库 git 230219
+
+    线上仓库信息与远程仓库连接git remote add origin https://gitee.com/pyhui1006/git_hui.git查看已关联地址上传内容申请上传  上传失败解决上传问题控制面版添加普通凭证关于普通凭证再次上传
+    上传 git 远程仓库
+    十一、Git克隆远程仓库到本地仓库
+
+    git与github 克隆 git
+    git删除本地仓库
+
+    现在本机上有个本地仓库：[root@test01 H2_20151112]# cd H2/[root@test01 H2]# git branch* develop执行git init命令[root@test01 H2_20151112]# git initReinitialized existing Git repository in /media/sf_
+    git
+    Git 本地仓库管理
+
+    目录 [toc]基本概念工作区（Working Directory）: 就是你在电脑里能看到的目录 版本库（Repository）: 工作区有一个隐藏目录.git，这个不算工作区，而是Git的版本库。 暂存区 : Git 的版本库里存了很多东西，其中最重要的就是称为 stage(index)的暂存区配置配置个人帐号信息CLI 方式: git config --global user.em
+    git 管理
+    Git创建本地仓库
+
+    使用Git创建本地仓库，可以记录文本文件变化，这里以自己的文章为例，利用TortoiseGit工具创建一个本地Git仓库。1.切换到需要创建仓库的目录下，比如：D:\MyDoc\DevelopNote2.鼠标右键打开菜单，点击Git Create repository here...3.不要勾选Make it Bare,点击OK...
+    git 右键 打开菜单 文本文件 git工具
+    优化Git本地仓库
+
+    优化Git本地仓库版权声明：本文为博主chszs的原创文章，未获得博主授权均不能转载，否则视为
+    git 优化 服务器 源码仓库 清理
+    git优化本地仓库
+
+    git gcgit prune --verbose --progress #删除未被git跟踪的文件
+    git
+    GIT基础（十）：Git更新代码到本地仓库
+
+    来源:https://blog.csdn.net/qq_46135352/article/details/106305329 1. 简单做法 git pull //简单粗暴，一句搞定git pull origin master:feature-wxDemo #git pull <远程主机名> <远程
+    git 主机名 原理图 .net 远程仓库
+    git fetch 更新远程代码到本地仓库
+
+    git fetch 更新远程代码到本地仓库 https://www..com/chenlogin/p/6592228.html 理解 fetch 的关键, 是理解 FETCH_HEAD，FETCH_HEAD指的是: 某个branch在服务器上的最新状态’。这个列表保存在 .Git
+    git 远程分支 回滚 本地代码 当前版本
+    git推送本地仓库到远程
+
+    1.虚拟机中新建git仓库 sudo git init --bare abc/abc.git 新建完成后看下文件夹的owner，都修改成git用户 2.本地在已有的工程中打开git bash 直接git init，然后文件夹中会多一个.git的隐藏文件夹 git add . git commit - ...
+    git html 本地代码 远程仓库 bash
+    git学习--更新本地仓库单独文件
+
+    命令： git checkout origin/dev .gitignore 从远端 dev 仓库，更新本地签出分支的 .gitignore 文件
+    Git git 知识
+    git 搭建本地仓库
+
+    "文档" 创建仓库 克隆仓库，修改，提交
+    git
+    git 删除本地仓库
+
+    更新: 2017/06/27 修改格式，备注mac下的命令没测试过 windows: rm .git/ mac: sudo rm -rf .git/ 没验证
+    git 技术
+    git本地仓库指令
+
+    git initgit remote add origin http://*.git git fetch origin mastergit checkout -b mastergit pull origin master ...
+    git it
+    [转]git fetch 的简单用法:更新远程代码到本地仓库
+
+    ​Git中从远程的分支获取最新的版本到本地方式如下，如何更新下载到代码到本地，请参阅ice的博客​​基于Github参与eoe的开源项目指南​​方式一1. 查看远程仓库123456$ git remote -veoecn https://github.com/eoecn/android-app.git (fetch)eoecn https://github.com/eoecn/androi
+    git android github 远程仓库 新版本
+    git 更新代码到本地
+
+    git 更新代码到本地正规流程git status（查看本地分支文件信息，确保更新时不产生冲突）git checkout – [file name] （若文件有修改，可以还原到最初状态; 若文件需要更新到服务器上，应该先merge到服务器，再更新到本地）git branch（查看当前分支情况）git checkout remote branch (若分支为本地分支，则需切换到服务器的远程分支)g
+    git 服务器 .net 本地代码 远程分支
+    Java获取权限代码 java中的权限
+
+    斜体样式软件中的某些属性和方法出于程序安全考虑不允许被其它类操作和调用，这就需要使用Java中的访问权限修饰符，Java中的访问权限修饰符有4中： 访问修饰符：访问权限由低到高 public、 protected、 默认friendly(友好的)、private访问权限修饰符的作用： Java中的访问权限修饰符可以修饰成员变量、构造方法、普通方法。 访问控制符修饰成员的关系： 访问控制符使用范围：
+    Java获取权限代码 Java 父类 子类 访问权限
+    python浮点数科学计数法 浮点数 python
+
+    Python提供的基本数据类型：数值(整型、浮点型、复数、布尔型等)、字符串、列表、元组、字典、集合等，将它们简单分类如下：image.png1、数值（Numbers）(1)整数(Int)通常被称为整型，数值为正或者负，不带小数点。Python 3的整型可以当做Long类型使用，所以Python 3没有Python 2的Long类型。Python 初始化的时候会自动建立一个小整数对象池，方便我们调
+    python浮点数科学计数法 python3数据类型 字符串 Python bc
+    如何在python中安装匹配 python的安装与配置
+
+    本文档基于windows  64位。一.python环境配置(1) 官网下载：(如果是win8系统，似乎装3.5.0版本会报错）后文中提及的tensorflow 目前只适用于3.5.x版本(2) 点击安装应用程序进行安装，直到安装结束。建议安装路径别选择系统盘（大家都懂的，系统盘容量往往跟系统速度挂钩）(3) 环境配置：path变量中增加python的安装路径;E:\Python27 目
+    如何在python中安装匹配 便捷 python tensorflow 系统盘
+    java maven 完全限定名类的加载顺序 maven 指定jdk
+
+    方法1：直接修改 本地  settings.xml 文件  <profiles>  </profiles> 之间加入 下面的 <profile> <id>jdk-1.8</id> <activation
+    maven apache xml
+    android中对参数加密解密 android rsa加密解密
+
+    被这个小问题困了2天，终于被干掉了。安卓中利用RSA算法加密和解密整个流程大致为：生成密钥对->获取公私钥->对明(密)文加(解)密。package com.cc.encrypttest; import android.util.Base64; import java.security.InvalidKeyException; import java.security.KeyFac
+    android中对参数加密解密 rsa 加密 android 解密
+
+mb5fdb09c3c3319
+
+    479
+    原创
+    117.9 万
+    人气
+    17
+    粉丝
+    3673
+    评论
+
+    0
+    翻译
+    2031
+    转载
+    0
+    关注
+    17
+    收藏
+
+关注 私信
+近期文章
+
+    1.Erlang：并发编程与多核时代的王者
+    2.Struts权威著作
+    3.必看--问题解答以及意见
+    4.iOS开发系列课程(06) --- 常用控件介绍
+    5.通过代码程序实现 添加多个按钮
+
+新人福利
+文章目录
+
+    1. 简单做法
+    2.上面的操作有时可能不安全，你可以选择下面的常用流程：
+    ps:
+
+    每日签到
+    意见
+    反馈
+
+    目录
+    打赏
+    赞
+    收藏
+    2 评论
+    分享
+
+51CTO博客
+
+Copyright © 2005-2023 51CTO.COM 版权所有 京ICP证060544号
+
+关于我们
+    官方博客 	全部文章 	热门标签 	班级博客
+    了解我们 	在线客服 	网站地图 	意见反馈
+
+友情链接
+    开源基础软件社区 	51CTO学堂
+    51CTO 	汽车开发者社区
+

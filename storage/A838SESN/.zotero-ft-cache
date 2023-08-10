@@ -1,0 +1,761 @@
+arXiv:2003.13924v4 [cs.CV] 22 Oct 2020
+
+EvolveGraph: Multi-Agent Trajectory Prediction with Dynamic Relational Reasoning
+Jiachen Li1,2,∗† Fan Yang2,∗ Masayoshi Tomizuka2 Chiho Choi1
+1Honda Research Institute, USA 2 University of California, Berkeley {jiachen_li, fanyang16, tomizuka}@berkeley.edu cchoi@honda-ri.com
+Abstract
+Multi-agent interacting systems are prevalent in the world, from purely physical systems to complicated social dynamic systems. In many applications, effective understanding of the situation and accurate trajectory prediction of interactive agents play a signiﬁcant role in downstream tasks, such as decision making and planning. In this paper, we propose a generic trajectory forecasting framework (named EvolveGraph) with explicit relational structure recognition and prediction via latent interaction graphs among multiple heterogeneous, interactive agents. Considering the uncertainty of future behaviors, the model is designed to provide multi-modal prediction hypotheses. Since the underlying interactions may evolve even with abrupt changes, and different modalities of evolution may lead to different outcomes, we address the necessity of dynamic relational reasoning and adaptively evolving the interaction graphs. We also introduce a double-stage training pipeline which not only improves training efﬁciency and accelerates convergence, but also enhances model performance. The proposed framework is evaluated on both synthetic physics simulations and multiple real-world benchmark datasets in various areas. The experimental results illustrate that our approach achieves state-of-the-art performance in terms of prediction accuracy.
+1 Introduction
+Multi-agent trajectory prediction is critical in many real-world applications, such as autonomous driving, mobile robot navigation and other areas where a group of entities interact with each other, giving rise to complicated behavior patterns at the level of both individuals and the multi-agent system as a whole. Since usually only the trajectories of individual entities are available without any knowledge of the underlying interaction patterns, and there are usually multiple possible modalities for each agent, it is challenging to model such dynamics and forecast their future behaviors. There have been a number of existing works trying to provide a systematic solution to multi-agent interaction modeling. Some related techniques include, but not limited to social pooling layers [1], attention mechanisms [42, 19, 12, 40, 21], message passing over graphs [8, 37, 22], etc. These techniques can be summarized as implicit interaction modeling by information aggregation. Another line of research is to explicitly perform inference over the structure of the latent interaction graph, which allows for relational structures with multiple interaction types [18, 2]. Our approach falls into this category but with signiﬁcant extension and performance enhancement over existing methods. A closely related work is NRI [18], in which the interaction graph is static with homogeneous nodes during training. This is sufﬁcient for the systems involving homogeneous type of agents with ﬁxed
+∗indicates equal contribution †Work done during Jiachen’s internship at Honda Research Institute, USA.
+34th Conference on Neural Information Processing Systems (NeurIPS 2020), Vancouver, Canada.
+
+interaction patterns. In many real-world scenarios, however, the underlying interactions are inherently varying even with abrupt changes (e.g. basketball players). And there may be heterogeneous types of agents (e.g. cars, pedestrians, cyclists, etc.) involved in the system, while NRI cannot distinguish them explicitly. Moreover, NRI does not deal with the multi-modality explicitly in future system behaviors. In this work, we address the problem of 1) extracting the underlying interaction patterns with a latent graph structure, which is able to handle different types of agents in a uniﬁed way, 2) capturing the dynamics of interaction graph evolution for dynamic relational reasoning, 3) predicting future trajectories (state sequences) based on the historical observations and the latent interaction graph, and 4) capturing the multi-modality of future system behaviors.
+The main contributions of this paper are summarized as:
+• We propose a generic trajectory forecasting framework with explicit interaction modeling via a latent graph among multiple heterogeneous, interactive agents. Both trajectory information and context information (e.g. scene images, semantic maps, point cloud density maps) can be incorporated into the system.
+• We propose a dynamic mechanism to evolve the underlying interaction graph adaptively along time, which captures the dynamics of interaction patterns among multiple agents. We also introduce a double-stage training pipeline which not only improves training efﬁciency and accelerates convergence, but also enhances model performance in terms of prediction accuracy.
+• The proposed framework is designed to capture the uncertainty and multi-modality of future trajectories in nature from multiple aspects.
+• We validate the proposed framework on both synthetic simulations and trajectory forecasting benchmarks in different areas. Our EvolveGraph achieves the state-of-the-art performance consistently.
+2 Related work
+The problem of multi-agent trajectory prediction has been considered as modeling behaviors among a group of interactive agents. Social forces was introduced by [10] to model the attractive and repulsive motion of humans with respect to the neighbors. Some other learning-based approaches were proposed, such as hidden Markov models [23, 46], dynamic Bayesian networks [16], inverse reinforcement learning [39]. In recent years, the conceptual extension has been made to better model social behavior with supplemental cues such as motion patterns [48, 45] and group attributes [44]. Such social models have motivated the recent data-driven methods in [1, 20, 7, 43, 9, 47, 11, 24, 4, 50, 26, 34, 38, 32, 21, 6, 13, 28, 25]. They encode the motion history of individual entities using the recurrent operation of neural networks. However, it is nontrivial for these methods to ﬁnd acceptable future motions in heterogeneous and interactively changing environments, partly due to their heuristic feature pooling or aggregation, which may not be sufﬁcient for dynamic interaction modeling.
+Interaction modeling and relational reasoning have been widely studied in various ﬁelds. Recently, deep neural networks applied to graph structures have been employed to formulate a connection between interactive agents or variables [42, 26, 19, 22, 36, 49, 3]. These methods introduce nodes to represent interactive agents and edges to express their interactions with each other. They directly learn the evolving dynamics of node attributes (agents’ states) and/or edge attributes (relations between agents) by constructing spatio-temporal graphs. However, their models have no explicit knowledge about the underlying interaction patterns. Some existing works (e.g. NRI [18]) have taken a step forward towards explicit relational reasoning by inferring a latent interaction graph. However, it is nontrivial for NRI to deal with heterogeneous agents, context information and the systems with varying interactions. In this work, we present an effective solution to handle aforementioned issues. Our work is also related to learning on dynamic graphs. Most existing works studied representation learning on dynamically evolving graphs [30, 17], while we attempt to predict evolution of the graph.
+3 Problem formulation
+We assume that, without loss of generality, there are N homogeneous or heterogeneous agents in the scene, which belongs to M (≥ 1) categories (e.g. cars, cyclists, pedestrians). The number of
+2
+
+Decoding
+
+X5:9
+<latexit sha1_base64="I4NDBfBW09c3sWRSucLDO5sH+7g=">AAAB/3icbVDLSsNAFL2pr1pfUcGNm2ARXJVEFB+roi5cVrAPaEKZTCft0MkkzEyEErPwV9y4UMStv+HOv3HSZqGtBwYO59zLPXP8mFGpbPvbKC0sLi2vlFcra+sbm1vm9k5LRonApIkjFomOjyRhlJOmooqRTiwICn1G2v7oOvfbD0RIGvF7NY6JF6IBpwHFSGmpZ+65N4Qp5IZIDf0g7WS99PTyIuuZVbtmT2DNE6cgVSjQ6Jlfbj/CSUi4wgxJ2XXsWHkpEopiRrKKm0gSIzxCA9LVlKOQSC+d5M+sQ630rSAS+nFlTdTfGykKpRyHvp7Mc8pZLxf/87qJCs69lPI4UYTj6aEgYZaKrLwMq08FwYqNNUFYUJ3VwkMkEFa6soouwZn98jxpHdccze9OqvWroo4y7MMBHIEDZ1CHW2hAEzA8wjO8wpvxZLwY78bHdLRkFDu78AfG5w/BzpXq</latexit>
+
+Decoding
+
+X10:14
+<latexit sha1_base64="WSEFnVbmxvoGElf0Jcggtaj9uNU=">AAACAXicbZDLSsNAFIZPvNZ6i7oR3AwWwVVJpKC4KurCZQV7gSaEyXTSDp1cmJkIJcSNr+LGhSJufQt3vo2TNgtt/WHg4z/nMOf8fsKZVJb1bSwtr6yurVc2qptb2zu75t5+R8apILRNYh6Lno8l5SyibcUUp71EUBz6nHb98XVR7z5QIVkc3atJQt0QDyMWMIKVtjzz0LmhXGEnxGrkB1kv9zLburQbuWfWrLo1FVoEu4QalGp55pcziEka0kgRjqXs21ai3AwLxQinedVJJU0wGeMh7WuMcEilm00vyNGJdgYoiIV+kUJT9/dEhkMpJ6GvO4tN5XytMP+r9VMVXLgZi5JU0YjMPgpSjlSMijjQgAlKFJ9owEQwvSsiIywwUTq0qg7Bnj95ETpndVvzXaPWvCrjqMARHMMp2HAOTbiFFrSBwCM8wyu8GU/Gi/FufMxal4xy5gD+yPj8AaHCllY=</latexit>
+
+Observation Graph
+
+X1 <latexit sha1_base64="vjU/Itrk8Pxwb+Xglh+MGs9vS5A=">AAAB83icbVBNS8NAFHypX7V+VT16WSyCp5KIoMeiF48VbC00oWy2L+3SzSbsboQS+je8eFDEq3/Gm//GTZuDtg4sDDPv8WYnTAXXxnW/ncra+sbmVnW7trO7t39QPzzq6iRTDDssEYnqhVSj4BI7hhuBvVQhjUOBj+HktvAfn1BpnsgHM00xiOlI8ogzaqzk+zE14zDKe7OBN6g33KY7B1klXkkaUKI9qH/5w4RlMUrDBNW677mpCXKqDGcCZzU/05hSNqEj7FsqaYw6yOeZZ+TMKkMSJco+achc/b2R01jraRzaySKjXvYK8T+vn5noOsi5TDODki0ORZkgJiFFAWTIFTIjppZQprjNStiYKsqMralmS/CWv7xKuhdNz/L7y0brpqyjCidwCufgwRW04A7a0AEGKTzDK7w5mfPivDsfi9GKU+4cwx84nz/5c5Gg</latexit>
+
+X2 <latexit sha1_base64="DDxlERvrtI1Fqo/VOr+o/RtYxSk=">AAAB83icbVDLSsNAFL2pr1pfVZduBovgqiRF0GXRjcsK9gFNKZPpTTt0MgkzE6GE/oYbF4q49Wfc+TdO2iy09cDA4Zx7uWdOkAiujet+O6WNza3tnfJuZW//4PCoenzS0XGqGLZZLGLVC6hGwSW2DTcCe4lCGgUCu8H0Lve7T6g0j+WjmSU4iOhY8pAzaqzk+xE1kyDMevNhY1ituXV3AbJOvILUoEBrWP3yRzFLI5SGCap133MTM8ioMpwJnFf8VGNC2ZSOsW+ppBHqQbbIPCcXVhmRMFb2SUMW6u+NjEZaz6LATuYZ9aqXi/95/dSEN4OMyyQ1KNnyUJgKYmKSF0BGXCEzYmYJZYrbrIRNqKLM2JoqtgRv9cvrpNOoe5Y/XNWat0UdZTiDc7gED66hCffQgjYwSOAZXuHNSZ0X5935WI6WnGLnFP7A+fwB+veRoQ==</latexit>
+
+Encoding
+
+X3 <latexit sha1_base64="mHcHTLFQs+gA+Cea9jryYY08s14=">AAAB83icbVDLSsNAFL2pr1pfVZduBovgqiQq6LLoxmUF+4AmlMn0ph06mYSZiVBCf8ONC0Xc+jPu/BunbRbaemDgcM693DMnTAXXxnW/ndLa+sbmVnm7srO7t39QPTxq6yRTDFssEYnqhlSj4BJbhhuB3VQhjUOBnXB8N/M7T6g0T+SjmaQYxHQoecQZNVby/ZiaURjl3Wn/sl+tuXV3DrJKvILUoECzX/3yBwnLYpSGCap1z3NTE+RUGc4ETit+pjGlbEyH2LNU0hh1kM8zT8mZVQYkSpR90pC5+nsjp7HWkzi0k7OMetmbif95vcxEN0HOZZoZlGxxKMoEMQmZFUAGXCEzYmIJZYrbrISNqKLM2JoqtgRv+curpH1R9yx/uKo1bos6ynACp3AOHlxDA+6hCS1gkMIzvMKbkzkvzrvzsRgtOcXOMfyB8/kD/HuRog==</latexit>
+G1 <latexit sha1_base64="oe+G9DinucqCHDeavvMjWESyM20=">AAAB9HicbVDLSgMxFL1TX7W+qi7dBIvgqsyIoMuiC11WsA9oh3InTdvQTGZMMoUy9DvcuFDErR/jzr8x085CWw8EDufcyz05QSy4Nq777RTW1jc2t4rbpZ3dvf2D8uFRU0eJoqxBIxGpdoCaCS5Zw3AjWDtWDMNAsFYwvs381oQpzSP5aKYx80McSj7gFI2V/G6IZkRRpHezntcrV9yqOwdZJV5OKpCj3it/dfsRTUImDRWodcdzY+OnqAyngs1K3USzGOkYh6xjqcSQaT+dh56RM6v0ySBS9klD5urvjRRDradhYCezkHrZy8T/vE5iBtd+ymWcGCbp4tAgEcREJGuA9Lli1IipJUgVt1kJHaFCamxPJVuCt/zlVdK8qHqWP1xWajd5HUU4gVM4Bw+uoAb3UIcGUHiCZ3iFN2fivDjvzsditODkO8fwB87nD6b4kgE=</latexit>
+
+X4 <latexit sha1_base64="7IC57u8yvuJPcqEg1bqJSPMUKTQ=">AAAB83icbVDLSsNAFL2pr1pfVZduBovgqiRS0GXRjcsK9gFNKZPpTTt0MgkzE6GE/oYbF4q49Wfc+TdO2iy09cDA4Zx7uWdOkAiujet+O6WNza3tnfJuZW//4PCoenzS0XGqGLZZLGLVC6hGwSW2DTcCe4lCGgUCu8H0Lve7T6g0j+WjmSU4iOhY8pAzaqzk+xE1kyDMevNhY1ituXV3AbJOvILUoEBrWP3yRzFLI5SGCap133MTM8ioMpwJnFf8VGNC2ZSOsW+ppBHqQbbIPCcXVhmRMFb2SUMW6u+NjEZaz6LATuYZ9aqXi/95/dSEN4OMyyQ1KNnyUJgKYmKSF0BGXCEzYmYJZYrbrIRNqKLM2JoqtgRv9cvrpHNV9yx/aNSat0UdZTiDc7gED66hCffQgjYwSOAZXuHNSZ0X5935WI6WnGLnFP7A+fwB/f+Row==</latexit>
+
+X5 <latexit sha1_base64="JO6HflqJvCxMne1/3CyQ0BvWeu4=">AAAB83icbVDLSsNAFL2pr1pfVZduBovgqiSi6LLoxmUF+4AmlMn0ph06mYSZiVBCf8ONC0Xc+jPu/BunbRbaemDgcM693DMnTAXXxnW/ndLa+sbmVnm7srO7t39QPTxq6yRTDFssEYnqhlSj4BJbhhuB3VQhjUOBnXB8N/M7T6g0T+SjmaQYxHQoecQZNVby/ZiaURjl3Wn/ql+tuXV3DrJKvILUoECzX/3yBwnLYpSGCap1z3NTE+RUGc4ETit+pjGlbEyH2LNU0hh1kM8zT8mZVQYkSpR90pC5+nsjp7HWkzi0k7OMetmbif95vcxEN0HOZZoZlGxxKMoEMQmZFUAGXCEzYmIJZYrbrISNqKLM2JoqtgRv+curpH1R9yx/uKw1bos6ynACp3AOHlxDA+6hCS1gkMIzvMKbkzkvzrvzsRgtOcXOMfyB8/kD/4ORpA==</latexit> C <latexit sha1_base64="pDzNUmhOgKEUAKR9vKKK/D7VwBI=">AAAB8XicbVDLSsNAFL3xWeur6tLNYBFclUQEXRa7cVnBPrANZTKdtEMnkzBzI5TQv3DjQhG3/o07/8ZJm4W2Hhg4nHMvc+4JEikMuu63s7a+sbm1Xdop7+7tHxxWjo7bJk414y0Wy1h3A2q4FIq3UKDk3URzGgWSd4JJI/c7T1wbEasHnCbcj+hIiVAwilZ67EcUx0GYNWaDStWtuXOQVeIVpAoFmoPKV38YszTiCpmkxvQ8N0E/oxoFk3xW7qeGJ5RN6Ij3LFU04sbP5oln5NwqQxLG2j6FZK7+3shoZMw0CuxkntAse7n4n9dLMbzxM6GSFLlii4/CVBKMSX4+GQrNGcqpJZRpYbMSNqaaMrQllW0J3vLJq6R9WfMsv7+q1m+LOkpwCmdwAR5cQx3uoAktYKDgGV7hzTHOi/PufCxG15xi5wT+wPn8AayykOc=</latexit>
+
+X6 <latexit sha1_base64="mynWUtrfUt+kxTKMQvFKzoY0Zks=">AAAB83icbVDLSsNAFL2pr1pfVZduBovgqiQi6rLoxmUF+4AmlMn0ph06mYSZiVBCf8ONC0Xc+jPu/BunbRbaemDgcM693DMnTAXXxnW/ndLa+sbmVnm7srO7t39QPTxq6yRTDFssEYnqhlSj4BJbhhuB3VQhjUOBnXB8N/M7T6g0T+SjmaQYxHQoecQZNVby/ZiaURjl3Wn/ql+tuXV3DrJKvILUoECzX/3yBwnLYpSGCap1z3NTE+RUGc4ETit+pjGlbEyH2LNU0hh1kM8zT8mZVQYkSpR90pC5+nsjp7HWkzi0k7OMetmbif95vcxEN0HOZZoZlGxxKMoEMQmZFUAGXCEzYmIJZYrbrISNqKLM2JoqtgRv+curpH1R9yx/uKw1bos6ynACp3AOHlxDA+6hCS1gkMIzvMKbkzkvzrvzsRgtOcXOMfyB8/kDARaRpQ==</latexit>
+
+X7 <latexit sha1_base64="qHw/KQTY9n/ae8AxtmhYQlWB5Sc=">AAAB83icbVDLSsNAFL2pr1pfVZduBovgqiQi1GXRjcsK9gFNKZPpTTt0MgkzE6GE/oYbF4q49Wfc+TdO2iy09cDA4Zx7uWdOkAiujet+O6WNza3tnfJuZW//4PCoenzS0XGqGLZZLGLVC6hGwSW2DTcCe4lCGgUCu8H0Lve7T6g0j+WjmSU4iOhY8pAzaqzk+xE1kyDMevNhY1ituXV3AbJOvILUoEBrWP3yRzFLI5SGCap133MTM8ioMpwJnFf8VGNC2ZSOsW+ppBHqQbbIPCcXVhmRMFb2SUMW6u+NjEZaz6LATuYZ9aqXi/95/dSEN4OMyyQ1KNnyUJgKYmKSF0BGXCEzYmYJZYrbrIRNqKLM2JoqtgRv9cvrpHNV9yx/uK41b4s6ynAG53AJHjSgCffQgjYwSOAZXuHNSZ0X5935WI6WnGLnFP7A+fwBApqRpg==</latexit>
+
+Encoding
+
+X8 <latexit sha1_base64="yzs5vWXElGOwerEvcBwA6Qj2vrw=">AAAB83icbVDLSsNAFL2pr1pfVZduBovgqiQi2GXRjcsK9gFNKZPpTTt0MgkzE6GE/oYbF4q49Wfc+TdO2iy09cDA4Zx7uWdOkAiujet+O6WNza3tnfJuZW//4PCoenzS0XGqGLZZLGLVC6hGwSW2DTcCe4lCGgUCu8H0Lve7T6g0j+WjmSU4iOhY8pAzaqzk+xE1kyDMevNhY1ituXV3AbJOvILUoEBrWP3yRzFLI5SGCap133MTM8ioMpwJnFf8VGNC2ZSOsW+ppBHqQbbIPCcXVhmRMFb2SUMW6u+NjEZaz6LATuYZ9aqXi/95/dSEjUHGZZIalGx5KEwFMTHJCyAjrpAZMbOEMsVtVsImVFFmbE0VW4K3+uV10rmqe5Y/XNeat0UdZTiDc7gED26gCffQgjYwSOAZXuHNSZ0X5935WI6WnGLnFP7A+fwBBB6Rpw==</latexit>
+G2 <latexit sha1_base64="54HfiYrktY0wvHhz1JRJ6Chc6rQ=">AAAB9HicbVDLSgMxFL3js9ZX1aWbYBFclZki6LLoQpcV7APaoWTS2zY0kxmTTKEM/Q43LhRx68e482/MtLPQ1gOBwzn3ck9OEAuujet+O2vrG5tb24Wd4u7e/sFh6ei4qaNEMWywSESqHVCNgktsGG4EtmOFNAwEtoLxbea3Jqg0j+Sjmcboh3Qo+YAzaqzkd0NqRoyK9G7Wq/ZKZbfizkFWiZeTMuSo90pf3X7EkhClYYJq3fHc2PgpVYYzgbNiN9EYUzamQ+xYKmmI2k/noWfk3Cp9MoiUfdKQufp7I6Wh1tMwsJNZSL3sZeJ/Xicxg2s/5TJODEq2ODRIBDERyRogfa6QGTG1hDLFbVbCRlRRZmxPRVuCt/zlVdKsVjzLHy7LtZu8jgKcwhlcgAdXUIN7qEMDGDzBM7zCmzNxXpx352MxuubkOyfwB87nD6h8kgI=</latexit>
+
+X9 <latexit sha1_base64="FOdoTLneUg0OVjqtCtG47Bbb2vo=">AAAB83icbVDLSsNAFL2pr1pfVZduBovgqiQiqLuiG5cV7AOaUCbTm3boZBJmJkIJ/Q03LhRx68+482+ctllo64GBwzn3cs+cMBVcG9f9dkpr6xubW+Xtys7u3v5B9fCorZNMMWyxRCSqG1KNgktsGW4EdlOFNA4FdsLx3czvPKHSPJGPZpJiENOh5BFn1FjJ92NqRmGUd6f9m3615tbdOcgq8QpSgwLNfvXLHyQsi1EaJqjWPc9NTZBTZTgTOK34mcaUsjEdYs9SSWPUQT7PPCVnVhmQKFH2SUPm6u+NnMZaT+LQTs4y6mVvJv7n9TITXQc5l2lmULLFoSgTxCRkVgAZcIXMiIkllClusxI2oooyY2uq2BK85S+vkvZF3bP84bLWuC3qKMMJnMI5eHAFDbiHJrSAQQrP8ApvTua8OO/Ox2K05BQ7x/AHzucPBaKRqA==</latexit>
+
+X10 <latexit sha1_base64="HGh5F1ilWfCt5QNNWZVn2G57ZdQ=">AAAB+HicbVDLSsNAFL2pr1ofjbp0M1gEVyURoS6LblxWsA9oQ5hMJ+3QySTMTIQa8iVuXCji1k9x5984abPQ1gMDh3Pu5Z45QcKZ0o7zbVU2Nre2d6q7tb39g8O6fXTcU3EqCe2SmMdyEGBFORO0q5nmdJBIiqOA034wuy38/iOVisXiQc8T6kV4IljICNZG8u36KMJ6GoTZIPcz18l9u+E0nQXQOnFL0oASHd/+Go1jkkZUaMKxUkPXSbSXYakZ4TSvjVJFE0xmeEKHhgocUeVli+A5OjfKGIWxNE9otFB/b2Q4UmoeBWayiKlWvUL8zxumOrz2MiaSVFNBlofClCMdo6IFNGaSEs3nhmAimcmKyBRLTLTpqmZKcFe/vE56l03X8PurRvumrKMKp3AGF+BCC9pwBx3oAoEUnuEV3qwn68V6tz6WoxWr3DmBP7A+fwCwY5MX</latexit> C <latexit sha1_base64="pDzNUmhOgKEUAKR9vKKK/D7VwBI=">AAAB8XicbVDLSsNAFL3xWeur6tLNYBFclUQEXRa7cVnBPrANZTKdtEMnkzBzI5TQv3DjQhG3/o07/8ZJm4W2Hhg4nHMvc+4JEikMuu63s7a+sbm1Xdop7+7tHxxWjo7bJk414y0Wy1h3A2q4FIq3UKDk3URzGgWSd4JJI/c7T1wbEasHnCbcj+hIiVAwilZ67EcUx0GYNWaDStWtuXOQVeIVpAoFmoPKV38YszTiCpmkxvQ8N0E/oxoFk3xW7qeGJ5RN6Ij3LFU04sbP5oln5NwqQxLG2j6FZK7+3shoZMw0CuxkntAse7n4n9dLMbzxM6GSFLlii4/CVBKMSX4+GQrNGcqpJZRpYbMSNqaaMrQllW0J3vLJq6R9WfMsv7+q1m+LOkpwCmdwAR5cQx3uoAktYKDgGV7hzTHOi/PufCxG15xi5wT+wPn8AayykOc=</latexit>
+
+X11 <latexit sha1_base64="6ZAEVkRjq3Y6Nwo0Ki2kAMNTYSY=">AAAB+HicbVDLSsNAFL2pr1ofjbp0M1gEVyURoS6LblxWsA9oQ5hMJ+3QySTMTIQa8iVuXCji1k9x5984abPQ1gMDh3Pu5Z45QcKZ0o7zbVU2Nre2d6q7tb39g8O6fXTcU3EqCe2SmMdyEGBFORO0q5nmdJBIiqOA034wuy38/iOVisXiQc8T6kV4IljICNZG8u36KMJ6GoTZIPcz1819u+E0nQXQOnFL0oASHd/+Go1jkkZUaMKxUkPXSbSXYakZ4TSvjVJFE0xmeEKHhgocUeVli+A5OjfKGIWxNE9otFB/b2Q4UmoeBWayiKlWvUL8zxumOrz2MiaSVFNBlofClCMdo6IFNGaSEs3nhmAimcmKyBRLTLTpqmZKcFe/vE56l03X8PurRvumrKMKp3AGF+BCC9pwBx3oAoEUnuEV3qwn68V6tz6WoxWr3DmBP7A+fwCx6JMY</latexit>
+
+X12 <latexit sha1_base64="KCgToyp77P2FH17b2TtEGczz6xo=">AAAB+HicbVDLSsNAFL2pr1ofjbp0M1gEVyUpgi6LblxWsA9oQ5hMJ+3QySTMTIQa8iVuXCji1k9x5984abPQ1gMDh3Pu5Z45QcKZ0o7zbVU2Nre2d6q7tb39g8O6fXTcU3EqCe2SmMdyEGBFORO0q5nmdJBIiqOA034wuy38/iOVisXiQc8T6kV4IljICNZG8u36KMJ6GoTZIPczt5X7dsNpOgugdeKWpAElOr79NRrHJI2o0IRjpYauk2gvw1IzwmleG6WKJpjM8IQODRU4osrLFsFzdG6UMQpjaZ7QaKH+3shwpNQ8CsxkEVOteoX4nzdMdXjtZUwkqaaCLA+FKUc6RkULaMwkJZrPDcFEMpMVkSmWmGjTVc2U4K5+eZ30Wk3X8PvLRvumrKMKp3AGF+DCFbThDjrQBQIpPMMrvFlP1ov1bn0sRytWuXMCf2B9/gCzbZMZ</latexit>
+
+Encoding
+
+G3 <latexit sha1_base64="k+J6riXAgyAViENzRJzgWMRAlFc=">AAAB9HicbVDLSgMxFL3js9ZX1aWbYBFclRkVdFl0ocsK9gHtUDJp2oZmMmNyp1CGfocbF4q49WPc+Tdm2llo64HA4Zx7uScniKUw6Lrfzsrq2vrGZmGruL2zu7dfOjhsmCjRjNdZJCPdCqjhUiheR4GSt2LNaRhI3gxGt5nfHHNtRKQecRJzP6QDJfqCUbSS3wkpDhmV6d20e9Etld2KOwNZJl5OypCj1i19dXoRS0KukElqTNtzY/RTqlEwyafFTmJ4TNmIDnjbUkVDbvx0FnpKTq3SI/1I26eQzNTfGykNjZmEgZ3MQppFLxP/89oJ9q/9VKg4Qa7Y/FA/kQQjkjVAekJzhnJiCWVa2KyEDammDG1PRVuCt/jlZdI4r3iWP1yWqzd5HQU4hhM4Aw+uoAr3UIM6MHiCZ3iFN2fsvDjvzsd8dMXJd47gD5zPH6oAkgM=</latexit>
+
+H1 <latexit sha1_base64="7K/dEtxbErT6+QEWLy77eYKjmWg=">AAAB9XicbVDLSgMxFL1TX7W+qi7dBIvgqsyIoMuimy4r2Ae0Y8mkmTY0kwxJRinD/IcbF4q49V/c+Tdm2llo64HA4Zx7uScniDnTxnW/ndLa+sbmVnm7srO7t39QPTzqaJkoQttEcql6AdaUM0HbhhlOe7GiOAo47QbT29zvPlKlmRT3ZhZTP8JjwUJGsLHSwyDCZhKEaTMbpl42rNbcujsHWiVeQWpQoDWsfg1GkiQRFYZwrHXfc2Pjp1gZRjjNKoNE0xiTKR7TvqUCR1T76Tx1hs6sMkKhVPYJg+bq740UR1rPosBO5in1speL/3n9xITXfspEnBgqyOJQmHBkJMorQCOmKDF8ZgkmitmsiEywwsTYoiq2BG/5y6ukc1H3LL+7rDVuijrKcAKncA4eXEEDmtCCNhBQ8Ayv8OY8OS/Ou/OxGC05xc4x/IHz+QOs+JKc</latexit>
+G10 <latexit sha1_base64="32RAqQdrdQA7H7r0Chdyi9o/2C8=">AAAB9XicbVDLSgMxFL3js9ZX1aWbYBFdlRkRdFl0ocsK9gHtWDLpbRuayQxJRilD/8ONC0Xc+i/u/Bsz7Sy09UDgcM693JMTxIJr47rfztLyyuraemGjuLm1vbNb2ttv6ChRDOssEpFqBVSj4BLrhhuBrVghDQOBzWB0nfnNR1SaR/LejGP0QzqQvM8ZNVZ66ITUDBkV6c3kpOt1S2W34k5BFomXkzLkqHVLX51exJIQpWGCat323Nj4KVWGM4GTYifRGFM2ogNsWyppiNpPp6kn5NgqPdKPlH3SkKn6eyOlodbjMLCTWUo972Xif147Mf1LP+UyTgxKNjvUTwQxEckqID2ukBkxtoQyxW1WwoZUUWZsUUVbgjf/5UXSOKt4lt+dl6tXeR0FOIQjOAUPLqAKt1CDOjBQ8Ayv8OY8OS/Ou/MxG11y8p0D+APn8wcL4pIy</latexit>
+
+H2 <latexit sha1_base64="g2dQqvTL3QowRcpxPJR8/dNQuzA=">AAAB9XicbVBNSwMxFHypX7V+VT16CRbBU9ktgh6LXnqsYFuhXUs2zbah2eySZJWy7P/w4kERr/4Xb/4bs+0etHUgMMy8x5uMHwuujeN8o9La+sbmVnm7srO7t39QPTzq6ihRlHVoJCJ17xPNBJesY7gR7D5WjIS+YD1/epP7vUemNI/knZnFzAvJWPKAU2Ks9DAIiZn4QdrKhmkjG1ZrTt2ZA68StyA1KNAeVr8Go4gmIZOGCqJ133Vi46VEGU4FyyqDRLOY0CkZs76lkoRMe+k8dYbPrDLCQaTskwbP1d8bKQm1noW+ncxT6mUvF//z+okJrryUyzgxTNLFoSAR2EQ4rwCPuGLUiJklhCpus2I6IYpQY4uq2BLc5S+vkm6j7lp+e1FrXhd1lOEETuEcXLiEJrSgDR2goOAZXuENPaEX9I4+FqMlVOwcwx+gzx+ufZKd</latexit>
+G20 <latexit sha1_base64="sfs0PI+LJ/AyOmbk5vp5wtU509k=">AAAB9XicbVDLSgMxFL1TX7W+qi7dBIvoqswUQZdFF7qsYB/QjiWTZtrQTDIkGaUM/Q83LhRx67+482/MtLPQ1gOBwzn3ck9OEHOmjet+O4WV1bX1jeJmaWt7Z3evvH/Q0jJRhDaJ5FJ1AqwpZ4I2DTOcdmJFcRRw2g7G15nffqRKMynuzSSmfoSHgoWMYGOlh16EzYhgnt5MT/u1frniVt0Z0DLxclKBHI1++as3kCSJqDCEY627nhsbP8XKMMLptNRLNI0xGeMh7VoqcES1n85ST9GJVQYolMo+YdBM/b2R4kjrSRTYySylXvQy8T+vm5jw0k+ZiBNDBZkfChOOjERZBWjAFCWGTyzBRDGbFZERVpgYW1TJluAtfnmZtGpVz/K780r9Kq+jCEdwDGfgwQXU4RYa0AQCCp7hFd6cJ+fFeXc+5qMFJ985hD9wPn8ADWaSMw==</latexit>
+
+H3 <latexit sha1_base64="DNYhZDlZhP7CkRnH7rhIKfLQVu8=">AAAB9XicbVDLSgMxFL3xWeur6tJNsAiuyowKuiy66bKCfUA7lkyaaUMzmSHJKGWY/3DjQhG3/os7/8ZMOwttPRA4nHMv9+T4seDaOM43WlldW9/YLG2Vt3d29/YrB4dtHSWKshaNRKS6PtFMcMlahhvBurFiJPQF6/iT29zvPDKleSTvzTRmXkhGkgecEmOlh35IzNgP0kY2SC+yQaXq1JwZ8DJxC1KFAs1B5as/jGgSMmmoIFr3XCc2XkqU4VSwrNxPNIsJnZAR61kqSci0l85SZ/jUKkMcRMo+afBM/b2RklDraejbyTylXvRy8T+vl5jg2ku5jBPDJJ0fChKBTYTzCvCQK0aNmFpCqOI2K6Zjogg1tqiyLcFd/PIyaZ/XXMvvLqv1m6KOEhzDCZyBC1dQhwY0oQUUFDzDK7yhJ/SC3tHHfHQFFTtH8Afo8wewApKe</latexit>
+G30 <latexit sha1_base64="7QEA85UYmj4z5/NwfEgw0igzHUg=">AAAB9XicbVDLSgMxFL1TX7W+qi7dBIvoqsyooMuiC11WsA9ox5JJM21oJhmSjFKG/ocbF4q49V/c+Tdm2llo64HA4Zx7uScniDnTxnW/ncLS8srqWnG9tLG5tb1T3t1rapkoQhtEcqnaAdaUM0EbhhlO27GiOAo4bQWj68xvPVKlmRT3ZhxTP8IDwUJGsLHSQzfCZkgwT28mx72zXrniVt0p0CLxclKBHPVe+avblySJqDCEY607nhsbP8XKMMLppNRNNI0xGeEB7VgqcES1n05TT9CRVfoolMo+YdBU/b2R4kjrcRTYySylnvcy8T+vk5jw0k+ZiBNDBZkdChOOjERZBajPFCWGjy3BRDGbFZEhVpgYW1TJluDNf3mRNE+rnuV355XaVV5HEQ7gEE7AgwuowS3UoQEEFDzDK7w5T86L8+58zEYLTr6zD3/gfP4ADuqSNA==</latexit>
+
+Interaction Graph
+
+Agent Nodes
+Context Node Bidirectional Edges (in observation graph) Unidirectional Edges (in observation graph)
+Unidirectional Edges (in interaction graph)
+
+Figure 1: (a) The left part is a high-level graphical illustration of the proposed approach, where the encoding horizon and decoding horizons (re-encoding gap) are both set to 5. Xt denotes the state of all the agents at time t, ∆Xt denotes the change in state, and C denotes context information. Gβ denotes the latent interaction graph obtained from the static encoding process, and Gβ denotes the adjusted interaction graph with time dependence. At each encoding-decoding iteration, Gβ is obtained through the encoding of previous trajectories and context information, which goes through a recurrent unit (Hβ) to get the adjusted interaction graph Gβ. The previous trajectories and Gβ are combined as the input of the decoding process, which generates distributions of state changes to get
+future trajectories. (b) The right part is an illustration of observation graph and interaction graph. In
+the observation graph, the edges between agent nodes are homogeneous and bidirectional, while in
+the interaction graph, colored edges are unidirectional with a certain type. (Best viewed in color.)
+
+agents may vary in different cases. We denote a set of state sequences covering the historical and forecasting horizons (Th and Tf ) as X1:T = {xi1:T , T = Th + Tf , i = 1, ..., N }. We also denote a sequence of historical context information as C1:Th = {c1:Th } for dynamic scenes or ﬁxed context information C for static scenes. In the scope of this paper, we deﬁne xit = (xit, yti), where (x, y) is the 2D coordinate in the world space or image pixel space. The context information includes
+
+images or tensors which represent attributes of the scene. We denote the latent interaction graph
+
+as Gβ, where β is the graph index. We aim to estimate p(XTh+1:Th+Tf |X1:Th , C1:Th ) for dynamic scenes or p(XTh+1:Th+Tf |X1:Th , C) for static scenes. For simplicity, we use C when referring to the context information in the equations. More formally, if the latent interaction graph is inferred at
+
+each time step, then we have the factorization of p(XTh+1:Th+Tf |X1:Th , C) below:
+
+Tf −1
+
+p(G0|X1:Th , C)p(XTh+1|G0, X1:Th , C)
+
+p(Gβ |G0:β−1, X1:Th+β , C)p(XTh+β+1|G0:β , X1:Th+β , C).
+
+G
+
+β=1
+
+4 EvolveGraph
+
+An illustrative graphical model is shown in Figure 1 (left part) to demonstrate the essential procedures of the prediction framework with explicit dynamic relational reasoning. Instead of end-to-end training in a single pipeline, our training process contains two consecutive stages: • Static interaction graph learning: A series of encoding functions are trained to extract interaction patterns from the observed trajectories and context information, and generate a distribution of static latent interaction graphs. A series of decoding functions are trained to recurrently generate multimodal distributions of future states. At this stage, the prediction is only based on the static interaction graph inferred from the history information, which means the encoding process is only applied once and the interaction graph does not evolve with the decoding process. • Dynamic interaction graph learning: The pre-trained encoding and decoding functions at the ﬁrst stage are utilized as an initialization, which are ﬁnetuned together with the training of a recurrent network which captures the dynamics of interaction graph evolution. The graph recurrent network serves as a high-level integration which considers the dependency of the current interaction graph on previous ones. At this stage, the prediction is based on the latest updated interaction graph.
+
+4.1 Static interaction graph learning
+Observation Graph A fully-connected graph without self-loops is constructed to represent the observed information with node/edge attributes, which is called observation graph. Assume that
+
+3
+
+there are N heterogeneous agents in the scene, which belongs to M categories. Then the observation graph consists of N agent nodes and one context node. Agent nodes are bidirectionally connected
+to each other, and the context node only have outgoing edges to each agent node. We denote an observation graph as Gobs = {Vobs, Eobs}, where Vobs = {vi, i ∈ {1, ..., N }} ∪ {vc} and Eobs = {eij, i, j ∈ {1, ..., N }} ∪ {eic, i ∈ {1, ..., N }} . vi, vc and eij, eic denote agent node attribute, context node attribute and agent-agent, context-agent edge attribute, respectively. More speciﬁcally, the eij denotes the attribute of the edge from node j to node i. Each agent node has two types of attributes: self-attribute and social-attribute. The former only contains the node’s own
+state information, while the latter only contains other nodes’ state information. The calculations of
+node/edge attributes are given by
+
+viself = fam(xi1:Th ), i ∈ {1, ..., N }, m ∈ {1, ..., M }, vc = fc(c1:Th ) or vc = fc(c),
+
+(1)
+
+e1ij = fe1([viself, vjself]), e1ic = fe1c([viself, vc]), visocial-1 = fv1([
+
+αij e1ij , e1ic]),
+
+i=j
+
+αij = 1, (2)
+i=j
+
+vi1 = [viself, visocial-1], e2ij = fe2([vi1, vj1]), αij =
+
+exp (LeakyReLU(a [Wvi||Wvj])) , (3) k∈Ni exp (LeakyReLU(a [Wvi||Wvk]))
+
+where αij are learnable attention coefﬁcients computed similar as [41], fam(·), fc(·) are agent, context node embedding functions, and fe(·), fec(·) and fv(·) are agent-agent edge, agent-context
+
+edge, and agent node update functions, respectively. Different types of nodes (agents) use different
+
+embedding functions. Note that the attributes of the context node are never updated and the edge
+
+attributes only serve as intermediates for the update of agent node attributes. These f (·) functions are
+
+implemented by deep networks with proper architectures. At this time, we obtain a complete set of
+
+node/edge attributes which include the information of direct (ﬁrst-order) interaction. The higher-order
+
+interactions can be modeled by multiple loops of equations (2)-(3), in which the social node attributes
+
+and edge attributes are updated by turns. Note that the self-attribute is ﬁxed in the whole process.
+
+Interaction Graph The interaction graph represents interaction patterns with a distribution of edge types for each edge, which is built on top of the observation graph. We set a hyperparameter L to denote the number of possible edge types (interaction types) between pairwise agent nodes to model agent-agent interactions. Also, there is another edge type that is shared between the context node and all agent nodes to model agent-context interactions. Note that “no edge” can also be treated as a special edge type, which implies that there is no message passing along such edges. More formally, the interaction graph is a discrete probability distribution q(G|X1:Th , C1:Th ) or q(G|X1:Th , C), where G = {zij, i, j ∈ {1, ..., N }} ∪ {zic, i ∈ {1, ..., N }} is a set of interaction types for all the edges, and zij and zic are random variables to indicate pairwise interaction types for a speciﬁc edge.
+Encoding The goal of the encoding process is to infer a latent interaction graph from the observation graph, which is essentially a multi-class edge classiﬁcation task. We employ a softmax function with a continuous approximation of the discrete distribution [27] on the last updated edge attributes to obtain the probability of each edge type, which is given by
+
+q(zij |X1:Th , C) = Softmax((e2ij + g)/τ ), i, j ∈ {1, ..., N },
+
+(4)
+
+where g is a vector of independent and identically distributed samples drawn from Gumbel(0, 1) distribution and τ is the Softmax temperature, which controls the sample smoothness. We also
+use the repramatrization trick to obtain gradients for backpropagation. The edge type between context node and agent nodes zic, without loss of generality, is hard-coded with probability one. For simplicity, we summarize all the operations in the observation graph and the encoding process as q(z|X1:Th , C) = fenc(X1:Th , C), which gives a factorized distribution of zij.
+
+Decoding Since in many real-world applications the state of agents has long-term dependence, a
+recurrent decoding process is applied to the interaction graph and observation graph to approximate the distribution of future trajectories p(XTh+1:Th+Tf |G, X1:Th , C). The output at each time step is a
+Gaussian mixture distribution with K components, where the covariance of each Gaussian component
+is manually set equal. The detailed operations in the decoding process consists of two stages: burn-in stage (1 ≤ t ≤ Th) and prediction stage (Th + 1 ≤ t ≤ Th + Tf ), which are given by
+
+e˜itj =
+
+L l=1
+
+zij,l f˜el ([h˜ it ,
+
+h˜jt ]),
+
+MSGit =
+
+j=i e˜itj ,
+
+(5)
+
+• 1 ≤ t ≤ Th (Burn-in stage):
+
+h˜it+1 = GRUi([MSGit, xit, vc], h˜it), wti+,k1 = fwkeight(h˜it+1),
+
+(6)
+
+µit,+k1 = xit + fokut(h˜it+1), p(xˆit+1|z, xi1:t, c) =
+
+K k=1
+
+wti+,k1 N
+
+(µit,+k1 ,
+
+σ2I),
+
+(7)
+
+4
+
+• Th + 1 ≤ t ≤ Th + Tf (Prediction stage):
+
+h˜it+1 = GRUi([MSGit, xˆit, vc], h˜it), wti+,k1 = fwkeight(h˜it+1), µit,+k1 = xˆit + fokut(h˜it+1),
+
+(8)
+
+p(xˆit+1|z, xˆiTh+1:t, xi1:Th , c) =
+
+K k=1
+
+wti+,k1 N
+
+(µit,+k1 ,
+
+σ2I),
+
+(9)
+
+Sample a Gaussian component from the mixture based on wti+1, Set xˆit+1 = µit,+k1,
+
+(10)
+
+where MSG is a symbolic acronym for “message” here without speciﬁc meanings, h˜it is the hidden state of GRUi at time t, wti+,k1 is the weight of the kth Gaussian distribution at time step t + 1 for agent i. f˜el(·) is the edge update function of edge type l, fwkeight(·) is a mapping function to get the weight of the kth Gaussian distribution, and fokut(·) is a mapping function to get the mean of the kth Gaussian component. Note that the predicted xˆit is needed in equation (8). In the previous decoding step, we only have its corresponding distribution p(xˆit|z, xˆiTh+1:t−1, xi1:Th , c) from the previous step. We ﬁrst sample a Gaussian component from the mixture based on the component weights wti+1. Say we get the kth component, then we set xˆjt as µjt,k, which is the trajectory with maximum likelihood within this component. We ﬁx the covariance σ as a constant. The nodes
+(agents) of the same type share the same GRU decoder. During the burn-in stage, the ground-truth
+states are used; while during the prediction stage, the state prediction hypotheses are used as the
+input at the next time step iteratively. For simplicity, the whole decoding process is summarized as p(XTh+1:Th+Tf |G, X1:Th , C) = fdec(G, X1:Th , C).
+
+4.2 Dynamic interaction graph
+
+In many applications, the interaction patterns recognized from the past time steps are likely not static in the future. Instead, they are rather dynamically evolving throughout the future time steps. Moreover, many interaction systems have multi-modal properties in its nature. Different modalities afterwards are likely to result in different interaction patterns. A single static interaction graph is neither sufﬁciently ﬂexible to model dynamically changing situations (especially those with abrupt changes), nor to capture all the modalities. Therefore, we introduce an effective dynamic mechanism to evolve the interaction graph.
+
+The encoding process is repeated every τ (re-encoding gap) time steps to obtain the latent interaction graph based on the latest observation graph. Since the new interaction graph also has dependence on previous ones, we also need to consider their effects. Therefore, a recurrent unit (GRU) is utilized to maintain and propagate the history information, as well as adjust the prior interaction graphs. More formally, the calculations are given by
+
+q(zβ |X1+βτ:Th+βτ , C) = fenc(X1+βτ:Th+βτ , C),
+
+(11)
+
+q(zβ |X1+βτ:Th+βτ , C) = GRU(q(zβ |X1+βτ:Th+βτ , C), Hβ )
+
+(12)
+
+where β is the re-encoding index starting from 0, zβ is the interaction graph obtained from the static encoding process, zβ is the adjusted interaction graph with time dependence, and Hβ is the hidden state of the graph evolution GRU. After obtaining Gβ = {zβ}, the decoding process is applied to get the states of the next τ time steps,
+
+p(XTh+βτ +1:Th+(β+1)τ |Gβ , X1:Th , Xˆ Th+1:Th+βτ , C) = fdec(Gβ , X1:Th , Xˆ Th+1:Th+βτ , C).
+
+(13)
+
+The decoding and re-encoding processes are iterated to obtain the distribution of future trajectories.
+
+4.3 Uncertainty and multi-modality
+Here we emphasize the efforts to encourage diverse and multi-modal trajectory prediction and generation. In our framework, the uncertainty and multi-modality mainly come from three aspects. First, in the decoding process, we output Gaussian mixture distributions indicating that there are several possible modalities at the next step. We only sample a single Gaussian component at each step based on the component weights which indicate the probability of each modality. Second, different sampled trajectories will lead to different interaction graph evolution. Evolution of interaction graphs contributes to the multi-modality of future behaviors, since different underlying relational structures enforce different regulations on the system behavior and lead to various outcomes. Third, directly training such a model, however, tends to collapse to a single mode. Therefore, we employ an effective mechanism to mitigate the mode collapse issue and encourage multi-modality. During training,
+
+5
+
+Table 1: Comparison of Accuracy (Mean ± Std in %) of Interaction (Edge Type) Recognition.
+
+No Change Change
+
+Corr. (LSTM)
+63.2±0.9 —
+
+NRI (dynamic)
+91.3±0.3 71.5±3.1
+
+EvolveGraph (static)
+95.6±0.2 64.1±0.8
+
+EvolveGraph (RNN re-encoding)
+91.4±0.3 75.2±1.4
+
+EvolveGraph (dynamic)
+93.8±1.1 82.3±3.2
+
+Supervised
+98.1±0.4 94.3±1.5
+
+we run the decoding process d times, which generates d trajectories for each agent under speciﬁc scenarios. We only choose the prediction hypothesis with the minimal loss for backpropagation, which is the most likely to be in the same mode as the ground truth. The other prediction hypotheses may have much higher loss, but it doesn’t necessarily imply that they are implausible. They may represent other potential reasonable modalities.
+
+4.4 Loss Function and Training
+
+In our experiments, we ﬁrst train the encoding / decoding functions using a static interaction graph. Then in the process of training dynamic interaction graph, we use the pre-trained encoding / decoding functions at the ﬁrst stage to initialize the parameters of the modules used in the dynamic training. This step is reasonable since the encoding / decoding functions used in these two training process play similar roles and their optima are supposed to be close. And if we train dynamic graphs directly, it will lead to longer convergence time and is likely to be trapped into some bad local optima due to large number of learnable parameters. It is possible that this method may accelerate the whole training process and avoid some bad local optima.
+
+In the training process, our loss function is deﬁned as follows:
+
+
+N
+
+Th +Tf
+
+K
+
+
+
+LS = −Eq(z|X1:Th ,C) 
+
+wti,k log pit,k(xt|z, X1:Th , Xˆ Th+1:t−1, C) (Static),
+
+i=1 t=Th+1 k=1
+
+(14)
+
+
+N
+
+Th +Tf
+
+K
+
+
+
+LD = −E  q(zβ(t)|X1+βτ:Th+βτ ,C)
+
+wti,k log pit,k(xt|zβ(t), X1:Th , Xˆ Th+1:t−1, C) (Dynamic),
+
+i=1 t=Th+1 k=1
+
+(15)
+
+where q(·) denotes the encoding and re-encoding operations, which return a factorized distribution of zij or zij . The pit,k(xt|z, X1:Th , Xˆ Th+1:t−1, C) and pit,k(xt|zβ(t), X1:Th , Xˆ Th+1:t−1, C) denote
+a certain Gaussian distribution.
+
+5 Experiments
+In this paper, we validated the proposed framework EvolveGraph on one synthetic dataset and three benchmark datasets for real-world applications: Honda 3D Dataset (H3D) [31], NBA SportVU Dataset (NBA), and Stanford Drone Dataset (SDD) [33]. The dataset details, baseline approaches, as well as implementation details are introduced in supplementary materials.
+For the synthetic dataset, since we have access to the ground truth of the underlying interaction graph, we quantitatively and qualitatively evaluate the model performance in terms of both interaction (edge type) recognition and average state prediction error. For the benchmark datasets, we evaluate the model performance in terms of two widely used standard metrics: minimum average displacement error (minADE20) and minimum ﬁnal displacement error (minFDE20) [4]. The minADE20 is deﬁned as the minimum average distance between the 20 predicted trajectories and the ground truth over all the involved entities within the prediction horizon. The minFDE20 is deﬁned as the minimum deviated distance of 20 predicted trajectories at the last predicted time step. We also provide ablative analysis (right part of Table 2-4), analysis on double-stage training, analysis on the selection of edge types and re-encoding gap, and additional qualitative results in supplementary materials.
+5.1 Synthetic simulations: particle physics system
+We experimented with a simulated particle system with change of relations. Multiple particles are initially linked and move together. The links disappear as long as a certain criterion on particle state is satisﬁed and the particles move independently thereafter. The model is expected to learn the
+
+6
+
+Time Step 62 Time Step 54
+
+Ground Truth
+
+Prediction
+
+Ground Truth
+
+Prediction
+
+Figure 2: Visualization of latent interaction graph evolution and particle trajectories. (a) The top two ﬁgures show the probability of the ﬁrst edge type ("with link") at each time step. Each row corresponds to a certain edge (shown in the right). The actual times of graph evolution are 54 and 62, respectively. The model is able to capture the underlying criterion of relation change and further predict the change of edge types with nearly no delay. (b) The ﬁgures in the last row show trajectory prediction results, where semi-transparent dots are historical observations.
+
+criterion by itself, and perform edge type prediction and trajectory prediction. Since the system is
+
+deterministic in nature, we do not consider multi-modality in this task. Further details on the dataset
+
+generation are introduced in Section 8.1.1 in the supplementary materials.
+
+Prediction Error
+
+We predicted the particle states at the future 0.25
+
+50 time steps based on the observations of 20 time steps. We set two edge types in this task,
+
+0.20
+
+which correspond to "with link" and "without 0.15
+
+link". The results of edge type prediction are summarized in Table 1, which are averaged over 0.10
+
+Legend EvolveGraph (dynamic) EvolveGraph (RNN encoding) NRI (dynamic) LSTM (single) LSTM (joint)
+
+3 independent runs. No Change means the un- 0.05 derlying interaction structure keeps the same
+
+in the whole horizon, while Change means the 0.00
+
+change of interaction patterns happens at some time. It shows that the supervised learning base-
+
+0
+
+10
+
+2T0ime Step3s0
+
+40
+
+50
+
+line, which directly trains the encoding functions
+
+Figure 3: Average error of particle state.
+
+with ground truth labels, performs the best in
+
+both setups and serves as a "gold standard". Under the No Change setup, NRI (dynamic) is compara-
+
+ble to EvolveGraph (RNN re-encoding), while EvolveGraph (static) achieves the best performance.
+
+The reason is that dynamic evolution of interaction graph leads to higher ﬂexibility but may result in larger uncertainty, which affects edge prediction in the systems with static relational structures. Under the Change setup, NRI (dynamic) re-evaluates the latent graph at every time step during the
+
+testing phase, but it is hard to capture the dependency between consecutive graphs, and the encoding
+
+functions may not be ﬂexible enough to capture the evolution. EvolveGraph (RNN re-encoding) performs better since it considers the dependency of consecutive steps during the training phase, but it still captures the evolution only at the feature level instead of the graph level. EvolveGraph
+
+(dynamic) achieves signiﬁcantly higher accuracy than the other baselines (except Supervised), due to
+
+the explicit evolution of interaction graphs.
+
+We also provide visualization of interaction graphs and particle trajectories of random testing cases in Figure 2. In the heatmaps, despite that the predicted probabilities ﬂuctuate within a small range at each step, they are very close to the ground truth (1 for "with link" and 0 for "without link").
+
+7
+
+Table 2: minADE20 / minFDE20 (Meters) of Trajectory Prediction (H3D dataset).
+
+Time STGAT
+
+Baseline Methods
+
+Social- SocialAttention STGCNN
+
+SocialGAN
+
+Gated-RN
+
+Trajectron++
+
+NRI (dynamic)
+
+SG (same node type)
+
+EvolveGraph (Ours)
+
+SG
+
+RNN re- DG (single encoding stage)
+
+DG (double stage)
+
+1.0s 0.24 / 0.33 0.29 / 0.45 0.23 / 0.32 0.27 / 0.37 0.18 / 0.32 2.0s 0.34 / 0.48 0.53 / 0.96 0.36 / 0.52 0.45 / 0.77 0.32 / 0.64 3.0s 0.46 / 0.77 0.87 / 1.62 0.49 / 0.89 0.68 / 1.29 0.49 / 1.03 4.0s 0.60 / 1.18 1.21 / 2.56 0.73 / 1.49 0.94 / 1.91 0.69 / 1.56
+
+0.21 / 0.34 0.33 / 0.62 0.46 / 0.93 0.71 / 1.63
+
+0.24 / 0.30 0.28 / 0.37 0.27 / 0.35 0.25 / 0.32 0.24 / 0.31 0.19 / 0.25 0.32 / 0.60 0.40 / 0.58 0.38 / 0.55 0.35 / 0.51 0.33 / 0.46 0.31 / 0.44 0.48 / 0.94 0.51 / 0.80 0.48 / 0.76 0.44 / 0.70 0.40 / 0.60 0.39 / 0.58 0.73 / 1.56 0.64 / 1.21 0.61 / 1.14 0.57 / 1.07 0.50 / 0.90 0.48 / 0.86
+
+Table 3: minADE20 / minFDE20 (Meters) of Trajectory Prediction (NBA dataset).
+
+Time STGAT
+
+SocialSTGCNN
+
+Baseline Methods
+
+Social- SocialAttention LSTM
+
+SocialGAN
+
+Trajectron++
+
+NRI (dynamic)
+
+SG (same node type)
+
+EvolveGraph (Ours)
+
+SG
+
+RNN re- DG (single encoding stage)
+
+DG (double stage)
+
+1.0s 0.42 / 0.71 0.46 / 0.76 0.87 / 1.36 0.92 / 1.34 0.82 / 1.25 2.0s 0.91 / 1.39 0.90 / 1.43 1.58 / 2.51 1.64 / 2.74 1.52 / 2.45 3.0s 1.62 / 2.87 1.59 / 2.67 2.78 / 4.66 2.93 / 5.03 2.63 / 4.51 4.0s 2.47 / 3.86 2.35 / 3.71 3.76 / 6.64 4.00 / 7.12 3.60 / 6.24
+
+0.55 / 0.90 0.99 / 1.58 1.89 / 3.32 2.62 / 4.70
+
+0.60 / 0.87 0.70 / 1.09 0.59 / 0.92 0.58 / 0.89 0.48 / 0.76 0.31 / 0.52 1.02 / 1.71 1.51 / 2.38 1.38 / 2.12 1.09 / 1.88 0.84 / 1.43 0.74 / 1.10 1.83 / 3.15 2.10 / 3.53 1.88 / 3.23 1.77 / 2.87 1.43 / 2.55 1.28 / 2.07 2.48 / 4.30 2.83 / 4.85 2.52 / 4.57 2.39 / 3.89 2.08 / 3.74 1.83 / 3.16
+
+Table 4: minADE20 / minFDE20 (Pixels) of Trajectory Prediction (SDD dataset).
+
+Time STGAT
+
+SocialSTGCNN
+
+Baseline Methods
+
+Social- SocialAttention LSTM
+
+SocialGAN
+
+Trajectron++
+
+NRI (dynamic)
+
+SG (same node type)
+
+EvolveGraph (Ours)
+
+SG
+
+RNN re- DG (single encoding stage)
+
+DG (double stage)
+
+4.8s 18.8 / 31.3 20.6 / 33.1 33.3 / 55.9 31.4 / 55.6 27.0 / 43.9 19.3 / 32.7 25.6 / 43.7 22.5 / 40.3 20.6 / 36.4 18.4 / 32.1 16.1 / 26.6 13.9 / 22.9
+
+The change of relation can be quickly captured within two time steps. The results of particle state prediction are shown in Figure 3. The standard deviation was calculated over 3 runs. Within the whole horizon, EvolveGraph (dynamic) consistently outperforms the other baselines with stable performance (small standard deviation).
+5.2 H3D dataset: trafﬁc scenarios
+We predicted the future 10 time steps (4.0s) based on the historical 5 time steps (2.0s). The comparison of quantitative results is shown in Table 2, where the unit of reported minADE20 and minFDE20 is meters in the world coordinates. Note that we included cars, trucks, cyclists and pedestrians in the experiments. All the baseline methods consider the relations and interactions among agents. The Social-Attention employs spatial attention mechanisms, while the Social-GAN demonstrates a deep generative model which learns the data distribution to generate human-like trajectories. The Gated-RN and Trajectron++ both leverage spatio-temporal information to involve relational reasoning, which leads to smaller prediction error. The NRI infers a latent interaction graph and learns the dynamics of agents, which achieves similar performance to Trajectron++. The STGAT and Social-STGCNN further take advantage of the graph neural network to extract relational features in the multi-agent setting. Our proposed method achieves the best performance, which implies the advantages of explicit interaction modeling via evolving interaction graphs. The 4.0s minADE20 / minFDE20 are signiﬁcantly reduced by 20.0% / 27.1% compared to the best baseline approach (STGAT).
+We also provide visualization of results. Figure 4(a) and Figure 4(b) show two random testing samples from H3D results. We can tell that our framework can generate accurate and plausible trajectories. More speciﬁcally, in Figure 4(a), for the blue prediction hypothesis at the left bottom, there is an abrupt change at the ﬁfth prediction step. This is because the interaction graph evolved at this step (Our re-encoding gap τ was set to be 5 in this case). Moreover, in the heatmap, there are multiple possible trajectories starting from this point, which represent multiple potential modalities. These results show that the evolving interaction graph can reinforce the multi-modal property of our model, since different samples of trajectories at the previous steps lead to different directions of graph evolution, which signiﬁcantly inﬂuences the prediction afterwards. In Figure 4(b), each car may leave the roundabout at any exit. Our model can successfully show the modalities of exiting the roundabout and staying in it. Moreover, if exiting the roundabout, the cars are predicted to exit on their right, which implies that the modalities predicted by our model are plausible and reasonable.
+5.3 NBA dataset: sports games
+We also predicted the future 10 time steps (4.0s) based on the historical 5 time steps (2.0s). The comparison of quantitative results is shown in Table 3, where the unit of reported minADE20 and minFDE20 is meters in the world coordinates. Note that we included both players and the basketball
+
+8
+
+D
+
+D
+
+E
+
+E
+
+Figure 4: Qualitative results of testing cases of H3D dataset. Dashed lines are historical trajectories, solid lines are ground truth, and dash-dotted lines are prediction hypothesis. White areas represent drivable areas and gray areas represent sidewalks. We plotted the prediction hypothesis with the minimal ADE, and the heatmap to represent the distributions. (a) Intersection; (b) Roundabout.
+
+in the experiments. The players are divided into two different types according to their teams. The basketball players are highly interactive and behaviors often change suddenly due to the reaction to other players. The baselines all consider the relations and interactions among agents with different strategies, such as soft attention mechanisms, social pooling layers, and graph-based representation. Owing to the dynamic interaction modeling by evolving interaction graph, our method achieves signiﬁcantly better performance than state-of-the-art, which reduces the 4.0s minADE20 / minFDE20 by 22.1% / 18.1% with respect to the best baseline (Social-STGCNN). Qualitative results and analysis can be found in Section 7.3 in the supplementary materials.
+5.4 SDD dataset: university campus
+We predicted the future 12 time steps (4.8s) based on the historical 8 time steps (3.2s). The comparison of quantitative results is shown in Table 4, where the unit of reported minADE20 and minFDE20 is pixels in the image coordinates. Note that we included all the types of agents (e.g. pedestrians, cyclists, vehicles)in the experiments, although most of them are pedestrians. Our proposed method achieves the best performance. The 4.8s minADE20 / minFDE20 are reduced by 26.1% / 26.8% compared to the best baseline approach (STGAT).
+6 Conclusions
+In this paper, we present a generic trajectory forecasting framework with explicit relational reasoning among multiple heterogeneous, interactive agents with a graph representation. Multiple types of context information (e.g. static / dynamic, scene images / point cloud density maps) can be incorporated in the framework together with the trajectory information. In order to capture the underlying dynamics of the evolution of relational structures, we propose a dynamic mechanism to evolve the interaction graph, which is trained in two consecutive stages. The double-stage training mechanism can both speed up convergence and enhance prediction performance. The method is able to capture the multi-modality of future behaviors. The framework is validated by synthetic physics simulations and multiple trajectory forecasting benchmarks for different applications, which achieves state-of-the-art performance in terms of prediction accuracy. For the future work, we will handle the prediction task involving a time-varying number of agents with an extended adaptive framework. EvolveGraph can also be applied to ﬁnd the underlying patterns of large-scale interacting systems which involve a large number of entities, such as very complex physics systems.
+Broader Impact
+In this work, the authors introduce EvolveGraph, a generic trajectory prediction framework with dynamic relational reasoning, which can handle evolving interacting systems involving multiple heterogeneous, interactive agents. The proposed framework could be applied to a wide range of applications, from purely physical systems to complex social dynamics systems. In this paper, we demonstrate some illustrative applications to physics objects, trafﬁc participants, and sports players. The framework could also be applied to analyze and predict the evolution of larger interacting systems,
+
+9
+
+such as social networks and trafﬁc ﬂows. Although there are existing works using graph neural networks to handle trajectory prediction tasks, here we emphasize the impact of using our framework to recognize and predict the evolution of the underlying relations. With accurate and reasonable relational structures, we can forecast or generate plausible system behaviors, which help much with optimal decision making. However, if the predicted relational structures are wrong or misleading, the prediction performance may be degraded since the forecast highly depends on relational structures. There is no guarantee that such frameworks are able to work well on all kinds of applications. Therefore, users are expected to assess the applicability and risk for a speciﬁc purpose.
+References
+[1] Alexandre Alahi, Kratarth Goel, Vignesh Ramanathan, Alexandre Robicquet, Li Fei-Fei, and Silvio Savarese. Social lstm: Human trajectory prediction in crowded spaces. In Proceedings of the IEEE conference on computer vision and pattern recognition, pages 961–971, 2016.
+[2] Ferran Alet, Erica Weng, Tomás Lozano-Pérez, and Leslie Pack Kaelbling. Neural relational inference with fast modular meta-learning. In Advances in Neural Information Processing Systems, pages 11804–11815, 2019.
+[3] Defu Cao, Yujing Wang, Juanyong Duan, Ce Zhang, Xia Zhu, Conguri Huang, Yunhai Tong, Bixiong Xu, Jing Bai, Jie Tong, and Qi Zhang. Spectral temporal graph neural network formultivariate time-series forecasting. In Proceedings of the Neural Information Processing Systems (NeurIPS), 2020.
+[4] Yuning Chai, Benjamin Sapp, Mayank Bansal, and Dragomir Anguelov. Multipath: Multiple probabilistic anchor trajectory hypotheses for behavior prediction. In Conference on Robot Learning, pages 86–99, 2020.
+[5] Chiho Choi and Behzad Dariush. Looking to relations for future trajectory forecast. In Proceedings of the IEEE International Conference on Computer Vision, pages 921–930, 2019.
+[6] Jiyang Gao, Chen Sun, Hang Zhao, Yi Shen, Dragomir Anguelov, Congcong Li, and Cordelia Schmid. Vectornet: Encoding hd maps and agent dynamics from vectorized representation. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 11525–11533, 2020.
+[7] Agrim Gupta, Justin Johnson, Li Fei-Fei, Silvio Savarese, and Alexandre Alahi. Social gan: Socially acceptable trajectories with generative adversarial networks. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 2255–2264, 2018.
+[8] Nicholas Guttenberg, Nathaniel Virgo, Olaf Witkowski, Hidetoshi Aoki, and Ryota Kanai. Permutationequivariant neural networks applied to dynamics prediction. arXiv preprint arXiv:1612.04530, 2016.
+[9] Irtiza Hasan, Francesco Setti, Theodore Tsesmelis, Alessio Del Bue, Fabio Galasso, and Marco Cristani. Mx-lstm: mixing tracklets and vislets to jointly forecast trajectories and head poses. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 6067–6076, 2018.
+[10] Dirk Helbing and Peter Molnar. Social force model for pedestrian dynamics. Physical review E, 51(5): 4282, 1995.
+[11] Joey Hong, Benjamin Sapp, and James Philbin. Rules of the road: Predicting driving behavior with a convolutional model of semantic interactions. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 8454–8462, 2019.
+[12] Yedid Hoshen. Vain: Attentional multi-agent predictive modeling. In Advances in Neural Information Processing Systems, pages 2701–2711, 2017.
+[13] Xin Huang, Stephen G McGill, Brian C Williams, Luke Fletcher, and Guy Rosman. Uncertainty-aware driver trajectory prediction at urban intersections. In 2019 International Conference on Robotics and Automation (ICRA), pages 9718–9724. IEEE, 2019.
+[14] Yingfan Huang, Huikun Bi, Zhaoxin Li, Tianlu Mao, and Zhaoqi Wang. Stgat: Modeling spatial-temporal interactions for human trajectory prediction. In Proceedings of the IEEE International Conference on Computer Vision, pages 6272–6281, 2019.
+[15] Ashesh Jain, Amir R Zamir, Silvio Savarese, and Ashutosh Saxena. Structural-rnn: Deep learning on spatiotemporal graphs. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 5308–5317, 2016.
+10
+
+[16] Dietmar Kasper, Galia Weidl, Thao Dang, Gabi Breuel, Andreas Tamke, Andreas Wedel, and Wolfgang Rosenstiel. Object-oriented bayesian networks for detection of lane change maneuvers. IEEE Intelligent Transportation Systems Magazine, 4(3):19–31, 2012.
+[17] Seyed Mehran Kazemi, Rishab Goel, Kshitij Jain, Ivan Kobyzev, Akshay Sethi, Peter Forsyth, and Pascal Poupart. Relational representation learning for dynamic (knowledge) graphs: A survey. arXiv preprint arXiv:1905.11485, 2019.
+[18] Thomas Kipf, Ethan Fetaya, Kuan-Chieh Wang, Max Welling, and Richard Zemel. Neural relational inference for interacting systems. In International Conference on Machine Learning, pages 2688–2697, 2018.
+[19] Vineet Kosaraju, Amir Sadeghian, Roberto Martín-Martín, Ian Reid, Hamid Rezatoﬁghi, and Silvio Savarese. Social-bigat: Multimodal trajectory forecasting using bicycle-gan and graph attention networks. In Advances in Neural Information Processing Systems, pages 137–146, 2019.
+[20] Namhoon Lee, Wongun Choi, Paul Vernaza, Christopher B Choy, Philip HS Torr, and Manmohan Chandraker. Desire: Distant future prediction in dynamic scenes with interacting agents. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 336–345, 2017.
+[21] Jiachen Li, Hengbo Ma, and Masayoshi Tomizuka. Conditional generative neural system for probabilistic trajectory prediction. In 2019 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), pages 6150–6156. IEEE, 2019.
+[22] Jiachen Li, Hengbo Ma, Zhihao Zhang, and Masayoshi Tomizuka. Social-wagdat: Interaction-aware trajectory prediction via wasserstein graph double-attention network. arXiv preprint arXiv:2002.06241, 2020.
+[23] Jiachen Li, Wei Zhan, Yeping Hu, and Masayoshi Tomizuka. Generic tracking and probabilistic prediction framework and its application in autonomous driving. IEEE Transactions on Intelligent Transportation Systems, 21(9):3634–3649, 2020.
+[24] Chao Lu, Fengqing Hu, Dongpu Cao, Jianwei Gong, Yang Xing, and Zirui Li. Transfer learning for driver model adaptation in lane-changing scenarios using manifold alignment. IEEE Transactions on Intelligent Transportation Systems, 2019.
+[25] Hengbo Ma, Jiachen Li, Wei Zhan, and Masayoshi Tomizuka. Wasserstein generative learning with kinematic constraints for probabilistic interactive driving behavior prediction. In 2019 IEEE Intelligent Vehicles Symposium (IV), pages 2477–2483. IEEE, 2019.
+[26] Yuexin Ma, Xinge Zhu, Sibo Zhang, Ruigang Yang, Wenping Wang, and Dinesh Manocha. Trafﬁcpredict: Trajectory prediction for heterogeneous trafﬁc-agents. In Proceedings of the AAAI Conference on Artiﬁcial Intelligence, volume 33, pages 6120–6127, 2019.
+[27] C Maddison, A Mnih, and Y Teh. The concrete distribution: A continuous relaxation of discrete random variables. In International Conference on Learning Representations, 2017.
+[28] Srikanth Malla, Behzad Dariush, and Chiho Choi. Titan: Future forecast using action priors. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 11186–11196, 2020.
+[29] Abduallah Mohamed, Kun Qian, Mohamed Elhoseiny, and Christian Claudel. Social-stgcnn: A social spatio-temporal graph convolutional neural network for human trajectory prediction. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 14424–14432, 2020.
+[30] Aldo Pareja, Giacomo Domeniconi, Jie Chen, Tengfei Ma, Toyotaro Suzumura, Hiroki Kanezashi, Tim Kaler, Tao B Schardl, and Charles E Leiserson. Evolvegcn: Evolving graph convolutional networks for dynamic graphs. In AAAI, pages 5363–5370, 2020.
+[31] Abhishek Patil, Srikanth Malla, Haiming Gang, and Yi-Ting Chen. The h3d dataset for full-surround 3d multi-object detection and tracking in crowded urban scenes. In International Conference on Robotics and Automation, 2019.
+[32] Nicholas Rhinehart, Rowan McAllister, Kris Kitani, and Sergey Levine. Precog: Prediction conditioned on goals in visual multi-agent settings. In Proceedings of the IEEE International Conference on Computer Vision, pages 2821–2830, 2019.
+[33] Alexandre Robicquet, Amir Sadeghian, Alexandre Alahi, and Silvio Savarese. Learning social etiquette: Human trajectory understanding in crowded scenes. In European conference on computer vision, pages 549–565. Springer, 2016.
+11
+
+[34] Amir Sadeghian, Vineet Kosaraju, Ali Sadeghian, Noriaki Hirose, Hamid Rezatoﬁghi, and Silvio Savarese. Sophie: An attentive gan for predicting paths compliant to social and physical constraints. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 1349–1358, 2019.
+[35] Tim Salzmann, Boris Ivanovic, Punarjay Chakravarty, and Marco Pavone. Trajectron++: Multi-agent generative trajectory forecasting with heterogeneous data for control. In Proceedings of Europe Conference on Computer Vision (ECCV), 2020.
+[36] Alvaro Sanchez-Gonzalez, Jonathan Godwin, Tobias Pfaff, Rex Ying, Jure Leskovec, and Peter W Battaglia. Learning to simulate complex physics with graph networks. In Proceedings of the International Conference on Machine Learning, pages 11648–11657, 2020.
+[37] Adam Santoro, David Raposo, David G Barrett, Mateusz Malinowski, Razvan Pascanu, Peter Battaglia, and Timothy Lillicrap. A simple neural network module for relational reasoning. In Advances in neural information processing systems, pages 4967–4976, 2017.
+[38] Shan Su, Cheng Peng, Jianbo Shi, and Chiho Choi. Potential ﬁeld: Interpretable and uniﬁed representation for trajectory prediction. arXiv preprint arXiv:1911.07414, 2019.
+[39] Liting Sun, Wei Zhan, and Masayoshi Tomizuka. Probabilistic prediction of interactive driving behavior via hierarchical inverse reinforcement learning. In 2018 21st International Conference on Intelligent Transportation Systems (ITSC), pages 2111–2117. IEEE, 2018.
+[40] Sjoerd van Steenkiste, Michael Chang, Klaus Greff, and Jürgen Schmidhuber. Relational neural expectation maximization: Unsupervised discovery of objects and their interactions. In International Conference on Learning Representations, 2018.
+[41] Petar Velicˇkovic´, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Liò, and Yoshua Bengio. Graph attention networks. In International Conference on Learning Representations, 2018.
+[42] Anirudh Vemula, Katharina Muelling, and Jean Oh. Social attention: Modeling attention in human crowds. In 2018 IEEE International Conference on Robotics and Automation (ICRA), pages 1–7. IEEE, 2018.
+[43] Yanyu Xu, Zhixin Piao, and Shenghua Gao. Encoding crowd interaction with deep neural network for pedestrian trajectory prediction. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 5275–5284, 2018.
+[44] Kota Yamaguchi, Alexander C Berg, Luis E Ortiz, and Tamara L Berg. Who are you with and where are you going? In CVPR 2011, pages 1345–1352. IEEE, 2011.
+[45] Shuai Yi, Hongsheng Li, and Xiaogang Wang. Understanding pedestrian behaviors from stationary crowd groups. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 3488–3496, 2015.
+[46] Wei Zhan, Liting Sun, Yeping Hu, Jiachen Li, and Masayoshi Tomizuka. Towards a fatality-aware benchmark of probabilistic reaction prediction in highly interactive driving scenarios. In 2018 21st International Conference on Intelligent Transportation Systems (ITSC), pages 3274–3280. IEEE, 2018.
+[47] Pu Zhang, Wanli Ouyang, Pengfei Zhang, Jianru Xue, and Nanning Zheng. Sr-lstm: State reﬁnement for lstm towards pedestrian trajectory prediction. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 12085–12094, 2019.
+[48] Yanhao Zhang, Lei Qin, Hongxun Yao, and Qingming Huang. Abnormal crowd behavior detection based on social attribute-aware force model. In 2012 19th IEEE International Conference on Image Processing, pages 2689–2692. IEEE, 2012.
+[49] Hang Zhao, Yujing Wang, Juanyong Duan, Congrui Huang, Defu Cao, Yunhai Tong, Bixiong Xu, Jing Bai, Jie Tong, and Qi Zhang. Multivariate time-series anomaly detection via graph attention network. arXiv preprint arXiv:2009.02040, 2020.
+[50] Tianyang Zhao, Yifei Xu, Mathew Monfort, Wongun Choi, Chris Baker, Yibiao Zhao, Yizhou Wang, and Ying Nian Wu. Multi-agent tensor fusion for contextual trajectory prediction. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, pages 12126–12134, 2019.
+12
+
+7 Additional Experimental Results and Further Analysis
+In this section, we provide further experimental results and analysis, including ablative analysis, analysis on the selection of edge types and re-encoding gap, as well as additional qualitative results.
+7.1 Ablative Analysis
+We conducted ablative analysis on the benchmark datasets to demonstrate the effectiveness of heterogeneous node types, dynamically evolving interaction graph and two-stage graph learning. The best minADE20 / minFDE20 of each model setting are shown in the right parts of Table 2, Table 3 and Table 4. The descriptions of each model setup are provided in Section 8.2.
+• SG (same node type) v.s. SG: We show the effectiveness of the distinction of agent node types. According to the prediction results in Table 2, Table 3 and Table 4, utilizing distinct agent-node embedding functions for different agent types achieves consistently smaller minADE20 / minFDE20 than a universal embedding function. The reason is that different types of agents have distinct behavior patterns or feasibility constraints. For example, the trajectories of on-road vehicles are restricted by roadways, trafﬁc rules and physical constraints, while the restrictions on pedestrian behaviors are much fewer. Moreover, since vehicles usually have to yield pedestrians at intersections, it is helpful to indicate agent types explicitly in the model. With differentiation of agent types, the 4.0s minADE20 / minFDE20 are reduced by 4.7% / 5.8% on the H3D dataset, 8.6% / 5.8% on the NBA dataset. The 4.8s minADE20 / minFDE20 are reduced by 8.9% / 9.9% on the SDD dataset.
+• SG v.s. RNN re-encoding v.s. DG (double stage): We compare the performance of our method and SG / RNN encoding baselines. It is shown that the improvement of RNN re-encoding is limited and the prediction errors are slightly smaller than SG. Although both RNN re-encoding baseline and our method attempt to capture the potential changes of underlying interaction graph at each time step, our method achieves a signiﬁcantly smaller prediction error consistently. A potential reason is despite that the RNN re-encoding process is iteratively extracting the patterns from node attributes (agent states), its capability of inferring graph evolution is limited.
+• DG (single stage) v.s. DG (double stage): We show the effectiveness and necessity of doublestage dynamic graph learning. It is shown that the double-stage training scheme leads to remarkable improvement in terms of minADE20 / minFDE20 on all three datasets. During the ﬁrst training stage, the encoding / decoding functions are well trained to a local optimum, which is able to extract a proper static interaction graph. According to empirical ﬁndings, the encoding / decoding functions are sufﬁciently good as an initialization for the second stage training after several epochs’ training. During the second training stage, the encoding / decoding functions are initialized from the ﬁrst stage and ﬁnetuned, along with the training of graph evolution GRU. This leads to faster convergence and better performance, since it may help avoid some bad local optima at which the loss function may be stuck if all the components are randomly initialized. With the same hyperparameters, the single-stage / double-stage training took about 25 / 14 epochs to reach their smallest validation loss on the NBA dataset and 41 / 26 epochs on the H3D dataset. Compared to single-stage training, the 4.0s minADE20 / minFDE20 of double-stage training are reduced by 12.0% / 15.5% on the NBA dataset and 9.4% / 12.2% on the H3D dataset. The 4.8s minADE20 / minFDE20 are reduced by 13.7% / 13.9% on the SDD dataset.
+7.2 Analysis on Edge Types and Re-encoding Gap
+We also provide a comparison of minADE20 / minFDE20 (in meters) and testing running time on the NBA dataset to demonstrate the effect of different numbers of edge types and re-encoding gaps. In Figure 5(a), it is shown that as the number of edge type increases, the prediction error ﬁrst decreases to a minimum and then increases, which implies too many edge types may lead to overﬁtting issues, since some edge types may capture subtle patterns from data which reduces generalization ability. The cross-validation is needed to determine the number of edge types. In Figure 5(b), it is illustrated that the prediction error increases consistently as the re-encoding gap raises, which implies more frequent re-identiﬁcation of underlying interaction pattern indeed helps when it evolves along time. However, we need to trade off between the prediction error and testing running time if online prediction is required. The variance of minADE20 / minFDE20 in both ﬁgures are small, which implies the model performance is stable with random initialization and various settings in multiple experiments.
+13
+
+D
+
+E
+
+Figure 5: The comparison of minADE20 / minFDE20 (in meters) and testing running time of different model settings on the NBA dataset. We trained three models for each setting to illustrate the robustness of the method. (a) Different numbers of edge types; (b) Different re-encoding gaps. The testing running time is re-scaled to [0,1] for better illustration.
+
+7.3 Additional Qualitative Results and Analysis
+Figure 6 and Figure 7 show more visualizations of testing results on the H3D and NBA datasets. First, we tell that in such cases the ball follows a player at most times, which implies that the predicted results represent plausible situations. Second, most prediction hypotheses are very close to the ground truth, even if some predictions are not similar to the ground truth, they represent a plausible behavior. Third, the heatmaps show that our model can successfully predict most reasonable future trajectories and their multi-modal distributions. More speciﬁcally, in the ﬁrst case of Figure 7, for the player of the green team in the middle, the historical steps move forward quickly, while our model can successfully predict that the player will suddenly stop, since he is surrounded by many opponents and he is not carrying the ball. In the second case of Figure 7, our model shows that three pairs of players from different teams competing against each other for chances. the defensing team is closer to the basket. and the player carrying the ball is running quickly towards the basket. Two opponents are trying to defend him. Such case is a very common situation in basketball games. In general, not only does our model achieve high accuracy, it can also understand and predict most moving, stopping, offending and defensing behaviors in basketball games.
+
+8 Further Experimental Details
+
+In this section, we provide important further details of experiments, which includes dataset generation, baseline approaches, as well as implementation details.
+
+8.1 Datasets
+
+8.1.1 Synthetic Particle Simulations
+
+We designed a synthetic particle simulation to validate the performance of our model. In this simula-
+
+tion, we have n particles in an x-y plane and all the locations of particles are randomly initialized on
+
+the y > 0 half plane. The movement of these particles contains two phases, corresponding to two
+
+interaction graphs. Initially, particles are rigidly connected to each other and form a "star" shape.
+
+More speciﬁcally, there is a virtual centroid and each particle is rigidly connected to the centroid. it is
+
+equivalent to using a stick to connect the particle and the virtual centroid. And the distance between
+
+a certain particle and the centroid keeps the same. The particles are uniformly distributed around
+
+the
+
+centroid,
+
+which
+
+means
+
+the
+
+angle
+
+between
+
+two
+
+adjacent
+
+"sticks"
+
+is
+
+2π n
+
+.
+
+In
+
+the
+
+ﬁrst
+
+phase,
+
+particles
+
+move as a whole, with both translational and rotational motions. The velocity and angular velocity of
+
+the whole system are randomly initialized in a certain range. Once any one of the particles reaches
+
+y = 0 (the switching criterion), the movement of all the particles will transfer to the second phase. In
+
+the second phase, particles are no longer connected to each other. The motion of one particle will by
+
+14
+
+no means affect the motion of the others. In other words, each particle keeps uniform linear motions once the second phase begins. We generated 50k sample in total for training, validation and testing.
+8.1.2 Benchmark Datasets
+• H3D [31]: A large scale full-surround 3D multi-object detection and tracking dataset, which provides point cloud information and trajectory annotations for heterogeneous trafﬁc participants (e.g. cars, trucks, cyclists and pedestrians). We selected 90k samples in total for training, validation and testing.
+• NBA: A trajectory dataset collected by NBA with the SportVU tracking system, which contains the trajectory information of all the ten players and the ball in real games. We randomly selected 50k samples in total for training, validation and testing.
+• SDD [33]: A trajectory dataset containing a set of top-down-view images and the corresponding trajectories of involved entities, which was collected in multiple scenarios in a university campus full of interactive pedestrians, cyclists and vehicles. We randomly selected 50k samples in total for training, validation and testing.
+8.2 Baseline Methods
+We compared the performance of our proposed approach with the following baseline methods. Please refer to the reference papers for more details.
+8.2.1 For Synthetic Particle Simulations
+• Corr. (LSTM): The baseline method for edge prediction in [18]. • LSTM (single) / LSTM (joint): The baseline methods for state sequence prediction in [18]. • NRI (static): The NRI model with static latent graph [18]. • NRI (dynamic): The NRI model with latent graph re-evaluation at each time step [18].
+8.2.2 For Benchmark Datasets
+• Social-LSTM [1]: The model encodes the trajectories with an LSTM layer whose hidden states serve as the input of a social pooling layer.
+• Social-GAN [7]: The model introduces generative adversarial learning scheme into S-LSTM to improve performance.
+• Social-Attention [42]: The model deals with spatio-temporal graphs with recurrent neural networks, which is based on the architecture of Structural-RNN [15].
+• Gated-RN [5]: The model infers relational behavior between road users and the surrounding environment by extracting spatio-temporal features.
+• Trajectron++ [35]: The approach represents a scene as a directed spatio-temporal graph and extract features related to the interaction. The whole framework is based on conditional variational auto-encoder.
+• NRI [18]: The model is formulated as a variational inference task with an encoder-decoder structure. This is the most related work.
+• STGAT [14]: The model is a variant of graph attention network, which is applied to spatio-temporal graphs.
+• Social-STGCNN [29]: The model is a variant of graph convolutional neural network, which is applied to spatio-temporal graphs.
+8.2.3 Ablative Baselines
+• SG (same node type): This is the simplest model setting, where only a static interaction graph is extracted based on the history information. The same node embedding function is shared among all the agent nodes.
+• SG: This setting is similar to the previous one, except that different node embedding functions are applied to different types of agent nodes.
+15
+
+Figure 6: Additional qualitative results of the H3D dataset. The upper ﬁgures are the visualization of predicted distributions, and the lower ﬁgures are the best prediction hypotheses. The white areas are drivable areas and gray areas are sidewalks. Note that there are agents moving on the sidewalks since we also include pedestrians and cyclists.
+• RNN re-encoding: The interaction graph is re-encoded every τ time steps using an RNN encoding process. Note that this is different from our model, since the RNN encoding process only captures evolution of node attributes without explicitly modeling the dependency of consecutive underlying interaction graphs.
+• DG (single stage): This is our whole model, where the encoding, decoding functions and the graph evolving GRU are all trained together from scratch.
+• DG (double stage): This is our whole model with double stage interaction graph learning, where the encoding, decoding functions trained at the ﬁrst stage are employed as an initialization in the second stage.
+8.3 Implementation Details
+For all the experiments, a batch size of 32 was used and the models were trained for up to 20 epochs during the static graph learning stage and up to 100 epochs during the dynamic graph learning stage
+16
+
+Figure 7: Additional qualitative results of the NBA dataset. The upper ﬁgures are the visualization of predicted distributions, and the lower ﬁgures are the best prediction hypotheses. The line colors indicate teams and blue lines are the trajectories of basketball.
+with early stopping. We used Adam optimizer with an initial learning rate of 0.001. The models were trained on a single TITAN Xp GPU. We used a split of 65%, 10%, 25% as training, validation and testing data. Speciﬁc details of model components are introduced below:
+• Agent node embedding function: for each different node type, a distinct two-layer gated recurrent unit (GRU) with hidden size = 128.
+• Context node embedding function: four-layer convolutional blocks with kernel size = 5 and padding = 3. The structure is [[Conv, ReLU, Conv, ReLU, Pool], [Conv, ReLU, Conv, ReLU, Pool]].
+• Agent node update function: a three-layer MLP with hidden size = 128. • Edge update function: for both agent-agent edges and agent-context edges, a distinct three-
+layer MLP with hidden size = 128. • Encoding function: a three-layer MLP with hidden size = 128. • Decoding function: a two-layer gated recurrent unit (GRU) with hidden size = 128.
+17
+
+• Recurrent graph evolution module: a two-layer GRU with hidden size = 256.
+Speciﬁc experimental details of different datasets are introduced below:
+• Synthetic simulations: 2 edge types, re-encoding gap = 1, encoding horizon = 20. • H3D dataset: 5 edge types, re-encoding gap = 5, encoding horizon = 5. • NBA dataset: 6 edge types, re-encoding gap = 4, encoding horizon = 5. • SDD dataset: 4 edge types, re-encoding gap = 5, encoding horizon = 5.
+
+8.4 Illustrative Diagram of the Decoding Process
+We provide an illustrative diagram of the decoding process, which is shown in Figure 8. In this ﬁgure, without loss of generality we demonstrate the decoding process for only one node in a ﬁve-node observation graph to illustrate how the decoding process works. Figure 8(a) shows the observation graph, we choose the node on the right as an example. Figure 8(b) shows the process of using MLPs to process a speciﬁc edge, where zij,l, l = 1, 2, ..., L denotes the probability of the edge belonging to a certain edge type l. The processed edges are shown in red. Figure 8(c) shows the sum over every incoming edge attribute of this node. Then we input the result into the decoding GRU. The decoding GRU outputs several Gaussian components and their corresponding weights. We sample one speciﬁc Gaussian component based on the weights. Then we use the µ of the sampled Gaussian distribution as the output state at this step. µ is used as the input into the next decoding step (if it’s not the burn-in step). We iterate the decoding process several times until the desired prediction horizon is reached.
+
+!
+
+MLP1
+
+!!",$
+
+!
+
+MLP2
+
+!!",%
+
+  
+
+!!",&
+
+"
+
+MLPL
+
+"
+
+(a)
+
+(b)
+
+Sample
+
+ 
+(c)
+GRU
+
+(f)
+
+(e)
+
+(d)
+
+Figure 8: An illustrative diagram of the decoding process.
+
+18
+

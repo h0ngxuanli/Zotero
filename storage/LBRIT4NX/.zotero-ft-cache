@@ -1,0 +1,85 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2112.00911
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 2 Dec 2021]
+Title: ProtGNN: Towards Self-Explaining Graph Neural Networks
+Authors: Zaixi Zhang , Qi Liu , Hao Wang , Chengqiang Lu , Cheekong Lee
+Download a PDF of the paper titled ProtGNN: Towards Self-Explaining Graph Neural Networks, by Zaixi Zhang and 4 other authors
+Download PDF
+
+    Abstract: Despite the recent progress in Graph Neural Networks (GNNs), it remains challenging to explain the predictions made by GNNs. Existing explanation methods mainly focus on post-hoc explanations where another explanatory model is employed to provide explanations for a trained GNN. The fact that post-hoc methods fail to reveal the original reasoning process of GNNs raises the need of building GNNs with built-in interpretability. In this work, we propose Prototype Graph Neural Network (ProtGNN), which combines prototype learning with GNNs and provides a new perspective on the explanations of GNNs. In ProtGNN, the explanations are naturally derived from the case-based reasoning process and are actually used during classification. The prediction of ProtGNN is obtained by comparing the inputs to a few learned prototypes in the latent space. Furthermore, for better interpretability and higher efficiency, a novel conditional subgraph sampling module is incorporated to indicate which part of the input graph is most similar to each prototype in ProtGNN+. Finally, we evaluate our method on a wide range of datasets and perform concrete case studies. Extensive results show that ProtGNN and ProtGNN+ can provide inherent interpretability while achieving accuracy on par with the non-interpretable counterparts. 
+
+Comments: 	Accepted by AAAI'22
+Subjects: 	Machine Learning (cs.LG) ; Artificial Intelligence (cs.AI)
+Cite as: 	arXiv:2112.00911 [cs.LG]
+  	(or arXiv:2112.00911v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2112.00911
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Zaixi Zhang [ view email ]
+[v1] Thu, 2 Dec 2021 01:16:29 UTC (4,018 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled ProtGNN: Towards Self-Explaining Graph Neural Networks, by Zaixi Zhang and 4 other authors
+    PDF
+    Other formats 
+
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2112
+Change to browse by:
+cs
+cs.AI
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+DBLP - CS Bibliography
+listing | bibtex
+Qi Liu
+Hao Wang
+Chengqiang Lu
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

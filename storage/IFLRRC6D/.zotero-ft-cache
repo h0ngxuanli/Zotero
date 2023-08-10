@@ -1,0 +1,83 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2207.09209
+
+Help | Advanced Search
+Search
+Computer Science > Cryptography and Security
+(cs)
+[Submitted on 19 Jul 2022 ( v1 ), last revised 23 Oct 2022 (this version, v4)]
+Title: FLDetector: Defending Federated Learning Against Model Poisoning Attacks via Detecting Malicious Clients
+Authors: Zaixi Zhang , Xiaoyu Cao , Jinyuan Jia , Neil Zhenqiang Gong
+Download a PDF of the paper titled FLDetector: Defending Federated Learning Against Model Poisoning Attacks via Detecting Malicious Clients, by Zaixi Zhang and 3 other authors
+Download PDF
+
+    Abstract: Federated learning (FL) is vulnerable to model poisoning attacks, in which malicious clients corrupt the global model via sending manipulated model updates to the server. Existing defenses mainly rely on Byzantine-robust FL methods, which aim to learn an accurate global model even if some clients are malicious. However, they can only resist a small number of malicious clients in practice. It is still an open challenge how to defend against model poisoning attacks with a large number of malicious clients. Our FLDetector addresses this challenge via detecting malicious clients. FLDetector aims to detect and remove the majority of the malicious clients such that a Byzantine-robust FL method can learn an accurate global model using the remaining clients. Our key observation is that, in model poisoning attacks, the model updates from a client in multiple iterations are inconsistent. Therefore, FLDetector detects malicious clients via checking their model-updates consistency. Roughly speaking, the server predicts a client's model update in each iteration based on its historical model updates using the Cauchy mean value theorem and L-BFGS, and flags a client as malicious if the received model update from the client and the predicted model update are inconsistent in multiple iterations. Our extensive experiments on three benchmark datasets show that FLDetector can accurately detect malicious clients in multiple state-of-the-art model poisoning attacks. After removing the detected malicious clients, existing Byzantine-robust FL methods can learn accurate global models.Our code is available at this https URL . 
+
+Comments: 	Accepted by KDD 2022 (Research Track)
+Subjects: 	Cryptography and Security (cs.CR) ; Artificial Intelligence (cs.AI)
+Cite as: 	arXiv:2207.09209 [cs.CR]
+  	(or arXiv:2207.09209v4 [cs.CR] for this version)
+  	https://doi.org/10.48550/arXiv.2207.09209
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Zaixi Zhang [ view email ]
+[v1] Tue, 19 Jul 2022 11:44:24 UTC (265 KB)
+[v2] Wed, 20 Jul 2022 03:17:36 UTC (1,929 KB)
+[v3] Wed, 27 Jul 2022 01:03:28 UTC (1,929 KB)
+[v4] Sun, 23 Oct 2022 13:17:18 UTC (1,929 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled FLDetector: Defending Federated Learning Against Model Poisoning Attacks via Detecting Malicious Clients, by Zaixi Zhang and 3 other authors
+    PDF
+    Other formats 
+
+Current browse context:
+cs.CR
+< prev   |   next >
+new | recent | 2207
+Change to browse by:
+cs
+cs.AI
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

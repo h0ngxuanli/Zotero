@@ -1,0 +1,283 @@
+Recent Advances in Reliable Deep Graph Learning: Inherent Noise, Distribution Shift, and Adversarial Attack
+Jintang Li1 , Bingzhe Wu2∗ , Chengbin Hou2 , Guoji Fu2 , Yatao Bian2 , Liang Chen1 , Junzhou Huang3 , Zibin Zheng1
+1Sun Yat-sen University 2Tencent AI Lab
+3University of Texas at Arlington lijt55@mail2.sysu.edu.cn,{chenliang6,zhzibin}@mail.sysu.edu.cn
+{bingzhewu,chengbinhou,guojifu,yataobian}@tencent.com, jzhuang@uta.edu
+
+arXiv:2202.07114v2 [cs.LG] 8 May 2023
+
+Abstract
+Deep graph learning (DGL) has achieved remarkable progress in both business and scientiﬁc areas ranging from ﬁnance and e-commerce to drug and advanced material discovery. Despite the progress, applying DGL to real-world applications faces a series of reliability threats including inherent noise, distribution shift, and adversarial attacks. This survey aims to provide a comprehensive review of recent advances for improving the reliability of DGL algorithms against the above threats. In contrast to prior related surveys which mainly focus on adversarial attacks and defense, our survey covers more reliability-related aspects of DGL, i.e., inherent noise and distribution shift. Additionally, we discuss the relationships among above aspects and highlight some important issues to be explored in future research.
+1 Introduction
+Recent few years have seen deep graph learning (DGL) based on graph neural networks (GNNs) making remarkable progress in a variety of important areas, ranging from business scenarios such as ﬁnance (e.g., fraud detection) [Dou et al., 2020] and e-commerce (e.g., recommendation system) [Wu et al., 2021a], to scientiﬁc domains such as drug discovery and advanced material discovery [Guo et al., 2021]. DGL algorithms are impressive, but only when they work. In reality, they are largely unreliable. Despite the progress, applying various DGL algorithms to real-world applications faces a series of reliability threats. At a high level, we categorize these threats into three aspects, namely, inherent noise, distribution shift, and adversarial attack. Speciﬁcally, inherent noise refers to irreducible noises in graph structures, node attributes, and corresponding node/graph labels. Distribution shift refers to the shift between training and testing distribution which includes both domain generalization and subpopulation shift. Adversarial attack is a manipulative human
+∗Corresponding author
+
+Threats
+Inherent Noise Distribution shift Adversarial Attack
+
+Description
+D = (A + a, X + x, Y + y) Ptrain(G, Y ) = Ptest(G, Y ) Gˆ = arg maxGˆ≈G L(Gˆ, Y )
+
+Table 1: Summary of recent advances in reliable deep graph learning. Oracle graph data G = (A, X) with its adjacency matrix A and node features X; Y the labels of graphs/nodes; a, x, y denote structure, attribute, and label noises respectively; D is the training dataset; L denotes the loss function and Gˆ is the perturbed graph.
+
+action that aims to cause model misbehavior with carefullydesigned patterns or perturbations on the original data, with typical examples including adversarial samples [Zu¨gner et al., 2018] and backdoor triggers [Xi et al., 2021].
+Table 1 provides formal descriptions of each threat. Figure 1 further visualizes how different threats occur throughout a typical pipeline of deep graph learning. As a comparison, inherent noise or distribution shift typically happens in the data generation process due to sampling bias or environment noise without deliberate human design, while adversarial attacks are intentionally designed by malicious attackers after the data generation phase. Overall, we can inspect the three types of threats in a uniﬁed view from the uncertainty modeling framework. For a more in-depth discussion, see Section 5.
+Over the past few years, numerous work has emerged to improve the reliability of DGL algorithms against the above threats from different perspectives, such as robust model architecture, optimization policy design, and uncertainty quantiﬁcation. In this survey, we explore recent advancements in this research direction. Speciﬁcally, this survey is organized as follows: we ﬁrst review recent work from three aspects, namely inherent noise, distribution shift, and adversarial attack (a summarized list can be found in Figure 2). For each aspect, we ﬁrst summarize existing threats (e.g., various adversarial attacks). We then introduce typical reliabilityenhancing techniques and discuss their limitations and future research directions. Lastly, we discuss the relationships among the above three aspects and describe some important open research problems yet to be addressed.
+
+Class cross Class circle
+
+(a) Inherent Noise
+
+𝒢
+
+Data Annotation
+
+𝒟
+
+Data
+
+Sampling
+
+⚠Label noise
+
+Class blue
+
+Class red
+
+𝒟 = (𝐀, 𝐗, 𝑌 + 𝜖+)
+Data Generation
+
+P$%&'( 𝒢, 𝑌 ≠ P$)*$ (𝒢, 𝑌) (b) Distribution Shift
+
+(c) Adversarial
+Attack max𝒢!≈𝒢ℒ(𝒢&, 𝑌)
+
+𝒢&
+? ?
+Adversarial Sample
+
+Deep Graph 𝒢& Learning
+
+❕ Misclassified
+
+Model Prediction
+
+Figure 1: An illustrative example on deep graph learning against (a) inherent noise, (b) distribution shift, and (c) adversarial attack. From left to right: the inherent noise (i.e., label noise) is inevitably introduced during data annotation, where a red “circle” node is mislabeled with the “cross” class (marked red). As a result, the sampling bias leads to the discrepancy between training (color-ﬁlled nodes) and testing (color-unﬁlled nodes) datasets, introducing any possible kind of distribution shift. After the data generation process, adversarial attacks with a few edge manipulations on the graph are performed on the graph to mislead the model prediction (e.g., misclassiﬁcation on a node).
+
+Reliable DGL
+
+Structure noise [Chen et al., 2020b; Wang et al., 2019; Luo et al., 2021; Zheng et al., 2020; Dai et al., 2022]
+
+① Inherent Noise
+
+Attribute noise [Wang et al., 2019; Rossi et al., 2022]
+
+Label noise
+
+[NT et al., 2019; Li et al., 2021b; Dai et al., 2021]
+
+② Distribution Shift
+
+Domain generalization [Bevilacqua et al., 2021; Zhu et al., 2021a; Wu et al., 2022; Chen et al., 2022c; Jin et al., 2023] Sub-population shift [Wu et al., 2021b; Kose and Shen, 2022]
+
+Modification attack [Chang et al., 2020; Li et al., 2021a; Zhang et al., 2022; Geisler et al., 2021; Mujkanovic et al., 2022]
+
+③ Adversarial Attack
+
+Injection attack Universal attack
+
+[Sun et al., 2020; Wang et al., 2020; Zou et al., 2021; Chen et al., 2022b] [Dai et al., 2020; Zang et al., 2021]
+
+Backdoor attack [Xu et al., 2021; Xi et al., 2021; Zhang et al., 2021; Chen et al., 2022a]
+
+Figure 2: Overview of recent advances in reliable deep graph learning, classiﬁed into three groups according to mainstream reliability threats. Please see Sections 2, 3 & 4 for detailed introductions of them and corresponding enhancing techniques. Due to space limitation, here we only outlines the primary methods.
+
+Relation to existing surveys. There are several surveys related to our paper. [Sun et al., 2018] and [Chen et al., 2020a] both comprehensively review adversarial attacks on graphs. [Zhu et al., 2021b] focus on the robust representations of graph structure learning, and also brieﬂy present an overview of the recent progress. These works mainly focus on the vulnerability of DGL methods against adversarial attacks. Given the large popularity of research on adversarial attacks, only two recent work [Zhang and Pei, 2021] and [Li et al., 2022a] focus on the reliability of current DGL algorithms against (structure) noise and distribution shift, respectively. Our work stands apart from the aforementioned surveys in that it is not restricted to the scope of a single threat (e.g., adversarial attack). Instead, we systematically review the current advances and trends of reliable deep graph learning towards inherent noise, distribution shift, and adversarial attacks.
+2 Reliability against Inherent Noise
+Inherent noise refers to the noise that naturally exists in graph data. It is unavoidable that real-world graph data would potentially include some inherent noises, which might stem from error-prone data measurement or collection, information loss during data preprocessing, sub-optimal graph struc-
+
+ture w.r.t. downstream tasks, and so on. This section ﬁrst discusses how different inherent noises can affect DGL algorithms, and then summarizes the recent typical techniques that can explicitly or implicitly alleviate the effects caused by inherent noises occurring in the pipeline of DGL.
+2.1 Inherent noise on graphs
+Inherent noises in graph data may exist in graph structure, node attributes, and corresponding node/graph labels, which draws out three types of inherent noises, i.e., structure noise, attribute noise, and label noise. Formally, we deﬁne a dataset D with inherent noise as:
+
+D = (A + a, X + x, Y + y),
+
+(1)
+
+where a, x, y denote structure, attribute, and label noises respectively. We detail them as follows.
+
+Structure noise. The inherent structure noise may inevitably
+
+be introduced due to error-prone data measurement or collection [Chen et al., 2020b; Wang et al., 2019], e.g., proteinprotein interaction networks [Guo et al., 2021]. And it could
+
+also come from sub-optimal graph construction with taskirrelevant edges [Chen et al., 2020b; Luo et al., 2021], as
+
+the underlying motivation of establishing edges might not be
+
+always relevant to a speciﬁc downstream task [Zheng et al., 2020]. [Dai et al., 2022] propose to learn a denoised and dense graph guided by the raw attributed graph to facilitate message passing for noise-resistant GNNs. Since most existing DGL algorithms rely on the graph topology to propagate information, the structure noise presents negative effects on the propagating process and consequently the ﬁnal model performance.
+Attribute noise. There are two kinds of inherent attribute noise. On the one hand, the raw attributes of nodes may be incomplete or incorrect [Wang et al., 2019; Rossi et al., 2022]. For example, users may intentionally provide fake proﬁles due to privacy concerns in social networks. On the other hand, another subtle source is information loss when transforming raw node attributes into node embeddings, e.g., using the word embedding technique to encode textual data of nodes. During the training phase, the attribute noise in each node can be also directly passed to its neighbors, which would gradually affect the ﬁnal node/graph embeddings.
+Label noise. The erroneous annotations in node or graph labels lead to the inherent label noise. Similarly to image classiﬁcation, unavoidable erroneous annotations can occur in node/graph classiﬁcation. Compared to images, it might be however more tricky to annotate labels for nodes due to structure dependency, which results in more noises or label sparsity issues [Li et al., 2021b; NT et al., 2019]. Moreover, annotating labels for graphs becomes prohibitively expensive because of requiring more domain expertise. For instance, to annotate a drug-related property of a molecular graph, it needs to conduct experiments for measurement or extract the property from literature, which are both likely to introduce graph label noise [Ji et al., 2022]. It is worth noting that, the previous study has shown that deep learning models tend to overﬁt label noise, which is also likely to happen in DGL models [Li et al., 2021b; Dai et al., 2021].
+2.2 Techniques against inherent noise
+A number of methods have been presented for enhancing the robustness of DGL algorithms against above inherent noises. Although some of these methods are not originally designed for mitigating inherent noises, the key ideas behind these methods are useful for building robustness-enhancing techniques, and are thus also covered in this survey. In this subsection, we review these methods from data and regularization perspectives.
+Data denoising. From the data perspective, data denoising is a straightforward way for reducing the noise effects in DGL algorithms. For structure noise, one natural idea is to assign learnable weights for each edge when perform node information aggregation in GNNs, so that the weight can hopefully reﬂect the tasks-desired graph structures. One of well-known techniques is incorporating self-attention modules into the original GNNs [Chen et al., 2020b]. As a more explicit way to denoise graph data, [Zheng et al., 2020] and [Luo et al., 2021] propose to prune task-irrelevant edges using a multilayer neural network to draw a subgraph from a learned distribution. The reparameterization trick [Jang et al., 2017] is also applied to make this process differentiable, which can
+
+thus be jointly trained with its subsequent model for a speciﬁc task. Regarding attribute noise, [Rossi et al., 2022] propose diffusion-based feature reconstruction to handle missing node attributes. Instead of reconstruction incomplete attributes, to our best knowledge, there is currently no methods specially designed for denoising attribute noise, which can be a promising future direction. For label noise, [NT et al., 2019] ﬁrst observe label noise can lead to signiﬁcant performance drops in the DGL setting. Motivated by prior methods for non-graph machine learning, this work directly applies the backward loss label correction to train GNNs without considering graph structure. More recently, some work incorporates the structure information into the design. [Li et al., 2021b] conduct sample reweighting and label correction by using random walks over graph structure for label aggregation to estimate node-level class probability distributions. [Dai et al., 2021] propose to generate accurate pseudo labels, and assign high-quality edges between unlabeled nodes and (pseudo) labelled nodes to reduce label noise.
+Regularization. From the regularization perspective, previous studies attempt to reduce overﬁtting to inherent noises by decreasing the complexity of the hypothesis space implicitly or explicitly. On the one hand, various regularization techniques specially for GNNs are presented for reducing overﬁtting of DGL algorithms. The core idea behind these techniques is to randomly drop edges [Rong et al., 2019], nodes [Hamilton et al., 2017], or hidden representations of GNNs [Chen et al., 2018]. [Hasanzadeh et al., 2020] take a further step to unify these approaches into a Bayesian graph learning framework. Besides, an advanced data augmentation strategy namely Mixup is recently applied to DGL and is proved to be effective for several graph-related tasks [Han et al., 2022]. On the other hand, there are some studies trying to explicitly impose regularization to the hypothesis space, i.e., building GNN models with some predeﬁned constraints or inductive bias, which share a similar idea with approaches demonstrated in Section 4.2. Moreover, from the Bayesian perspective, prior ensemble approach for DGL can also be seen as an implicit regularization, which independently trains multiple graph learning models with different input data transformations, then aggregates outputs from multiple models as the ﬁnal output [Papp et al., 2021] to mitigate the effects of noises.
+Discussion. Message passing scheme, although prevalently used in current DGL models, is a double-edged sword particularly on noisy data. Noise will propagate through the entire graphs so that representations of nodes may be negatively affected. Therefore, having a proper selection mechanism (e.g., attention) during propagation is promising yet less explored to facilitate message passing for robust DGL models. In addition, it is interesting and probably more useful to simultaneously diminish multiple noises from structure, attributes, and labels, since denoising one type of noise often requires other type(s) information (desirably without noises) for assistance.
+3 Reliability against Distribution Shift
+Distribution shift also arises naturally in many graph learning applications and presents severe challenges to current DGL methods. Mathematically, it is a challenging situation where
+
+the distribution of datasets differs between the training and test stages, described as follows:
+
+Ptrain(G, Y ) = Ptest(G, Y ),
+
+(2)
+
+where P(G, Y ) is the probability distribution of a graph dataset. Distribution shift on classic data formats (e.g. vision or texts) have been comprehensively investigated in some recent surveys (e.g., [Wang et al., 2021b; Zhou et al., 2021]). However, there are inadequate discussions on graph data. Here we provide a review of distribution shift literature with a focus on graph-structured data. This section ﬁrst provides a categorization for typical distribution shift on graph data then introduces recent work for improving the reliability of DGL methods against distribution shift.
+
+3.1 Distribution shift on graphs
+Motivated by prior work focusing on distribution shift in general machine learning, we categorize distribution shift on graph data into two types, domain generalization and subpopulation shift. Domain generalization refers to the training and testing distributions consist of distinct domains. Some typical examples include covariate shift and open-set recognition. While sub-population shift refers to training and testing distributions consist of the same group of domains but differ in the frequencies of each domain.
+Domain generalization. One typical example of domain generalization on graph-related tasks is covariate shift, which assumes that the conditioned label distribution is the same for both training and test domains but differs in the data marginal distribution [Bevilacqua et al., 2021]. For examples, in drug discovery, the scaffolds of drug molecules often differ at inference and in social networks and ﬁnancial networks, the graph structures may signiﬁcantly change with time [Wu et al., 2022]. Open-set recognition refers to the cases that new classes may appear at testing time, which commonly exists in e-commerce networks and recommendation systems where new users or items arrive from time to time.
+Sub-population shift. Sub-population shift on graphs raises when the frequencies of data/label sub-populations change [Kose and Shen, 2022], which widely exists in many graph learning tasks, such as algorithmic fairness and label shift. Speciﬁcally, fairness issues of DGL could be caused by societal bias contained in graph data [Kose and Shen, 2022]. Label shift refers to the cases where the marginal label distribution changes for two domains but the conditional distributions of the input given label stay the same across domains [Wu et al., 2021b]. In addition, class-imbalance problem on graphs is a special case of label shift [Wu et al., 2021b]. For instance, the label distribution is uniform for the testing distribution but is not for the training distribution.
+
+3.2 Techniques against distribution shift
+There have been some methods proposed to tackle the challenges raised by distribution shift on graphs, which could mainly be classiﬁed into three categories: graph invariant learning, robust training, and uncertainty quantiﬁcation.
+Graph invariant learning. Graph invariant learning aims to learn invariant graph representations across different do-
+
+mains. The idea of invariant representation learning proposed recently has been adapted in several DGL models. [Bevilacqua et al., 2021] use a causal model to learn approximately invariant graph representations that well extrapolate between the training and testing domains. [Wu et al., 2022] inherit the spirit of invariant risk minimization to develop an explore-to-extrapolate risk minimization framework that facilitates GNNs to leverage invariant graph features for nodelevel prediction. [Zhu et al., 2021a] adopt a distributional shift metric as a regularization to directly minimize the discrepancy between a biased trained datasets and unbiased IID dataset. [Chen et al., 2022c] propose a contrastive framework to tackle graph domain generalization with various kinds of distribution shifts characterized by structural causal models.
+Robust training. Robust training proposes to enhance the model robustness against distribution shift either by incorporating data augmentation or modifying the training framework. On the one hand, some methods generalize advanced augmentation techniques for general data format (e.g., mixup) to graph data. [Wu et al., 2021b] present a mixupbased framework for improving class-imbalanced node classiﬁcation on graphs, which performs feature mixup on a constructed semantic relation space and edge mixup. [Kose and Shen, 2022] propose a fairness-aware data augmentation framework on node attributes and graph structure to reduce the intrinsic bias of the obtained node representation by GNNs. On the other hand, some methods propose to integrate adversarial training techniques in DGL models. [Kong et al., 2020] present a method that iteratively augments node features with adversarial perturbations during training and helps the model generalize to out-of-distribution (OOD) samples by making it invariant to small ﬂuctuations in input data.
+Uncertainty quantiﬁcation. Apart from the above two directions that aim to improve model robustness, uncertainty quantiﬁcation can be seen as a complementary way to enhance the reliability of DGL algorithms, since the estimated uncertainty can be used for rejecting unreliable decisions with high model predictive uncertainties. Here we introduce some recent work of uncertainty quantiﬁcation for DGL algorithms. A natural uncertainty measure can be the prediction conﬁdence, i.e., the maximum value of the Softmax output. However, recent work observes that GNNs with Softmax prediction layer are typically under-conﬁdent, thus the conﬁdence cannot precisely reﬂect the predictive uncertainty [Wang et al., 2021c]. There are two ways to solve this problem. First, recent work introduces probabilistic blocks into original GNNs for modeling the posterior weight distribution, which can provide more accurate uncertainty estimation than deterministic GNN architectures. For example, [Han et al., 2021] propose to replace the Softmax decision layer with a Gaussian process block, which provides accurate uncertainty estimations. Unlike this work, Bayesian GNNs [Hasanzadeh et al., 2020] aggressively transform whole different layers into Bayesian counterparts. Concretely, it treats both model weights and sampling process as probabilistic distributions and adopts variational inference to estimate the parameters of these distributions. Second, a more straightforward way is to perform conﬁdence calibration in a post-hoc fashion without modifying the GNN ar-
+
+chitectures. One typical calibration method is temperature scaling. However, it is originally designed for DNNs and is proved to have poor performance in the DGL setting. [Wang et al., 2021c] adapt temperature scaling to GNNs by employing additional GNNs to predict a unique temperature for each node. Since temperatures are produced by considering both node attributes and graph topology, this method achieves better calibration performance compared to the original method.
+Discussion. Most efforts have been made on tackling the distribution shift problems from modeling or training perspectives, which requires additional cost of modifying model architectures or optimizing model parameters. These limitations motivate a new line of research that focused on graph test-time training. Graph test-time training aims to adapt models based on test samples in the presence of distributional shifts, which allows better robustness at inference time by solving a test-time task. A recent attempt [Jin et al., 2023] proposes a graph transformation framework to reﬁne graph data at test time, yielding state-of-the-art performance in different challenging situations including distribution shift. In conclusion, graph test-time training is a valuable direction toward more robust DGL models on OOD graphs.
+
+4 Reliability against Adversarial Attack
+
+Adversarial attacks aim to cause a model to make mistakes
+
+with carefully-crafted unnoticeable perturbations (adversarial
+
+samples) or predeﬁned patterns (backdoor triggers). The goal
+
+of adversarial attacks is to maximize the loss of DGL models
+
+with imperceptible perturbations on the original graph, which
+
+we deﬁne with:
+
+Find Gˆ s.t. Gˆ = arg max L(Gˆ, Y ),
+
+(3)
+
+Gˆ≈G
+
+where Gˆ is the perturbed graph with some imperceptible constraints. Literature has revealed that state-of-the-art DGL algorithms remain highly vulnerable to adversarial samples, posing signiﬁcant security risks to several application domains [Sun et al., 2018]. Yet, the adversarial reliability of GNNs is highly desired for many real-world systems, especially in security-critical ﬁelds. In this subsection, we provide an overview of adversarial attacks on graphs and subsequently review recent works that mitigate such threats.
+
+4.1 Adversarial attack on graphs
+With rising concerns addressed on the reliability of DGL models, there has been an explosion of papers around attacking such models and ﬁnding their vulnerabilities. Literature has categorized adversarial attacks into several typical dimensions [Sun et al., 2018; Chen et al., 2020a]. Speciﬁcally, adversarial attacks can be performed in the training phase (poisoning attack) and the inference phase (evasion attack), to mislead the prediction of the model on speciﬁc important instances such as nodes (targeted attack), or degrade the overall performance of the model (non-targeted attack). Based on the way employed by attackers to perturb the graph data or learning model, this survey reviews prior work from four dimensions: manipulation attacks, injection attacks, universal attacks, and backdoor attacks. Speciﬁcally, manipulation, injection attacks, and universal attacks can be performed in the
+
+inference phase while the backdoor attacks always happen in the training phase.
+Manipulation attacks. In manipulation attacks, attackers generate adversarial samples by modifying either the graph structure or node attributes. For instance, attackers can add, remove, or rewire an edge in the graph to generate legitimate perturbations. As a pioneering work, [Zu¨gner et al., 2018] craft adversarial samples by manipulating both edges and attributes of the graph with a greedy search algorithm. Followed by this work, the gradient-based approach becomes a prominent way to craft adversarial samples. By exploiting the gradient information of the victim model or a locally trained surrogate model, attackers can easily approximate the worst-case perturbations to perform attacks [Li et al., 2021a; Xu et al., 2019; Wu et al., 2019]. While current research heavily relies on supervised signals such as labels to guide the attacks and are targeted at certain downstream tasks, [Zhang et al., 2022] propose an unsupervised adversarial attack where gradients are calculated based on graph contrastive loss. In addition to gradient information, [Chang et al., 2020] approximate the graph spectrum to perform attacks in a black-box fashion.
+Injection attacks. The manipulation attack requires the attacker to have a high privilege to modify the original graph, which is impractical for many real-world scenarios. Alternatively, injection attacks has recently emerged as a more practical way that injects a few malicious nodes into the graph. The goal of the injection attack is to spread malicious information to the proper nodes along with the graph structure by several injected nodes. In the poisoning attack setting, [Sun et al., 2020] ﬁrst study the node injection attack and propose a reinforcement learning based framework to poison the graph. [Wang et al., 2020] further derive an approximate closedfrom solution to linearize the attack model and inject new vicious nodes efﬁciently. In the evasion attack setting, [Zou et al., 2021] consider the attributes and structure of injected nodes simultaneously to achieves better attack performance. However, a recent work [Chen et al., 2022b] shows that the success of injection attacks is built upon the severe damage to the homophily of the original graph. Therefore, the authors present to optimize a harmonious adversarial objective to preserve the homophily of graphs.
+Universal attacks. Both manipulation and injection attacks on graphs are designed for a target-dependent scenario. Differently, the universal attack crafts a single and unique perturbation that is capable to fool a GNN when applied to any target node. Such attacks incur a lower cost for attacks as the perturbations are generated once and for all. [Zang et al., 2021] ﬁrst study the universal attacks on graphs, which achieves the adversarial goal by ﬂipping edges connected to a set of anchor nodes. In the follow-up work, the attack capability is enhanced through a small number of malicious nodes connected to them [Dai et al., 2020]. Although universal attacks in vision research have been extensively researched,there is still signiﬁcant room for exploration in the graph domain.
+Backdoor attacks. In contrast to above attacks, backdoor attacks aim to poison the learned model by injecting back-
+
+door triggers into the graph at the training stage. As a consequence, a backdoored model would produce attackerdesired behaviors on trigger-embedded inputs (e.g., misclassify a node as an attacker-chosen target label) while performing normally on other benign inputs. Typically, a backdoor trigger can be a node or a (sub)graph designed by attackers. [Xi et al., 2021] and [Zhang et al., 2021] propose to use subgraphs as trigger patterns to launch backdoor attacks. [Xu et al., 2021] select the optimal trigger for GNNs based on explainability approaches. Backdoor attacks are a relatively unexplored threat in the literature. However, they are more realistic and dangerous in many security-critical domains as the backdoor trigger is hard to notice even by human beings. The above attacks forge a backdoored GNN by perturbing its model parameters with poisoned inputs (poisoning attacks), which would result in a performance degradation even triggers are not activated. To this end, [Chen et al., 2022a] propose a fast and effective approach that generates a trigger node without modifying the model parameters.
+4.2 Techniques against adversarial attack
+While there are numerous (heuristic) approaches aimed at robustifying GNNs, there is always a newly devised stronger attack attempts to break them, turning into a veritable arms race between attackers and defenders. To avoid endless arms races with attackers, extensive efforts have been made to mitigate adversarial attacks in different ways. In this subsection, we review recent robustness-enhancing techniques of DGL against adversarial attacks from data, model, optimization, and certiﬁcation perspectives.
+Graph processing. From data perspective, a natural idea is to process the training/testing graph to remove adversarial perturbations thus mitigating the negative effects. Currently, enhancing approaches in this direction are mainly supported by empirical observations on speciﬁc attacks. For example, there is a tendency of adversarial attacks to add edges between nodes with different labels and low attribute similarity. Motivated by such an observation, [Wu et al., 2019] prune the perturbed edges based on the Jaccard similarity of node attributes, with the assumption that adversarially perturbed nodes have low similarity to most of their neighbors. Further, the clean graph structure can be learned simultaneously by preserving graph properties of sparsity, low rank, and feature smoothness during training [Jin et al., 2020]. Graph processing based methods are cheap to implement while signiﬁcantly improving the adversarial robustness of GNNs. However, empirical observation based on speciﬁc attacks makes such methods difﬁcult to resist unseen attacks.
+Model robustiﬁcation. Reﬁning the model to prepare itself against potential adversarial threats is a prominent enhancing technique and we term it as model robustiﬁcation. Specifically, the robustiﬁcation of GNNs can be achieved by improving the model architecture or aggregation scheme. There are several efforts that aim to improve the architecture by employing different regularizations or constraints on the model itself, such as 1-Lipschitz constraint [Zhao et al., 2021], 1based graph smoothing [Liu et al., 2021b] and adaptive residual [Liu et al., 2021a]. As recently shown in [Geisler et al.,
+
+2021; Chen et al., 2021], the way that GNNs aggregate neighborhood information for representation learning makes them vulnerable to adversarial attacks. To address this issue, they derive a robust median function instead of a mean function to improve the aggregation scheme. Overall, a robustiﬁed model is resistant to adversarial attacks without compromising on performance in benign situations.
+Robust training. Another enhancing technique that successfully applied to the GNN model is based on the robust training paradigms. Adversarial training is a widely used practical solution to resist adversarial attacks, which builds models on a training set augmented with handcrafted adversarial samples. Essentially, the adversarial samples can be crafted via speciﬁc perturbations on the graph structure [Li et al., 2022b] or node attributes [Feng et al., 2021]. Although adversarial training can improve the generalization capability and robustness of a model against unseen attacks, it inevitably introduces additional overheads during training and suffers from overﬁtting on adversarial samples.
+Robustness certiﬁcation. Robustness certiﬁcation is a measure to verify whether a single instance (e.g., a node or graph) is certiﬁably robust under worst-case adversarial perturbations. It typically provides a lower bound on the actual robustness while attacks provide an upper bound [Mujkanovic et al., 2022]. Robustness certiﬁcation was initially proposed as an assessment method. Over the past few years, it has been adopted as a guideline to improve robustness against adversarial attacks. A few recent works study certiﬁed robustness of GNNs against adversarial perturbations on node attributes [Zu¨gner and Gu¨nnemann, 2019] or graph structure [Wang et al., 2021a].Different from previous robustness certiﬁcates which independently consider perturbation of each prediction, [Schuchardt et al., 2021] consider collective robustness certiﬁcate that computes multiple predictions which are simultaneously guaranteed to remain stable under perturbations. Although certiﬁed robustness can guide the defenders for more reliable architecture design, it is relatively less explored and has received little attention from the research community.
+Discussion. The adversarial robustness is highly desirable for a model being trust in real-world applications but the evaluation of robust DGL models against adaptive attacks is rarely explored. However, current defenses are usually heuristic and only effective for certain attacks rather than all attacks. Until recently, [Mujkanovic et al., 2022] have shown that the adversarial robustness of defenses is overestimated and they can be easily broken under adaptive attacks. To enable DGL models to predict robustly in reality, it is therefore crucial to evaluate DGL models with more sophisticated attacks.
+5 Overall Discussion
+Given the above comprehensive summary of recent advances in reliable DGL research, we further provide overall discussions among the above topics including their relations, differences, and applications.
+A uniﬁed view. The uncertainty modeling framework allows us to examine the three types of threats in a uniﬁed manner. There are two typical types of uncertainties, aleatoric and
+
+epistemic uncertainties. Speciﬁcally, we can treat inherent noise as the main source of aleatoric uncertainty, since these noises are irreducible even given access to inﬁnite samples. In addition, we can treat adversarial attack and distribution shift as two sources of epistemic uncertainty, as we can reduce these uncertainties by introducing data samples on different domains/sub-populations through advancing data augmentation. For example, to combat with adversarial noises, robust training [Xu et al., 2019] involves adversarial samples into the training process to enhance the adversarial robustness of GNN models. Under this uniﬁed view, we can leverage prior uncertainty estimation methods to detect adversarial samples (adversarial attack), out-of-distribution samples (distribution shift), and outliers (inherent noises), which provides further information for enhancing model’s reliability.
+Difference among above threats. In general, the above three types of threats can all be seen as the “mismatch” between training and testing samples. Here, we highlight subtle differences among them. The inherent noise or distribution shift happens in the training data generation process due to sampling bias and environment noise without deliberate human design, while adversarial attacks are deliberately designed by malicious attackers after the training/testing sample generation phase. Furthermore, the inherent noise is typically irreducible, while the other two types of threats can be alleviated by sampling more data with expertise. Despite the differences, some general techniques can be used for preventing the three types of threats. For example, one can inject probabilistic decision module into GNNs to provide predictions and its uncertainty estimation [Han et al., 2021; Hasanzadeh et al., 2020]. Uncertainty estimation can be further enhanced by introducing OOD and adversarial samples into the training phase. Thus, the estimation can be used to detect the above threats, improving the decision reliability of various DGL algorithms.
+Difference to general reliable machine learning. Tremendous efforts have been made to improve the reliability of deep learning on non-graph data such as images and texts. In contrast to these methods, improving the reliability of GNNs on graph data poses unique challenges. Due to message-passing mechanism used by most DGL algorithms, the adversarial perturbation, inherent noise and distribution shift of one node can be transmitted to its neighbors and further hinder the model performance. Therefore, previous general reliable machine learning algorithms need to be modiﬁed by considering the relationship between different nodes.
+6 Conclusion and Future Directions
+This survey gives an overview of recent advances in researching the reliability of DGL algorithms in terms of three fundamental aspects: inherent noise, distribution shift, and adversarial attack. For each threat, we provide a systematical view to inspect advancing robustness-enhancing techniques for DGL. We hope this survey can help researchers to better understand relations between different threats and to choose appropriate techniques for their applications. Finally, we summary several challenges and opportunities worthy of future explorations.
+
+Theoretical framework. Despite algorithmic advances for reliable DGL, there is still a lack of theoretical frameworks to formally analyze the effectiveness of these methods. For example, how to analyze out-of-distribution generalization bound in the DGL setting remains an open problem.
+Uniﬁed solution. Section 5 shows relations among three threats. In a real-world setting, these threats may happen simultaneously. Therefore a uniﬁed solution to mitigate the effects caused by these threats is desired.
+Connection to learning stability. As pointed out by prior work for general ML, there is a strong connection between robustness and learning stability. Thus, from the optimization perspective, how to build robust learning algorithms for DGL is also an interesting direction. Prior work [Wu et al., 2022] mentioned in Section 3.2 can be seen as an initial attempt, which applies invariant risk minimization to DGL settings to learn a stable graph representation.
+Scalability and adversarial robustness. Existing studies of the reliability to adversarial attacks mainly focus on relatively small graphs (e.g., 2-3k nodes), which suffer from the scalability issue on real-world large-scale and dynamically evolving graphs. In this respect, highly scalable and robust DGL algorithms remain largely unexplored, while there is only a recent work [Geisler et al., 2021] attempting to address the challenge.
+Fairness and adversarial robustness. Existing work prefers to utilize standard performance metrics, such as accuracy, to measure the robustness of a DGL model, which is, however, apparently insufﬁcient for evaluating the overall reliability performance. However, such a metric is apparently insufﬁcient for the evaluation of reliability from a single dimension. A DGL algorithm with high accuracy may not be fair to different attribute groups, which results in severe disparities in accuracy and robustness between different groups of data. This calls for future work to explore fair and robust DGL algorithms and develop principled evaluation metrics beyond accuracy.
+Counterfactual explanations & adversarial samples. One major problem of DGL algorithms is the lack of interpretability. To address this issue, counterfactual explanations are proposed as a powerful means for understanding how decisions are made by algorithms. While prior research in vision tasks [Pawelczyk et al., 2021] has shown that counterfactual explanations and adversarial samples are strongly related approaches with many similarities, there is currently little work on systematically exploring their connections in DGL. Therefore, the study of counterfactual explanations and adversarial samples is another promising research direction.
+Reliability benchmarks. Along with the fast development of reliable DGL algorithms, real-world benchmarks are desired for facilitating the research community. Some early benchmarks for speciﬁc settings have been established, e.g., [Ji et al., 2022] present an OOD dataset curator and benchmark for AI-aided drug discovery designed speciﬁcally for the distribution shift problem with data noise. It is challenging yet promising to build a general benchmark platform to cover more reliability aspects mentioned in this survey.
+
+References
+[Bevilacqua et al., 2021] Beatrice Bevilacqua, Yangze Zhou, and Bruno Ribeiro. Size-invariant graph representations for graph classiﬁcation extrapolations. In ICML, 2021.
+[Chang et al., 2020] Heng Chang, Yu Rong, Tingyang Xu, Wenbing Huang, Honglei Zhang, Peng Cui, Wenwu Zhu, and Junzhou Huang. A restricted black-box adversarial framework towards attacking graph embedding models. In AAAI, 2020.
+[Chen et al., 2018] Jie Chen, Tengfei Ma, and Cao Xiao. Fastgcn: Fast learning with graph convolutional networks via importance sampling. In ICLR, 2018.
+[Chen et al., 2020a] Liang Chen, Jintang Li, Jiaying Peng, Tao Xie, Zengxu Cao, Kun Xu, Xiangnan He, and Zibin Zheng. A survey of adversarial learning on graphs. CoRR, abs/2003.05730, 2020.
+[Chen et al., 2020b] Yu Chen, Lingfei Wu, and Mohammed Zaki. Iterative deep graph learning for graph neural networks: Better and robust node embeddings. In NeurIPS, 2020.
+[Chen et al., 2021] Liang Chen, Jintang Li, Qibiao Peng, Yang Liu, Zibin Zheng, and Carl Yang. Understanding structural vulnerability in graph convolutional networks. In IJCAI, 2021.
+[Chen et al., 2022a] Liang Chen, Qibiao Peng, Jintang Li, Yang Liu, Jiawei Chen, Yong Li, and Zibin Zheng. Neighboring backdoor attacks on graph convolutional network. CoRR, abs/2201.06202, 2022.
+[Chen et al., 2022b] Yongqiang Chen, Han Yang, Yonggang Zhang, MA KAILI, Tongliang Liu, Bo Han, and James Cheng. Understanding and improving graph injection attack by promoting unnoticeability. In ICLR, 2022.
+[Chen et al., 2022c] Yongqiang Chen, Yonggang Zhang, Yatao Bian, Han Yang, Kaili Ma, Binghui Xie, Tongliang Liu, Bo Han, and James Cheng. Learning causally invariant representations for out-of-distribution generalization on graphs. In NeurIPS, 2022.
+[Dai et al., 2020] Jiazhu Dai, Weifeng Zhu, and Xiangfeng Luo. A targeted universal attack on graph convolutional network. CoRR, abs/2011.14365, 2020.
+[Dai et al., 2021] Enyan Dai, Charu Aggarwal, and Suhang Wang. Nrgnn: Learning a label noise-resistant graph neural network on sparsely and noisily labeled graphs. In KDD, 2021.
+[Dai et al., 2022] Enyan Dai, Wei Jin, Hui Liu, and Suhang Wang. Towards robust graph neural networks for noisy graphs with sparse labels. In WSDM, 2022.
+[Dou et al., 2020] Yingtong Dou, Zhiwei Liu, Li Sun, Yutong Deng, Hao Peng, and Philip S. Yu. Enhancing graph neural network-based fraud detectors against camouﬂaged fraudsters. In CIKM, 2020.
+[Feng et al., 2021] Fuli Feng, Xiangnan He, Jie Tang, and Tat-Seng Chua. Graph adversarial training: Dynamically regularizing based on graph structure. IEEE TKDE, 33(6):2493–2504, 2021.
+[Geisler et al., 2021] Simon Geisler, Tobias Schmidt, Hakan S¸ irin, Daniel Zu¨gner, Aleksandar Bojchevski, and Stephan Gu¨nnemann. Robustness of graph neural networks at scale. In NeurIPS, 2021.
+[Guo et al., 2021] Jeff Guo, Jon Paul Janet, Matthias Bauer, Eva Nittinger, Kathryn Giblin, Kostas Papadopoulos, Alexey Voronov, Atanas Patronov, Ola Engkvist, and Christian Margreitter. Dockstream: a docking wrapper to enhance de novo molecular design. Journal of Cheminformatics, 2021.
+
+[Hamilton et al., 2017] Will Hamilton, Zhitao Ying, and Jure Leskovec. Inductive representation learning on large graphs. In NeurIPS, 2017.
+[Han et al., 2021] Kehang Han, Balaji Lakshminarayanan, and Jeremiah Zhe Liu. Reliable graph neural networks for drug discovery under distributional shift. In NeurIPS Workshop on Distribution Shifts: Connecting Methods and Applications, 2021.
+[Han et al., 2022] Xiaotian Han, Zhimeng Jiang, Ninghao Liu, and Xia Hu. G-mixup: Graph data augmentation for graph classiﬁcation. In ICML, volume 162 of Proceedings of Machine Learning Research, pages 8230–8248. PMLR, 2022.
+[Hasanzadeh et al., 2020] Arman Hasanzadeh, Ehsan Hajiramezanali, Shahin Boluki, Mingyuan Zhou, Nick Dufﬁeld, Krishna Narayanan, and Xiaoning Qian. Bayesian graph neural networks with adaptive connection sampling. In ICML, 2020.
+[Jang et al., 2017] Eric Jang, Shixiang Gu, and Ben Poole. Categorical reparameterization with gumbel-softmax. In ICLR, 2017.
+[Ji et al., 2022] Yuanfeng Ji, Lu Zhang, Jiaxiang Wu, Bingzhe Wu, Long-Kai Huang, Tingyang Xu, Yu Rong, Lanqing Li, Jie Ren, Ding Xue, Houtim Lai, Shaoyong Xu, Jing Feng, Wei Liu, Ping Luo, Shuigeng Zhou, Junzhou Huang, Peilin Zhao, and Yatao Bian. Drugood: Out-of-distribution (OOD) dataset curator and benchmark for ai-aided drug discovery - A focus on afﬁnity prediction problems with noise annotations. CoRR, abs/2201.09637, 2022.
+[Jin et al., 2020] Wei Jin, Yao Ma, Xiaorui Liu, Xianfeng Tang, Suhang Wang, and Jiliang Tang. Graph structure learning for robust graph neural networks. In KDD, 2020.
+[Jin et al., 2023] Wei Jin, Tong Zhao, Jiayuan Ding, Yozen Liu, Jiliang Tang, and Neil Shah. Empowering graph representation learning with test-time graph transformation. In ICLR, 2023.
+[Kong et al., 2020] Kezhi Kong, Guohao Li, Mucong Ding, Zuxuan Wu, Chen Zhu, Bernard Ghanem, Gavin Taylor, and Tom Goldstein. FLAG: adversarial data augmentation for graph neural networks. CoRR, abs/2010.09891, 2020.
+[Kose and Shen, 2022] O¨ yku¨ Deniz Kose and Yanning Shen. Fair node representation learning via adaptive data augmentation. CoRR, abs/2201.08549, 2022.
+[Li et al., 2021a] Jintang Li, Tao Xie, Chen Liang, Fenfang Xie, Xiangnan He, and Zibin Zheng. Adversarial attack on large scale graph. IEEE TKDE, pages 1–1, 2021.
+[Li et al., 2021b] Yayong Li, Jie Yin, and Ling Chen. Uniﬁed robust training for graph neural networks against label noise. In PAKDD. Springer, 2021.
+[Li et al., 2022a] Haoyang Li, Xin Wang, Ziwei Zhang, and Wenwu Zhu. Out-of-distribution generalization on graphs: A survey. CoRR, abs/2202.07987, 2022.
+[Li et al., 2022b] Jintang Li, Jiaying Peng, Liang Chen, Zibin Zheng, Tingting Liang, and Qing Ling. Spectral adversarial training for robust graph neural network. TKDE, pages 1–14, 2022.
+[Liu et al., 2021a] Xiaorui Liu, Jiayuan Ding, Wei Jin, Han Xu, Yao Ma, Zitao Liu, and Jiliang Tang. Graph neural networks with adaptive residual. In NeurIPS, 2021.
+[Liu et al., 2021b] Xiaorui Liu, Wei Jin, Yao Ma, Yaxin Li, Hua Liu, Yiqi Wang, Ming Yan, and Jiliang Tang. Elastic graph neural networks. In ICML, 2021.
+[Luo et al., 2021] Dongsheng Luo, Wei Cheng, Wenchao Yu, Bo Zong, Jingchao Ni, Haifeng Chen, and Xiang Zhang. Learning to drop: Robust graph neural network via topological denoising. In WSDM, 2021.
+
+[Mujkanovic et al., 2022] Felix Mujkanovic, Simon Geisler, Stephan Gu¨nnemann, and Aleksandar Bojchevski. Are defenses for graph neural networks robust? In NeurIPS, 2022.
+[NT et al., 2019] Hoang NT, Choong Jun Jin, and Tsuyoshi Murata. Learning graph neural networks with noisy labels. CoRR, abs/1905.01591, 2019.
+[Papp et al., 2021] Pa´l Andra´s Papp, Karolis Martinkus, Lukas Faber, and Roger Wattenhofer. Dropgnn: random dropouts increase the expressiveness of graph neural networks. In NeurIPS, 2021.
+[Pawelczyk et al., 2021] Martin Pawelczyk, Shalmali Joshi, Chirag Agarwal, Sohini Upadhyay, and Himabindu Lakkaraju. On the connections between counterfactual explanations and adversarial examples. CoRR, abs/2106.09992, 2021.
+[Rong et al., 2019] Yu Rong, Wenbing Huang, Tingyang Xu, and Junzhou Huang. Dropedge: Towards deep graph convolutional networks on node classiﬁcation. In ICLR, 2019.
+[Rossi et al., 2022] Emanuele Rossi, Henry Kenlay, Maria I. Gorinova, Benjamin Paul Chamberlain, Xiaowen Dong, and Michael M. Bronstein. On the unreasonable effectiveness of feature propagation in learning on graphs with missing node features. In LoG, 2022.
+[Schuchardt et al., 2021] Jan Schuchardt, Aleksandar Bojchevski, Johannes Gasteiger, and Stephan Gu¨nnemann. Collective robustness certiﬁcates: Exploiting interdependence in graph neural networks. In ICLR, 2021.
+[Sun et al., 2018] Lichao Sun, Ji Wang, Philip S. Yu, and Bo Li. Adversarial attack and defense on graph data: A survey. CoRR, abs/1812.10528, 2018.
+[Sun et al., 2020] Yiwei Sun, Suhang Wang, Xianfeng Tang, Tsung-Yu Hsieh, and Vasant G. Honavar. Adversarial attacks on graph neural networks via node injections: A hierarchical reinforcement learning approach. In WWW, 2020.
+[Wang et al., 2019] Lu Wang, Wenchao Yu, Wei Wang, Wei Cheng, Wei Zhang, Hongyuan Zha, Xiaofeng He, and Haifeng Chen. Learning robust representations with graph denoising policy network. In ICDM, 2019.
+[Wang et al., 2020] Jihong Wang, Minnan Luo, Fnu Suya, Jundong Li, Zijiang Yang, and Qinghua Zheng. Scalable attack on graph data by injecting vicious nodes. Data Min. Knowl. Discov., 34(5):1363–1389, 2020.
+[Wang et al., 2021a] Binghui Wang, Jinyuan Jia, Xiaoyu Cao, and Neil Zhenqiang Gong. Certiﬁed robustness of graph neural networks against adversarial structural perturbation. In KDD, 2021.
+[Wang et al., 2021b] Jindong Wang, Cuiling Lan, Chang Liu, Yidong Ouyang, and Tao Qin. Generalizing to unseen domains: A survey on domain generalization. In IJCAI, 2021.
+[Wang et al., 2021c] Xiao Wang, Hongrui Liu, Chuan Shi, and Cheng Yang. Be conﬁdent! towards trustworthy graph neural networks via conﬁdence calibration. In NeurIPS, 2021.
+[Wu et al., 2019] Huijun Wu, Chen Wang, Yuriy Tyshetskiy, Andrew Docherty, Kai Lu, and Liming Zhu. Adversarial examples for graph data: Deep insights into attack and defense. In IJCAI, 2019.
+[Wu et al., 2021a] Chuhan Wu, Fangzhao Wu, Yang Cao, Yongfeng Huang, and Xing Xie. Fedgnn: Federated graph neural network for privacy-preserving recommendation. CoRR, abs/2102.04925, 2021.
+
+[Wu et al., 2021b] Lirong Wu, Haitao Lin, Zhangyang Gao, Cheng Tan, and Stan Z. Li. Graphmixup: Improving class-imbalanced node classiﬁcation on graphs by self-supervised context prediction. CoRR, abs/2106.11133, 2021.
+[Wu et al., 2022] Qitian Wu, Hengrui Zhang, Junchi Yan, and David Wipf. Towards distribution shift of node-level prediction on graphs: An invariance perspective. In ICLR, 2022.
+[Xi et al., 2021] Zhaohan Xi, Ren Pang, Shouling Ji, and Ting Wang. Graph backdoor. In USENIX Security Symposium, 2021.
+[Xu et al., 2019] Kaidi Xu, Hongge Chen, Sijia Liu, Pin-Yu Chen, Tsui-Wei Weng, Mingyi Hong, and Xue Lin. Topology attack and defense for graph neural networks: An optimization perspective. In IJCAI, 2019.
+[Xu et al., 2021] Jing Xu, Minhui Xue, and Stjepan Picek. Explainability-based backdoor attacks against graph neural networks. In WiseML@WiSec, pages 31–36. ACM, 2021.
+[Zang et al., 2021] Xiao Zang, Yi Xie, Jie Chen, and Bo Yuan. Graph universal adversarial attacks: A few bad actors ruin graph learning models. In IJCAI, 2021.
+[Zhang and Pei, 2021] Zeyu Zhang and Yulong Pei. A comparative study on robust graph neural networks to structural noises. CoRR, abs/2112.06070, 2021.
+[Zhang et al., 2021] Zaixi Zhang, Jinyuan Jia, Binghui Wang, and Neil Zhenqiang Gong. Backdoor attacks to graph neural networks. In SACMAT, pages 15–26. ACM, 2021.
+[Zhang et al., 2022] Sixiao Zhang, Hongxu Chen, Xiangguo Sun, Yicong Li, and Guandong Xu. Unsupervised graph poisoning attack via contrastive loss back-propagation. In WWW, 2022.
+[Zhao et al., 2021] Xin Zhao, Zeru Zhang, Zijie Zhang, Lingfei Wu, Jiayin Jin, Yang Zhou, Ruoming Jin, Dejing Dou, and Da Yan. Expressive 1-lipschitz neural networks for robust multiple graph learning against adversarial attacks. In ICML, 2021.
+[Zheng et al., 2020] Cheng Zheng, Bo Zong, Wei Cheng, Dongjin Song, Jingchao Ni, Wenchao Yu, Haifeng Chen, and Wei Wang. Robust graph representation learning via neural sparsiﬁcation. In ICML, 2020.
+[Zhou et al., 2021] Kaiyang Zhou, Ziwei Liu, Yu Qiao, Tao Xiang, and Chen Change Loy. Domain generalization: A survey. CoRR, abs/2103.02503, 2021.
+[Zhu et al., 2021a] Qi Zhu, Natalia Ponomareva, Jiawei Han, and Bryan Perozzi. Shift-robust GNNs: Overcoming the limitations of localized graph training data. In NeurIPS, 2021.
+[Zhu et al., 2021b] Yanqiao Zhu, Weizhi Xu, Jinghao Zhang, Qiang Liu, Shu Wu, and Liang Wang. Deep graph structure learning for robust representations: A survey. CoRR, abs/2103.03036, 2021.
+[Zou et al., 2021] Xu Zou, Qinkai Zheng, Yuxiao Dong, Xinyu Guan, Evgeny Kharlamov, Jialiang Lu, and Jie Tang. TDGIA: effective injection attacks on graph neural networks. In KDD, 2021.
+[Zu¨gner and Gu¨nnemann, 2019] Daniel Zu¨gner and Stephan Gu¨nnemann. Certiﬁable robustness and robust training for graph convolutional networks. In KDD, pages 246–256. ACM, 2019.
+[Zu¨gner et al., 2018] Daniel Zu¨gner, Amir Akbarnejad, and Stephan Gu¨nnemann. Adversarial attacks on neural networks for graph data. In KDD, 2018.
+

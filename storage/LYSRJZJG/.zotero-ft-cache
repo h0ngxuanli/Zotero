@@ -1,0 +1,1757 @@
+arXiv:2210.02330v1 [cs.LG] 5 Oct 2022
+
+Revisiting Graph Contrastive Learning from the Perspective of Graph Spectrum
+Nian Liu1, Xiao Wang1,2∗ , Deyu Bo1, Chuan Shi1,2∗, Jian Pei3
+1Beijing University of Posts and Telecommunications 2Peng Cheng Laboratory 3Simon Fraser University
+{nianliu, xiaowang, bodeyu, shichuan}@bupt.edu.cn, jpei@cs.sfu.ca
+Abstract
+Graph Contrastive Learning (GCL), learning the node representations by augmenting graphs, has attracted considerable attentions. Despite the proliferation of various graph augmentation strategies, some fundamental questions still remain unclear: what information is essentially encoded into the learned representations by GCL? Are there some general graph augmentation rules behind different augmentations? If so, what are they and what insights can they bring? In this paper, we answer these questions by establishing the connection between GCL and graph spectrum. By an experimental investigation in spectral domain, we ﬁrstly ﬁnd the General grAph augMEntation (GAME) rule for GCL, i.e., the difference of the high-frequency parts between two augmented graphs should be larger than that of low-frequency parts. This rule reveals the fundamental principle to revisit the current graph augmentations and design new effective graph augmentations. Then we theoretically prove that GCL is able to learn the invariance information by contrastive invariance theorem, together with our GAME rule, for the ﬁrst time, we uncover that the learned representations by GCL essentially encode the low-frequency information, which explains why GCL works. Guided by this rule, we propose a spectral graph contrastive learning module (SpCo1), which is a general and GCL-friendly plug-in. We combine it with different existing GCL models, and extensive experiments well demonstrate that it can further improve the performances of a wide variety of different GCL methods.
+1 Introduction
+Graph Neural Networks (GNNs) learn the node representations in a graph mainly by message passing. GNNs have attracted signiﬁcant interest and found many applications [11, 23, 14]. Training the high quality GNNs heavily relies on task-speciﬁc labels, while it is well known that manually annotating nodes in graphs is costly and time-consuming [10]. Therefore, Graph Contrastive Learning (GCL) is developed as a typical technique for self-supervised learning without the explicit usage of labels [28, 9, 36]. The traditional GCL framework (Fig. 1 (a)) mainly includes three components: graph augmentation, graph representation learning by an encoder, and contrastive loss. In essence, GCL aims to maximize agreement between augmentations to learn invariant representations [36]. Typical GCL methods have
+∗Corresponding authors. 1Code available at https://github.com/liun-online/SpCo
+36th Conference on Neural Information Processing Systems (NeurIPS 2022).
+
+Figure 1: (a) The general framework of GCL. (b) The illustration of our ﬁndings in the empirical study (Section 3). If two contrasted graphs have a larger margin between high-frequency part than low-frequency part, they will boost the GCL. We call such two graphs as optimal contrastive pair.
+sought to elaborately design different graph augmentation strategies. For example, the heuristic based methods including node or edge dropping [32], feature masking [33], and diffusion [9]; and the learning based methods including InfoMin [26, 30], disentanglement [13], and adversarial training [31]. Although various graph augmentation strategies are proposed, the fundamental augmentation mechanism is not well understood. What information should we preserve or discard in an augmented graph? Are there some general rules across different graph augmentation strategies? How to use those general rules to validate and improve the current GCL methods? This paper explores those questions.
+Essentially, an augmented graph is obtained by changing some components in the original graph and thus strength of frequencies [20] in graph spectrum. This natural and intuitive connection between graph augmentation and graph spectrum inspires us to explore the effectiveness of augmentations from the spectral domain. We start with an empirical study (Section 3) to understand the importance of low-frequency and high-frequency information in GCL. Our ﬁndings indicate that both the lowestfrequency information and the high-frequency information are important in GCL. Retaining more high-frequency information is particularly helpful to improve the performance of GCL. However, as shown in Fig. 1 (b), the way of handling high-frequency information in two contrasted graphs V1 and V2 should be different, which can be ﬁnally summarized as a general graph augmentation (GAME) rule: the difference of amplitudes of high frequencies in two contrasted graphs should be larger than that of low frequencies.
+To explain the GAME rule, we need to understand what information is encoded into the learned representations by GCL. We propose the contrastive invariance (Theorem 1), which, for the ﬁrst time, theoretically proves that GCL can learn the invariance information from two contrasted graphs. Meanwhile, as can be seen in Fig. 1 (b), because the difference of amplitudes of lowest-frequency information is much smaller than that of high-frequency information, the lowest-frequency information will be the approximately invariant pattern between the two graphs V1 and V2. Therefore, with such two augmentations V1 and V2, we can conclude that the information learned by GCL is mainly the low-frequency information, whose usefulness has been well demonstrated [6]. This not only explains why GCL works, but also provides a clear and concise demonstration of which augmentation strategy is better, as veriﬁed by the experiments in Section 4.
+Based on our ﬁndings and theoretical analysis, we deﬁne two augmentations satisfying the GAME rule are called an optimal contrastive pair. Then, we propose a novel spectral graph contrastive learning (SpCo), a general GCL framework, which can boost existing GCL methods with optimal contrastive pairs. Speciﬁcally, to ensure that the learned augmented graph is an optimal contrastive pair with the original adjacency matrix, we need to make the amplitude of its high frequency ascend while keeping the low frequency the same as the original structure. We model this process as an optimization objective based on matrix perturbation theory, which can be solved by Sinkhorn’s Iteration [24] and ﬁnally obtain the augmented structure used for the following target GCL model.
+Our contributions are summarized as follows. Firstly, we answer the question “what information is learned by GCL and whether there exists a general augmentation rule”. To the best of our knowledge, this is the ﬁrst attempt to fundamentally explore the augmentation strategies for GCL from spectral domain. We not only reveal the general graph augmentation rule behind different augmentation
+2
+
+strategies, but also explain why GCL works by proposing the contrastive invariance theorem. Our work provides deeper understanding on the nature of GCL. Secondly, we answer the question “how to utilize the augmentation rule for GCL”. We show that the augmentation rule provides a novel insight to estimate the current augmentation strategies. We propose a novel concept optimal contrastive pair and theoretically derive a general framework SpCo, which is able to improve the performance of existing GCL methods. Last, we choose three typical GCL methods as target methods, and plug SpCo into them. We validate the effectiveness of SpCo on ﬁve datasets. We consistently gain improvements compared with those target methods.
+
+2 Preliminaries
+
+Let G = (V, ξ) represent an undirected attributed graph, where V is the set of N nodes and ξ ⊆ V × V
+
+is the set of edges. All edges formulate an adjacency matrix A ∈ {0, 1}N×N , where Aij ∈ {0, 1}
+
+denotes the relation between nodes i and j in V. The node degree matrix D = diag(d1, . . . .dn),
+
+where di = j∈V Aij is the degree of node i ∈ V. Graph G is often associated with a node feature
+
+matrix X = [x1, x2, . . . , xN ] ∈ RN×d, where xi is a d dimensional feature vector of node i ∈ V. Let
+
+L = D − A be the unnormalized graph Laplacian of G. If we set symmetric normalized adjacency
+
+matrix
+
+as
+
+Aˆ
+
+=
+
+D−
+
+1 2
+
+AD
+
+−
+
+1 2
+
+,
+
+then
+
+Lˆ
+
+=
+
+In
+
+− Aˆ
+
+=
+
+D
+
+−
+
+1 2
+
+(D
+
+−
+
+A)D−
+
+1 2
+
+is
+
+the
+
+symmetric
+
+normalized
+
+graph Laplacian.
+
+Since Lˆ is symmetric normalized, its eigen-decomposition is U ΛU , where Λ = diag(λ1, . . . , λN ) and U = [u1 , . . . , uN ] ∈ RN×N are the eigenvalues and eigenvectors of Lˆ, respectively. Without loss of generality, assume 0 ≤ λ1 ≤ · · · ≤ λN < 2 (where we approximate λN ≈ 2 [11]). Denote by FL = {λ1, . . . , λ N/2 } the amplitudes of low-frequency components and by FH =
+{λ N/2 +1, . . . , λN } the amplitudes of high-frequency components. The graph spectrum is deﬁned
+as these amplitudes of different frequency components, denoted as φ(λ), indicating which parts of frequency are enhanced or weakened [20]. Additionally, we rewrite Lˆ = λ1 · u1u1 + · · · + λN · uN uN , where we deﬁne term uiui ∈ RN×N as the eigenspace related to λi, denoted as Si.
+
+Graph Contrastive Learning (GCL) [28, 9, 33] aims to learn discriminative embeddings without supervision, whose pipeline is shown in Fig. 1(a). We summarize the representative GCL in Appendix E. Speciﬁcally, two augmentations are randomly extracted from A in a predeﬁned way and are encoded by GCN [11] to obtain the node embeddings under these two augmentations. Then, for one target node, its embedding in one augmentation is learned to be close to the embeddings of its positive samples in the other augmentation and be far away from those of its negative samples. Models built in this way are capable of discriminating similar nodes from dissimilar ones. For example, some graph contrastive methods [36, 32, 35] use classical InfoNCE loss [19] as the optimization objective:
+
+L(hVi 1 ,
+
+hVi 2 )
+
+=
+
+log
+
+exp(θ(hVi 1 ,
+
+exp(θ(hVi 1 , hVi 2 )/τ ) +
+
+hVi 2 )/τ ) exp(θ(hVi 1 ,
+
+hVk2 )/τ )
+
+,
+
+(1)
+
+k=i
+
+where hVi 1 and hVi 2 are the embeddings of node i under augmentations V1 and V2, respectively, θ is the similarity metric, such as cosine similarity, and τ is a temperature parameter. The total loss is
+
+LInf oNCE =
+
+1 2
+
+L(hVi 1 , hVi 2 ) + L(hVi 2 , hVi 1 ) .
+
+i
+
+3 Impact of Graph Augmentation: An Experimental Investigation
+
+In this section, we aim to explore what information should be considered in two contrasted augmentations from the perspective of graph spectrum. Speciﬁcally, we design a simple GCL framework shown in Fig. 2. Two input augmentations are adjacency matrix A and generated V . Then, we utilize a shared GCN with one layer as the encoder to encode A and V and get their nodes embeddings as HA and HV .We train the GCN by utilizing InfoNCE loss as in Eq. (1). More experimental settings can be found in appendix B.1.
+
+Figure 2: The case study model.
+
+3
+
+Generating augmentation V We construct the aug-
+
+mented graph by extracting information with different
+
+frequencies from the original graph, so that we can ana-
+
+lyze the effect of different information. This process is
+
+shown in Fig. 3. Speciﬁcally, we divide the eigenvalues
+
+of L into FL and FH parts, and conduct augmentations
+
+in these two parts, respectively. Taking the augmentation
+
+in FL for example, we keep the high-frequency part as uN/2uN/2 + · · · + uN uN . Then, we gradually add the
+
+Figure 3: The generation of V .
+
+eigenspaces in FL back with rates [20%, 40%, 60%, 80%], starting from the lowest frequency. There-
+
+fore, V augmenting 20% in FL is u1u1 + · · · + u0.2∗N/2u0.2∗N/2 + uN/2uN/2 + · · · + uN uN .
+
+Similarly, V augmenting 20% in FH is u1u1 + · · · + uN/2uN/2 + u(N+1)/2u(N+1)/2 + · · · +
+
+u0.7N u0.7N . Please note that we set graph spectrum of V , φV (λ) = 1, ∀λ ∈ [0, 2] above, in that we just want to test the effect of different uiui and avoid the inﬂuence from eigenvalues λ [18].
+
+(a) Cora
+
+(b) Citeseer
+
+(c) BlogCatalog
+
+(d) Flickr
+
+Figure 4: The results of case study on four datasets. The x-axis means different addition rate of different frequency interval, and y-axis means the performance on ACC. The performance of augmentations in FL are plotted on the left y-axis, and in FH are plotted on the right y-axis.
+
+Results and analyses We conduct the node classiﬁcation on four datasets: Cora, Citeseer [11], BlogCatalog, and Flickr [16]. The accuracy (ACC) is shown in Fig. 4. In appendix B.2, we also report the results when both high and low frequency components are added back in the high-to-low frequency order. Results. For each dataset, in generated V , (1) when the lowest part of frequencies are kept, the best performance is achieved; (2) when more frequencies in FH are involved, the performance generally rises. Analyses. From the graph spectra of A and V shown in Fig. 5, we can see that in generated V , (1) when the lowest part of frequencies are kept, the difference of amplitude, i.e., the graph spectrum, in FL Figure 5: The spectrum between A and V becomes smaller; (2) when more frequencies in FH of A and V . are involved, the margin of graph spectrum in FH between A and V becomes larger. Combining results and observations, we propose the following general Graph AugMEntation rule, called GAME rule1:
+The General Graph Augmentation Rule
+Given two random augmentations V1 and V2, their graph spectra are φV1 (λ) and φV2 (λ). Then, ∀ λm ∈ [1,2] and λn ∈ [0,1], V1 and V2 are an effective pair of graph augmentations if the following condition is satisﬁed:
+|φV1 (λm) − φV2 (λm)| > |φV1 (λn) − φV2 (λn)|. We deﬁne such pair of augmentations as optimal contrastive pair.
+
+1Although this rule is derived from contrasting A and V , the selection of certain views does not curb the generality of GAME rule. Considering that most of augmentations are obtained from the raw adjacency matrix A, it is a natural setting that one view is ﬁxed as A and the other is an augmented one.
+4
+
+4 Analysis of The General Graph Augmentation Rule
+
+In this section, we aim to verify the correctness of GAME rule that whether two contrasted augmentations satisfying GAME rule can perform better in downstream tasks from experimental and theoretical analysis.
+Experimental analysis We substitute existing augmentations proposed by MVGRL [9], GCA [36] and GraphCL [32] for augmentation V in the case. Speciﬁcally, MVGRL proposes PPR matrix, heat diffusion matrix and pair-wise distance matrix. GCA mainly randomly drops edges based on Degree, Eigenvector and PageRank. GraphCL adopts random node dropping, edge perturbation and subgraph sampling. The nine augmentations almost cover the mainstream augmentations in GCL. To accurately depict the change of the amplitude after these augmentations for some λi, we turn to matrix perturbation theory 1 [25]:
+
+∆λi = λi − λi = ui ∆Aui − λiui ∆Dui + O(||∆A||),
+
+(2)
+
+where λi is the eigenvalue after change, ∆A = A − A represent the modiﬁcation of edges after augmentation, and ∆D is the respective change in degree matrix. With Eq. (2), we calculate the
+eigenvalues on Cora after each augmentation, and plot their graph spectra in Fig. 6. Simultaneously, we use the GCL framework in Section 3 to separately contrast adjacency matrix A and these
+augmentations, and results are shown in Table 1. As shown in Fig. 6, PPR matrix, Heat diffusion matrix and Distance matrix better accord with GAME rule, where they have small difference with A in FL, and have a large difference in FH. Therefore, they outperform other augmentations in Table 1.
+
+Figure 6: The graph spectra of laplacian, adjacency matrix and nine existing augmentations.
+
+Table 1: Performance of different existing augmentations to verify the GAME rule.
+
+Methods
+
+GraphCL
+
+GCA
+
+MVGRL
+
+Type Subgraph Node dropping Edge perturbation Degree PageRank Eigenvector PPR
+
+Heat Distance
+
+Results 34.9±3.5 29.8±2.3
+
+37.7±4.4
+
+40.2±4.1 38.5±5.0 42.1±4.9 58.0±1.6 49.9±4.2 46.1±7.5
+
+We also test the GAME rule in another circumstance, where we contrast among three cases: A and A2 (two-hop of A), A and A, and A2 and A2. The results are given in Appendix C.
+
+Theoretical analysis We have the following theorem to depict the learning process of the GCL.
+
+Theorem 1. (Contrastive Invariance) Given adjacency matrix A and the generated augmentation
+
+V , the amplitudes of i-th frequency of A and V are λi and γi, respectively. With the optimization of InfoNCE loss LInfoNCE, the following upper bound is established:
+
+LInf oN CE
+
+≤
+
+1+N 2
+
+θi 2 − (λi − γi)2 ,
+
+i
+
+where θi is an adaptive weight of the ith term.
+
+1Here, we do not use eigenvalue decomposition to obtain λ of A , because the obtained λ are unordered compared with previous λ of A. That is to say, for certain λi of A, we cannot ﬁgure out which eigenvalue of A matches to it after decomposition, so we cannot calculate the change ∆λi for λi in this case.
+
+5
+
+The proof is given in the Appendix A.1, where we simplify GCN without the activation function. Theorem 1 indicates an upper bound of GCL loss, implying that maximizing the contrastive loss equals to maximize the upper bound. So, larger θi will be assigned to the smaller (λi − γi)2, or λi ≈ γi. Meanwhile, if λi ≈ γi, these two contrasted augmentations are regarded to share the invariance at ith frequency. Therefore, with contrastive learning, the encoder will emphasize the invariance between two contrasted augmentations from spectrum domain. To our best knowledge, theorem 1, for the ﬁrst time, theoretically proves that GCL can capture the invariance between two augmentations. Please recall that GAME rule suggests that the difference between two augmentations in FL is smaller. Thus, under the guidance of GAME rule, GCL attempts to capture the common low-frequency information of two augmentations. Thus, GAME rule points out a general augmentation strategy to manipulate encoder to capture low-frequency information, which achieves a better performance.
+
+5 Spectral Graph Contrastive Learning
+
+Based on the GAME Rule, we mainly aim to learn a general and GCL-friendly transformation ∆A from adjacency matrix A to a new augmentation A_ (or ∆A = A_ − A), where A and A_ are required to be an optimal contrastive pair. Then, they are fed into existing GCL method Φ, i.e. augmenting with the same strategies of Φ to generate V1 and V2 and training with the corresponding contrastive loss, shown in Fig. 7. The whole pipeline is our proposed spectral graph contrastive learning (SpCo), which can boost existing GCL methods.
+
+Figure 7: Combine SpCo with existing GCL.
+
+Firstly, we separate ∆A = ∆A+ − ∆A−, where ∆A+ and ∆A− indicate which edge is added and deleted, respectively. Next, we indicate how to learn ∆A+, while the calculation of ∆A− is similar. Based on our theoretical derivation in Appendix. A.2, the following optimization objective of ∆A+ should be maximized:
+
+J = < C, ∆A+ >2 + H(∆A+) + < f , ∆A+1n − a > + < g, ∆A+1n − b >, (3)
+
+Matching Term Entropy Reg.
+
+Lagrange Constraint Conditions
+
+This objective consists of three components: (1) Matching Term. ∀ P , Q ∈ RN×N , < P , Q >= ij PijQij. To maximize < C, ∆A+ >2, ∆A+ should learn to "match" or be similar to C. In A.2,
+we deﬁne C = U g(λ)U , where U and g(λ) are eigenvector matrix and some function about eigenvalues of A. According to GAME rule, we set φ∆(λ) = |φA(λ) − φA_(λ)|, and we need φ∆(λm) > φ∆(λn), ∀ λm ∈ [1,2] and λn ∈ [0,1]. Therefore, we stipulate that φ∆(λ) should be a monotone increasing function. Since C will guide ∆A+ to capture the change of difference between graph spectra (φ∆(λ)), we naturally set g(λ) of C also a monotone increasing function. Furthermore, we notice that the graph spectrum of Laplacian L does meet our need about g(λ) (shown in Fig. 6), so we simply set C = ΘL, where Θ is a parameter updating in training. (2) Entropy Regularization. Here, H(P ) = − i,j Pi,j(log(Pi,j) − 1) [21], and is the weight of this term. This term aims to increase the uncertainty of the learnt ∆A+, which encourages more edges (entries in ∆A+) to join in optimization. (3) Lagrange Constraint Conditions. f ∈ RN×1 and g ∈ RN×1 are Lagrange multipliers, and a ∈ RN×1 and b ∈ RN×1 are distributions1. This term restrains the row and column sums of ∆A+ within some limitation.
+Next, we expound how to solve eq. (3). The partial of J with respect to ∆A+ is as following:
+
+∂J / ∂(∆A+)ij = 2 < C, ∆A+ > Cij − log(∆A+)ij + fi + gj
+
+(4a)
+
+=
+
+mij
+
++
+
+2C
+
+2 ij
+
+(∆A+
+
+)ij
+
+−
+
+log(∆A+)ij + fi + gj ,
+
+(4b)
+
+where we separate 2C2ij(∆A+)ij from 2 < C, ∆A+ > Cij, and set the rest part as mij. The next theorem points out when J can get the maximal value in the domain of deﬁnition (∆A+)ij ∈ (0, 1):
+
+1We deﬁne a and b are both node degree distribution in this paper.
+
+6
+
+Theorem 2. Given (∆A+)ij ∈ (0, 1), J exists the maximal value, iff
+
+(1)
+
+C
+
+2 ij
+
+<
+
+−
+
+fi+gj +mij 2
+
+,
+
+and
+
+fi
+
++
+
+gj
+
++
+
+mij
+
+<
+
+0,
+
+or
+
+(2)
+
+2
+
+< C2ij
+
+<
+
+2
+
+exp(−
+
+fi
+
++gj
+
++mij 2
+
++
+
+), and fi + gj
+
++ mij
+
++
+
+< 0.
+
+We provide the proof in the Appendix A.3. Normally, we should let eq. (4b) equal to zero and get the analytical solution of (∆A+)ij. However, eq. (4b) is a transcendental equation because of the coexistence of linear term and logarithm. Thus, we require eq. (4a) to equal to 0. As the training goes on, ∆A+ does not change sharply. So, we ﬁrstly rewrite eq. (4a) as follows:
+
+∂J / ∂(∆A+)ij ≈ 2 < C, ∆A+ > Cij − log(∆A+)ij + fi + gj .
+
+(5)
+
+Compared with eq. (4a), eq. (5) only replaces ∆A+ with ∆A+ in the ﬁrst term, where ∆A+ is obtained from the last training epoch, and frozen at the current epoch. In this case, the matrix form of
+solution of current epoch is:
+
+∆A+ = diag(u) exp 2 < C, ∆A+ > C / diag(v) = U+K+V+,
+
+(6)
+
+where U+ = diag(ui) = diag exp fi and V+ = diag(vj) = diag exp gj . To further calculate U+ and V+, we restrain the row and column sums of ∆A+ according to Lagrange
+Constraint Conditions: u ∗ (K+v) = a and v ∗ K+u = b. We solve this matrix scaling problem [17] by Sinkhorn’s Iteration [24], which is shown in Algorithm 1 [4]. There exists a upper bound of
+the difference between ∆A+ and ∆A+:
+
+Theorem 3. After Sinkhorn’s Iteration, the bound between ∆A+ and ∆A+ is:
+
+α(∆A+)ij − (∆A+)ij
+
+≤
+
+2
+
+α (1−γ
+
+)
+
+{d(r(0)
+
+,
+
+a)
+
++
+
+d(c(0), b)}
+
++
+
+α(1
+
++
+
+|mij | ),
+
+where α = . 2C2ij ∀(x, x ) ∈ (Rn+)2, d(x, x ) is the Hilbert’s projective metric [3] on Rn+. γ is
+
+κ(K+), and κ is contraction ratio [7]. r(0) and c(0) are the row and column sum vectors of K+.
+
+The proof is given in Appendix A.4. The calculation of ∆A− is similar as ∆A+ shown as follows:
+
+∆A− = diag(u ) exp −2 < C, ∆A− > C / diag(v ) = U−K−V−,
+
+(7)
+
+where diag(u ), diag(v ) and ∆A− have the similar meanings as in eq. (6).
+Finally, we get the solution ∆A = ∆A+ − ∆A−, utilizing eq. (6) and eq. (7). With learnt transformation ∆A, we can obtain the new augmentation A_ as:
+
+A_ = A + η · S ∗ ∆A,
+
+(8)
+
+where ’*’ means element-wise product, and η is the combination coefﬁcient. To make ∆A sparse, we use scope matrix S to limit our focus, e.g. one-hop neighbors for each node. The whole algorithm is given in Algorithm 2.
+
+Algorithm 1: Sinkhorn’s Iteration
+Input :Matrix K, distribution a ∈ RN×1 and b ∈ RN×1
+Params :Iteration number Iter Output :∆A+ (or ∆A−)
+1 Initialize u = [1/N, 1/N, . . . , 1/N ]1×N ;
+2 K = diags(1./a)K; 3 for i = 1 to Iter do 4 u = 1./K b/K u ; 5 end
+6 v = b/K u; 7 ∆A+/∆A− = diag(u)Kdiag(v); 8 return ∆A+/∆A−;
+
+Algorithm 2: The proposed SpCo
+
+Input :Φ, augmentation AugΦ, A, L, X Params :Total epochs T , update epochs Ω, S, η,
+Θ, , a and b
+
+1 for i = 1 to T do
+
+2 C = ΘL;
+
+3 Calculate K+ / K− in eq. (6), (7); 4 Get ∆A+ / ∆A− through Algorithm 1; 5 A_ = A + η(∆A+ − ∆A−)S with eq. (8); 6 Update Θ;
+
+7 for j = 1 to Ω do
+
+8
+
+V1, V2 = AugΦ(A), AugΦ(A_);
+
+9
+
+Train Φ(V1, V2, X) ;
+
+10 end
+
+11 end
+
+7
+
+6 Experiments
+In this section, we mainly evaluate the performance of proposed SpCo on ﬁve datasets: Cora, Citeseer, Pubmed [11], BlogCatalog and Flickr [16]. Details of datasets are in Appendix D.2. We select two categories of baselines: semi-supervised GNN models {GCN [11], GAT [27]} and six representative graph contrastive learning methods {DGI [28], MVGRL [9], GRACE [35], GCA [36], GraphCL [32], CCA-SSG [33]}. These GCL methods can be divided into three categories based on their contrastive losses: BCE loss (DGI, MVGRL), InfoNCE loss (GRACE, GCA, GraphCL) and CCA loss (CCA-SSG). To verify the applicability of our SpCo, we select one baseline from each category (DGI, GRACE and CCA-SSG) to integrate with SpCo. The detailed descriptions of DGI, GRACE and CCA-SSG are given in Appendix D.6. Experimental implementation details are given in Appendix D.1.
+
+Table 2: Quantitative results (%±σ) on node classiﬁcation.
+
+Datasets Metrics GCN GAT DGI DGI+SpCo MVGRL GRACE GRACE+SpCo GCA GraphCL CCA-SSG CCA+SpCo
+
+Ma-F1 79.6±0.7 81.3±0.3 80.4±0.7 81.1±0.5 81.5±0.5 79.2±1.0 80.3±0.8 79.9±1.1 80.7±0.9 82.9±0.8 83.6±0.4 Cora
+Mi-F1 80.7±0.6 82.3±0.2 82.0±0.5 82.8±0.7 82.8±0.4 80.0±1.0 81.2±0.9 81.1±1.0 82.3±0.9 83.6±0.9 84.3±0.4
+
+Ma-F1 68.1±0.5 67.5±0.2 67.7±0.9 68.3±0.5 66.8±0.7 65.1±1.2 Citeseer
+Mi-F1 70.9±0.5 72.0±0.9 71.7±0.8 72.4±0.5 72.5±0.5 68.7±1.1
+
+65.1±0.8 69.4±1.0
+
+62.8±1.3 67.8±1.0 67.9±1.0 68.5±1.0 65.9±1.0 71.9±0.9 73.1±0.7 73.6±1.1
+
+Ma-F1 71.2±1.2 67.6±2.2 68.2±1.3 71.5±0.8 80.3±3.6 67.7±1.2 BlogCatalog
+Mi-F1 72.1±1.3 68.3±2.2 68.8±1.4 72.3±0.9 80.9±3.6 68.5±1.3
+
+68.2±0.4 69.4±1.3
+
+71.7±0.4 63.9±2.1 72.0±0.5 72.8±0.3 72.7±0.5 64.6±2.1 73.0±0.5 73.7±0.3
+
+Flickr
+
+Ma-F1 48.9±1.6 35.0±0.8 31.2±1.6 33.7±0.7 31.2±2.9 35.7±1.3 Mi-F1 50.2±1.2 37.1±0.3 33.0±1.6 35.2±0.7 33.4±3.0 37.3±1.0
+
+36.3±1.4 38.1±1.3
+
+41.2±0.5 32.1±1.1 37.0±1.1 38.7±0.6 42.2±0.6 34.5±0.9 39.3±0.9 40.4±0.4
+
+Ma-F1 78.5±0.3 77.4±0.2 76.8±0.9 77.6±0.6 79.8±0.4 80.0±0.7 PubMed
+Mi-F1 78.9±0.3 77.8±0.2 76.7±0.9 77.4±0.5 79.7±0.3 79.9±0.7
+
+80.3±0.3 80.7±0.2
+
+80.8±0.6 77.0±0.4 80.7±0.6 81.3±0.3 81.4±0.6 76.8±0.5 81.0±0.6 81.5±0.4
+
+6.1 Node classiﬁcation
+To more comprehensively evaluate our model, we use two common evaluation metrics, including Macro-F1 and Micro-F1. The results are reported in Table 2, where the training set contains 20 nodes per class. As can be seen, the proposed SpCo can generally improve the performances of the corresponding original models on all datasets, which veriﬁes that our SpCo is widely applicable and effective. We also choose 5 and 10 labeled nodes per class as training set respectively, which are reported in Appendix D.4.1.
+
+(a) DGI: Citeseer
+
+(b) GRACE: Citeseer
+
+(c) CCA-SSG: Citeseer
+
+Figure 8: The visualisation of graph spectrum on Citeseer.
+
+6.2 Visualisation of graph spectrum
+In this section, we test if the learnt view A_ and A meet the GAME rule. We plot the graph spectrum of A_, A, V1 and V2 in one ﬁgure for each method on Citeseer, which are shown in Fig. 8. Here, we discard the impact of self-loop operation. For DGI, it does not use topological augmentation. 2 Therefore, we only plot A_ and A for it. For GRACE, the augmentation strength of V1 is set to 0. Thus, the plot of V1 is same with A. From the ﬁgures, we can see that the difference between A_
+2Although in DGI, the authors summary a vector to depict the global view, this summary vector does not reﬂect any graph structure, thus we think DGI does not have special augmentation strategies on topology.
+8
+
+and A is smaller in FL than in FH, which proves that they are optimal contrastive pair. Meanwhile, they can drive V1 and V2 also to obey the GAME rule, and thus boost the ﬁnal results. More results on Cora are given in Appendix D.4.2.
+
+6.3 Hyper-parameter sensitivity
+
+In this subsection, we systematically investigate the sensitivity of two parameters: matrix C and . We conduct node classiﬁcation on Cora and BlogCatalog datasets and report the Micro-F1 values. More experiments of hyper-parameters are given in Appendix D.4.3.
+
+Analysis of C. The matrix C directly affects the ﬁnal structures of the ∆A+ and ∆A−. Therefore, we give three kinds of C: I + L, L and I + L + L2, and corresponding results are shown in Fig. 9. From the ﬁgures, we can see that L is the best choice compared with two candidates. So, we use θL as C. Other welldesigned C can also replace L here.
+
+(a) Cora
+
+(b) BlogCatalog
+
+Figure 9: The comparison between three candidates for C.
+
+Analysis of . The in eq. (3) controls the strength of entropy regularization, and in eq. (6) also controls the smoothness of exponential. We vary the value of it and plot the results on BlogCatalog in Fig. 10. From the results, we know that is a sensitive parameter for SpCo. If is too small, the effect of entropy term will diminish. And if is too large, the entropy term will interfere the molding of new structure. More results on Cora are given in Appendix D.4.3.
+
+(a) DGI: BlogCatalog
+
+(b) GRACE: BlogCatalog
+
+(c) CCA-SSG: BlogCatalog
+
+Figure 10: Analysis of the hyper-parameter on BlogCatalog.
+
+7 Conclusion
+In this paper, we fundamentally explore the topological augmentation of GCL from spectral domain. We propose contrastive invariance theorem, and discover a general augmentation (GAME) rule, which deepen our understanding of the essence of GCL. Then, we propose a general augmentation plug-in based on GAME rule, SpCo, to boost existing GCL methods. Extensive experiments verify the effectiveness of SpCo.
+Limitations and broader impact. On potential limitation is that this work mainly focuses on the homophily graph, rather than the heterophily graphs [1], where high-frequency information is more useful. Despite the great development of GCL, some theoretical foundations are still lacking. Our work points out the great potential of graph spectrum in GCL, and may open a new path to understand and design GCL. Other than that, we do not foresee any direct negative impacts on the society.
+Acknowledgments and Disclosure of Funding
+This work is supported in part by the National Natural Science Foundation of China (No. U20B2045, 62192784, 62172052, 62002029, U1936014).
+
+9
+
+References
+[1] Deyu Bo, Xiao Wang, Chuan Shi, and Huawei Shen. Beyond low-frequency information in graph convolutional networks. arXiv preprint arXiv:2101.00797, 2021.
+[2] Joan Bruna, Wojciech Zaremba, Arthur Szlam, and Yann LeCun. Spectral networks and locally connected networks on graphs. In 2nd International Conference on Learning Representations, 2014.
+[3] Peter J Bushell. Hilbert’s metric and positive contraction mappings in a banach space. Archive for Rational Mechanics and Analysis, 52(4):330–338, 1973.
+[4] Marco Cuturi. Sinkhorn distances: Lightspeed computation of optimal transport. Advances in neural information processing systems, 26, 2013.
+[5] Michaël Defferrard, Xavier Bresson, and Pierre Vandergheynst. Convolutional neural networks on graphs with fast localized spectral ﬁltering. In Advances in Neural Information Processing Systems 29: Annual Conference on Neural Information Processing Systems 2016, pages 3837– 3845, 2016.
+[6] Negin Entezari, Saba A Al-Sayouri, Amirali Darvishzadeh, and Evangelos E Papalexakis. All you need is low (rank) defending against adversarial attacks on graphs. In Proceedings of the 13th International Conference on Web Search and Data Mining, pages 169–177, 2020.
+[7] Joel Franklin and Jens Lorenz. On the scaling of multidimensional matrices. Linear Algebra and its applications, 114:717–735, 1989.
+[8] William L Hamilton, Rex Ying, and Jure Leskovec. Inductive representation learning on large graphs. In Proceedings of the 31st International Conference on Neural Information Processing Systems, pages 1025–1035, 2017.
+[9] Kaveh Hassani and Amir Hosein Khasahmadi. Contrastive multi-view representation learning on graphs. In ICML, pages 4116–4126, 2020.
+[10] Weihua Hu, Bowen Liu, Joseph Gomes, Marinka Zitnik, Percy Liang, Vijay Pande, and Jure Leskovec. Strategies for pre-training graph neural networks. arXiv preprint arXiv:1905.12265, 2019.
+[11] Thomas N. Kipf and Max Welling. Semi-supervised classiﬁcation with graph convolutional networks. In ICLR, 2017.
+[12] Namkyeong Lee, Junseok Lee, and Chanyoung Park. Augmentation-free self-supervised learning on graphs. arXiv preprint arXiv:2112.02472, 2021.
+[13] Haoyang Li, Xin Wang, Ziwei Zhang, Zehuan Yuan, Hang Li, and Wenwu Zhu. Disentangled contrastive learning on graphs. Advances in Neural Information Processing Systems, 34, 2021.
+[14] Hu Linmei, Tianchi Yang, Chuan Shi, Houye Ji, and Xiaoli Li. Heterogeneous graph attention networks for semi-supervised short text classiﬁcation. In Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP), pages 4821–4830, 2019.
+[15] Miller McPherson, Lynn Smith-Lovin, and James M Cook. Birds of a feather: Homophily in social networks. Annual review of sociology, 27(1):415–444, 2001.
+[16] Zaiqiao Meng, Shangsong Liang, Hongyan Bao, and Xiangliang Zhang. Co-embedding attributed networks. In Proceedings of the twelfth ACM international conference on web search and data mining, pages 393–401, 2019.
+[17] Arkadi Nemirovski and Uriel Rothblum. On complexity of matrix scaling. Linear Algebra and its Applications, 302:435–460, 1999.
+[18] Hoang Nt and Takanori Maehara. Revisiting graph neural networks: All we have is low-pass ﬁlters. arXiv preprint arXiv:1905.09550, 2019.
+10
+
+[19] Aaron van den Oord, Yazhe Li, and Oriol Vinyals. Representation learning with contrastive predictive coding. arXiv preprint arXiv:1807.03748, 2018.
+[20] Antonio Ortega, Pascal Frossard, Jelena Kovacˇevic´, José MF Moura, and Pierre Vandergheynst. Graph signal processing: Overview, challenges, and applications. Proceedings of the IEEE, 106(5):808–828, 2018.
+[21] Gabriel Peyré, Marco Cuturi, et al. Computational optimal transport. Center for Research in Economics and Statistics Working Papers, (2017-86), 2017.
+[22] Gabriel Peyré, Marco Cuturi, et al. Computational optimal transport: With applications to data science. Foundations and Trends® in Machine Learning, 11(5-6):355–607, 2019.
+[23] Weijing Shi and Raj Rajkumar. Point-gnn: Graph neural network for 3d object detection in a point cloud. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages 1711–1719, 2020.
+[24] Richard Sinkhorn. A relationship between arbitrary positive matrices and doubly stochastic matrices. The annals of mathematical statistics, 35(2):876–879, 1964.
+[25] Gilbert W Stewart. Matrix perturbation theory. 1990.
+[26] Susheel Suresh, Pan Li, Cong Hao, and Jennifer Neville. Adversarial graph augmentation to improve graph contrastive learning. Advances in Neural Information Processing Systems, 34, 2021.
+[27] Petar Velicˇkovic´, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Lio, and Yoshua Bengio. Graph attention networks. arXiv preprint arXiv:1710.10903, 2017.
+[28] Petar Velicˇkovic´, William Fedus, William L Hamilton, Pietro Liò, Yoshua Bengio, and R Devon Hjelm. Deep graph infomax. arXiv preprint arXiv:1809.10341, 2018.
+[29] Zonghan Wu, Shirui Pan, Fengwen Chen, Guodong Long, Chengqi Zhang, and Philip S. Yu. A comprehensive survey on graph neural networks. IEEE Trans. Neural Networks Learn. Syst., pages 4–24, 2021.
+[30] Dongkuan Xu, Wei Cheng, Dongsheng Luo, Haifeng Chen, and Xiang Zhang. Infogcl: Information-aware graph contrastive learning. Advances in Neural Information Processing Systems, 34, 2021.
+[31] Longqi Yang, Liangliang Zhang, and Wenjing Yang. Graph adversarial self-supervised learning. Advances in Neural Information Processing Systems, 34, 2021.
+[32] Yuning You, Tianlong Chen, Yongduo Sui, Ting Chen, Zhangyang Wang, and Yang Shen. Graph contrastive learning with augmentations. Advances in Neural Information Processing Systems, 33:5812–5823, 2020.
+[33] Hengrui Zhang, Qitian Wu, Junchi Yan, David Wipf, and Philip S Yu. From canonical correlation analysis to self-supervised graph neural networks. Advances in Neural Information Processing Systems, 34, 2021.
+[34] Ziwei Zhang, Peng Cui, Xiao Wang, Jian Pei, Xuanrong Yao, and Wenwu Zhu. Arbitraryorder proximity preserved network embedding. In Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining, KDD 2018, London, UK, August 19-23, 2018, pages 2778–2786, 2018.
+[35] Yanqiao Zhu, Yichen Xu, Feng Yu, Qiang Liu, Shu Wu, and Liang Wang. Deep graph contrastive representation learning. arXiv preprint arXiv:2006.04131, 2020.
+[36] Yanqiao Zhu, Yichen Xu, Feng Yu, Qiang Liu, Shu Wu, and Liang Wang. Graph contrastive learning with adaptive augmentation. In WWW, pages 2069–2080, 2021.
+11
+
+Checklist
+1. For all authors... (a) Do the main claims made in the abstract and introduction accurately reﬂect the paper’s contributions and scope? [Yes] (b) Did you describe the limitations of your work? [Yes] See Section 7. (c) Did you discuss any potential negative societal impacts of your work? [Yes] See Section 7. (d) Have you read the ethics review guidelines and ensured that your paper conforms to them? [Yes]
+2. If you are including theoretical results... (a) Did you state the full set of assumptions of all theoretical results? [Yes] (b) Did you include complete proofs of all theoretical results? [Yes]
+3. If you ran experiments... (a) Did you include the code, data, and instructions needed to reproduce the main experimental results (either in the supplemental material or as a URL)? [Yes] We include the code, data, and instructions in the supplemental material (b) Did you specify all the training details (e.g., data splits, hyperparameters, how they were chosen)? [Yes] See Section 6 and Appendix D. (c) Did you report error bars (e.g., with respect to the random seed after running experiments multiple times)? [Yes] See Section 6.1 and Appendix D.4.1. (d) Did you include the total amount of compute and the type of resources used (e.g., type of GPUs, internal cluster, or cloud provider)? [Yes] See Appendix D.5.
+4. If you are using existing assets (e.g., code, data, models) or curating/releasing new assets... (a) If your work uses existing assets, did you cite the creators? [Yes] (b) Did you mention the license of the assets? [No] We were unable to ﬁnd the license for the assets we used. (c) Did you include any new assets either in the supplemental material or as a URL? [Yes] (d) Did you discuss whether and how consent was obtained from people whose data you’re using/curating? [N/A] The datasets are public benchmarks. (e) Did you discuss whether the data you are using/curating contains personally identiﬁable information or offensive content? [N/A] The datasets are public benchmarks.
+5. If you used crowdsourcing or conducted research with human subjects... (a) Did you include the full text of instructions given to participants and screenshots, if applicable? [N/A] (b) Did you describe any potential participant risks, with links to Institutional Review Board (IRB) approvals, if applicable? [N/A] (c) Did you include the estimated hourly wage paid to participants and the total amount spent on participant compensation? [N/A]
+12
+
+A Proof and Derivation
+
+A.1 Proof of Contrastive Invariance
+
+Proof. We start our proof from the contrastive loss in eq. (1), rewritten as follows:
+
+L(hVi 1 ,
+
+hVi 2 )
+
+=
+
+log
+
+exp(θ(hVi 1 ,
+
+exp(θ(hVi 1 , hVi 2 )/τ ) +
+
+hVi 2 )/τ ) exp(θ(hVi 1 ,
+
+hVk2 )/τ )
+
+,
+
+(9)
+
+k=i
+
+Here, for simpliﬁcation, we set τ = 1, θ is dot product similarity, the number of GCN layer is 1 and without non-linear activation. In the case study, we utilize augmentations A and V as two inputs. And then, for the optimization of node i, we have:
+
+L(hAi , hVi ) = log
+
+exp(hAi hVi ) exp(hAi hVk )
+
+k
+
+= hAi hVi − log exp(hAi hVk )
+k
+
+ hAi hVk 
+
+≤ hAi hVi
+
+− log N · exp  k 
+
+N
+
+ 
+
+(10a)
+
+= hAi hVi ⇒ hAi hVi
+
+1 − log N −
+N
+
+hAi hVk
+
+k
+
+1 −
+N
+
+hAi hVk .
+
+k
+
+(10b)
+
+In formula (10a) we numbers, they meet
+
+xu1ti+li·Nz··e+ixnNeq≥ualN √ityxo1f.
+
+arithmetic and . . xN . And in
+
+geometric means, where given any N positive formula (10b), we neglect the constant log N .
+
+Then, we gather the losses of all nodes as follows:
+
+L = L(hAi , hVi )
+
+i
+
+≤
+
+hAi hVi −
+
+1 N
+
+hAi hVk
+
+(11)
+
+i
+
+i
+
+k
+
+= tr(HAHV ) − 1 sum(HAHV ), N
+
+where HA and HV denote the embeddings matrices for all nodes under A and V , respectively. tr(U ) means the trace of matrix U , and sum(U ) means the sum of all elements in matrix U .
+Please recall that V is composed of different eigenspaces of A, so we can have that A = U ΛU and V = U ΓU , where U is the collection of eigenspaces, and Λ = diag(λ1, . . . , λN ) and Γ = diag(γ1, . . . , γN ) are the diagonal weight matrices of different eigenspaces. Because we simplify that only one layer GCN without activation function is used, we have the following formula:
+
+HAHV = AXW W XV ,
+
+(12)
+
+where W is learnable parameters of the encoder. Then, we set M = XW W X. And thus, we can view M as the similarities of features between every two nodes after projection. As mentioned in previous studies, linked nodes often have similar features [15], and thus their similarity should be also higher after projection. Therefore w.l.o.g., we assume that transformed features between nodes present a kind of high-order proximity, given in [34]:
+
+Assumption 1. (High-order Proximity) M = w0 + w1A + w2A2 + · · · + wqAq, where Ai means matrix multiplications between i As, and wi is the weight of that term.
+
+In other words, this assumption aims to expand M with the weighted sum of different orders of A. Furthermore, we have that:
+
+13
+
+Theorem 4. When q ≥ N − 1, M = U ΘU , where Θ = diag(θ1, . . . , θN ). And {θ1, . . . , θN } are N different parameters, if {λ1, . . . , λN } are N different frequency amplitudes.
+
+Proof.
+
+M = w0 + w1A + w2A2 + · · · + wqAq
+
+= U w0IU + U w1ΛU + U w2Λ2U + · · · + U wqΛqU
+
+= U [w0I + w1Λ + w2Λ2 + · · · + wqΛq]U
+
+q
+
+
+
+wiλi1 i=0
+
+(13) 
+
+
+
+q
+
+
+
+ =U
+
+
+wiλi2
+i=0
+
+ U 
+
+
+
+...
+
+
+
+ 
+
+q
+
+ wiλiN 
+
+i=0
+
+We ﬁrstly give the following equation set:
+
+ 
+
+w0
+
++
+
+w1λ1+
+
+·
+
+·
+
+·
+
++
+
+wq λq1
+
+=
+
+θ1
+
+  
+
+w0
+
++
+
+w1λ2+
+
+·
+
+·
+
+·
+
++
+
+wq λq2
+
+=
+
+θ2
+
+(14)
+
+
+
+...
+
+
+
+ w0
+
++
+
+w1λN + · · ·
+
++
+
+wq λqN
+
+=
+
+θN ,
+
+where {θ1, . . . , θN } are N randomly given parameters. And the determinant of coefﬁcient of this
+
+1 equation set is D = 1
+
+λ1 λ2
+
+... ... ...
+
+λλq1q2 . From the linear algebra, we know that if (1) q = N − 1,
+
+1 λN . . . λqN
+
+D is the Vandermonde determinant, and then D = N≥i≥j≥1(λi − λj). If ∀i, j ∈ [1, N ], we all
+
+have λi = λj, so D = 0. In this case, the coefﬁcient matrix is a full-rank matrix, and there will be
+
+one unique solution of the set (14). If ∃ one pair of i, j ∈ [1, N ] and λi = λj, we can force θi and θj to be equal, which means that the encoder deploys the same effect on the repeated frequencies.
+
+The number of repeated frequencies is considerably smaller that that of different frequencies, so we
+
+neglect this case; (2) q > N − 1, the number of unknown numbers is larger than that of equations in
+
+set (14), so there are inﬁnite solutions. Above all, theorem 4 is proved.
+
+Theorem 4 points that M can be easily rewritten in U ΘU , if we use sufﬁcient orders of A to approach M . Combined with this theorem, we resume the derivation of eq. (12) as follows:
+
+HAHV = AM V
+
+= U ΛU M U ΓU = U ΛΘΓU
+
+λ1θ1γ1
+
+
+
+=U 
+
+λ2θ2γ2 ...
+
+U 
+
+(15)
+
+λnθnγn
+
+= λ1θ1γ1u1u1 + λ2θ2γ2u2u2 + · · · + λN θN γN uN uN
+
+Therefore, we have:
+
+tr(HAHV ) = λiθiγi, and sum(HAHV ) = λiθiγisum(uiui )
+
+(16)
+
+i
+
+i
+
+14
+
+Finally, plug this equation into eq. (11), we can get:
+
+L ≤ tr(HAHV ) − 1 sum(HAHV ) N
+
+1
+
+=
+
+λiθiγi[1 − N sum(uiui )]
+
+i
+
+≤ (1 + N ) λiθiγi
+
+i
+
+1+N =
+2
+
+θi[λ2i + γi2 − (λi − γi)2]
+
+i
+
+1+N ≤
+2
+
+θi[2 − (λi − γi)2].
+
+i
+
+In eq. (17a), we utilize the following lemma:
+
+Lemma 1. sum(uiui ) ≥ −N 2.
+
+(17a) (17b)
+
+Proof. We have known that ui ui = u2i1 + · · · + u2iN = 1, which implies that ∀j ∈ [1, N ], uij ∈
+
+(−1, 1). Thus, ∀j, k ∈ [1, N ], uijuik ∈ (−1, 1). Finally, sum(uiui ) = uijuik > (−1) =
+
+j,k
+
+j,k
+
+−N 2.
+
+And in eq. (17b), we utilize the fact that for A, amplitudes of its frequencies lay in [-1, 1], while for V , amplitudes of its all frequencies equal to 1. Therefore, λ2i ≤ 1 and γi2 ≤ 1. Similarly for L(hVi 2 , hVi 1 ), we also have the same upper bound. Therefore, we have the following results:
+
+LInf oNCE =
+
+1 2
+
+L(hVi 1 , hVi 2 ) + L(hVi 2 , hVi 1 )
+
+1+N ≤
+2
+
+θi[2 − (λi − γi)2]. (18)
+
+i
+
+i
+
+So, the contrastive invariance is proved.
+
+A.2 Derivation of optimization objective
+
+In this subsection, we provide detailed derivation of optimization objective in eq. (3). As shown in section 5, we attempt to learn an augmented graph from original graph based on the GAME rule. Based on eigenvalue perturbation formula (2) removing the high-order term O(||∆A||), we have:
+
+∆λi ≈ ui ∆Aui − λiui ∆Dui
+
+= [(uiui ) ∗ ∆A]m,n − λiui ∆Dui
+m,n
+
+(19a)
+
+=< Si, ∆A > −λiui ∆Dui.
+
+(19b)
+
+In eq. (19a), we use ’*’ to represent element-wise product, and use < P , Q > to represent the sum of all elements of P ∗ Q in eq. (19b). Before further derivation, we give a lemma as following:
+
+Lemma 2. |λiui ∆ Dui| ≤ N |λi|.
+
+This lemma is proved in Appendix A.2.1. Then with Lemma 2, we gather the changes of all eigenvalues together, and have the following two theorems:
+Theorem 5. Given ∆total = i αi|∆λi|, we have
+
+∆total ⇐⇒ αi |< Si, ∆A >| ≥ αi |< Si, ∆A+ >| − aj |< Sj , ∆A− >| = ∆+ − ∆−,
+
+i
+
+i
+
+j
+
+where αi ≥ 0 is the weight for the change of λi. Formally, we have ∆A = ∆A+ − ∆A−, where ∆A+ and ∆A− indicate which edge is added and deleted, respectively.
+
+15
+
+Theorem 6. Given N eigenspaces [S1, . . . , SN ], if | < Si, ∆A > | is maximized, then ∀j, | < Sj, ∆A > | → 0.
+The proof is given in Appendix A.2.2 and A.2.3. Theorem 6 implies that ∆A can only be related to one of these eigenspaces. Please recall that we need |∆λi| in FL is smaller than that in FH. Therefore, we ﬁrst make αi is larger for ∆λi in FH than in FL. Then, we maximize ∆total, and ∆A will only be related to Si in FH. That means |∆λi| in FH will be larger. Particularly, Theorem 5 indicates that we can maximize ∆+ and minimize ∆− simultaneously to maximize ∆total. For ∆+, we can maximize it by following formula:
+
+∆+ = αi |< Si, ∆A+ >| = | αi < Si, ∆A+ > |
+
+i
+
+i
+
+= | < αiuiui , ∆A+ > | = < U g(λ)U , ∆A+ > = |< C, ∆A+ >| .
+i
+
+(20a)
+
+In eq. (20a), we deﬁne C = U g(λ)U and αi = g(λi), where g(λ) should be a monotone increasing function. As can be seen, if ∆A+ is learnt to be closed to some predeﬁned C, ∆+ will increase.
+Setting C We notice that the graph spectrum of Laplacian L does meet our need about g(λ). Therefore, we simply set C = ΘL, where Θ is a parameter. We change Θ as the training goes.
+With eq. (20a), we give the following optimization objective:
+
+J =< C, ∆A+ >2 + H(∆A+)+ < f , ∆A+1n − a > + < g, ∆A+1n − b >, (21)
+
+where H(P ) is the entropy regularization, deﬁned as − i,j Pi,j(log(Pi,j) − 1) [21], and is the
+weight of this term. This term exposes more edges in ∆A+ to optimization. The last two terms
+are Lagrange constraint conditions, where f ∈ RN and g ∈ RN are Lagrange multipliers, and a ∈ RN×1 and b ∈ RN×1 are distributions that the row and column sums of ∆A+ should meet.
+
+A.2.1 Proof of Lemma 2 Proof.
+|λiui ∆Dui| = |λi||ui diag(d1, . . . , dN )ui| = |λi| |d1|u2i1 + · · · + |dN |u2iN ≤ |d|max|λi| u2i1 + · · · + u2iN = |d|max|λi| ≤ N |λi|.
+
+In this proof, we utilize two facts: (1) the length of any eigenvector is 1, and (2) the change of degree matrix does not exceed N (in the limiting case, one node becomes from isolated to reaching all other nodes, where dmax equals to N).
+16
+
+A.2.2 Proof of Theorem 5
+
+Proof.
+
+∆total = ai|∆λi|
+
+i
+
+= ai < Si, ∆A > −λiuTi ∆Dui
+i
+
+≥ ai |< Si, ∆A >| − λiuTi ∆Dui
+i
+
+= ai |< Si, ∆A >| −
+
+λkuTk ∆Duk
+
+i
+
+k
+
+≥ ai |< Si, ∆A >| − N |λk|
+
+i
+
+k
+
+≥ ai |< Si, ∆A >| − N 2
+
+i
+
+(22a) (22b)
+
+⇐⇒ ai |< Si, ∆A >|
+i
+
+(22c)
+
+≥ ai| < Si, ∆A+ > | − aj| < Si, ∆A− > |.
+
+i
+
+j
+
+In eq. (22a), we utilize the result of lemma 2, and in eq. (22b) we again utilize that the amplitudes of frequencies of A are between [-1, 1]. For simpliﬁcation, we ignore the constant N 2 in eq. (22c).
+
+A.2.3 Proof of Theorem 6 Proof. To prove the Theorem 6, we ﬁrstly prove the following lemma: Lemma 3. < Si, Sj >= 0, when i = j.
+
+Proof. We have that < Si, Sj >=< uiui , uj uj >= (uiui ) ∗ (uj uj ) = ui uj uj ui = 0,
+m,n
+where we take advantage of any two different eigenvectors are orthogonal, or ui uj = 0.
+
+With this lemma, we give the following derivation:
+
+2 < Si, ∆A >= 2∆A11Si11 + 2∆A12Si12 + · · · + 2∆ANN SiNN .
+
+(23)
+
+Then we conduct category discussion on < Si, ∆A >:
+
+1. For < Si, ∆A > > 0, we have:
+
+2| < Si, ∆A > | = 2∆A11Si11 + 2∆A12Si12 + · · · + 2∆ANN SiNN
+
+= ∆A2mn + Si2mn − (∆Amn − Simn)2
+m,n
+
+= ∆A2mn + ||Si||2F − (∆Amn − Simn)2
+
+m,n
+
+m,n
+
+≤ N 2 + ||Si||2F − (∆Amn − Simn)2.
+m,n
+
+(24a)
+
+In eq. (24a), we make use of that the change of one element in ∆A is in [−1, 1]. From eq. (24a), we can infer that if ∆A is learnt to be similar with some eigenspace Si, maximizing the left hand of above equation, then (∆Amn − Simn)2 will be minimized, which means ∆Amn → Simn.
+m,n
+Then, if we test the similarity between ∆A and another eigenspace Sj, we have that:
+
+< Sj , ∆A > = ∆A11Sj11 + ∆A12Sj12 + · · · + ∆ANN SjNN ⇒ Si11Sj11 + Si12Sj12 + · · · + SiNN SjNN =< Sj, Si >= 0.
+
+17
+
+2. For < Si, ∆A > < 0, we have:
+
+2| < Si, ∆A > | = −2∆A11Si11 − 2∆A12Si12 − · · · − 2∆ANN SiNN
+
+= ∆A2mn + Si2mn − (∆Amn + Simn)2
+m,n
+
+= ∆A2mn + ||Si||2F − (∆Amn + Simn)2
+
+m,n
+
+m,n
+
+≤ N 2 + ||Si||2F − (∆Amn + Simn)2.
+m,n
+
+In this case, (∆Amn + Simn)2 will be minimized, which means ∆Amn → −Simn. Then, for
+m,n
+another eigenspace Sj, we have:
+
+< Sj , ∆A > = ∆A11Sj11 + ∆A12Sj12 + · · · + ∆ANN SjNN ⇒ −Si11Sj11 − Si12Sj12 − · · · − SiNN SjNN = − < Sj, Si >= 0.
+
+Above all, we prove that ∆A can only be related to part of eigenspaces, rather than all of them.
+
+A.3 Proof of Theorem 2
+
+Proof. Here, we start from eq. (4b), and replace (∆A+)ij with ∆ij, shown as following:
+
+f (∆ij) =
+
+∂J ∂(∆A+)ij
+
+= mij
+
++ 2C2ij (∆A+)ij
+
+−
+
+log(∆A+)ij + fi + gj
+
+(28)
+
+= mij + 2C2ij ∆ij − log ∆ij + fi + gj ,
+
+where the domain of deﬁnition is ∆ij ∈ (0, 1). We observe eq. (28) that f (0) → +∞ and f (1) =
+
+mij
+
++
+
+2C
+
+2 ij
+
++
+
+fi
+
++
+
+gj .
+
+Then,
+
+we
+
+conduct
+
+category
+
+discussion.
+
+1.
+
+If f (1) < 0, we have C2ij
+
+<
+
+− fi+gj +mij
+2
+
+,
+
+and
+
+fi + gj + mij
+
+< 0.
+
+In this case, by Existence
+
+Theorem of Zero Points, we know that there must be a point making f (∆ij) = 0, and the loss J can
+
+obtain the extremum. This is the condition (1) in Theorem 2.
+
+2. If f (1) > 0, we must let the minimal value of f (∆ij) < 0, in order to guarantee there exists Zero Points. To get the minimal value, we need take the derivative about f (∆ij) as follows:
+
+∂f (∆ij) ∂∆ij
+
+=
+
+2C2ij
+
+−
+
+∆ij
+
+.
+
+(29)
+
+From above formula, the
+
+minimal value
+
+is ∆ij
+
+=
+
+2Ci2j
+
+by letting
+
+∂f (∆ij ) ∂ ∆ij
+
+=
+
+0.
+
+Then, we need to
+
+meet the following two conditions:
+
+2C2ij < 1 and f ( 2Ci2j ) < 0.
+
+(30)
+
+The solution of above two conditions is the condition (2) in Theorem 2.
+
+A.4 Proof of Theorem 3
+
+Proof. To begin with, we introduce some basic deﬁnitions, which will be used in this part of proof.
+
+Deﬁnition 1. (Hilbert’s projective metric)[3] Given ∀(x, x ) ∈ (Rn+)2, then the Hilbert’s projective metric on Rn+ is deﬁned as:
+
+d(x,
+
+x
+
+)
+
+=
+
+log
+
+max
+i,k
+
+xi xk xi xk
+
+.
+
+This is an explicitly deﬁned distance function on a bounded convex subset of the n-dimensional Euclidean space, which can greatly simpliﬁed the global convergence analysis of Sinkhorn [7]. This metric satisﬁes the triangular inequality, and d(x, x ) = 0 if ∃s > 0, x = sx .
+
+18
+
+Deﬁnition 2. (Contraction ratio)[7] Given a positive n × n matrix A, then the contraction ratio of
+
+A is deﬁned as:
+
+γ = κ(A) = sup
+
+d(Ay,Ay d(y,y )
+
+)
+
+:
+
+y, y
+
+∈ Rn+, y = αy
+
+Specially, if we set ℵ = sup
+
+d(Ay, Ay ) : y, y ∈ Rn+, y = αy
+
+,
+
+then
+
+γ
+
+=
+
+. ℵ1/2 −1
+ℵ1/2 +1
+
+With these two deﬁnitions, the authors in [22] give the following lemma:
+
+Lemma 4. One has
+
+|| log(P (l)) − log(P
+
+)||∞
+
+≤
+
+1
+
+1 −
+
+{d(r(l), a) γ
+
++
+
+d(c(l), b)},
+
+(31)
+
+where P (l) and P are the intermediate result after lth Sinkhorn’s Iteration and the ﬁnal result, respectively. r(l) and c(l) are the row and column sum vectors of P (l), and a and b are two predeﬁned
+distributions.
+
+Now, please recall that we utilize the trick to operate Sinkhorn’s Iteration in eq. (6). In this case, we set l in eq. (31) as 0, so the left hand of equation will be changed as:
+
+|| log(P (0)) − log(P )||∞ = || log(K+) − log(∆A+)||∞.
+
+(32)
+
+This is because before iteration, P (0) is actually K+, and ∆A+ is the ﬁnal result of iteration. Then, we have the following derivation:
+
+|log((∆A+)ij) − log((K+)ij)| ≤ || log(∆A+) − log(K+)||∞
+
+≤ 1 {d(r(0), a) + d(c(0), b)} 1−γ
+
+log((∆A+)ij ) − 2 < C, ∆A+ > Cij
+
+≤
+
+1 {d(r(0), a) + d(c(0), b)} (1 − γ)
+
+log((∆A+)ij ) − 2C2ij (∆A+)ij − mij
+
+≤
+
+1 {d(r(0), a) + d(c(0), b)} (1 − γ)
+
+((∆A+)ij − 1) − 2C2ij (∆A+)ij − mij
+
+≤
+
+1 {d(r(0), a) + d(c(0), b)} (1 − γ)
+
+∵
+
+(∆A+)ij
+
+−
+
+2C
+
+2 ij
+
+(∆A+
+
+)ij
+
+−
+
+− |mij | ≤ | ((∆A+)ij − 1) − 2C2ij (∆A+)ij − mij |
+
+∴
+
+(∆A+)ij − 2C2ij (∆A+)ij
+
+≤
+
+1 {d(r(0), a) + d(c(0), b)} + (1 − γ)
+
++ |mij |
+
+2C
+
+2 ij
+
+(∆A+)ij
+
+−
+
+(∆A+)ij
+
+≤
+
+2C
+
+2 ij
+
+1
+
+{d(r(0), a) + d(c(0), b)}
+
+(1 − γ)
+
++
+
++ |mij
+
+2C
+
+2 ij
+
+|
+
+.
+
+(33)
+
+If we set α = , 2C2ij we have:
+
+α(∆A+)ij − (∆A+)ij
+
+≤
+
+α 2(1 −
+
+{d(r(0), γ)
+
+a)
+
++
+
+d(c(0),
+
+b)}
+
++
+
+α(1
+
++
+
+|mij| ).
+
+(34)
+
+B More details of Section 3
+B.1 Experimental settings In Fig. 2, we show the GCL model used in following case study. Here, we provide more experimental settings about case study. As description, we use a shared GCN to encode A and V and get their
+19
+
+nodes embeddings as HA and HV . In the training, we set dimensions of HA and HV as 8, learning rate as 0.001, τ in eq. 1 as 0.5 and weight decay as 0. We train the model 300 epochs, and then test the quality of HA. In the test phrase, we follow DGI, and the split of each dataset is consistent with that in table 4 in Appendix D.2, and we only test the case where training set contains 20 nodes per class.
+B.2 More results of case study
+
+Figure 11: New generation of V, where we follow high-to-low frequency order in both low-frequency and highfrequency part.
+
+Figure 12: The results of inverse adding order on Cora.
+
+In section 3, we design a simple GCL framework to contrast A and generated V . When constructing V , we conduct augmentations in FL (or FH) by adding eigenspaces in FL (or FH) back in low-to-high frequency order. Here, we consider the inverse high-to-low frequency order. The process is shown in Fig. 11, where V augmenting 20% in FL is u0.8∗N/2u0.8∗N/2 + · · · +
+u(N−1)/2u(N−1)/2 + uN/2uN/2 + · · · + uN uN . Similarly, V augmenting 20% in FH is
+u1u1 + · · · + uN/2uN/2 + u1.8∗N/2u1.8∗N/2 + · · · + uN uN . We take Cora as an example, and report the results in Fig. 12. As can be observed, we get the similar conclusions as in section 3: (1) From the curve marked by “Low”, the performances remain stably low until the lowest-frequency components are involved; (2) From the curve marked by “High”, the performances continually rise, as more high-frequency components are involved. Therefore, based on observations, we emphasize the importance of lowest-frequency and more high-frequency information in GCL. So, whether we incrementally add in the low-to-high or high-to-low frequency order, as long as lowest-frequency and more high-frequency information is preserved in V , the results will be better.
+
+C Another Experimental Analysis of GAME Rule
+
+We substitute A2 (two-hop of A) for augmentation V
+in the case study. In Fig. 13, we simultaneously plot the graph spectra of A and A2. It can be seen that A and A2
+meet GAME rule. Next, we compare the performances of this pair with two other pairs: A and A, A2 and A2,
+where the spectra of two augmentations are the same and
+not meet GAME rule in each pair. We randomly run 10
+times for each pairs, and report the average accuracy on
+four datasets. The results are shown in Table 3, where we can see that the pair of A and A2 actually excels the other
+two pairs.
+
+Figure 13: The spectrum of A and A2.
+
+Table 3: Performance of there different pairs of augmentations to verify the GAME rule.
+
+Pair of Augmentations Cora Citeseer BlogCatalog Flickr
+
+A&A A & A2 A2 & A2
+
+37.0±6.1 35.4±3.9 53.7±3.2 44.7±5.0 33.3±2.1 35.8±4.1
+
+50.6±3.2 63.1±4.6 56.2±2.1
+
+26.6±2.6 33.7±2.3 28.2±1.6
+
+20
+
+D Experimental Details
+
+D.1 Implementation details
+For two semi-supervised GNN models (GCN, GAT), we utilize the original codes from their authors, and train the models in an end-to-end way. For six graph contrastive learning methods, we obey the traditional GSL setting: we ﬁrst train each model by optimizing corresponding objective, and get the embeddings for all nodes; then, we feed the node embeddings into a logistic regression to evaluate the quality of embeddings. We use the source codes provided by authors, and follow the settings in their original papers with carefully tune.
+For the proposed SpCo, we search on combination coefﬁcient η from 0.1 to 1.2 with step 0.1. For , we test it ranging from {1e-1, 1e-2, 1e-3, 1e-4}. We tune the iteration Iter for Sinkhorn’s Iteration in algorithm 1 from {1, 2, 3}. Finally, we carefully select total epochs T and update epochs Ω for target model, and tune the scope S from one-hop or two-hop neighbors.
+For fair comparisons, we randomly run 10 times and report the average results for all methods. For the reproducibility, we report the related parameters in Appendix D.3.
+
+D.2 Datasets and baselines
+
+We choose the ﬁve commonly used Cora, Citeseer, Pubmed [11], BlogCatalog and Flickr [16] for evaluation. The ﬁrst three datasets are citation networks, where nodes represent papers, edges are the citation relationship between papers, node features are comprised of bag-of-words vector of the papers and labels represent the ﬁelds of papers. For them, we choose 500 nodes for validation, 1000 nodes for test. The BlogCatalog dataset is a social network with bloggers and their social relationships from the BlogCatalog website. Node features are constructed by the keywords of user proﬁles, and the labels represent the topic categories provided by the authors. The Flickr dataset is an image and video hosting website, where users interact with each other via photo sharing. It is a social network where nodes represent users and edges represent their relationships. For these two methods, We choose 1000 nodes for validation, 1000 nodes for test. We uniformly select three label rates for the training set (i.e., 5, 10, 20 labeled nodes per class) for all datasets. Please notice that we adopt classical splits [11] on the ﬁrst three datasets for the 20 labeled nodes per class setting. The details of these datasets are summarized in table 4.
+Table 4: The statistics of the datasets.
+
+Dataset
+Cora Citeseer BlogCatalog Flickr Pubmed
+
+Nodes
+2708 3327 5196 7575 19717
+
+Edges
+10556 9228 343486 479476 88651
+
+Classes
+7 6 6 9 3
+
+Features
+1433 3703 8189 12047 500
+
+Training
+35/70/140 30/60/120 30/60/120 45/90/180 15/30/60
+
+Validation
+500 500 1000 1000 500
+
+Test
+1000 1000 1000 1000 1000
+
+These ﬁve datasets used in experiments can be found in these URLs:
+• Cora, Citeseer, Pubmed: https://github.com/tkipf/gcn • BlogCatalog, Flickr: https://github.com/mengzaiqiao/CAN
+And the publicly available implementations of Baselines can be found at the following URLs:
+• GCN: https://github.com/tkipf/gcn • GAT: https://github.com/PetarV-/GAT • DGI: https://github.com/PetarV-/DGI • MVGRL: https://github.com/kavehhassani/mvgrl • GRACE: https://github.com/CRIPAC-DIG/GRACE • GCA: https://github.com/CRIPAC-DIG/GCA • GraphCL: https://github.com/Shen-Lab/GraphCL • CCA-SSG: https://github.com/hengruizhang98/CCA-SSG
+
+21
+
+D.3 Hyper-parameters settings
+
+We implement SpCo in PyTorch, and list some important parameter values in our model in table 5.
+
+Table 5: The values of parameters used in SpCo on Cora, Citeseer, BlogCatalog and Flickr.
+
+Method
+
+Dataset T / patience for early stopping Ω S(hop) η
+
+I ter
+
+Cora
+
+40 (patience)
+
+20 1 0.1 1.0 3
+
+DGI+SpCo
+
+Citeseer BlogCatalog
+
+30 (patience) 30 (patience)
+
+20 1 0.5 1.0 3 30 2 0.3 1e-2 3
+
+Flickr
+
+30 (patience)
+
+30 1 0.3 1e-2 2
+
+Cora
+
+300 (T )
+
+30 1 0.5 1.0 3
+
+GRACE+SpCo
+
+Citeseer BlogCatalog
+
+150 (T ) 800 (T )
+
+20 1 1.0 1e-2 3 300 1 1.0 1e-2 3
+
+Flickr
+
+1300 (T )
+
+300 1 1.0 1e-1 2
+
+Cora
+
+40 (T )
+
+15 1 0.5 1e-2 3
+
+CCA-SSG+SpCo
+
+Citeseer BlogCatalog
+
+15 (T ) 75 (T )
+
+5
+
+1 0.1 1e-1 3
+
+10 1 0.1 1e-1 3
+
+Flickr
+
+100 (T )
+
+30 1 0.5 1e-2 2
+
+During experiments, we notice that Pubmed is a large graph, which will consume much time to operate Sinkhorn’s Iteration. Meanwhile, we ﬁnd that our SpCo is model-agnostic, which means that the Sinkhorn’s Iteration is independent of some speciﬁc model. Therefore, we choose to calculate the iteration results for Pubmed and store them for utilization. Speciﬁcally, we ﬁrstly calculate 10 intermediate iteration results for Pubmed, and then for each method, we take num intermediate results at equal intervals, and feed them one by one into the target model every epoch_inter epochs. Therefore, the relative parameter values are shown in table 6.
+
+Table 6: The values of parameters used in SpCo on Pubmed.
+
+Method
+
+T / patience for early stopping num epoch_inter S(hop) η
+
+I ter
+
+DGI+SpCo
+
+30 (patience)
+
+3
+
+100
+
+1 0.1 1e-2 1
+
+GRACE+SpCo
+
+1500 (T )
+
+7
+
+100
+
+1 1.0 1e-2 1
+
+CCA-SSG+SpCo
+
+170 (T )
+
+7
+
+15
+
+1 0.1 1e-2 1
+
+D.4 More experiment results
+D.4.1 Node classiﬁcation
+In this section, we provide more experimental results on node classiﬁcation, where we choose 5 and 10 labeled nodes per class as training set respectively, and keep the same validation and test set. The relative results are given in Table 7. Again, we can see that additional SpCo generally improves the performance of corresponding baselines on all datasets, which comprehensively demonstrates that SpCo can boost node classiﬁcation in an effective way. Especially, we notice that the loss used in CCA-SSG is originated from canonical correlation analysis, which is deﬁnitely different from InfoNCE loss (1). But, we can still boost the results of CCA-SSG by plugging SpCo, indicating the necessity to design effective augmentations.
+D.4.2 Visualisation of graph spectrum
+In this section, we mainly supplement the visualisation of graph spectrum on Cora, shown in Fig. 14. Again, A_ and A have a smaller difference in FL than in FH, indicating they satisfy the GAME rule. And V1 and V2 got from them also present the same pattern. Therefore, with contrastive invariance theorem 1, they will instruct encoder to capture more low-frequency information, and hence improve the results.
+D.4.3 Hyper-parameter sensitivity
+In this section, we show more results about on Cora, shown in Fig. 15. Then, we give more analyses about hyper-parameter η, and test its sensitivity on Cora and BlogCatalog.
+22
+
+Table 7: Quantitative results (%±σ) on node classiﬁcation. The better results compared with target model are in bold.
+Datasets Metrics Splits GCN GAT DGI DGI+SpCo MVGRL GRACE GRACE+SpCo GCA GraphCL CCA-SSG CCA+SpCo
+
+5 68.4±1.4 74.4±0.3 76.1±0.4 76.2±0.3 76.2±0.5 70.5±2.0 71.4±2.1 70.7±2.8 75.1±0.4 73.4±0.7 73.7±0.6 Ma-F1
+10 72.9±0.5 75.7±0.5 77.8±0.7 78.2±0.4 78.4±0.8 73.9±1.5 75.7±1.6 75.5±1.4 77.8±0.7 77.1±0.4 78.4±1.0 Cora
+5 69.6±1.5 75.8±0.4 77.3±0.5 77.4±0.4 77.0±0.7 70.7±1.8 71.5±2.1 71.5±2.8 76.4±0.3 73.6±0.7 73.8±0.8 Mi-F1
+10 73.5±0.6 76.5±0.5 79.1±0.6 79.3±0.5 79.4±0.8 74.9±1.6 76.5±1.3 76.4±1.7 79.0±0.8 77.4±0.5 78.7±1.5
+
+Citeseer
+
+5 48.2±1.5 55.3±0.4 62.6±1.2 63.3±0.6 58.3±0.9 58.1±1.5 Ma-F1
+10 63.8±0.7 64.6±0.5 64.9±0.7 65.0±0.5 62.8±0.8 61.9±0.9
+5 53.4±1.1 61.8±1.9 67.4±1.5 68.0±0.6 63.0±1.1 62.5±1.5 Mi-F1
+10 66.8±0.8 67.9±0.6 68.9±0.5 69.2±0.4 67.2±0.8 65.2±0.8
+
+59.2±1.3 62.1±0.5 63.9±1.6 66.0±1.0
+
+52.3±2.5 62.1±1.1 57.2±1.4 59.3±1.4 64.4±0.6 63.6±1.1 54.6±3.0 66.8±1.3 61.4±1.5 61.8±1.7 68.5±0.7 67.5±1.1
+
+59.0±2.1 65.2±0.5 62.5±2.1 69.7±0.9
+
+5 61.4±2.8 55.7±3.9 60.2±1.8 65.9±1.3 69.0±7.1 56.6±1.5 Ma-F1
+10 68.2±1.8 65.0±1.3 67.1±1.1 70.5±0.4 76.2±4.0 64.9±0.8 BlogCatalog
+5 63.3±2.7 58.1±3.1 61.8±1.7 67.2±1.1 69.9±7.1 58.9±1.5 Mi-F1
+10 69.5±1.8 65.9±1.5 67.7±1.2 71.3±0.5 76.7±3.9 65.8±0.8
+
+58.4±0.6 65.8±0.9 60.4±0.6 66.8±1.0
+
+62.5±0.8 55.6±3.1 67.9±0.4 69.9±0.4 63.3±1.6 67.6±0.5 64.4±0.7 57.2±3.3 69.0±0.4 70.8±0.5 63.9±1.7 68.3±0.5
+
+68.2±0.5 67.5±0.3 69.2±0.4 68.4±0.3
+
+Flickr
+
+5 32.4±1.6 27.9±1.3 20.9±1.3 24.3±1.0 21.7±3.0 21.0±5.5 Ma-F1
+10 42.8±1.1 32.8±2.3 26.2±2.3 26.8±0.6 29.1±3.8 32.6±1.7
+5 35.4±1.0 30.9±0.2 21.9±1.0 26.6±1.1 23.0±3.0 23.6±4.2 Mi-F1
+10 44.2±1.0 35.3±1.4 27.1±2.0 29.8±0.6 30.5±3.8 34.9±1.0
+
+31.3±1.0 33.5±4.1 32.7±0.9 35.9±2.4
+
+34.6±0.4 22.3±1.3 30.6±1.1 39.3±0.6 25.9±2.2 32.3±0.6 35.7±0.4 23.4±1.1 33.4±0.8 40.4±0.5 27.3±1.9 35.2±0.9
+
+31.4±1.0 33.9±0.2 33.8±0.1 36.2±0.3
+
+PubMed
+
+Ma-F1 Mi-F1
+
+5 69.3±0.7 70.1±0.4 72.3±1.0 73.0±0.4 73.8±0.7 75.5±0.7 10 73.1±1.1 72.5±0.3 73.2±0.7 74.2±0.5 72.9±0.5 73.2±1.6 5 68.4±0.8 69.8±0.4 72.2±1.2 73.0±0.6 73.2±1.2 75.5±0.7 10 72.7±1.3 72.2±0.4 72.5±0.9 73.3±0.6 71.9±0.6 72.1±1.9
+
+75.4±0.6 73.4±1.4 76.0±0.6 72.9±1.6
+
+70.9±1.5 70.7±0.4 72.1±0.8 75.0±0.1 72.3±0.4 73.0±1.0 70.5±1.8 70.4±0.6 71.5±0.8 74.6±0.2 71.3±0.5 71.9±1.2
+
+73.1±0.4 74.2±0.6 72.7±0.4 73.3±0.7
+
+(a) DGI: Cora
+
+(b) GRACE: Cora
+
+(c) CCA-SSG: Cora
+
+Figure 14: The visualisation of graph spectrum on Cora.
+
+Analysis of η. The η in eq. (8) controls the strength that ∆A changes the original A. If η is larger, ∆A will give more impact on A, and the margin between A_ and A is larger in FH. We again range the value of η from 0.2 to 1.2, and the results are shown in Fig 16. In the ﬁgure, the shallower
+color is, the better performance is. And the maximal value is marked as red star. We can see that
+the performances are relative stable in this range. Please note that, this range is reasonable. If the lower η is tested, our SpCo will have a smaller inﬂuence. And if the higher η is tested, our SpCo will dominate the combination in eq. (8), which will destroy the original A heavily.
+
+(a) DGI: Cora
+
+(b) GRACE: Cora
+
+(c) CCA-SSG: Cora
+
+Figure 15: Analysis of the hyper-parameter on Cora.
+
+23
+
+(a) DGI: Cora
+
+(b) GRACE: Cora
+
+(c) CCA-SSG: Cora
+
+(d) DGI: BlogCatalog
+
+(e) GRACE: BlogCatalog
+
+(f) CCA-SSG: BlogCatalog
+
+Figure 16: Analysis of the hyper-parameter η on Cora and BlogCatalog.
+
+D.5 Operating environment
+The environment where our code runs is shown as follows:
+• Operating system: Linux version 3.10.0-693.el7.x86_64 • CPU information: Intel(R) Xeon(R) Silver 4210 CPU @ 2.20GHz • GPU information: GeForce RTX 3090
+D.6 Detailed descriptions of target models
+As introduced in experiments, we plug our SpCo into three existing GCL frameworks, including DGI [28], GRACE [35] and CCA-SSG [33], to roundly verify the effectiveness of SpCo. Therefore, it is necessary to brieﬂy introduce their mechanisms in this section.
+• DGI: This method deploys contrastive learning between local patch and summary vector. Speciﬁcally, the authors utilize GCN to encode the original graph and get all node embeddings, which is viewed as local patch. Then, they design a readout function to summarize node embeddings into one vector, which represents the global information of the graph. In optimization, DGI views every node in the graph as the positive sample of the summary vector, while views nodes in corrupted graph as negative samples. Different from InfoNCE loss, DGI uses BCE loss as the objective.
+• GRACE: This method uses feature mask and random edge dropping as two augmentation strategies from feature and topology levels. Speciﬁcally, the authors perform two strategies at the same time but with different ratios to generate two augmentations, respectively. Then, they obey traditional InfoNCE loss, where the positive sample of one node is just it own embedding in the other augmentation, and other nodes are viewed as negative samples.
+• CCA-SSG: This method inherits previous augmentation strategies, like feature mask and random edge dropping. However, the main contribution of this work is to involve canonical correlation analysis into GCL framework and propose a new objective, which maximizes the correlation between two views and prevent degenerated solutions simultaneously.
+E Related Work
+Graph Neural Networks. Recently, Graph Neural Networks (GNNs) have attracted considerable attentions, which can be broadly divided into two categories, spectral-based and spatial-based.
+
+24
+
+Spectral-based GNNs are inheritance of graph signal processing, and deﬁne graph convolution operation in spectral domain. For example, [2] utilizes Fourier bias to decompose graph signals; [5] employs the Chebyshev expansion of the graph Laplacian to improve the efﬁciency. For another line, spatial-based GNNs greatly simplify above convolution by only focusing on neighbors. For example, GCN [11] simply averages information of one-hop neighbors. GraphSAGE [8] only randomly fuses a part of neighbors with various poolings. GAT [27] assigns different weights to different neighbors. More detailed surveys can be found in [29]. Graph Contrastive Learning. Graph Contrastive Learning has shown its distinguished capacity in unsupervised setting, and many studies have been proposed. In this paper, we mainly focus on the various augmentation strategies. Speciﬁcally, DGI [28] contrasts between local node embedding and global summary vector. MVGRL [9] proposes several strategies based on diffusion or distance matrix. For {GRACE [35], GCA [36], GraphCL [32], CCA-SSG [33]}, they can roughly be gathered into the same category: the random edge and node perturbation. There are some frameworks aiming to learn an adaptive augmentation with the help of different principles, such as AD-GCL [26], InfoGCL [30], DGCL [13] and GASSL [31]. But these studies mainly focus on graph classiﬁcation task. Besides, we also notice that some papers propose augmentation free [12].
+25
+

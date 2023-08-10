@@ -1,0 +1,351 @@
+首发于 Python之美
+写文章
+点击打开要爆了的主页
+你应该使用pathlib替代os.path
+你应该使用pathlib替代os.path
+小明
+小明
+​
+Python话题下的优秀答主
+​ 关注他
+327 人赞同了该文章
+
+    本文首发于微信公众号「Python之美」(微信号python_cn): https:// mp.weixin.qq.com/s/a19J mJOtSff2TqhTYaD8ig 
+
+在Python 3.4之前和路径相关操作函数都放在os模块里面，尤其是 os.path 这个子模块，可以说 os.path 模块非常常用。而在Python 3.4，标准库添加了新的模块 - pathlib，它使用面向对象的编程方式来表示文件系统路径。
+
+作为一个从Python 2时代过来的人，已经非常习惯使用os，那么为什么我说「应该使用pathlib替代os.path」呢？基于这段时间的体验，我列出了几个pathlib模块的优势和特点。
+基本用法
+
+在过去，文件的路径是纯字符串，现在它会是一个 pathlib.Path 对象:
+
+ In : from pathlib import Path In : p = Path ( '/home/ubuntu' ) In : p Out : PosixPath ( '/home/ubuntu' ) In : str ( p ) Out : '/home/ubuntu'  
+
+使用str函数可以把一个Path对象转化成字符串。在Python 3.6之前，Path对象是不能作为os模块下的参数的，需要手动转化成字符串:
+
+ ➜ ~ ipython3 . 5 Python 3.5 . 5 ( default , Aug 1 2019 , 17 : 00 : 43 ) Type 'copyright' , 'credits' or 'license' for more information IPython 7.3 . 0 -- An enhanced Interactive Python . Type '?' for help . In : import os In : pwd Out : '/data/home/dongweiming' In : p = Path ( '/' ) In : os . chdir ( p ) --------------------------------------------------------------------------- TypeError Traceback ( most recent call last ) < ipython - input - 5 - facfc9d7a7d1 > in < module > ----> 1 os . chdir ( p ) TypeError : argument should be string , bytes or integer , not PosixPath In : os . chdir ( str ( p )) In : pwd Out : '/'  
+
+从Python 3.6开始，这些接受路径作为参数的函数内部会先通过 os.fspath 调用Path对象的 __fspath__ 方法获得字符串类型的路径再去执行下面的逻辑。所以要注意: 如果你想全面使用pathlib模块，应该使用Python3.6或者更高版本！
+和os功能对应的方法列表
+
+先看一下os(os.path)模块里部分函数与 pathlib.Path 对应的方法吧。下面列出的这些可以直接用pathlib里面的用法代替:
+
+| os and os.path | pathlib | | ------------------------ | --------------------------------------- | | os.path.abspath | Path.resolve | | os.chmod | Path.chmod | | os.mkdir | Path.mkdir | | os.rename | Path.rename | | os.replace | Path.replace | | os.rmdir | Path.rmdir | | os.remove , os.unlink | Path.unlink | | os.getcwd | Path.cwd | | os.path.exists | Path.exists | | os.path.expanduser | Path.expanduser and Path.home | | os.path.isdir | Path.is_dir | | os.path.isfile | Path.is_file | | os.path.islink | Path.is_symlink | | os.stat | Path.stat , Path.owner , Path.group | | os.path.isabs | PurePath.is_absolute | | os.path.join | PurePath.joinpath | | os.path.basename | PurePath.name | | os.path.dirname | PurePath.parent | | os.path.samefile | Path.samefile | | os.path.splitext | PurePath.suffix |
+
+举2个例子:
+
+ # 原来的写法 In : os . path . isdir ( os . getcwd ()) Out : True # 新的写法 In : Path . cwd () . is_dir () Out : True # 原来的写法 In : os . path . basename ( '/usr/local/etc/mongod.conf' ) Out : 'mongod.conf' # 新的写法 In : Path ( '/usr/local/etc/mongod.conf' ) . name Out : 'mongod.conf'  
+
+接着感受下pathlib带来的变化。
+用 / 拼接路径
+
+过去路径拼接最正确的方法是用 os.path.join :
+
+ In : os . path . join ( '/' , 'home' , 'dongwm/code' ) Out : '/home/dongwm/code' In : os . path . join ( '/home' , 'dongwm/code' ) Out : '/home/dongwm/code'  
+
+现在可以用 pathlib.Path 提供的joinpath来拼接:
+
+ In : Path ( '/' ) . joinpath ( 'home' , 'dongwm/code' ) Out : PosixPath ( '/home/dongwm/code' )  
+
+但是更简单和方便的方法是用 / 运算符:
+
+ In : Path ( '/' ) / 'home' / 'dongwm/code' Out : PosixPath ( '/home/dongwm/code' ) In : Path ( '/' ) / Path ( 'home' ) / 'dongwm/code' Out : PosixPath ( '/home/dongwm/code' ) In : '/' / Path ( 'home' ) / 'dongwm/code' Out : PosixPath ( '/home/dongwm/code' )  
+
+这也不是什么神奇魔法，有兴趣的可以看Path对象 __truediv__ 和 __rtruediv__ 方法的实现。
+链式调用
+
+链式调用是OOP带来的重要改变，从前面的例子中也能感受到，过去的都是把路径作为函数参数传进去，现在可以链式调用。我们看一个更复杂一点的例子：
+
+ In : os . path . isfile ( os . path . join ( os . path . expanduser ( '~/lyanna' ), 'config.py' )) Out : True  
+
+长不长？现在的写法呢:
+
+ In : ( Path ( '~/lyanna' ) . expanduser () / 'config.py' ) . is_file () Out : True  
+
+是不是非常符合我们从左向右的阅读习惯呢？
+自带属性
+
+Path对象带了多个有用的属性
+parent/parents
+
+如果想获得某个文件的父级目录通常需要使用 os.path.dirname 或者字符串的rpartition(或split)方法:
+
+ In : p = '/Users/dongweiming/test' In : p . rpartition ( '/' )[ 0 ] Out : '/Users/dongweiming' In : p . rsplit ( '/' , maxsplit = 1 )[ 0 ] Out : '/Users/dongweiming' In : os . path . dirname ( p ) Out : '/Users/dongweiming'  
+
+如果想获得父级的父级更麻烦一些，例如用 os.path.dirname ，需要这样:
+
+ In : from os.path import dirname In : dirname ( dirname ( p )) Out : '/Users'  
+
+使用Path对象的parents属性可以拿到各级目录列表(索引值越大越接近root)，而parent就表示父级目录:
+
+ In : p = Path ( '/Users/dongweiming/test' ) In : p . parents [ 0 ] Out : PosixPath ( '/Users/dongweiming' ) In : p . parents [ 1 ] Out : PosixPath ( '/Users' ) In : p . parents [ 2 ] Out : PosixPath ( '/' ) In : p . parent Out : PosixPath ( '/Users/dongweiming' ) In : p . parent . parent Out : PosixPath ( '/Users' )  
+
+由于parent返回的还是Path对象，所以可以链式的获取其parent属性。
+suffix/stem
+
+在过去获得文件后缀名，以及去掉后缀的文件名字，需要使用 os.path.basename 和 os.path.splitext :
+
+ In : base = os . path . basename ( '/usr/local/etc/my.cnf' ) In : base Out : 'my.cnf' In : stem , suffix = os . path . splitext ( base ) In : stem , suffix Out : ( 'my' , '.cnf' )  
+
+现在就很方便了:
+
+ In : p = Path ( '/usr/local/etc/my.cnf' ) In : p . suffix , p . stem Out : ( '.cnf' , 'my' )  
+
+注意: 当文件有多个后缀，可以用 suffixes 返回文件所有后缀列表:
+
+ In : Path ( 'my.tar.bz2' ) . suffixes Out : [ '.tar' , '.bz2' ] In : Path ( 'my.tar' ) . suffixes Out : [ '.tar' ] In : Path ( 'my' ) . suffixes Out : []  
+
+实用方法
+
+Path对象里面有多个实用的方法，我举例一些。
+touch方法
+
+Python语言没有内置创建文件的方法(linux下的touch命令)，过去这么做:
+
+ with open ( 'new.txt' , 'a' ) as f : ...  
+
+现在可以直接用Path的touch方法:
+
+ Path ( 'new.txt' ) . touch ()  
+
+touch接受 mode 参数，能够在创建时确认文件权限，还能通过 exist_ok 参数方式确认是否可以重复touch(默认可以重复创建，会更新文件的mtime)
+home
+
+获得用户的HOME目录比较常见，过去的写法:
+
+ In : os . path . expanduser ( '~' ) Out : '/Users/dongweiming'  
+
+现在就 Path.home 就可以了:
+
+ In : Path . home () Out : PosixPath ( '/Users/dongweiming' )  
+
+读写文件
+
+Path对象自带了操作文件的方法:
+
+ In : p = Path ( '~/1.txt' ) . expanduser () In : p . write_text ( '123 \n ' ) Out : 4 In : p . read_text () Out : '123 \n ' In : p . write_bytes ( b '456 \n ' ) Out : 4 In : p . read_bytes () Out : b '456 \n ' In : with p . open () as f : ... : for line in f : ... : print ( line ) ... : 456  
+
+可以用 write_text 写入字符串，用 write_bytes 将文件以二进制模式打开写入字节数据。对应的，可以用 read_text 读取文本内容，也可以用 read_bytes 以字节对象的形式返回路径指向的文件的二进制内容。还可以用 open 获得文件句柄。
+
+不过需要注意，Path里面带的这几个方法只是一些「快捷方式」，「一次性的」。举个例子:
+
+ In : p = Path ( '~/1.txt' ) . expanduser () In : p . read_text () Out : '456 \n ' In : p . write_text ( '789 \n ' ) Out : 4 In : p . write_text ( '1011 \n ' ) Out : 5 In : p . read_text () Out : '1011 \n '  
+
+可以看到，多次写入最终结果是最后一次写入的内容。而读取也没有缓存区，全部读取出来。其实读一下源码即能理解:
+
+ In [ 96 ]: p . read_text ?? Signature : p . read_text ( encoding = None , errors = None ) Source : def read_text ( self , encoding = None , errors = None ): """ Open the file in text mode, read it, and close the file. """ with self . open ( mode = 'r' , encoding = encoding , errors = errors ) as f : return f . read () File : / usr / local / lib / python3 . 7 / pathlib . py Type : method In [ 97 ]: p . write_text ?? Signature : p . write_text ( data , encoding = None , errors = None ) Source : def write_text ( self , data , encoding = None , errors = None ): """ Open the file in text mode, write to it, and close the file. """ if not isinstance ( data , str ): raise TypeError ( 'data must be str, not %s ' % data . __class__ . __name__ ) with self . open ( mode = 'w' , encoding = encoding , errors = errors ) as f : return f . write ( data ) File : / usr / local / lib / python3 . 7 / pathlib . py Type : method  
+
+**在实际工作中这些方法要谨慎使用!``
+with_name/with_suffix
+
+以前我写过一些修改文件名字或者路径后缀的需求：基于某个文件路径生成另外一个文件路径。举个例子，有一个文件地址 '/home/gentoo/screenshot/abc.jpg' ，2个需求:
+
+    获得转成png格式的路径
+    把图片名字改成 123 
+
+过去需要这么做:
+
+ In : p = '/home/gentoo/screenshot/abc.jpg' In : '{}.png' . format ( os . path . splitext ( p )[ 0 ]) Out : '/home/gentoo/screenshot/abc.png' In : root , ext = os . path . splitext ( p ) In : '{}/{}{}' . format ( root . rpartition ( '/' )[ 0 ], 123 , ext ) Out : '/home/gentoo/screenshot/123.jpg'  
+
+可读性很差。现在呢:
+
+ In : p = Path ( '/home/gentoo/screenshot/abc.jpg' ) In : p . with_suffix ( '.png' ) Out : PosixPath ( '/home/gentoo/screenshot/abc.png' ) In : p . with_name ( f '123{p.suffix}' ) Out : PosixPath ( '/home/gentoo/screenshot/123.jpg' )  
+
+mkdir
+
+过去创建目录时，用 os.mkdir 只能创建一级目录:
+
+ In : os . mkdir ( '1/2/3' ) --------------------------------------------------------------------------- FileNotFoundError Traceback ( most recent call last ) < ipython - input - 160 - 71 cc3a9a36b4 > in < module > ----> 1 os . mkdir ( '1/2/3' ) FileNotFoundError : [ Errno 2 ] No such file or directory : '1/2/3'  
+
+所以通常这种一次要创建多级目录，需要用到 os.makedirs ，我一直觉得这么搞很分裂。在Path对应上有mkdir方法，还接受 parents ，以及 mode 、 exist_ok 参数:
+
+ In : Path ( '1/2/3' ) . mkdir () --------------------------------------------------------------------------- FileNotFoundError Traceback ( most recent call last ) < ipython - input - 163 - 202 ce4b81bf9 > in < module > ----> 1 Path ( '1/2/3' ) . mkdir () / usr / local / Cellar / python / 3.7 . 3 / Frameworks / Python . framework / Versions / 3.7 / lib / python3 . 7 / pathlib . py in mkdir ( self , mode , parents , exist_ok ) 1249 self . _raise_closed () 1250 try : -> 1251 self . _accessor . mkdir ( self , mode ) 1252 except FileNotFoundError : 1253 if not parents or self . parent == self : FileNotFoundError : [ Errno 2 ] No such file or directory : '1/2/3' In : Path ( '1/2/3' ) . mkdir ( parents = True ) In : ! tree 1 / 1 / └── 2 └── 3 2 directories , 0 files  
+
+我认为这么用的体验着实好了很多~
+owner
+
+有时候操作文件前需要确认拥有此文件的用户，过去我都是这么写:
+
+ In : import pwd In : pwd . getpwuid ( os . stat ( '/usr/local/etc/my.cnf' ) . st_uid ) . pw_name Out : 'dongweiming'  
+
+现在封装起来可以直接用了:
+
+ In : p . owner () Out : 'dongweiming'  
+
+后记
+
+以上就是我使用的体验了， pathlib 可以说是Python 3.6+的正确之选~
+延伸阅读
+
+    https://www. python.org/dev/peps/pep -0428/
+    https:// docs.python.org/3/libra ry/pathlib.html
+    https:// treyhunner.com/2018/12/ why-you-should-be-using-pathlib/ 
+
+编辑于 2020-01-28 16:17
+Python
+Python 3.x
+​ 赞同 327 ​ ​ 35 条评论
+​ 分享
+​ 喜欢 ​ 收藏 ​ 申请转载
+​
+评论千万条，友善第一条
+
+35 条评论
+默认
+最新
+南雨篱
+南雨篱
+
+看到那么多评论说没用也是醉了... 编程的核心任务是什么？是抽象。pathlib提供了对 资源路径和资源命名结构的通用抽象 。它把文件系统接口从os模块中隔离出来，打开了 从应用层配置文件系统 的大门。换句话说，Path这个接口代表的可以不仅是os的资源路径，还可以是HDFS的资源路径，RESTful API的资源路径，某种内存文件系统的资源路径等等等。
+
+
+设想你的应用完全合理地基于Path的接口来写，然后某天你需要把应用存储迁移到HDFS上去，结果你发现几乎只要把from pathlib import Path换成from myhdfslib import Path，业务代码不用变就可以工作。更进一步若引入依赖注入机制，统统换成from myconfig import Path，更是连一行代码都不用改，稍作配置可以部署在不同类型的文件系统上，mock测试也更是方便到了极点，爽歪歪有没有？对于某些需要管理大量巨型文件的应用比如生物信息方面的应用简直益处无穷。如此重要的抽象，居然有人说没有用...？？？
+2019-10-27
+​ 回复 ​ 30
+南雨篱
+南雨篱
+libraco
+
+真正精简、严格、无歧义的核心功能才会并内置库。方便的第三方库工具很多时候是以复杂性和歧义为代价的。在我看来pathlib进入标准库是必然，因为它有精简而合理的设计，社区认为它能改善核心的API。而requests的功能过于灵活，比较复杂，过于贴近应用层，短期看来是不会纳入标准库的。
+2019-10-29
+​ 回复 ​ 3
+南雨篱
+南雨篱
+libraco
+
+我觉得到处都写os才不直观——路径拼接又不调用操作系统API，为什么要涉及os模块？
+
+我觉得你举的例子不恰当。这里讨论的pathlib是关于Python内置API的合理性。而你的例子里urllib是内置库，requests是第三方库，何来后者“替换”前者一说？你怕是对程序语言的生态结构有所误解
+2019-10-29
+​ 回复 ​ 3
+查看全部 14 条回复 ​
+libraco
+libraco
+
+没感觉Path有什么先进的地方……
+2019-10-22
+​ 回复 ​ 22
+TwiLight
+TwiLight
+原本用熟的，非要换一套。全都是替代性方法，有什么实际性不同吗？
+2019-10-23
+​ 回复 ​ 7
+陇右道
+陇右道
+不错不错，又把os好好温习了一遍。
+2019-10-23
+​ 回复 ​ 6
+CocoaKier
+CocoaKier
+
+修改文件名用这个，p.with_stem(stem)，更方便
+2020-12-25
+​ 回复 ​ 4
+查理
+查理
+pathlib太上头了，我迫不及待把我的代码改过来[害羞]
+2019-11-29
+​ 回复 ​ 4
+CocoaKier
+CocoaKier
+
+谢谢楼主！今天专门把pathlib的方法梳理了一遍，确实比 os.path 好用！
+2020-12-25
+​ 回复 ​ 2
+崩山断水
+崩山断水
+请问作者君这个在性能使用上有木有区别，时间和空间方面，pathlib的使用是更简单点更好，但是感觉要比os.path要慢
+2022-02-25
+​ 回复 ​ 1
+zqslzwzw
+zqslzwzw
+
+比os.path还要慢，我就是因为发现os.path很慢才到处找解决方案的...[发呆]
+03-12
+​ 回复 ​ 赞
+崩山断水
+崩山断水
+zqslzwzw
+肯定要慢的，os.path更快点，Path是类对象
+03-12
+​ 回复 ​ 赞
+Wood J
+Wood J
+感觉为了解决问题又引入了其他问题
+2019-10-23
+​ 回复 ​ 5
+阿亮
+阿亮
+说得好，但是还是不想换
+2019-10-23
+​ 回复 ​ 4
+shanicky
+shanicky
+
+没看出来要换的理由啊
+2019-10-23
+​ 回复 ​ 3
+孙潇野
+孙潇野
+不错
+2019-10-22
+​ 回复 ​ 3
+escape wen
+escape wen
+中间表格展示有问题
+2019-10-23
+​ 回复 ​ 1
+phoenix
+phoenix
+让我最有动力的原因是用了os的脚本打包成exe后，在不少电脑上被Windows Defender无脑杀，换pathlib后就安全了
+2022-05-11
+​ 回复 ​ 赞
+种植苹果树
+种植苹果树
+好用的
+2021-09-20
+​ 回复 ​ 赞
+Clarmy
+Clarmy
+
+有一个问题，通常情况下路径都是以字符串形式存在的，那Path对象是否保持了字符串的多态特征？比如像pd.read_csv('./foo.csv')这种函数，直接把输入路径从字符串换成Path对象还能运行吗？
+2021-04-09
+​ 回复 ​ 赞
+崩山断水
+崩山断水
+可以
+2022-02-25
+​ 回复 ​ 赞
+江边白露
+江边白露
+确实是挺好用的
+2019-11-17
+​ 回复 ​ 赞
+zhtz
+zhtz
+感谢感谢，确实用起来比 os.path 舒服
+2019-10-24
+​ 回复 ​ 赞
+评论千万条，友善第一条
+
+文章被以下专栏收录
+
+    Python之美
+    Python之美
+    发现Python之美，主要针对Web开发、Python进阶等
+
+推荐阅读
+
+    pathlib介绍-比os.path更好的路径处理方式
+    pathlib介绍-比os.path更好的路径处理方式
+    许茂
+    为什么你应该在Django项目中开始使用pathlib而不是os.path处理拼接文件路径
+    为什么你应该在Django项目中开始使用pathlib而不是os.path处理拼接文件路径
+    大江狗 发表于Pytho...
+    华丽的蜕变-使用Pathlib模块,文件操作So Easy！
+    华丽的蜕变-使用Pathlib模块,文件操作So Easy！
+    爬虫工程师陈祥安
+    我们做了Pathways的10个Path拆解，只为了帮你选出最适合的
+    我们做了Pathways的10个Path拆解，只为了帮你选出最适合的
+    上帝双翼
+

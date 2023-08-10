@@ -1,0 +1,197 @@
+
+返回主页
+天天向上的力量
+你若生来与众不同，你便不可能落入平庸。
+
+    博客园
+    首页
+    新随笔
+    联系
+    订阅
+    管理
+
+随笔 - 159  文章 - 0  评论 - 6  阅读 - 72873
+gitpython模块——使用python操作git
+
+阅读目录
+
+    安装
+    基本使用：pull/clone
+    更多操作
+        pull最新代码
+        获取所有分支
+        获取所有版本
+        获取所有commit
+        将所有提交记录结果格式成json格式字符串
+        切换分支
+        打包代码
+        封装之后的版本 
+
+ 
+gitpython模块——使用python操作git
+回到顶部
+安装
+
+ pip3 install gitpython  
+
+回到顶部
+基本使用：pull/clone
+
+ from git.repo import Repo import os # 从远程仓库下载代码到本地 pull/clone download_path = os.path.join( 'test' , 't1' ) # 从远程仓库将代码下载到上面创建的目录中 Repo.clone_from( 'https://github.com/ylpb/CMDB.git' ,to_path=download_path,branch= 'master' )  
+
+回到顶部
+更多操作
+pull最新代码
+
+ # ############## 2. pull最新代码 ############## import os from git.repo import Repo local_path = os.path.join( 'test' , 't1' ) repo = Repo(local_path) repo.git.pull()  
+
+获取所有分支
+
+ # ############## 3. 获取所有分支 ############## import os from git.repo import Repo local_path = os.path.join( 'test' , 't1' ) repo = Repo(local_path) branches = repo.remote().refs for item in branches: print (item.remote_head)  
+
+获取所有版本
+
+ # ############## 4. 获取所有版本 ############## import os from git.repo import Repo local_path = os.path.join( 'test' , 't1' ) repo = Repo(local_path) for tag in repo.tags: print (tag.name)  
+
+获取所有commit
+
+ # ############## 5. 获取所有commit ############## import os from git.repo import Repo local_path = os.path.join( 'test' , 't1' ) repo = Repo(local_path)  
+
+将所有提交记录结果格式成json格式字符串
+
+ # 将所有提交记录结果格式成json格式字符串 方便后续反序列化操作 commit_log = repo.git.log( '--pretty={"commit":"%h","author":"%an","summary":"%s","date":"%cd"}' , max_count= 50 , date= 'format:%Y-%m-%d %H:%M' ) log_list = commit_log.split( "\n" ) real_log_list = [ eval (item) for item in log_list] print (real_log_list)  
+
+切换分支
+
+ # ############## 6. 切换分支 ############## import os from git.repo import Repo local_path = os.path.join( 'test' , 't1' ) repo = Repo(local_path) before = repo.git.branch() print (before) repo.git.checkout( 'master' ) after = repo.git.branch() print (after) repo.git.reset( '--hard' , '854ead2e82dc73b634cbd5afcf1414f5b30e94a8' )  
+
+打包代码
+
+ # ############## 7. 打包代码 ############## with open (os.path.join( 'test' , 't1' ), 'wb' ) as fp: repo.archive(fp)  
+
+封装之后的版本
+
+ import os from git.repo import Repo from git.repo.fun import is_git_dir class GitRepository ( object ): """ git仓库管理 """ def __init__ ( self, local_path, repo_url, branch= 'master' ): self.local_path = local_path self.repo_url = repo_url self.repo = None self.initial(repo_url, branch) def initial ( self, repo_url, branch ): """ 初始化git仓库 :param repo_url: :param branch: :return: """ if not os.path.exists(self.local_path): os.makedirs(self.local_path) git_local_path = os.path.join(self.local_path, '.git' ) if not is_git_dir(git_local_path): self.repo = Repo.clone_from(repo_url, to_path=self.local_path, branch=branch) else : self.repo = Repo(self.local_path) def pull ( self ): """ 从线上拉最新代码 :return: """ self.repo.git.pull() def branches ( self ): """ 获取所有分支 :return: """ branches = self.repo.remote().refs return [item.remote_head for item in branches if item.remote_head not in [ 'HEAD' , ]] def commits ( self ): """ 获取所有提交记录 :return: """ commit_log = self.repo.git.log( '--pretty={"commit":"%h","author":"%an","summary":"%s","date":"%cd"}' , max_count= 50 , date= 'format:%Y-%m-%d %H:%M' ) log_list = commit_log.split( "\n" ) return [ eval (item) for item in log_list] def tags ( self ): """ 获取所有tag :return: """ return [tag.name for tag in self.repo.tags] def change_to_branch ( self, branch ): """ 切换分值 :param branch: :return: """ self.repo.git.checkout(branch) def change_to_commit ( self, branch, commit ): """ 切换commit :param branch: :param commit: :return: """ self.change_to_branch(branch=branch) self.repo.git.reset( '--hard' , commit) def change_to_tag ( self, tag ): """ 切换tag :param tag: :return: """ self.repo.git.checkout(tag) if __name__ == '__main__' : local_path = os.path.join( 'codes' , 't1' ) repo = GitRepository(local_path,remote_path) branch_list = repo.branches() print (branch_list) repo.change_to_branch( 'dev' ) repo.pull()  
+
+总结
+
+ """ 后期你在接触一些模块的时候 也应该想到将该模块所有的方法整合到一起 方便以后的调用 """  
+
+好文要顶 关注我 收藏该文
+ylpb
+粉丝 - 8 关注 - 16
++加关注
+0
+0
+« 上一篇： paramiko模块——ssh远程连接服务器并执行命令
+» 下一篇： with上下文管理
+posted @ 2020-03-17 22:10   ylpb   阅读( 7150 )  评论( 0 )  编辑   收藏   举报
+刷新评论 刷新页面 返回顶部
+登录后才能查看或发表评论，立即 登录 或者 逛逛 博客园首页
+【推荐】行行AI人才直播第9期：AI在企业服务领域的商业化应用设计思路
+【推荐】园子的商业化努力：欢迎参加数据智能创新与实践人工智能大会
+【推荐】阿里云持续降低用云成本，让算力更普惠：云服务器全面降价
+【推荐】园子的商业化努力-阿里云云市场合作：优惠活动第2期上线
+编辑推荐：
+· 有了红黑树，为啥还要跳表？
+· 实例方法和静态方法有区别吗?
+· ASP.NET Core 6框架揭秘实例演示[42]：检查应用的健康状况
+· 如何洞察 .NET程序 非托管句柄泄露
+· 记一次 .Net 分布式事务死锁现象以及解决方法
+阅读排行：
+· Visual Studio Code安装C#开发工具包并编写ASP.NET Core Web应用
+· 园子的商业化努力：欢迎参加DataFun联合行行AI举办的数据智能创新与实践人工智能大会
+· 为什么应该尽可能避免在静态构造函数中初始化静态字段？
+· 有了红黑树，为啥还要跳表？
+· 关于学习编程的心得体会
+公告
+昵称： ylpb
+园龄： 3年10个月
+粉丝： 8
+关注： 16
++加关注
+< 	2023年7月 	>
+日 	一 	二 	三 	四 	五 	六
+25 	26 	27 	28 	29 	30 	1
+2 	3 	4 	5 	6 	7 	8
+9 	10 	11 	12 	13 	14 	15
+16 	17 	18 	19 	20 	21 	22
+23 	24 	25 	26 	27 	28 	29
+30 	31 	1 	2 	3 	4 	5
+搜索
+ 
+ 
+常用链接
+
+    我的随笔
+    我的评论
+    我的参与
+    最新评论
+    我的标签
+
+随笔档案
+
+    2022年8月(1)
+    2022年5月(1)
+    2021年3月(2)
+    2020年12月(1)
+    2020年7月(1)
+    2020年4月(20)
+    2020年3月(27)
+    2020年2月(2)
+    2020年1月(10)
+    2019年12月(20)
+    2019年11月(21)
+    2019年10月(27)
+    2019年9月(25)
+
+相册
+
+    123(1)
+    1234(1)
+
+阅读排行榜
+
+    1. gitpython模块——使用python操作git(7147)
+    2. 小米手机开通上海公交卡退开卡费攻略(6566)
+    3. 使用docker部署Django项目步骤(6003)
+    4. Web API接口规范与测试方法(3189)
+    5. Django rest_framework实现增删改查接口(2628)
+
+评论排行榜
+
+    1. Celery的使用(2)
+    2. Django rest_framework实现增删改查接口(2)
+    3. centos7系统常用命令(1)
+    4. SweetAler弹框插件与分页器插件(1)
+
+推荐排行榜
+
+    1. 使用docker部署Django项目步骤(2)
+    2. 生成器有什么好处？(1)
+    3. centos7系统常用命令(1)
+    4. drf-jwt认证组件、权限组件、频率组件的使用(1)
+    5. Django rest_framework实现增删改查接口(1)
+
+最新评论
+
+    1. Re:Celery的使用
+    写得赞，博主用心了。 funboost python万能通用函数加速器 适应范围广泛,pip install funboost。 celery对目录层级文件名称格式要求太高，只适合规划新的项目，对不规...
+    --北风之神0509
+    2. Re:centos7系统常用命令
+
+    大佬，做的真好，真细节！
+    --不跑不跑
+    3. Re:Celery的使用
+    写得赞，但主要还是celery太难了。 此国产分布式函数调度框架 ，从用法调用难度，用户所需代码量，超高并发性能，qps控频精确程度，支持的中间件类型，任务控制方式，稳定程度等19个方面全方位超过ce...
+    --北风之神0509
+    4. Re:Django rest_framework实现增删改查接口
+
+    感觉没必要写单查，单增之类的，都是群查，群增的一种情况
+    --粨鬼夜行
+    5. Re:Django rest_framework实现增删改查接口
+    你好博主，看到您写得这篇文章很有收获，能不能贴一下您的 list_serializer_class = BookListSerializer的代码我写到群改这里不知道怎么写，谢谢了，希望看到回复下我...
+    --从删数据库到跑路
+
+Copyright © 2023 ylpb
+Powered by .NET 7.0 on Kubernetes

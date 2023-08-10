@@ -1,0 +1,366 @@
+
+[CSDN首页]
+
+    博客
+    下载
+    学习
+    社区
+    falsefalse
+    GitCode
+    InsCode 
+
+搜索
+登录
+会员中心
+历史
+创作中心
+发布
+Pytorch加载模型权重理解（state_dict load_state_dict update load）
+咕噜咕噜冰阔落 已于 2022-07-27 17:44:24 修改 2067 收藏 8
+分类专栏： Pytorch深度学习小Tips 文章标签： pytorch python 深度学习
+版权
+Pytorch深度学习小Tips 专栏收录该内容
+3 篇文章 1 订阅
+订阅专栏
+Pytorch加载模型权重理解（ state_dict load_state_dict update load）
+一、state_dict特性介绍
+
+在pytorch中，torch.nn.Module模块中的state_dict变量存放训练过程中需要学习的权重和偏执系数，state_dict作为python的字典对象将每一层的参数映射成tensor张量，需要注意的是torch.nn.Module模块中的state_dict只包含 卷积层 和全连接层的参数，当网络中存在batchnorm时，例如vgg网络结构，torch.nn.Module模块中的state_dict也会存放batchnorm’s running_mean，关于batchnorm详解可见https://blog.csdn.net/wzy_zju/article/details/81262453
+
+torch.optim模块中的Optimizer优化器对象也存在一个state_dict对象，此处的state_dict字典对象包含state和param_groups的字典对象，而param_groups key对应的value也是一个由学习率，动量等参数组成的一个字典对象。
+
+因为state_dict本质上Python字典对象，所以可以很好地进行保存、更新、修改和恢复操作（python字典结构的特性），从而为PyTorch模型和优化器增加了大量的模块化。
+二、torch.load函数特性介绍
+
+作用：用来加载 torch.save() 保存的模型文件。
+
+使用方式
+
+ torch . load ( f , map_location = None , pickle_module = < module 'pickle' from '/opt/conda/lib/python3.6/pickle.py' > , ** pickle_load_args )
+ 
+
+    1
+
+ 
+
+参数解释：
+
+f：权重文件地址
+
+map_location:设备 CPU还是GPU
+
+后两个参数可以不用管
+三、update函数使用方法
+
+d1.update(d2)的作用是,将字典d2的内容合并到d1中,
+
+其中d2中的键值对但d1中没有的键值对会 增加 到d1中去,
+
+两者都有的键值对 更新 为d2的键值对.
+
+ d1 = { "浙江" : "杭州" , "江苏" : "nanjing" } d1 { '浙江' : '杭州' , '江苏' : 'nanjing' } d1 . update ( 江苏 = "南京" ) d1 { '浙江' : '杭州' , '江苏' : '南京' } d2 = { "山东" : "济南" , "河北" : "石家庄" } d1 { '浙江' : '杭州' , '江苏' : '南京' } d1 . update ( d2 ) d1 { '浙江' : '杭州' , '江苏' : '南京' , '山东' : '济南' , '河北' : '石家庄' } d3 = { "浙江" : "杭州市*****" } d1 { '浙江' : '杭州' , '江苏' : '南京' , '山东' : '济南' , '河北' : '石家庄' } d1 . update ( d3 ) d1 { '浙江' : '杭州市*****' , '江苏' : '南京' , '山东' : '济南' , '河北' : '石家庄' }
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+    11
+    12
+    13
+    14
+    15
+    16
+    17
+    18
+
+ 
+
+四、items函数的用法
+
+Python 字典(Dictionary) items() 函数以列表返回可遍历的(键, 值) 元组数组。
+
+items() 方法把字典中每对 key 和 value 组成一个元组，并把这些元组放在列表中返回
+五、load_state_dict函数用法
+
+与state_dict相比，我理解的是，load_state_dict是更新好的权重放回去，state_dict是将权重系数取出来。
+六、综合分析
+
+权重的预加载可以综合到这几步
+
+ if G_model_path != '' : device = torch . device ( 'cuda' if torch . cuda . is_available ( ) else 'cpu' ) model_dict = G_model . state_dict ( ) pretrained_dict = torch . load ( G_model_path , map_location = device ) pretrained_dict = { k : v for k , v in pretrained_dict . items ( ) if np . shape ( model_dict [ k ] ) == np . shape ( v ) } model_dict . update ( pretrained_dict ) G_model . load_state_dict ( model_dict )
+ 
+
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+
+ 
+
+第一步：获取当前设备到底是GPU还是CPU
+
+第二步：取出当前还未加载权重的字典
+
+第三步：用torch.load获取与训练好的新的权重的字典
+
+第四步：在第三步的字典中，判断第三步新的权重和原始模型的权重的大小shape是否一致
+
+​ 如果一致，新的权重字典就保留这个（键、值）权重
+
+​ 如果不一致，新的权重字典就舍去这个（键、值）权重
+
+第五步：用第四步最新的 字典 来更新第二步的原始字典
+
+第六步：用第五步更新后的权重字典放回模型中。
+文章知识点与官方知识档案匹配，可进一步学习相关知识
+Python入门技能树 人工智能 深度学习 313105 人正在系统学习中
+咕噜咕噜冰阔落
+关注 关注
+
+    2
+    8
+    觉得还不错? 一键收藏
+    打赏
+    2
+
+专栏目录
+pytorch 状态字典: state _ dict 使用详解
+09-18
+今天小编就为大家分享一篇 pytorch 状态字典: state _ dict 使用详解，具有很好的参考价值，希望对大家有所帮助。一起跟随小编过来看看吧
+在Keras中实现保存和 加载 权重 及 模型 结构
+12-17
+1. 保存和 加载 模型 结构 （1）保存为JSON字串 json_string = model.to_json() （2）从JSON字串重构 模型 from keras.models import model_from_json model = model_from_json(json_string) （3）保存为YAML字串 yaml_string = model.to_yaml() （4）从YAML字串重构 模型 model = model_from_yaml(yaml_string) 2. 保存和 加载 模型 权重 （参数） from keras.models import loa
+pytorch 状态字典: state _ dict 使用详解_ pytorch state _ dict _浪子私房菜...
+7-6
+pytorch 中的 state _ dict 是一个简单的 python 的字典对象***,将每一 层 与它的对应参数建立映射关系.(如model的每一 层 的weights及偏置等等) (注意,只有那些参数可以训练的layer才会被保存到 模型 的 state _ dict 中,如卷积 层 ,线性 层 等等) 优化...
+pytorch 模型 保存与 加载 : state _ dict 、 load _ state _ dict _开心邮递员的博客...
+7-6
+state _ dict 是定义了model或optimizer之后 pytorch 自动生成的,可直接调用。常用的保存 state _ dict 格式是‘.pt’或‘.pth’的文件。 仅保存学习到的参数代码: path='./***.pt' torch.save( model. state _ dict (), path) 加载 模型 model=...
+Pytorch 存储 权重 以及如何 加载
+最新发布
+qq_43428929的博客
+05-08 627
+关于 Pytorch 如何使用，必然是官方教程写的好。
+pytorch 模型 保存与 加载 ： state _ dict 、 load _ state _ dict
+weixin_42187536的博客
+03-31 6246
+简而言之， pytorch 保存 模型 时用的映射关系。 pytorch 中的 state _ dict 是一个简单的 python 字典对象，将每一 层 与之对应的参数建立映射关系。只有参数可训练的layer才会保存到 模型 的 state _ dict 中，如卷积 层 、线性 层 。 优化器optimizer也有一个 state _ dict ，包含了优化器的状态以及被使用的超参数（lr、momentum、weight_decay） state _ dict 是定义了model或optimizer之后 pytorch 自动生成的，可直接调用。常用的保存sta
+... state _ dict )_ pytorch load _ state _ dict _木盏的博客
+7-6
+pytorch 把所有的 模型 参数用一个内部定义的 dict 进行保存,自称为“ state _ dict ”。这个所谓的 state _ dict 就是不带 模型 结构的 模型 参数了~ 咱们的 加载 和保存就发生了一点微妙的变化: importtorch model=MyModel()# init your model class, bui...
+pytorch 中什么是 state _ dict ?如何载入部分 权重 ?_ pytorch state _ dict ...
+7-5
+在 pytorch 中,可学习的参数例如 权重 和偏置,都在 模型 的参数中(model.parameters()),而 state _ dict 就是每一 层 参数组合而成的字典。 state _ dict 既然是字典,那么就可以对字典进行保存,更新,载入等操作,要注意的是只有那些具有可学习参数的 层 ...
+PyTorch 中 加载 模型 权重
+SwaggyYhy的博客
+07-16 3264
+pytorch 加载 修改后的 模型 权重
+神经网络 load _ state _ dict ()进阶使用
+weixin_45007507的博客
+09-02 5990
+神经网络 load _ state _ dict ()进阶使用
+加载 dict _源码详解 Pytorch 的 state _ dict 和 load _ state _ dict
+7-4
+在 Pytorch 中一种 模型 保存和 加载 的方式如下: # save torch.save(model. state _ dict (), PATH) # load model =MyModel(*args, **kwargs) model. load _ state _ dict (torch. load (PATH)) model.eval() ...
+PyTorch 存储和 加载 模型 并查看参数, load _ state _ dict (), state _ dict () +...
+7-2
+model. state _ dict ()其实返回的是一个Order Dict ,存储了网络结构的名字和对应的参数。 在 模型 完成训练后,我们需要将训练好的 模型 保存为一个文件供测试使用,或者因为一些原因我们需要继续之前的状态训练之前保存的 模型 ,那么如何在 PyTorch 中保存...
+模型 加载 至 cpu 和 gpu 的方式
+M_TDM的博客
+03-10 953
+模型 加载 至 cpu 和 gpu 的方式,只需改一句话
+解决 pytorch 的optim. load _ state _ dict 将变量还原到CPU上的问题
+qq_19313495的博客
+04-16 3198
+最近在学习使用 pytorch ，遇到一个坑。 从中断的训练中继续训练需要重新 加载 检查点，而有一些优化器（比如adam）的一些变量需要被保存到检查点中。 而在使用 load _ state _ dict ()还原时，有可能会将这些变量还原到CPU上，如下面的代码这样： model = Model() optimizer = Optim() checkpoint = torch. load (ckp_path) model. load _ state _ dict (checkpoint["model"]) optimizer.lo
+... Pytorch 加载 模型 参数的避坑指南_ load _ state _ dict strict_墨晓白的博 ...
+7-6
+一、 load _ state _ dict (strict)中参数 strict的使用 load _ state _ dict (strict)中的参数strict默认是True,这时候就需要严格按照 模型 中参数的Key值来 加载 参数,如果增删了 模型 的结构 层 ,或者改变了原始 层 中的参数, 加载 就会报错。
+pytorch : load _ state _ dict _缦旋律的博客
+7-4
+pytorch : load _ state _ dict 在训练比较大、耗时较久的网络时,如果突然停电、断网或者一些意外情况发生导致训练中断,那么已经训练好的内容可能全部丢失,这时我们就需要在训练过程中把一些时间点的checkpoint保存下来,及时训练意外中断,那么我们也...
+python 字典合并方法之一
+qq_41854611的博客
+04-27 92
+有 d1 和 都d2 两个字典 d1. update (d2) 这时候 d1 里就包含 d1和d2两个字典的元素，注意 该行代码返回的是一个空值，也就是说 a = d1.updata(d2) 得到的 a 是一个 NoneType, 真正变化的是d1，也可以 a = {} a. update (d1) a. update (d2) 这样得到的a就是两个字典的合并，注意不能 直接a={}; a= a. update (d1). update (d2), 因为a. update (d1)返回的是空，会报错。 ...
+在 Python 中用4种方法实现两个字典键同值相加
+Python热爱者的博客
+11-25 3449
+在 Python 中用4种方法实现两个字典键同值相加
+Pytorch 预训练 模型 加载 _ pytorch 加载 预训练 模型 _passion-ma的博客...
+7-5
+加载 预先下载好的预训练参数到resnet18,用预训练 模型 的参数初始化resnet18的 层 ,此时resnet18发生了改变。调用model的 load _ state _ dict 方法用预训练的 模型 参数来初始化自己定义的新网络结构,这个方法就是 PyTorch 中通用的用一个 模型 的参数...
+PyTorch 学习笔记：使用 state _ dict 来保存和 加载 模型
+牧羊女
+05-09 7037
+1. state _ dict 简介 state _ dict 是 Python 的字典对象，可用于保存 模型 参数、超参数以及优化器（torch.optim）的状态信息。需要注意的是，只有具有可学习参数的 层 （如卷积 层 、线性 层 等）才有 state _ dict 。 下面就拿官方教程中的一个小示例来说明 state _ dict 的使用： import torch import torch.nn as nn import torch.optim as optim # 定义 模型 class TheModelClass(nn.Module
+pytorch -FCN_ pytorch _FCN 模型 _fcn_
+10-03
+使用 python 语言和 pytorch 框架简单的复现FCN 模型
+mnist.zip_MNIST pytorch _ pytorch _ pytorch mnist_ pytorch network_zi
+09-20
+mnist 网络 模型 ， pytorch 实现
+FCN的 pytorch 实现_ pytorch _fcn pytorch _FCN 模型 pytorch _FCN复现_fcn_
+10-01
+使用 python 语言和 pytorch 框架简单的复现FCN 模型 ，数据集为100个书包的图片，并使用FCN 模型 对其进行分类。
+在 Pytorch 中使用样本 权重 (sample_weight)的正确方法
+09-18
+今天小编就为大家分享一篇在 Pytorch 中使用样本 权重 (sample_weight)的正确方法，具有很好的参考价值，希望对大家有所帮助。一起跟随小编过来看看吧
+Pytorch 技巧:Data Load er的collate_fn参数使用详解
+09-18
+今天小编就为大家分享一篇 Pytorch 技巧:Data Load er的collate_fn参数使用详解，具有很好的参考价值，希望对大家有所帮助。一起跟随小编过来看看吧
+PyTorch 加载 模型 model. load _ state _ dict ()问题，Unexpected key(s) in state _ dict : “module.features..，Expected .
+09-18 3674
+Unexpected key(s) in state _ dict : "module.features. ...".，Expected ".features....". 直接原因是key值名字不对应。 表明了 加载 过程中，期望获得的key值为feature...，而不是module.features....。这是由 模型 保存过程中导致的， 模型 应该是在DataParallel模式下面，也就是采用了多GPU训练 模型 ，然后直接保存的。 You probably saved the model ...
+获取 Pytorch 中间某一 层 权重 或者特征
+热门推荐
+happyday_d的博客
+04-02 3万+
+获取 Pytorch 中间某一 层 权重 或者特征 问题:训练好的网络 模型 想知道中间某一 层 的 权重 或者看看中间某一 层 的特征,如何处理呢? 1.获取某一 层 权重 ,并保存到excel中; 以resnet18为例说明: import torch import pandas as pd import numpy as np import torchvision.models as models resnet18 = ...
+pytorch 迁移学习载入部分 权重
+qq_51570094的博客
+09-05 1602
+使用官方预训练 权重 ，这样的 权重 包含的信息量大且全面，可以适配一些小数据的任务，即小数据在使用迁移学习后仍然能够保持良好的性能，避免的小数据带来的数据不足， 模型 训练不充分的问题。载入自己的训练的 权重 在 模型 测试和继续训练时使用较多， 模型 测试载入 权重 就不说了，继续训练是指假设设置epoch为500，训练接受后，发现 模型 仍然没有收敛，那么你就可以载入epoch为500时的训练 权重 ，再训练500的epoch，这样你对 模型 就总共训练了1000个epoch，而不需要在发现 模型 未收敛时，又重头去训练1000个epoch。
+pytorch load _ state _ dict
+03-16
+pytorch 的 load _ state _ dict 函数用于 加载 模型 的参数。它可以将预训练 模型 的参数 加载 到当前 模型 中，以便继续训练或进行推理。该函数的参数是一个字典，其中包含了 模型 的参数和对应的值。通过调用该函数，可以将字典中的参数值 加载 到 模型 中，从而更新 模型 的参数。
+“相关推荐”对你有帮助么？
+
+    非常没帮助
+    没帮助
+    一般
+    有帮助
+    非常有帮助
+
+    关于我们
+    招贤纳士
+    商务合作
+    寻求报道
+    400-660-0108
+    kefu@csdn.net
+    在线客服
+    工作时间 8:30-22:00
+
+    公安备案号11010502030143
+    京ICP备19004658号
+    京网文〔2020〕1039-165号
+    经营性网站备案信息
+    北京互联网违法和不良信息举报中心
+    家长监护
+    网络110报警服务
+    中国互联网举报中心
+    Chrome商店下载
+    账号管理规范
+    版权与免责声明
+    版权申诉
+    出版物许可证
+    营业执照
+    ©1999-2023北京创新乐知网络技术有限公司
+
+咕噜咕噜冰阔落 CSDN认证博客专家 CSDN认证企业博客
+码龄5年 四川大学
+
+7
+    原创
+
+33万+
+    周排名
+
+32万+
+    总排名
+
+1万+
+    访问
+
+    等级
+
+155
+    积分
+
+5
+    粉丝
+
+41
+    获赞
+
+6
+    评论
+
+232
+    收藏
+
+GitHub
+创作能手
+私信
+关注
+热门文章
+
+    Pytorch加载数据集的方式总结 7545
+    Easyx的图像功能 2961
+    Pytorch中如何动态设置学习率 2801
+    Pytorch加载模型权重理解（state_dict load_state_dict update load） 2063
+    【Pytorch进阶一】基于LeNet的CIFAR10图像分类 760
+
+分类专栏
+
+    Pytorch深度学习小Tips 3篇
+    MFC学习笔记 1篇
+    Pytorch进阶 1篇
+
+最新评论
+
+    Pytorch加载数据集的方式总结
+
+    jialan_wu: 任何维度的数据集都可以加载，数据的本质也就是张量
+    Pytorch加载数据集的方式总结
+
+    m0_57597962: 请问DataLoader可以加载三维的数据集吗？
+    Pytorch加载模型权重理解（state_dict load_state_dict update load）
+
+    weixin_46352657: 写得太好了，给大佬磕头，砰砰砰
+    Pytorch加载模型权重理解（state_dict load_state_dict update load）
+
+    weixin_46352657: 写得太好了，给大佬磕头，砰砰砰
+    Easyx的图像功能
+
+    happysnaker: 试问image如何定义为全局变量
+
+您愿意向朋友推荐“博客详情页”吗？
+
+    强烈不推荐
+    不推荐
+    一般般
+    推荐
+    强烈推荐
+
+最新文章
+
+    Pytorch中如何动态设置学习率
+    Pytorch加载数据集的方式总结
+    MFC中如何个性化使用自己的图标？
+
+2022年 4篇
+2021年 1篇
+2019年 1篇
+2018年 1篇
+目录
+
+    Pytorch加载模型权重理解（state_dict load_state_dict update load）
+        一、state_dict特性介绍
+        二、torch.load函数特性介绍
+        三、update函数使用方法
+        四、items函数的用法
+        五、load_state_dict函数用法
+        六、综合分析 
+
+新手引导 客服 举报 返回顶部

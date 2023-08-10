@@ -1,0 +1,870 @@
+
+高效管理深度学习实验
+关注 pprp
+高效管理深度学习实验
+原创
+
+pprp 2021-12-27 17:04:14 ©著作权
+
+文章标签 argparse 实验管理 yaml logging github 文章分类 虚拟化 云计算 阅读数 331
+©著作权归作者所有：来自51CTO博客作者pprp的原创作品，请联系作者获取转载授权，否则将追究法律责任
+
+
+【GiantPandaCV导语】这学期参加了一个比赛，有比较大的代码量，在这个过程中暴露出来很多问题。由于实验记录很糟糕，导致结果非常混乱、无法进行有效分析，也没能进行有效的回溯。趁比赛完结，打算重构一下代码，顺便参考一些大型项目的管理方法。本文将总结如何高效、标准化管理深度学习实验。以下总结偏个人，可能不适宜所有项目，仅供参考。
+1. 目前的管理方法
+
+因为有很多需要尝试的想法，但是又按照下图这种时间格式来命名文件夹，保存权重。每次运行尝试的方法只是记录在本子上和有道云笔记上。
+
+高效管理深度学习实验_github
+
+笔记截图：
+
+高效管理深度学习实验_argparse_02
+
+总体来说，这种管理方法不是很理想。一个实验运行的时间比较久，跨度很久，而之前调的参数、修改的核心代码、想要验证的想法都已经很模糊了，甚至有些时候可能看到一组实验跑完了，忘记了这个实验想要验证什么。
+
+这样的实验管理是低效的，笔者之前就了解到很多实验管理的方法、库的模块化设计，但这些方法都沉寂在收藏夹中，无用武之地。趁着这次比赛结束，好好对代码进行重构、完善实验管理方法、总结经验教训。同时也参考了交流群里蒋神、雪神等大佬的建议，总结了以下方法。
+2. 大型项目实例
+
+先推荐一个模板，是L1aoXingyu@Github分享的模板项目，链接如下：
+
+​  ​https://github.com/L1aoXingyu/Deep-Learning-Project-Template​ ​
+
+如果长期维护一个深度学习项目，代码的组织就比较重要了。如何设计一个简单而可扩展的结构是非常重要的。这就需要用到软件工程中的OOP设计
+
+高效管理深度学习实验_github_03
+
+简单介绍一下：
+
+
+    实验配置的管理（实验配置就是深度学习实验中的各种参数）
+
+        使用yacs管理配置。
+        配置文件一般分默认配置（default）和新增配置（argparse）
+
+    模型的管理
+
+        使用工厂模式，根据传入参数得到对应模型。
+
+
+ 
+├── config
+│ └── defaults.py - here's the default config file.
+│
+│
+├── configs
+│ └── train_mnist_softmax.yml - here's the specific config file for specific model or dataset.
+│
+│
+├── data
+│ └── datasets - here's the datasets folder that is responsible for all data handling.
+│ └── transforms - here's the data preprocess folder that is responsible for all data augmentation.
+│ └── build.py - here's the file to make dataloader.
+│ └── collate_batch.py - here's the file that is responsible for merges a list of samples to form a mini-batch.
+│
+│
+├── engine
+│ ├── trainer.py - this file contains the train loops.
+│ └── inference.py - this file contains the inference process.
+│
+│
+├── layers - this folder contains any customed layers of your project.
+│ └── conv_layer.py
+│
+│
+├── modeling - this folder contains any model of your project.
+│ └── example_model.py
+│
+│
+├── solver - this folder contains optimizer of your project.
+│ └── build.py
+│ └── lr_scheduler.py
+│
+│
+├── tools - here's the train/test model of your project.
+│ └── train_net.py - here's an example of train model that is responsible for the whole pipeline.
+│
+│
+└── utils
+│ ├── logger.py
+│ └── any_other_utils_you_need
+│
+│
+└── tests - this foler contains unit test of your project.
+├── test_data_sampler.py
+
+ 
+
+    1.
+    2.
+    3.
+    4.
+    5.
+    6.
+    7.
+    8.
+    9.
+    10.
+    11.
+    12.
+    13.
+    14.
+    15.
+    16.
+    17.
+    18.
+    19.
+    20.
+    21.
+    22.
+    23.
+    24.
+    25.
+    26.
+    27.
+    28.
+    29.
+    30.
+    31.
+    32.
+    33.
+    34.
+    35.
+    36.
+    37.
+    38.
+    39.
+    40.
+    41.
+    42.
+    43.
+    44.
+
+ 
+
+另外推荐一个封装的非常完善的库，deep-person-reid, 链接：​  ​https://github.com/KaiyangZhou/deep-person-reid，这次总结中有一部分代码参考自以上模型库。​ ​
+3. 熟悉工具
+
+与上边推荐的模板库不同，个人觉得可以进行简化处理，主要用到的python工具有：
+
+
+    argparse
+    yaml
+    logging
+
+前两个用于管理配置，最后一个用于管理日志。
+3.1 argparse
+
+argparse是命令行解析工具，分为四个步骤：
+
+
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument()
+    parser.parse_args()
+
+第2步创建了一个对象，第3步为这个对象添加参数。
+
+ 
+parser.add_argument('--batch_size', type=int, default=2048,
+help='batch size') # 8192
+parser.add_argument('--save_dir', type=str,
+help="save exp floder name", default="exp1_sandwich")
+ 
+
+    1.
+    2.
+    3.
+    4.
+
+ 
+
+​ ​--batch_size​ ​将作为参数的key，它对应的value是通过解析命令行（或者默认）得到的。type可以选择int,str。
+
+ 
+parser.add_argument('--finetune', action='store_true',
+help='finetune model with distill')
+ 
+
+    1.
+    2.
+
+ 
+
+action可以指定参数处理方式，默认是“store”代表存储的意思。如果使用"store_true", 表示他出现，那么对应参数为true，否则为false。
+
+第4步，解析parser对象，得到的是可以通过参数访问的对象。比如可以通过​ ​args.finetune​ ​ 得到finetune的参数值。
+3.2 yaml
+
+yaml是可读的数据序列化语言，常用于配置文件。
+
+支持类型有：
+
+
+    标量（字符串、证书、浮点）
+    列表
+    关联数组 字典
+
+语法特点：
+
+
+    大小写敏感
+    缩进表示层级关系
+    列表通过 "-" 表示，字典通过 ":"表示
+    注释使用 "#"
+
+安装用命令：
+
+ 
+pip install pyyaml
+
+ 
+
+    1.
+
+ 
+
+举个例子：
+
+ 
+name: tosan
+age: 22
+skill:
+name1: coding
+time: 2years
+job:
+- name2: JD
+pay: 2k
+- name3: HW
+pay: 4k
+ 
+
+    1.
+    2.
+    3.
+    4.
+    5.
+    6.
+    7.
+    8.
+    9.
+    10.
+
+ 
+
+注意：关键字不能重复；不能使用tab，必须使用空格。
+
+处理的脚本：
+
+ 
+import yaml
+
+f = open("configs/test.yml", "r")
+
+y = yaml.load(f)
+
+print(y)
+ 
+
+    1.
+    2.
+    3.
+    4.
+    5.
+    6.
+    7.
+
+ 
+
+输出结果：
+
+ 
+YAMLLoadWarning: calling yaml.load() without Loader=... is deprecated, as the default Loader is unsafe. Please read https://msg.pyyaml.org/load for full details.
+y = yaml.load(f)
+{'name': 'tosan', 'age': 22, 'skill': {'name1': 'coding', 'time': '2years'}, 'job': [{'name2': 'JD', 'pay': '2k'}, {'name3': 'HW', 'pay': '4k'}]}
+
+ 
+
+    1.
+    2.
+    3.
+
+ 
+
+这个警告取消方法是：添加默认loader
+
+ 
+import yaml
+
+f = open("configs/test.yml", "r")
+
+y = yaml.load(f, Loader=yaml.FullLoader)
+
+print(y)
+ 
+
+    1.
+    2.
+    3.
+    4.
+    5.
+    6.
+    7.
+
+ 
+
+保存：
+
+ 
+content_dict = {
+'name':"ch",
+}
+
+f = open("./config.yml","w")
+
+print(yaml.dump(content_dict, f))
+ 
+
+    1.
+    2.
+    3.
+    4.
+    5.
+    6.
+    7.
+
+ 
+
+支持的类型：
+
+ 
+# 支持数字，整形、float
+pi: 3.14
+
+# 支持布尔变量
+islist: true
+isdict: false
+
+# 支持None
+cash: ~
+
+# 时间日期采用ISO8601
+time1: 2021-6-9 21:59:43.10-05:00
+
+#强制转化类型
+int_to_str: !!str 123
+bool_to_str: !!str true
+
+# 支持list
+- 1
+- 2
+- 3
+
+# 复合list和dict
+test2:
+- name: xxx
+attr1: sunny
+attr2: rainy
+attr3: cloudy
+ 
+
+    1.
+    2.
+    3.
+    4.
+    5.
+    6.
+    7.
+    8.
+    9.
+    10.
+    11.
+    12.
+    13.
+    14.
+    15.
+    16.
+    17.
+    18.
+    19.
+    20.
+    21.
+    22.
+    23.
+    24.
+    25.
+    26.
+    27.
+    28.
+
+ 
+
+3.3 logging
+
+日志对程序执行情况的排查非常重要，通过日志文件，可以快速定位出现的问题。本文将简单介绍使用logging生成日志的方法。
+
+logging模块介绍
+
+logging是python自带的包，一共有五个level:
+
+
+    debug: 查看程序运行的信息，调试过程中需要使用。
+    info: 程序是否如预期执行的信息。
+    warn: 警告信息，但不影响程序执行。
+    error: 出现错误，影响程序执行。
+    critical: 严重错误
+
+logging用法
+
+ 
+import logging
+
+logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
+
+logging.info("program start")
+ 
+
+    1.
+    2.
+    3.
+    4.
+    5.
+
+ 
+
+format参数设置了时间，规定了输出的格式。
+
+ 
+import logging
+#先声明一个 Logger 对象
+logger = logging.getLogger(__name__)
+logger.setLevel(level=logging.INFO)
+#然后指定其对应的 Handler 为 FileHandler 对象
+handler = logging.FileHandler('Alibaba.log')
+#然后 Handler 对象单独指定了 Formatter 对象单独配置输出格式
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+ 
+
+    1.
+    2.
+    3.
+    4.
+    5.
+    6.
+    7.
+    8.
+    9.
+    10.
+
+ 
+
+Filehandler是用于将日志写入到文件，如这里将所有日志输出到Alibaba.log文件夹中。
+3.4 补充argparse和yaml的配合
+
+ 
+# process argparse & yaml
+if not args.config:
+opt = vars(args)
+args = yaml.load(open(args.config), Loader=yaml.FullLoader)
+opt.update(args)
+args = opt
+else: # yaml priority is higher than args
+opt = yaml.load(open(args.config), Loader=yaml.FullLoader)
+opt.update(vars(args))
+args = argparse.Namespace(**opt)
+ 
+
+    1.
+    2.
+    3.
+    4.
+    5.
+    6.
+    7.
+    8.
+    9.
+    10.
+
+ 
+
+4. 实验管理
+
+实验的完整记录需要以下几方面内容：
+
+
+    日志文件：记录运行全过程的日志。
+    权重文件：运行过程中保存的checkpoint。
+    可视化文件：tensorboard中运行得到的文件。
+    配置文件：详细记录当前运行的配置（调参必备）。
+    文件备份：用于保存当前版本的代码，可以用于回滚。
+
+那么按照以下方式进行组织：
+
+ 
+exp
+- 实验名+日期
+- runs: tensorboard保存的文件
+- weights: 权重文件
+- config.yml: 配置文件
+- scripts: 核心文件备份
+- train.py
+- xxxxxxxx
+
+ 
+
+    1.
+    2.
+    3.
+    4.
+    5.
+    6.
+    7.
+    8.
+
+ 
+
+代码实现：
+
+ 
+import logging
+import argparse
+import yaml
+
+parser = argparse.ArgumentParser("ResNet20-cifar100")
+parser.add_argument('--batch_size', type=int, default=2048,
+help='batch size') # 8192
+parser.add_argument('--learning_rate', type=float,
+default=0.1, help='init learning rate') parser.add_argument('--config', help="configuration file",
+type=str, default="configs/meta.yml")
+parser.add_argument('--save_dir', type=str,
+help="save exp floder name", default="exp1")
+args = parser.parse_args()
+
+# process argparse & yaml
+if not args.config:
+opt = vars(args)
+args = yaml.load(open(args.config), Loader=yaml.FullLoader)
+opt.update(args)
+args = opt
+else: # yaml priority is higher than args
+opt = yaml.load(open(args.config), Loader=yaml.FullLoader)
+opt.update(vars(args))
+args = argparse.Namespace(**opt)
+
+args.exp_name = args.save_dir + "_" + datetime.datetime.now().strftime("%mM_%dD_%HH") + "_" + \
+"{:04d}".format(random.randint(0, 1000))
+
+# 文件处理
+if not os.path.exists(os.path.join("exp", args.exp_name)):
+os.makedirs(os.path.join("exp", args.exp_name))
+
+
+# 日志文件
+log_format = "%(asctime)s %(message)s"
+logging.basicConfig(stream=sys.stdout, level=logging.INFO,
+format=log_format, datefmt="%m/%d %I:%M:%S %p")
+
+fh = logging.FileHandler(os.path.join("exp", args.exp_name, 'log.txt'))
+fh.setFormatter(logging.Formatter(log_format))
+logging.getLogger().addHandler(fh)
+logging.info(args)
+
+# 配置文件
+with open(os.path.join("exp", args.exp_name, "config.yml"), "w") as f:
+yaml.dump(args, f)
+
+# Tensorboard文件
+writer = SummaryWriter("exp/%s/runs/%s-%05d" %
+(args.exp_name, time.strftime("%m-%d", time.localtime()), random.randint(0, 100)))
+
+# 文件备份
+create_exp_dir(os.path.join("exp", args.exp_name),
+scripts_to_save=glob.glob('*.py'))
+
+def create_exp_dir(path, scripts_to_save=None):
+if not os.path.exists(path):
+os.mkdir(path)
+print('Experiment dir : {}'.format(path))
+
+if scripts_to_save is not None:
+if not os.path.exists(os.path.join(path, 'scripts')):
+os.mkdir(os.path.join(path, 'scripts'))
+for script in scripts_to_save:
+dst_file = os.path.join(path, 'scripts', os.path.basename(script))
+shutil.copyfile(script, dst_file)
+ 
+
+    1.
+    2.
+    3.
+    4.
+    5.
+    6.
+    7.
+    8.
+    9.
+    10.
+    11.
+    12.
+    13.
+    14.
+    15.
+    16.
+    17.
+    18.
+    19.
+    20.
+    21.
+    22.
+    23.
+    24.
+    25.
+    26.
+    27.
+    28.
+    29.
+    30.
+    31.
+    32.
+    33.
+    34.
+    35.
+    36.
+    37.
+    38.
+    39.
+    40.
+    41.
+    42.
+    43.
+    44.
+    45.
+    46.
+    47.
+    48.
+    49.
+    50.
+    51.
+    52.
+    53.
+    54.
+    55.
+    56.
+    57.
+    58.
+    59.
+    60.
+    61.
+    62.
+    63.
+    64.
+    65.
+    66.
+
+ 
+
+5. 结果
+
+高效管理深度学习实验_argparse_04
+6. 参考文献
+
+​  ​https://github.com/L1aoXingyu/Deep-Learning-Project-Template​ ​
+
+​  ​https://sungwookyoo.github.io/tips/ArgParser/​ ​
+
+​  ​https://github.com/KaiyangZhou/deep-person-reid​ ​
+
+​ ​javascript:void(0)​ ​
+
+​ ​javascript:void(0)​ ​
+
+​  ​https://zhuanlan.zhihu.com/p/56968001​ ​
+
+
+代码改变世界
+
+
+
+    赞
+    收藏
+    评论
+    分享
+    举报
+
+上一篇： codeforces 848c - two TVs
+
+下一篇： 数据结构实习 problem L 由二叉树的中序层序重建二叉树
+提问和评论都可以，用心的回复会被更多人看到 评论
+相关文章
+
+    炼丹神器 Aim，高效管理炼丹实验
+
+    干货分享
+    公众号 计算机视觉 图像处理
+    深度学习实验结果判定
+
+    目录
+    深度学习 过拟合 损失函数
+    深度学习实验系列（1）
+
+    开篇粘贴导师的几句话： 最近准备趁着几位开题，把神经网络，深度学习方面的内容系统的挖挖。 要学习深度学习，多少要了解一下神经网络，神经网络的典型就是BP，而BP本身是很简单的。 我们前面就从这几个资料（关于资料，我会在接下来的内容中一一展开）开始吧。 一、perception感知器算法 先说一下感知
+    Deep Learning 深度学习
+    21年深度学习-深度学习神经网络高效处理
+
+    本书介绍本书系统性讲解深度神经网络（DNN）相关的关键原理和技术。DNNs目前广泛用
+    自然语言处理 自动驾驶 神经网络 数据挖掘 机器学习
+    《高效学习OpenGL》 之 深度纹理
+
+    1.从光源的角度对场景进行渲染。场景看上去是什么样子无关紧
+    opengl 纹理图像
+    【深度学习】Pytorch 如何高效使用GPU
+
+    深度学习涉及很多向量或多矩阵运算，如矩阵相乘、矩阵相加、矩阵-向量乘法等。深层模型的算法，如BP，
+    人工智能 网络 深度学习 机器学习 神经网络
+    【深度学习】GPU为什么这么高效
+
+    中。在学习的过程中，GPU是强大而有效的计算单元，能够大幅缩减训练时间。今天的paper reading将深入这种关键设备的内部，了解其在深度学习中的运作原理。正文: GPU是深度学习使用的关键计算单元，大多数任务都在上面执行。虽然使用GPU实现深度学习已经成为目前的一种通用做法，但广大研究人员实...
+    深度学习 人工智能 python 机器学习 开发语言
+    【深度学习】高效轻量级语义分割综述
+
+    原文
+    算法 人工智能 嵌入式 机器学习 深度学习
+    深度学习优化算法总结与实验
+
+    深度学习优化算法最耳熟能详的就是GD（Gradient Descend）梯度下降，然后又有一个所谓的SGD（Stochastic Gradient Descend）随机梯度下降，其实还是梯度下降，只不过每次更新梯度不用整个训练集而是训练集中的随机样本。梯度下降的好处就是用到了当前迭代的一些性质，以至
+    迭代 优化算法 梯度下降 Java
+    全栈深度学习第3期: 怎样科学管理实验数据？
+
+    一起追剧鸭简介Berkeley全栈深度学习追剧计划是由夕小瑶的卖萌屋发起的优质公开课打卡项目，通过微信群为同期追剧的小伙伴提供交流平台。关于该计划的详请见这里。1. Berkeley深度学习追剧群目前已有1000+小伙伴加入，公众号后台回复口令 深度学习追剧 入群。2. 课程主页https://course.fullstackdeeplearning.com第3期
+    编程语言 人工智能 项目管理 数据挖掘 微软
+    令人惊艳的高效算深度学习算法
+
+    评估模型性能。
+    人工智能 深度学习 机器学习 算法 语言
+    深度学习新书-《深度学习神经网络高效处理》免费pdf分享
+
+    本书介绍    本书系统性讲解深度神经网络（DNN）相关的关键
+    深度学习 机器学习 人工智能
+    LVM逻辑卷（理论实验结合学习更高效！）
+
+    本章和大家分享的是Linux系统中LVM逻辑卷的相关内容，接下来我们会从以下几个内容中进行详细说明：1.LVM概述2.LVM的管理命令3.LVM应用实例LVM概述：LogicalVolumeManager，逻辑卷管理：1.动态调整磁盘容量，从而提高磁盘管理的灵活性2./boot分区用于存放引导文件，不能基于LVM创建3.图形界面管理工具：system-config-lvmLVM机制的基本概念：1.
+    LVM逻辑卷 磁盘管理 自动挂载
+    如何高效学习及自我管理
+
+    1. 书籍：《软技能代码之外的生存指南》作者： John Z. Sonmez， 王小刚 译中国工信出版社人民邮电出版社2. 文章目的这篇文章的目的，是我的总结，我之前有过一个计划，要在一定的时间段，留出一天将以往的知识进行一个化繁
+    微信 职业生涯 公众号
+    【深度学习】图像超分实验：SRCNN/FSRCNN
+
+    输入大小为h×w的图像X，输出为一个sh×sw的图像 Y，s为放大倍数。本次实验采用的是 BSDS500 数据集，
+    深度学习 人工智能 python 2d 卷积
+    基于深度学习的环路滤波的消融实验
+
+    移除前的BD-Rate为-7.57%（表1第3行），这表明同时去掉划分信息和BS信息对帧内亮度模型
+    深度学习 环路滤波 消融实验 复杂度 网络层
+    cuDNN：用于深度学习的高效原语【读书笔记】
+
+    讲解了 cuDNN 实现的内部原理，以及和传统卷积进行了性能比较由于对图片高度的限制，请点击原图查看   
+    性能比较 卷积
+    Caffe——清晰高效的深度学习（Deep Learning）框架
+
+    Caffe（://caffe.berkeleyvision.org/）是一个清晰而高效的深度学习框架，其作者是博士毕业于UC Berkeley的贾扬清 他眼下在Google工作。 Caffe是纯粹的C++/CUDA架构。支持命令行、Python和M
+    数据 卷积 ide 处理方法 权重
+    什么是深度学习的消融实验 消融实验是啥
+
+    Ablation StudyAblation study 消融实验，在计算机视觉领域中，往往提及消融实验来验证本文的创新点。比如你弄了个目标检测的pipeline用了A, B, C，然后效果还不错，但你并不知道A, B, C各自到底起了多大的作用，可能B效率很低同时精度很好，也可能A和B彼此相互促进。Ablation study/experiment就是用来告诉你或者读者整个流程里面的关键部分到
+    什么是深度学习的消融实验 批处理 批处理文件 处理程序
+    java写代码的工具是什么 java代码用什么编译
+
+    Java主流编译体系采用了前端编译+JIT编译的方式：1、前端编译把Java源码文件（.java）编译成Class文件(.class)的过程；也即把满足Java语言规范的程序转化为满足JVM规范所要求格式的功能；优点：许多Java语法新特性（”语法糖”：泛型、内部类等等），是靠前端编译器实现的,而不是依赖虚拟机；编译成的Class文件可以直接给JVM解释器解释执行，省去编译时间，加快启动速度；缺点
+    java写代码的工具是什么 java 编译 Java JVM
+    python2 串口编程 python串口工具开发
+
+    基于上一篇python TK之串口工具制作（1）的博文，我在这里做一些功能的完善，添加文本框数据编写发送功能。 首先我们在TK界面制作页面（按键初始化）增加文本框以及数据发送按钮：#按钮初始化 def Button_Init(): global root global com_list_tk global Test_Log global Entry_SN #串口读取写入 Button
+    python2 串口编程 python 串口通信 tkinter Test
+    java事物管理器 java事务
+
+    1. 什么是事务一组要么同时执行成功，要么同时执行失败的SQL语句。是数据库操作的一个执行单元。一个Java应用系统，如果要操作数据库，则通过JDBC来实现的。增加、修改、删除都是通过相应方法间接来实现的，事务的控制也相应转移到Java程序代码中。因此，数据库操作的事务习惯上就称为Java事务。2. 事务的特性事务必须服从ISO/IEC所制定的ACID原则。ACID是原子性（atomicity）、
+    java事物管理器 Java事务 数据库 执行过程 Java
+    a b c java计算 java计算a mod b
+
+    java中的位运算符及其用法。java中的位运算符及其用法。请一一解释一下。包括例子位逻辑运算符有“与”(AND)、“或”(OR)、“异或(XOR)”、“非(NOT)”，分别用“&”、“|”、“^”、“~”表示。 下面的例子说明了位逻辑运算符： // Demonstrate the bitwise logical operators. class BitLogic { public sta
+    a b c java计算 java mod 运算 运算符 java 逻辑运算符
+    android中无响应 安卓系统界面无响应
+
+    我们在使用手机的时候，是不是会出现这种现象，屏幕页面突然无法滑动，然后手机低端显示“页面无响应”，面对这种问题，大家通常应该都是直接回到桌面或者是强制选择关机，然后在重新打开手机，那么你知道为什么手机会出现“页面无响应”的情况吗？ 1.后台运行超负荷相信很多人使用手机都是直接回到手机桌面，而不是选择退出后再回到桌面，所以这些程序并没有被关闭，而是直接专业到手机后台运行着，而且安卓系统不
+    android中无响应 使用了lov选择后页面无法滑动 无响应 后台运行 不兼容
+
+pprp
+
+    426
+    原创
+    18.3 万
+    人气
+    4
+    粉丝
+    0
+    评论
+
+    2
+    翻译
+    16
+    转载
+    0
+    关注
+    3
+    收藏
+
+关注 私信
+分类列表
+
+    # ACM 74篇
+    # Android 6篇
+    # AutoML 5篇
+    # C++ 5篇
+
+近期文章
+
+    1.HASHSET原理
+    2.光脚丫学ASP.NET MVC(0007)：操作方法的返回类型
+    3.Python 画图学习入门
+    4.如何创建新Silverlight项目
+    5.光脚丫学LINQ(002)：筛选数据
+
+新人福利
+文章目录
+
+    1. 目前的管理方法
+    2. 大型项目实例
+    3. 熟悉工具
+    3.1 argparse
+    3.2 yaml
+    3.3 logging
+    3.4 补充argparse和yaml的配合
+    4. 实验管理
+    5. 结果
+    6. 参考文献
+
+    每日签到
+    意见
+    反馈
+
+    目录
+    赞
+    收藏
+    评论
+    分享
+
+51CTO博客
+
+Copyright © 2005-2023 51CTO.COM 版权所有 京ICP证060544号
+
+关于我们
+    官方博客 	全部文章 	热门标签 	班级博客
+    了解我们 	在线客服 	网站地图 	意见反馈
+
+友情链接
+    开源基础软件社区 	51CTO学堂
+    51CTO 	汽车开发者社区
+

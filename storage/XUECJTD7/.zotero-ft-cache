@@ -1,0 +1,208 @@
+登录 注册 写文章
+首页 下载APP 会员 IT技术
+__init__.py文件与__all__变量
+28fd90f2ac9b 关注 赞赏支持
+__init__.py文件与__all__变量
+28fd90f2ac9b 关注 IP属地: 福建
+0.072 2019.09.30 00:14:45 字数 1,000 阅读 3,397
+
+首先 ，在讲__init__.py文件之前，先介绍一下module和package。module其实就是一个.py文件，中文名为模块，其内置有各种函数和类与变量等。而package就是一个包含很多subpackage或者module(.py文件)的一个包。
+如下图所示
+值得注意的是 ，一个directories 只有包含__init__.py文件才会被python识别成package。（ 摘自官方文档 ）
+
+只有在import package时，才会执行package目录下的__init__.py文件。
+若文件结构如下
+
+ mypackage ——__init__.py ——subpackage_1 ——__init__.py ——test11.py ——test12.py ——subpackage_2 ——__init__.py ——test21.py ——test22.py  
+
+在mypackage目录下的__init__.py写入
+
+ from mypackage . subpackage_2 import *  
+
+而在subpackage_2目录下的__init__.py写入
+
+ __all__ = ['test21']  
+
+则可以在test11文件下导入module test21.py
+
+ import mypackage #注意，因为只 import 了mypackage，则不管用什么module，前面都必须加上mypackage，相当于限定了命名空间 mypackage . test21  
+
+如果test21.py文件里有定义函数say()
+
+ def say ( ) : print "Hi"  
+
+那么也可以在test11.py里调用该函数
+
+ mypackage.test21. say ( )  
+
+这里__all__变量相当于一个请示表，表示在import *时允许package下的哪个subpackage或者哪个module导入。另外，如果有__all__变量的存在，则在__init__.py文件里导入哪些package或module都没效果。
+
+再来 讲mypackage下的__init__.py改为
+
+ from mypackage.subpackage_2.test21 import say  
+
+则在test11.py内可以更加简洁的调用say()函数
+
+ import mypackage mypackage . say ( ) #或者 from mypackage improt say say ( )  
+
+网上有人说__init__.py的好处就是可以使导入包简洁化，即在一个有很多子目录的包中，若你想用其中一个module的function，则通过__init__.py，在主程序中你只需要先import 根目录，再用根目录(最外层的包）去访问该function即可。（此时的根目录像是一个全局入口）但是我觉得这样会引起一些路劲混乱的问题，我还是比较支持用绝对路径导包。
+
+一个验证组织__init__.py结构是否正确的方法是，对根目录使用dir()方法，如以下目录结构：
+
+ PCV ——__init__.py ——tools ——__init__.py ——graphcut.py ——imregistration.py ——imtools.py ——localdescriptors ——__init__.py ——dsift.py ——harris.py ——geometry ——camera.py ——warp.py  
+
+主程序为
+import PCV
+想要看看主程序中是否导入imtools这个模块，只需要 dir(PCV) ，看看返回的列表包不包括imtools，若包括，则说明PCV可以访问imtools,即 PCV.imtools 即可访问
+
+最后要小心一点的是 ，
+
+    Remember, there is nothing wrong with using from package import specific_submodule! In fact, this is the recommended notation unless the importing module needs to use submodules with the same name from different packages.
+
+即
+
+ from package . subpackage import module //或者 from module import item ( include * ) //或者 import module  
+
+是永远不会错的,而
+
+ from package import subpackage  
+
+则以subpackage重新作为全局入口，即以 subpackage. 来访问包或模块
+
+而 from package import * ，若package中的__init__.py有__all__变量，则导入该变量中的包或模块；若__init__.py为空，则直接导入该package；若没有__all__变量，但是有import 其他对象（如package,module,function)等，则导入该对象。
+
+追加要点
+from PCV.tools import *
+实际上执行了PCV目录下的__init__.py和tools目录下的__init__.py文件。
+这个也挺好理解，因为想要导入tools目录下的package或者module，则必须要先导入PCV和tools这两个packages。
+另外 ，导入过的包不会重新再执行其下的__init__.py文件，否则会造成无限循环
+例如在主程序
+import PCV
+而在PCV目录的__init__.py
+from PCV.tools import *
+
+则只会执行一次PCV目录的__init__.py，否则会无限循环。
+总结
+
+    一个folder(文件夹)只有拥有 __init__.py 文件，它才会python识别为包( package )
+    若在主程序内有命令 from package import * ，则该package下的__init__.py文件里的 __all__ 变量决定能够导入package里的哪些subpackage或者module。
+    若主程序中有 from package1 import subpackage 或者 import package2 ，则在配置完各个package的__init__.py文件后，subpackage或package2可以作为 全局入口变量 ，要看看该变量可以访问哪些包或模块，则可以用 dir(subpackage) 或 dir(package2)
+    最后，如果只是 from package import module 或 from module import item ,则以上的内容都无需考虑，即不需要考虑__init__.py文件。
+
+参考资料:
+
+https://docs.python.org/3/tutorial/modules.html( 官方文档）
+https://www.cnblogs.com/Terrypython/p/11527185.html
+https://www.jianshu.com/p/178c26789011
+©著作权归作者所有,转载或内容合作请联系作者
+0人点赞
+管理—条理清晰，规律整洁
+更多精彩内容，就在简书APP
+"小礼物走一走，来简书关注我"
+赞赏支持 还没有人赞赏，支持一下
+28fd90f2ac9b
+总资产0.758 共写了5257字 获得4个赞 共1个粉丝
+关注
+
+    人面猴
+    序言：七十年代末，一起剥皮案震惊了整个滨河市，随后出现的几起案子，更是在滨河造成了极大的恐慌，老刑警刘岩，带你破解...
+    沈念sama 阅读 38203 评论 1 赞 83
+    前方高能预警
+    1. 周嘉洛拥有一个不好说有没有用的异能。 异能管理局的人给他的异能起名为「前方高能预警」。 2. 周嘉洛第一次发...
+    沈念sama 阅读 18469 评论 1 赞 71
+    死咒
+    序言：滨河连续发生了三起死亡事件，死亡现场离奇诡异，居然都是意外死亡，警方通过查阅死者的电脑和手机，发现死者居然都...
+    沈念sama 阅读 10896 评论 1 赞 80
+    救了他两次的神仙让他今天三更去死
+    文/潘晓璐 我一进店门，熙熙楼的掌柜王于贵愁眉苦脸地迎上来，“玉大人，你说我怎么就摊上这事。” “怎么了？”我有些...
+    开封第一讲书人 阅读 8313 评论 0 赞 30
+    道士缉凶录：失踪的卖姜人
+    文/不坏的土叔 我叫张陵，是天一观的道长。 经常有香客问我，道长，这世上最难降的妖魔是什么？ 我笑而不...
+    开封第一讲书人 阅读 6820 评论 0 赞 33
+    ﻿港岛之恋（遗憾婚礼）
+    正文 为了忘掉前任，我火速办了婚礼，结果婚礼上，老公的妹妹穿的比我还像新娘。我一直安慰自己，他们只是感情好，可当我...
+    茶点故事 阅读 10325 评论 0 赞 79
+    恶毒庶女顶嫁案：这布局不是一般人想出来的
+    文/花漫 我一把揭开白布。 她就那样静静地躺着，像睡着了一般。 火红的嫁衣衬着肌肤如雪。 梳的纹丝不乱的头发上，一...
+    开封第一讲书人 阅读 10585 评论 0 赞 27
+    城市分裂传说
+    那天，我揣着相机与录音，去河边找鬼。 笑死，一个胖子当着我的面吹牛，可吹牛的内容都是我干的。 我是一名探鬼主播，决...
+    沈念sama 阅读 4009 评论 2 赞 104
+    双鸳鸯连环套：你想象不到人心有多黑
+    文/苍兰香墨 我猛地睁开眼，长吁一口气：“原来是场噩梦啊……” “哼！你这毒妇竟也来了？” 一声冷哼从身侧响起，我...
+    开封第一讲书人 阅读 3778 评论 0 赞 15
+    父亲被人害死了，幕后凶手却是我最亲的人！
+    想象着我的养父在大火中拼命挣扎，窒息，最后皮肤化为焦炭。我心中就已经是抑制不住地欢快，这就叫做以其人之道，还治其人...
+    爱写小说的胖达 阅读 1270 评论 1 赞 24
+    万荣杀人案实录
+    序言：老挝万荣一对情侣失踪，失踪者是张志新（化名）和其女友刘颖，没想到半个月后，有当地人在树林里发现了一具尸体，经...
+    沈念sama 阅读 4649 评论 0 赞 63
+    ﻿护林员之死
+    正文 独居荒郊野岭守林人离奇死亡，尸身上长有42处带血的脓包…… 初始之章·张勋 以下内容为张勋视角 年9月15日...
+    茶点故事 阅读 4634 评论 1 赞 73
+    ﻿白月光启示录
+    正文 我和宋清朗相恋三年，在试婚纱的时候发现自己被绿了。 大学时的朋友给我发了我未婚夫和他白月光在一起吃饭的照片。...
+    茶点故事 阅读 5014 评论 0 赞 59
+    惨遭霸总抛弃后，我靠赚来的钱成了富豪榜第一名
+    白月光回国，霸总把我这个替身辞退。还一脸阴沉的警告我。[不要出现在思思面前， 不然我有一百种方法让你生不如死。]我...
+    爱写小说的胖达 阅读 850 评论 0 赞 5
+    活死人
+    序言：一个原本活蹦乱跳的男人离奇死亡，死状恐怖，灵堂内的尸体忽然破棺而出，到底是诈尸还是另有隐情，我是刑警宁泽，带...
+    沈念sama 阅读 3496 评论 2 赞 68
+    ﻿日本核电站爆炸内幕
+    正文 年R本政府宣布，位于F岛的核电站，受9级特大地震影响，放射性物质发生泄漏。R本人自食恶果不足惜，却给世界环境...
+    茶点故事 阅读 5032 评论 2 赞 62
+    男人毒药：我在死后第九天来索命
+    文/蒙蒙 一、第九天 我趴在偏房一处隐蔽的房顶上张望。 院中可真热闹，春花似锦、人声如沸。这庄子的主人今日做“春日...
+    开封第一讲书人 阅读 2851 评论 0 赞 1
+    一桩弑父案，背后竟有这般阴谋
+    文/苍兰香墨 我抬头看了看天上的太阳。三九已至，却和暖如春，着一层夹袄步出监牢的瞬间，已是汗流浃背。 一阵脚步声响...
+    开封第一讲书人 阅读 2941 评论 0 赞 12
+    情欲美人皮
+    我被黑心中介骗来泰国打工， 没想到刚下飞机就差点儿被人妖公主榨干…… 1. 我叫王不留，地道东北人。 一个月前我还...
+    沈念sama 阅读 4911 评论 0 赞 68
+    代替公主和亲
+    正文 我出身青楼，却偏偏与公主长得像，于是被迫代替她去往敌国和亲。 传闻我的和亲对象是个残疾皇子，可洞房花烛夜当晚...
+    茶点故事 阅读 6234 评论 0 赞 83
+
+推荐阅读 更多精彩内容
+
+    15、python模块和包
+    模块和包 一 模块 1 什么是模块？ 常见的场景：一个模块就是一个包含了python定义和声明的文件，文件名就是...
+    go以恒 阅读 2,169 评论 0 赞 4
+    python __init__.py 的学习（转）
+    Python杂谈: init.py的作用 我们经常在python的模块目录中会看到 "init.py" 这个文件...
+    半大人 阅读 255 评论 1 赞 0
+    6. Modules 模块
+    If you quit from the Python interpreter and enter it agai...
+    linyk3 阅读 256 评论 0 赞 0
+    python import 详解
+    当前目录 和 脚本目录 参考资料：https://techibee.com/python/get-current-...
+    ThomasYoungK 阅读 9,144 评论 0 赞 11
+    姐妹花
+    我是433星宝宝，来自浙江绍兴。正在参加日记星球第十六期蜕变之旅，相信日积月累的力量，坚持更胜天赋！ 趁着五一假期...
+    清学国际一一433号星宝宝 阅读 164 评论 0 赞 1
+
+28fd90f2ac9b
+关注
+总资产0.758
+Communication-Efficient Learning of Deep Networks from Decentralized Data
+阅读 6,646
+关于在window上装anaconda或miniconda
+阅读 1,627
+热门故事
+我是月照国的女祭司，我的夫君却以为我是个女婢
+我跟女友回家见父母，她小妈居然是我暗恋对象
+纪实：女子赴意大利会情郎，海关检查受托带的行李箱，她当场崩溃
+演金丝雀太入戏，他还真以为我爱上他了
+为了活命，我对病娇反派弟弟表白，他竟当真要做我夫君
+“有个坐过牢的富豪老公是种什么体验？”“要不然你来试试？”
+前世渣男把我迷晕还叫我别怕，转世彻底黑化的我复仇反杀
+妹妹过失杀人，警察来时，我捡起了那把滴血的刀
+我被校霸堵在巷口，却发现他是我谈了三个月的网恋对象
+我和网恋对象奔现，却发现他是我们学校赫赫有名的海王
+评论0
+赞
+赞 1赞
+赞赏
+更多好文

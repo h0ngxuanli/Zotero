@@ -1,0 +1,4750 @@
+
+Tokenizer
+
+    Tokenizer 是 NLP pipeline 的核心组件之一。 Tokenizer 的目标是：将文本转换为模型可以处理的数据。模型只能处理数字，因此 Tokenizer 需要将文本输入转换为数字输入。
+
+    通常而言有三种类型的 Tokenizer ： Word-based Tokenizer 、 Character-based Tokenizer 、 Subword Tokenizer 。
+
+        Word-based Tokenizer ：通常很容易设置和使用，只需几条规则，并且通常会产生不错的结果。
+
+        例如，我们可以通过应用 Python 的 split() 函数，通过空格将文本 tokenize 为单词：
+
+         
+
+         tokenized_text = "I like NLP" . split () 
+
+         print ( tokenized_text ) 
+
+         # ['I', 'like', 'NLP']  
+
+         tokenized_text = "我 喜欢 NLP" . split () 
+
+         print ( tokenized_text ) 
+
+         # ['我', '喜欢', 'NLP']  
+
+         
+
+        但是， Word-based Tokenizer 最终会得到一些非常大的词表 vocabulary 。如， Transformer-XL 将得到一个大小为 267735 的词表。如此庞大的词表将迫使模型学习一个巨大的 embedding matrix ，这导致了空间复杂度和时间复杂度的增加。一般而言， transformers 模型的词表规模很少超过 50K ，尤其是当它们仅在一种语言上进行训练时。
+
+        Character-based Tokenizer ：将文本拆分为字符，而不是单词。这有两个主要好处：
+            词表规模要小得多（通常只有几十甚至几百）。
+            unknown token 要少得多（因为任意单词都可以从字符构建）。 
+
+        但是， Character-based Tokenizer 有两个不足：
+
+            首先， tokenize 之后得到字符表示，其意义不大：每个字符本身并没有多少语义。例如，学习字母 "t" 的有意义的 representation ，要比学习单词 "today" 的 representation 困难得多。因此， Character-based Tokenizer 往往伴随着性能的损失。
+
+            然而这又因语言而异，例如，在中文中每个字符比拉丁语言中的每个字符包含更多的信息。
+
+            其次，相比较 word-based tokenization ， character-based tokenization 得到更大量的 token ，这增大了模型的负担。例如，使用 word-based tokenizer ，一个单词只会是单个 token ；但是当使用 character-based tokenizer 时，一个单词很容易变成 10 个或更多的 token 。
+
+        Subword-based Tokenizer ：它是 word-based tokenizer 和 character-based tokenizer 的折衷。
+
+        subword tokenization 算法依赖于这样一个原则：不应将常用词拆分为更小的子词 subword ，而应将低频词分解为有意义的子词。这使得我们能够使用较小的词表进行相对较好的覆盖，并且几乎没有 unknown token 。
+
+        例如： "football" 可能被认定是一个低频词，可以分解为 "foot" 和 "ball" 。而 "foot" 和 "ball" 作为独立的子词可能出现得更高频，同时 "football" 的含义由 "foot" 和 "ball" 复合而来。
+
+        subword tokenization 允许模型具有合理的词表规模，同时能够学习有意义的 representation 。此外， subword tokenization 通过将单词分解成已知的子词，使模型能够处理以前从未见过的单词。
+
+一、Subword Tokenization 算法
+
+    有三种常见的 subword tokenization 算法： Byte Pair Encoding: BPE 、 WordPiece 、 Unigram 。 
+
+1.1 BPE
+
+    Byte Pair Encoding: BPE 来自于论文 《Neural Machine Translation of Rare Words with Subword Units》（2015） 。
+
+    BPE 是一种简单的数据压缩技术，它迭代式地替换序列中最频繁的字节对。我们不是合并频繁的字节对，而是合并频繁的字符或字符序列。
+
+        首先，我们用 character vocabulary 初始化 symbol vocabulary ，将每个单词表示为一个字符序列，加上一个特殊的单词结束符 </w> ，这允许我们在 tokenization 后恢复原始的 tokenization 。
+
+        然后，我们迭代地计算所有 symbol pair ，并用新的 symbol 'AB' 替换最频繁的 symbol pair ('A','B') 。每个 merge 操作产生一个新的 symbol ，它代表一个 character n-gram 。
+
+        同时，每个 merge 代表一个规则。
+
+    最终的 symbol vocabulary 大小等于 initial vocabulary 的大小，加上 merge 操作的次数（这是算法唯一的超参数）。
+
+    下面的显示了一个最小化的 Python 实现。在实践中，我们通过索引所有 pair 并增量更新数据结构来提高效率：
+
+     
+    ​ x
+
+     import re , collections  
+
+      
+
+     def get_stats ( vocab ): # vocab : 存储 word -> freq 的 dict  
+
+         ''' 计算词表中，字符的 2-gram 及其出现频次  
+
+       '''  
+
+         pairs = collections . defaultdict ( int ) 
+
+         for word , freq in vocab . items (): 
+
+             symbols = word . split () # 拆分为字符序列  
+
+             for i in range ( len ( symbols ) - 1 ): 
+
+                 pairs [ symbols [ i ], symbols [ i + 1 ]] += freq # 计算字符的 2-gram 及其出现频次  
+
+         return pairs  
+
+      
+
+     def merge_vocab ( pair , v_in ): # pair 为最高频的 2-gram，v_in 为已有的 vocab  
+
+         ''' 利用最高频的 2-gram 来更新已有的词表  
+
+       '''  
+
+         v_out = {} 
+
+         bigram = re . escape ( ' ' . join ( pair )) # 对字符串中可能被解释为正则运算符的字符进行转义  
+
+         p = re . compile ( r'(?<!\S)' + bigram + r'(?!\S)' ) # 编译一个正则模式  
+
+         # \S 匹配任意非空字符  
+
+         # (?<! \S) 前向否定界定符。当 bigram 之前不是任意非空字符之时，匹配成功  
+
+         # (?! \S) 后向否定界定符。当 bigram 之后不是任意非空字符之时，匹配成功  
+
+         for word in v_in : 
+
+           w_out = p . sub ( '' . join ( pair ), word ) # 将word中已有的pair替换为紧凑版本(移除中间的空格)  
+
+           # 注意这里有两个 join(pair), 一个是 ' '.join() 带空格, 另一个是 ''.join() 不带空格  
+
+           v_out [ w_out ] = v_in [ word ] 
+
+         return v_out  
+
+     
+
+    示例：
+
+     
+
+     xxxxxxxxxx 
+
+     vocab = { 'l o w </w>' : 5 , 'l o w e r </w>' : 2 , # initial vocabulary  
+
+             'n e w e s t </w>' : 6 , 'w i d e s t </w>' : 3 } 
+
+     num_merges = 10  
+
+     for i in range ( num_merges ): 
+
+         pairs = get_stats ( vocab ) 
+
+         best = max ( pairs , key = pairs . get ) 
+
+         vocab = merge_vocab ( best , vocab ) 
+
+         print ( best ) 
+
+     # 最终 vocab: {'low</w>': 5, 'low e r </w>': 2, 'newest</w>': 6, 'wi d est</w>': 3}  
+
+     
+
+    注意，初始的 vocab 已经将单词拆分为字符序列，并用 ' ' 分隔。这个步骤被称作 pre-tokenization 。
+
+    在机器翻译任务上，有两种应用 BPE 的方法：
+
+        学习两个独立的编码，一个用于 source vocabulary 、另一个用于 target vocabulary 。
+
+        这种方法的优点是：在文本和词表规模方面更紧凑，并且更能保证在相应语言的训练文本中看到每个 subword 单元。
+
+        学习两个 vocabulary 的并集上的编码，称之为 joint BPE 。
+
+        这种方法的优点是：提高了 source tokenization 和 target tokenization 之间的一致性。如果我们独立地应用 BPE ，相同的 name 在两种语言中可能被不同地 tokenization ，这使得神经模型更难学习 subword 单元之间的映射。
+
+    Byte-level BPE ：包含所有基础字符 base character 的 base vocabulary 可能非常大，例如，将所有 unicode 字符（一共 65536 个，即 2 个字节的表示范围）作为基础字符。
+
+    为了获得更小的 base vocabulary ， GPT-2 使用 byte 作为 base vocabulary 。这是一个聪明的技巧，它强制 base vocabulary 的大小为 256 （一个字节的表示范围），同时确保每个基本字符都包含在 vocabulary 中。 GPT-2 具有 50257 的词表大小，其对应于 256 个 byte-base token 、一个特殊的文本结束 token 、以及通过 50000 次 merge 所学到的 symbol 。
+
+    相比之下，使用传统 BPE 的 GPT 的词表规模为 40478 ，其中包含 478 个基本字符，并在 40000 次 merge 后停止训练。
+
+    来自 Hugging Face 上的例子：
+
+        假设在 pre-tokenization 之后，我们得到了如下的单词及其频次的集合：
+
+         
+
+         xxxxxxxxxx 
+
+         ( "hug" , 10 ), ( "pug" , 5 ), ( "pun" , 12 ), ( "bun" , 4 ), ( "hugs" , 5 ) 
+
+         
+
+        将所有单词拆分到字符，则我们得到：
+
+         
+
+         xxxxxxxxxx 
+
+         ( "h" "u" "g" , 10 ), ( "p" "u" "g" , 5 ), ( "p" "u" "n" , 12 ), ( "b" "u" "n" , 4 ), ( "h" "u" "g" "s" , 5 ) 
+
+         
+
+        此时 base vocabulary 为：
+
+         
+
+         xxxxxxxxxx 
+
+         [ "b" , "g" , "h" , "n" , "p" , "s" , "u" ] 
+
+         
+
+        然后， BPE 计算每个可能的 symbol pair ，然后挑选出现频次最高的 symbol pair 。
+
+        此时，频次最高的 symbol pair 是：将 "u" 后面跟着 "g" 的 symbol pair 合并为 "ug" 。
+
+        此时单词及其频次的集合为：
+
+         
+
+         xxxxxxxxxx 
+
+         ( "h" "ug" , 10 ), ( "p" "ug" , 5 ), ( "p" "u" "n" , 12 ), ( "b" "u" "n" , 4 ), ( "h" "ug" "s" , 5 ) 
+
+         
+
+        此时 base vocabulary 为：
+
+         
+
+         xxxxxxxxxx 
+
+         [ "b" , "g" , "h" , "n" , "p" , "s" , "u" , "ug" ] 
+
+         
+
+        BPE 然后确定下一个最常见的 symbol pair ，即 "u" 后面跟着 "n" 。因此， BPE 将 "u", "n" 合并为 "un" 。
+
+        下一个最常见的 symbol pair ，即 "h" 后面跟着 "ug" 。因此， BPE 将 "h", "ug" 合并为 "hug" 。
+
+        此时单词及其频次的集合为：
+
+         
+
+         xxxxxxxxxx 
+
+         ( "hug" , 10 ), ( "p" "ug" , 5 ), ( "p" "un" , 12 ), ( "b" "un" , 4 ), ( "hug" "s" , 5 ) 
+
+         
+
+        此时 base vocabulary 为：
+
+         
+
+         xxxxxxxxxx 
+
+         [ "b" , "g" , "h" , "n" , "p" , "s" , "u" , "ug" , "un" , "hug" ] 
+
+         
+
+    假设 BPE 的训练在这个时刻结束，那么所学习的所有 merge rule 将被应用于新的单词。例如：
+        单词 "bug" 被 tokenized 为 ["b", "ug"] 。
+        单词 "mug" 被 tokenized 为 ["<unk>", "ug"] ，因为 symbol "m" 不在 base vocabulary 中。 
+
+1.2 WordPiece
+
+    与 BPE 一样， WordPiece （ 《Japanese and korean voice search》(2012) ）从一个小的词汇表开始，并学习 merge 规则。二者之间的区别在于 merge 的方式不同： WordPiece 不是选择最高频的 pair ，而是通过如下公式计算每个 pair 的得分：
+    (1) score ( t 1 , t 2 ) = freq ( t 1 , 2 ) freq ( t 1 ) × freq ( t 2 )
+
+    其中：
+        t 1 和 t 2 为两个 token ， t 1 , 2 为它们 merge 之后得到的新的 token 。
+        freq ( t ) 为 token t 在语料库中出现的频次。 
+
+    选择 score 最高的一对 token 等价于：
+    (2) max t 1 , t 2 score ( t 1 , t 2 ) = max t 1 , t 2 freq ( t 1 , 2 ) / N freq ( t 1 ) / N × freq ( t 2 ) / N = max t 1 , t 2 log ⁡ p ( t 1 , 2 ) − [ log ⁡ p ( t 1 ) + log ⁡ p ( t 2 ) ]
+
+    其中： N 为语料库中的 token 总数。
+
+    因此 WordPiece 的物理意义为：通过将 t 1 , t 2 合并为 t 1 , 2 之后，语料库的对数似然的增量最大化。
+
+    来自 Hugging Face 上的例子：
+
+        假设在 pre-tokenization 之后，我们得到了如下的单词及其频次的集合：
+
+         
+
+         xxxxxxxxxx 
+
+         ( "hug" , 10 ), ( "pug" , 5 ), ( "pun" , 12 ), ( "bun" , 4 ), ( "hugs" , 5 ) 
+
+         
+
+        将所有单词拆分到字符，则我们得到：
+
+         
+
+         xxxxxxxxxx 
+
+         ( "h" "##u" "##g" , 10 ), ( "p" "##u" "##g" , 5 ), ( "p" "##u" "##n" , 12 ), ( "b" "##u" "##n" , 4 ), ( "h" "##u" "##g" "##s" , 5 ) 
+
+         
+
+        注意： WordPiece 通过添加前缀（在 BERT 中是 ## ）来识别子词，这可以识别一个子词是否是单词的开始。这里通过将前缀添加到单词内的每个字符来拆分的，单词的首字符不添加前缀。
+
+        此时的 base vocabulary 为：
+
+         
+
+         xxxxxxxxxx 
+
+         [ "b" , "h" , "p" , "##g" , "##n" , "##s" , "##u" ] 
+
+         
+
+        然后， WordPiece 计算每个可能的 symbol pair ，然后挑选 score 最高的 symbol pair 。
+
+        学到的第一个 merge 是 ("##g", "##s") -> ("##gs") 。注意,当我们合并时,我们删除了两个 token 之间的 ## ，所以我们添加 "##gs" 到词表中。
+
+        此时单词及其频次的集合为：
+
+         
+
+         xxxxxxxxxx 
+
+         ( "h" "##u" "##g" , 10 ), ( "p" "##u" "##g" , 5 ), ( "p" "##u" "##n" , 12 ), ( "b" "##u" "##n" , 4 ), ( "h" "##u" "##gs" , 5 ) 
+
+         
+
+        此时 base vocabulary 为：
+
+         
+
+         xxxxxxxxxx 
+
+         [ "b" , "h" , "p" , "##g" , "##n" , "##s" , "##u" , "##gs" ] 
+
+         
+
+        我们继续这样处理，直到达到我们所需的词汇量。
+
+    tokenization 算法： WordPiece 和 BPE 中的 tokenization 的不同在于： WordPiece 仅保存最终词表，而不保存学到的 merge rule 。
+
+    在应用时，从待 tokenized 的单词开始， WordPiece 找到词表中能够匹配到的最长的子词，然后对单词进行拆分。例如，如果我们使用上面例子中学到的词表来 tokenize 单词 "hugs" ：
+        首先，单词从头开始能匹配到的词表中的最长子词是 "hug" ，所以我们在那里拆分并得到 ["hug", "##s"] 。
+        然后，我们继续匹配剩下的 "##s" 。刚好能够匹配到词表中的子词 "##s" 。 
+
+    最终， "hugs" 的 tokenization 是 ["hug", "##s"] 。
+
+    如果使用 BPE , 我们将按顺序应用学习到的 merge rule ，并将其 tokenize 为 ["hu", "##gs"] ，所以编码不同。
+
+    当 tokenization 无法在词表中找到子词时，整个单词被 tokenize 为 unknown 。 例如 "bum" ，由于 "##m" 不在词表中，由此产生的 tokenization 将只是 ["[UNK]"] , 不是 ["b", "##u", "[UNK]"] 。
+
+    这是与 BPE 的另一个区别： BPE 只会将不在词汇表中的单个字符 tokenize 为 unknown 。 例如 "bum" ，由于 "##m" 不在词表中，由此产生的 tokenization 是 ["b", "##u", "[UNK]"] 。
+
+1.3 SentencePiece
+
+    SentencePiece （ 《Subword Regularization: Improving Neural Network Translation Models with Multiple Subword Candidates》(2018) ）中经常使用 Unigram 算法。
+
+    Unigram 算法假设每个子词都是独立出现的，因此一个子词序列 x = ( x 1 , ⋯ , x M ) 出现的概率是每个子词出现概率的乘积，即：
+    (3) P ( x ) = ∏ i = 1 M p ( x i ) ∀ i x i ∈ V , ∑ x ∈ V p ( x ) = 1.0
+
+    其中： x 为子词， p ( x ) 为子词出现的概率， V 为词表。
+
+    对于给定的句子 X ，其最佳 tokenization 为：
+    (4) x ∗ = arg ⁡ max x ∈ S ( X ) P ( x )
+
+    其中： S ( X ) 为句子 X 的所有候选 tokenization 。
+
+    如果我们已知词表 V 以及每个子词出现的概率 p ( x ) ，则 x ∗ 可以通过维特比算法求解得到。
+
+    现在的问题是，给定一个训练语料库 D ，如何获得词表 V 以及每个子词出现的概率 p ( x ) 。 Unigram 利用 EM 算法来求解如下的边际似然 marginal likelihood L ：
+    (5) L = ∑ s = 1 | D | log ⁡ P ( X ( s ) ) = ∑ s = 1 | D | log ⁡ ( ∑ x ∈ S ( X ( s ) ) P ( x ) )
+
+    其中： X ( s ) 表示语料库 D 中的第 s 个句子。
+
+    这里 Unigram 将 p ( x ) 视作隐变量。
+
+    为求解 L ， Unigram 采用了迭代式算法：
+
+        首先，启发式地从训练语料库中获取一个足够大的 seed vocabulary 。
+
+        一种选择方法是：使用所有字符、以及语料库中最高频的 substring 。
+
+        重复以下步骤，直到词表规模 | V | 达到预期的值：
+            固定词表，通过 EM 算法优化 p ( x ) 。
+            对每个子词 x i 计算 loss i ，其中 loss i 表示当 x i 从当前词表移除时，似然 L 降低的数值。
+            根据 loss i 进行降序排列，保留 top η % 的子词（例如， 80% ）。 
+
+        注意，我们总是在词表中保留单个 character 从而防止 out-of-vocabulary 。
+
+    最终的词表 V 包含了语料库中的所有单个字符、也包括了一些 character-based tokenization 结果、甚至包括一些 word-based tokenization 结果。因此 Unigram 算法是这三者的混合体。
+
+    来自 Hugging Face 上的例子：
+
+        假设在 pre-tokenization 之后，我们得到了如下的单词及其频次的集合：
+
+         
+
+         xxxxxxxxxx 
+
+         ( "hug" , 10 ), ( "pug" , 5 ), ( "pun" , 12 ), ( "bun" , 4 ), ( "hugs" , 5 ) 
+
+         
+
+        seed vocabulary 采用初始词表的所有严格子字符串（即，不包含它自身）：
+
+         
+
+         xxxxxxxxxx 
+
+         [ "h" , "u" , "g" , "hu" , "ug" , "p" , "pu" , "n" , "un" , "b" , "bu" , "s" , "hug" , "gs" , "ugs" ] 
+
+         
+
+        对于每个单词，考虑 tokenization 概率最高的。例如，对于 "pug" ：
+
+            tokenization 为 ["p", "u", "g"] 的概率为：
+            (6) P ( [ "p","u","g" ] ) = P ( "p"  ) × P ( "u"  ) × P ( "g"  ) = 5 210 × 36 210 × 20 210 = 0.000389
+
+            这里 210 为词表中所有 token 的频次之和。
+
+            tokenization 为 ["pu", "g"] 的概率为：
+            (7) P ( [ "pu","g" ] ) = P ( "pu"  ) × P ( "g"  ) = 5 210 × 20 210 = 0.0022676
+
+        Unigram 选择对单词进行 tokenization 最高的那个：
+
+         
+
+         xxxxxxxxxx 
+
+         [ "p" , "u" , "g" ] : 0.000389  
+
+         [ "p" , "ug" ] : 0.0022676  
+
+         [ "pu" , "g" ] : 0.0022676  
+
+         
+
+        所以, "pug" 将被标记为 ["p", "ug"] 或者 ["pu", "g"] ，取决于首先遇到这些 中的哪一个。注意，在更大的语料库中这样的相等的情况很少见。
+
+        通常在语料库中找到所有可能的 tokenization 并计算它们的概率，一般来说会有点困难。因此需要利用维特比算法。
+
+        这里我们得到每个单词的最佳 tokenization ：
+
+         
+
+         xxxxxxxxxx 
+
+         "hug" : [ "hug" ] ( score 0.071428 ) 
+
+         "pug" : [ "pu" , "g" ] ( score 0.007710 ) 
+
+         "pun" : [ "pu" , "n" ] ( score 0.006168 ) 
+
+         "bun" : [ "bu" , "n" ] ( score 0.001451 ) 
+
+         "hugs" : [ "hug" , "s" ] ( score 0.001701 ) 
+
+         
+
+        现在我们需要计算从词表中删除每个 token 如何影响损失。然后我们根据这个损失对 token 进行排序，选择 top η % 的 token 。
+
+二、算法原理
+
+    对于 BPE, WordPiece, Unigram 这三个算法，我们采用相同的语料库如下：
+
+     
+
+     xxxxxxxxxx 
+
+     corpus = [ # The first sentences from the abstract of "<Attention Is All You Need>"  
+
+         "The dominant sequence transduction models are based on complex recurrent orconvolutional neural networks that include an encoder and a decoder." , 
+
+         "The bestperforming models also connect the encoder and decoder through an attentionmechanism." , 
+
+         "We propose a new simple network architecture, the Transformer,based solely on attention mechanisms, dispensing with recurrence and convolutionsentirely."  
+
+     ] 
+
+     
+
+ 
+2.1 BPE
+
+    训练算法：
+
+     
+
+     xxxxxxxxxx 
+
+     from collections import defaultdict  
+
+     from tokenizers import decoders , models , normalizers , \ 
+
+     pre_tokenizers , processors , trainers , Tokenizer  
+
+      
+
+     corpus = [ # The first sentences from the abstract of "<Attention Is All You Need>"  
+
+         "The dominant sequence transduction models are based on complex recurrent orconvolutional neural networks that include an encoder and a decoder." , 
+
+         "The bestperforming models also connect the encoder and decoder through an attentionmechanism." , 
+
+         "We propose a new simple network architecture, the Transformer,based solely on attention mechanisms, dispensing with recurrence and convolutionsentirely."  
+
+     ] 
+
+     #################### Step1: word freq ################  
+
+     word_freqs = defaultdict ( int ) 
+
+     pre_tokenizer = pre_tokenizers . ByteLevel ( add_prefix_space = False ) 
+
+      
+
+     for text in corpus : 
+
+         words_with_offsets = pre_tokenizer . pre_tokenize_str ( text ) 
+
+         new_words = [ word for word , offset in words_with_offsets ] 
+
+         for word in new_words : 
+
+             word_freqs [ word ] += 1  
+
+      
+
+     print ( word_freqs ) 
+
+     # defaultdict(<class 'int'>, {'The': 2, 'Ġdominant': 1, 'Ġsequence': 1, 'Ġtransduction': 1, ...})  
+
+      
+
+     #################### Step2: alphabet ################  
+
+     alphabet = [] # 字母表  
+
+     for word in word_freqs . keys (): 
+
+         for letter in word : 
+
+             if letter not in alphabet : 
+
+                 alphabet . append ( letter ) 
+
+     alphabet . sort () 
+
+      
+
+     print ( alphabet ) # 'Ġ' 是空格符  
+
+     # [',', '.', 'T', 'W', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'Ġ']  
+
+     vocab = [ "<|endoftext|>" ] + alphabet . copy () # add special token for GPT-2  
+
+      
+
+     #################### Step3: split word to char ################  
+
+     splits = { word : [ c for c in word ] for word in word_freqs . keys ()}  
+
+     print ( splits ) # 每个字符作为一个 subword  
+
+     # {'The': ['T', 'h', 'e'], 'Ġdominant': ['Ġ', 'd', 'o', 'm', 'i', 'n', 'a', 'n', 't'],...}    
+
+      
+
+     #################### Step4: find most freq and merge ################  
+
+      
+
+     def compute_pair_freqs ( splits ): 
+
+         ''' 计算相邻子词合并之后作为一个整体所出现的频次  
+
+          
+
+       :param splits: 截止到目前为止，每个单词的拆分  
+
+       '''  
+
+         pair_freqs = defaultdict ( int ) 
+
+         for word , freq in word_freqs . items (): 
+
+             split = splits [ word ] 
+
+             if len ( split ) == 1 : 
+
+                 continue  
+
+             for i in range ( len ( split ) - 1 ): 
+
+                 pair = ( split [ i ], split [ i + 1 ]) 
+
+                 pair_freqs [ pair ] += freq  
+
+         return pair_freqs  
+
+      
+
+     def find_most_freq ( pair_freqs ): 
+
+         ''' 计算频次最高的子词  
+
+       '''  
+
+         best_pair = ""  
+
+         max_freq = None  
+
+      
+
+         for pair , freq in pair_freqs . items (): 
+
+             if max_freq is None or max_freq < freq : 
+
+                 best_pair = pair  
+
+                 max_freq = freq  
+
+         print ( "\t Find most freq: pair[%s], freq[%s]" % ( best_pair , max_freq )) 
+
+         return best_pair  
+
+      
+
+     def merge_pair ( a , b , splits ): 
+
+         ''' 子词合并，将当前 splits 中的所有 "a b" 形式的子词合并为 "ab"  
+
+       '''  
+
+         combine_ab = "%s%s" % ( a , b ) 
+
+         
+
+         for word in word_freqs : 
+
+             split = splits [ word ] # word 当前的子词拆分  
+
+             if len ( split ) == 1 : # 子词只有一个，表示子词就是 word 自身  
+
+                 continue  
+
+      
+
+             i = 0  
+
+             while i < len ( split ) - 1 : 
+
+                 if split [ i ] == a and split [ i + 1 ] == b : # a 和 b 连续出现，可以合并  
+
+                     split = split [: i ] + [ combine_ab , ] + split [ i + 2 :] 
+
+                 else : 
+
+                     i += 1  
+
+             splits [ word ] = split  
+
+         return splits  
+
+      
+
+     merges = {} 
+
+     vocab_size = 50  
+
+      
+
+     while len ( vocab ) < vocab_size : 
+
+         print ( "Current vocab size:%s" % len ( vocab )) 
+
+         pair_freqs = compute_pair_freqs ( splits ) 
+
+         print ( "\t Top3 Pair freq:%s" % sorted ( pair_freqs . items (), key = lambda x : - x [ 1 ])[: 3 ]) # 频次降序排列  
+
+         current_pair = find_most_freq ( pair_freqs ) 
+
+         new_subword = "%s%s" % ( current_pair [ 0 ], current_pair [ 1 ]) 
+
+         splits = merge_pair ( current_pair [ 0 ], current_pair [ 1 ], splits ) 
+
+         print ( "\t Merge '%s %s' to '%s'" % ( current_pair [ 0 ], current_pair [ 1 ], new_subword )) 
+
+         merges [ current_pair ] = new_subword  
+
+         vocab . append ( new_subword ) 
+
+     # Current vocab size:30  
+
+     # Top3 Pair freq:[(('Ġ', 'm'), 3), (('l', 's'), 3), (('Ġ', 'c'), 3)]  
+
+     # Find most freq: pair[('Ġ', 'm')], freq[3]  
+
+     # Merge 'Ġ m' to 'Ġm'      
+
+     # Current vocab size:31  
+
+     # Top3 Pair freq:[(('l', 's'), 3), (('Ġ', 'c'), 3), (('l', 'e'), 3)]  
+
+     # Find most freq: pair[('l', 's')], freq[3]  
+
+     # Merge 'l s' to 'ls'  
+
+     # ...  
+
+      
+
+     print ( merges ) # 20 条 merge 规则  
+
+     # {('Ġ', 'm'): 'Ġm', ('l', 's'): 'ls', ('Ġ', 'c'): 'Ġc', ('l', 'e'): 'le', ...}  
+
+     print ( vocab ) # 词表由 special token、初始字母表、以及 merge结果所组成  
+
+     # ['<|endoftext|>', ',', '.', 'T', 'W', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'Ġ', 'Ġm', 'ls', 'Ġc', 'le', 'lu', 'Ġand', 'is', 'The', 'Ġd', 'om', 'ence', 'ran', 'rans', 'Ġmode', 'Ġmodels', 'Ġar', 'Ġb', 'ase', 'ased', 'Ġon']  
+
+     
+
+    为了对新文本进行 tokenization ，我们对其进行 pre-tokenization 、拆分为单个字符，然后应用学到的所有 merge 规则。
+
+     
+
+     xxxxxxxxxx 
+
+     def tokenize ( text , merges ): 
+
+         ''' Tokenization, text 为文本， merges 为学到的所有 merge 规则  
+
+       '''  
+
+         ################## step1: pre_tokenize ##################  
+
+         pre_tokenizer = pre_tokenizers . ByteLevel ( add_prefix_space = False ) 
+
+         pre_tokenize_result = pre_tokenizer . pre_tokenize_str ( text ) 
+
+         pre_tokenized_text = [ word for word , offset in pre_tokenize_result ] 
+
+         ################## step2: split ##################  
+
+         splits = [[ ch for ch in word ] for word in pre_tokenized_text ] 
+
+         ################## step3: tokenize ##################  
+
+         for pair , merge in sorted ( merges . items (), key = lambda x : - len ( x [ 1 ])):  
+
+         # 先合并短的子词、后合并长的子词  
+
+             for idx , split in enumerate ( splits ): 
+
+                 i = 0  
+
+                 ########### 处理每一个 split ########  
+
+                 while i < len ( split ) - 1 : 
+
+                     if split [ i ] == pair [ 0 ] and split [ i + 1 ] == pair [ 1 ]: 
+
+                         split = split [: i ] + [ merge ] + split [ i + 2 :] 
+
+                     else : 
+
+                         i += 1  
+
+                 splits [ idx ] = split  
+
+      
+
+         return sum ( splits , []) 
+
+      
+
+     print ( tokenize ( "This's me ." , merges )) 
+
+     # ['T', 'h', 'is', "'", 's', 'Ġm', 'e', 'Ġ', 'Ġ', '.']  
+
+     
+
+ 
+2.2 WordPiece
+
+    训练算法：
+
+     
+
+     xxxxxxxxxx 
+
+     from collections import defaultdict  
+
+     from tokenizers import pre_tokenizers  
+
+      
+
+     corpus = [ # The first sentences from the abstract of "<Attention Is All You Need>"  
+
+         "The dominant sequence transduction models are based on complex recurrent orconvolutional neural networks that include an encoder and a decoder." , 
+
+         "The bestperforming models also connect the encoder and decoder through an attentionmechanism." , 
+
+         "We propose a new simple network architecture, the Transformer,based solely on attention mechanisms, dispensing with recurrence and convolutionsentirely."  
+
+     ] 
+
+     #################### Step1: word freq ################  
+
+     word_freqs = defaultdict ( int ) 
+
+     pre_tokenizer = pre_tokenizers . BertPreTokenizer () 
+
+      
+
+     for text in corpus : 
+
+         words_with_offsets = pre_tokenizer . pre_tokenize_str ( text ) 
+
+         new_words = [ word for word , offset in words_with_offsets ] 
+
+         for word in new_words : 
+
+             word_freqs [ word ] += 1  
+
+      
+
+     print ( word_freqs ) 
+
+     # defaultdict(<class 'int'>, {'The': 2, 'dominant': 1, 'sequence': 1, ...})  
+
+      
+
+     #################### Step2: alphabet ################  
+
+     alphabet = [] # 字母表  
+
+     for word in word_freqs . keys (): 
+
+         if word [ 0 ] not in alphabet : # 是单词的第一个字母  
+
+             alphabet . append ( word [ 0 ]) 
+
+         for letter in word [ 1 :]: # 不是单词的第一个字母  
+
+             if f"## { letter } " not in alphabet : # f"{letter}" 是格式化的语法，用 letter 变量的真实值来替代 {letter}  
+
+                 alphabet . append ( f"## { letter } " ) 
+
+     alphabet . sort () 
+
+      
+
+     print ( alphabet )   
+
+     # ['##a', '##c', '##d', '##e', '##f', '##g', '##h', '##i', '##k', '##l', '##m', '##n', '##o', '##p', '##q', '##r', '##s', '##t', '##u', '##v', '##w', '##x', '##y', ',', '.', 'T', 'W', 'a', 'b', 'c', 'd', 'e', 'i', 'm', 'n', 'o', 'p', 'r', 's', 't', 'w']  
+
+     vocab = [ "[PAD]" , "[UNK]" , "[CLS]" , "[SEP]" , "[MASK]" ] + alphabet . copy () # add special token  
+
+      
+
+     #################### Step3: split word to char ################  
+
+     splits = { 
+
+         word : [ c if i == 0 else f"## { c } " for i , c in enumerate ( word )] 
+
+         for word in word_freqs . keys () 
+
+     }  
+
+     print ( splits ) # 每个字符作为一个 subword  
+
+     # {'The': ['T', '##h', '##e'], 'dominant': ['d', '##o', '##m', '##i', '##n', '##a', '##n', '##t'],...}    
+
+      
+
+     #################### Step4: find highest score and merge ################  
+
+      
+
+     def compute_pair_scores ( splits ): 
+
+         ''' 计算每对相邻子词 merge 操作的得分  
+
+          
+
+       :param splits: 截止到目前为止，每个单词的拆分  
+
+       '''  
+
+         letter_freqs = defaultdict ( int ) 
+
+         pair_freqs = defaultdict ( int ) 
+
+         
+
+         for word , freq in word_freqs . items (): 
+
+             split = splits [ word ] 
+
+             if len ( split ) == 1 : # 只有一个子词（就是单词自身）  
+
+                 letter_freqs [ split [ 0 ]] += freq  
+
+                 continue  
+
+             for i in range ( len ( split ) - 1 ): # 有多个子词  
+
+                 pair = ( split [ i ], split [ i + 1 ]) 
+
+                 letter_freqs [ split [ i ]] += freq  
+
+                 pair_freqs [ pair ] += freq  
+
+             letter_freqs [ split [ - 1 ]] += freq # 最后一个位置没有 pair，但是要处理  
+
+             
+
+         scores = { 
+
+             pair : freq / ( letter_freqs [ pair [ 0 ]] * letter_freqs [ pair [ 1 ]]) 
+
+             for pair , freq in pair_freqs . items () 
+
+       } 
+
+         return scores  
+
+      
+
+     def find_max_score ( scores ): 
+
+         ''' 计算得分最高的子词  
+
+       '''  
+
+         best_pair = ""  
+
+         max_score = None  
+
+      
+
+         for pair , score in scores . items (): 
+
+             if max_score is None or max_score < score : 
+
+                 best_pair = pair  
+
+                 max_score = score  
+
+         print ( "\t Find max score: pair[%s], freq[%s]" % ( best_pair , max_score )) 
+
+         return best_pair  
+
+      
+
+     def merge_pair ( a , b , splits ): 
+
+         ''' 子词合并，将当前 splits 中的所有 "a b" 形式的子词合并为 "ab"  
+
+       '''  
+
+         combine_ab = "%s%s" % ( a , b [ 2 :] if b . startswith ( "##" ) else b ) 
+
+         
+
+         for word in word_freqs : 
+
+             split = splits [ word ] # word 当前的子词拆分  
+
+             if len ( split ) == 1 : # 子词只有一个，表示子词就是 word 自身  
+
+                 continue  
+
+      
+
+             i = 0  
+
+             while i < len ( split ) - 1 : 
+
+                 if split [ i ] == a and split [ i + 1 ] == b : # a 和 b 连续出现，可以合并  
+
+                     split = split [: i ] + [ combine_ab , ] + split [ i + 2 :] 
+
+                 else : 
+
+                     i += 1  
+
+             splits [ word ] = split  
+
+         return splits  
+
+      
+
+     vocab_size = 50  
+
+      
+
+     while len ( vocab ) < vocab_size : 
+
+         print ( "Current vocab size:%s" % len ( vocab )) 
+
+         scores = compute_pair_scores ( splits ) 
+
+         print ( "\t Top3 Pair scores:%s" % sorted ( scores . items (), key = lambda x : - x [ 1 ])[: 3 ]) # 得分降序排列  
+
+         current_pair = find_max_score ( scores ) 
+
+         new_subword = "%s%s" % ( current_pair [ 0 ], current_pair [ 1 ][ 2 :] if current_pair [ 1 ]. startswith ( "##" ) else current_pair [ 1 ]) 
+
+         splits = merge_pair ( current_pair [ 0 ], current_pair [ 1 ], splits ) 
+
+         print ( "\t Merge '%s %s' to '%s'" % ( current_pair [ 0 ], current_pair [ 1 ], new_subword )) 
+
+         vocab . append ( new_subword ) 
+
+     # Current vocab size:46  
+
+     # Top3 Pair scores:[(('##q', '##u'), 0.1), (('##l', '##y'), 0.076923), (('t', '##h'), 0.072727)]  
+
+     # Find max score: pair[('##q', '##u')], freq[0.1]  
+
+     # Merge '##q ##u' to '##qu'      
+
+     # Current vocab size:47  
+
+     # Top3 Pair scores:[(('##l', '##y'), 0.076923), (('t', '##h'), 0.072727), (('b', '##a'), 0.066667)]  
+
+     # Find max score: pair[('##l', '##y')], freq[0.076923]  
+
+     # Merge '##l ##y' to '##ly'  
+
+     # ...  
+
+      
+
+     print ( vocab ) # 词表由 special token、初始字母表、以及 merge结果所组成  
+
+     # ['[PAD]', '[UNK]', '[CLS]', '[SEP]', '[MASK]', '##a', '##c', '##d', '##e', '##f', '##g', '##h', '##i', '##k', '##l', '##m', '##n', '##o', '##p', '##q', '##r', '##s', '##t', '##u', '##v', '##w', '##x', '##y', ',', '.', 'T', 'W', 'a', 'b', 'c', 'd', 'e', 'i', 'm', 'n', 'o', 'p', 'r', 's', 't', 'w', '##qu', '##ly', 'th', 'Th']  
+
+     
+
+    为了对新文本进行 tokenization ，我们对其进行 pre-tokenization ，然后对每个单词寻找从头开始匹配到的最大子词并进行拆分。然后不断重复这种拆分。
+
+     
+
+     xxxxxxxxxx 
+
+     def encode_word ( word , vocab ): 
+
+         ''' 用 WordPiece 对单词进行拆分  
+
+       '''  
+
+         tokens = [] 
+
+         while len ( word ) > 0 : 
+
+             i = len ( word ) 
+
+             while i > 0 and word [: i ] not in vocab : # 最长匹配  
+
+                 i -= 1  
+
+             if i == 0 : 
+
+                 return [ "[UNK]" ] 
+
+             tokens . append ( word [: i ]) # 匹配到的最长子词  
+
+             word = word [ i :] # 拆剩下的  
+
+             if len ( word ) > 0 : 
+
+                 word = f"## { word } "  
+
+         return tokens  
+
+      
+
+     def tokenize ( text , vocab ): 
+
+         ''' 对文本进行 tokenize. vocab 为词表  
+
+       '''  
+
+         pre_tokenizer = pre_tokenizers . BertPreTokenizer () 
+
+         pre_tokenize_result = pre_tokenizer . pre_tokenize_str ( text ) 
+
+         pre_tokenized_text = [ word for word , offset in pre_tokenize_result ] 
+
+         encoded_words = [ encode_word ( word , vocab ) for word in pre_tokenized_text ] 
+
+         return sum ( encoded_words , []) # 对列表的列表进行 flatten 处理  
+
+      
+
+     print ( tokenize ( "This's me ." , vocab )) 
+
+     # ['Th', '##i', '##s', '[UNK]', 's', 'm', '##e', '.']  
+
+     
+
+2.3 Unigram
+
+    训练算法：
+
+     
+
+     xxxxxxxxxx 
+
+     from collections import defaultdict  
+
+     from tokenizers import pre_tokenizers  
+
+     from math import log  
+
+     import copy  
+
+      
+
+     corpus = [ # The first sentences from the abstract of "<Attention Is All You Need>"  
+
+         "The dominant sequence transduction models are based on complex recurrent orconvolutional neural networks that include an encoder and a decoder." , 
+
+         "The bestperforming models also connect the encoder and decoder through an attentionmechanism." , 
+
+         "We propose a new simple network architecture, the Transformer,based solely on attention mechanisms, dispensing with recurrence and convolutionsentirely."  
+
+     ] 
+
+     #################### Step1: word freq ################  
+
+     word_freqs = defaultdict ( int ) 
+
+     pre_tokenizer = pre_tokenizers . Metaspace () 
+
+      
+
+     for text in corpus : 
+
+         words_with_offsets = pre_tokenizer . pre_tokenize_str ( text ) 
+
+         new_words = [ word for word , offset in words_with_offsets ] 
+
+         for word in new_words : 
+
+             word_freqs [ word ] += 1  
+
+      
+
+     print ( word_freqs ) 
+
+     # defaultdict(<class 'int'>, {'▁The': 2, '▁dominant': 1, '▁sequence': 1, ...})  
+
+      
+
+     #################### Step2: initial vocab ################  
+
+     char_freqs = defaultdict ( int ) # 每个字符的频次  
+
+     subwords_freqs = defaultdict ( int ) # 每个 substring 的频次  
+
+     for word , freq in word_freqs . items (): 
+
+         for i in range ( len ( word )): 
+
+             char_freqs [ word [ i ]] += freq  
+
+             # Loop through the subwords of length at least 2  
+
+             for j in range ( i + 2 , len ( word ) + 1 ): 
+
+                 subwords_freqs [ word [ i : j ]] += freq  
+
+      
+
+     sorted_subwords = sorted ( subwords_freqs . items (), key = lambda x : x [ 1 ], reverse = True ) 
+
+     init_vocab_size = 300 # 一个较大的初始词表  
+
+     token_freqs = list ( char_freqs . items ()) + sorted_subwords [: init_vocab_size - len ( char_freqs )] 
+
+     token_freqs = { token : freq for token , freq in token_freqs } 
+
+      
+
+     print ( sorted_subwords [: 5 ]) 
+
+     # [('▁a', 12), ('an', 10), ('on', 10), ('en', 9), ('de', 9)]  
+
+      
+
+     #################### Step3: model ################  
+
+     total_sum = sum ([ freq for token , freq in token_freqs . items ()]) 
+
+     # model 存放每个候选 token 的负对数似然  
+
+     model = { token : - log ( freq * 1.0 / total_sum ) for token , freq in token_freqs . items ()} 
+
+      
+
+     #################### Step4: 定义编码函数和损失函数 ################  
+
+      
+
+     def encode_word ( word , model ): 
+
+         ''' 这是用动态规划来实现维特比解码，从而根据每个子词的损失来分词  
+
+       '''  
+
+         best_segmentations = [{ "start" : 0 , "score" : 1 }] + [ 
+
+           { "start" : None , "score" : None } for _ in range ( len ( word )) 
+
+       ] # 核心数据结构，存放每个位置的状态：第 i 个元素表示对前缀 word[:i] 的分词结果：(最近一个拆分点, 最佳分词的损失)  
+
+         
+
+         for start_idx in range ( len ( word )): 
+
+             # This should be properly filled by the previous steps of the loop  
+
+             best_score_at_start = best_segmentations [ start_idx ][ "score" ] # 前缀的分词结果  
+
+             #########   寻找下一个拆分点   #############  
+
+             for end_idx in range ( start_idx + 1 , len ( word ) + 1 ): 
+
+                 token = word [ start_idx : end_idx ] 
+
+                 if token in model and best_score_at_start is not None : 
+
+                     score = model [ token ] + best_score_at_start  
+
+                     if ( 
+
+                         best_segmentations [ end_idx ][ "score" ] is None  
+
+                         or best_segmentations [ end_idx ][ "score" ] > score # 损失更小  
+
+                   ): 
+
+                         best_segmentations [ end_idx ] = { "start" : start_idx , "score" : score } 
+
+      
+
+         segmentation = best_segmentations [ - 1 ] # 最后一个位置就是最终的分词结果  
+
+         if segmentation [ "score" ] is None : 
+
+             # We did not find a tokenization of the word -> unknown  
+
+             return [ "<unk>" ], None  
+
+      
+
+         score = segmentation [ "score" ] 
+
+         start = segmentation [ "start" ] # 前一个拆分点  
+
+         end = len ( word ) 
+
+         tokens = [] 
+
+         while start != 0 : 
+
+             tokens . insert ( 0 , word [ start : end ]) 
+
+             next_start = best_segmentations [ start ][ "start" ] 
+
+             end = start  
+
+             start = next_start  
+
+         tokens . insert ( 0 , word [ start : end ]) 
+
+         return tokens , score  
+
+      
+
+     def compute_loss ( model ): 
+
+         ''' 计算当前语料库和模型的整体损失  
+
+       '''  
+
+         loss = 0  
+
+         for word , freq in word_freqs . items (): 
+
+             _ , word_loss = encode_word ( word , model ) 
+
+             loss += freq * word_loss  
+
+         return loss  
+
+      
+
+      
+
+     def compute_scores ( model ): 
+
+         ''' 通过计算移除每个 token 的损失变化，从而计算每个 token 的得分  
+
+       '''  
+
+         scores = {} 
+
+         model_loss = compute_loss ( model ) 
+
+         for token , score in model . items (): 
+
+             if len ( token ) == 1 : # 总是保留单个字符  
+
+                 continue  
+
+             model_without_token = copy . deepcopy ( model ) 
+
+             _ = model_without_token . pop ( token ) 
+
+             scores [ token ] = compute_loss ( model_without_token ) - model_loss  
+
+         return scores  
+
+      
+
+     #################### Step5: 缩减词表 ################  
+
+      
+
+     percent_to_remove = 0.1 # 每轮迭代缩小 10%  
+
+     max_vocab_size = 100 # 词表的最大规模  
+
+     while len ( model ) > max_vocab_size : 
+
+         scores = compute_scores ( model ) 
+
+         sorted_scores = sorted ( scores . items (), key = lambda x : x [ 1 ]) 
+
+         print ( "Top3 scores:%s" % sorted_scores [ - 3 :]) 
+
+         
+
+         for i in range ( int ( len ( model ) * percent_to_remove )): # 移除最小的 10%  
+
+             _ = token_freqs . pop ( sorted_scores [ i ][ 0 ]) 
+
+      
+
+         ### 重建 model ###  
+
+         total_sum = sum ([ freq for token , freq in token_freqs . items ()]) 
+
+         model = { token : - log ( freq * 1.0 / total_sum ) for token , freq in token_freqs . items ()} 
+
+         
+
+     # Top3 scores:[('ing', 8.45913446432769), ('form', 9.041467278547316), ('▁and', 9.270398846926355)]  
+
+     # Top3 scores:[('form', 8.756385177048287), ('▁and', 8.84277569467804), ('tion', 9.158034534900253)]  
+
+     # Top3 scores:[('rans', 11.55887624144998), ('▁The', 13.833700317065222), ('▁models', 21.35200333126363)]  
+
+     # ...  
+
+     
+
+    为了对新文本进行 tokenization ，我们对其进行 pre-tokenization ，然后对每个单词进行维特比解码。
+
+     
+
+     xxxxxxxxxx 
+
+     def tokenize ( text , model ): 
+
+         ''' 对文本进行 tokenize.  
+
+       '''  
+
+         words_with_offsets = pre_tokenizers . Metaspace (). pre_tokenize_str ( text ) 
+
+         pre_tokenized_text = [ word for word , offset in words_with_offsets ] 
+
+         encoded_words = [ encode_word ( word , model )[ 0 ] for word in pre_tokenized_text ] 
+
+         return sum ( encoded_words , []) 
+
+      
+
+     print ( tokenize ( "This's me ." , model )) 
+
+     # ['<unk>', '▁', 'me', '▁', '▁', '.']  
+
+     
+
+ 
+三、Hugging Face Tokenizer 库
+
+    安装：
+
+     
+
+     xxxxxxxxxx 
+
+     pip install tokenizers 
+
+     
+
+    使用不同 subword tokenization 算法的 Transformer-based 模型：
+
+        GPT, GPT-2, RoBERTa, BART, DeBERTa 等模型使用了 BPE ，其中 GPT-2 使用了 byte-level BPE 。
+
+        BERT, DistilBERT, MobileBERT, Funnel Transformers, MPNET 等模型使用了 WordPiece 。
+
+        注意， Google 从未开源 WordPiece 训练算法的实现，因此 Hugging Face 中的实现是 Hugging Face 基于已发表文献的最佳猜测，它可能不是 100% 正确的。
+
+        AlBERT, T5, mBART, Big Bird, XLNet 等模型使用了 Unigram 。
+
+    tokenizer 应用于文本的流程如下，其中包括：
+
+        Normalization ：标准化步骤，包括一些常规清理，例如删除不必要的空格、小写、以及删除重音符号。
+
+        Transformers tokenizer 有一个属性叫做 backend_tokenizer 它提供了对 Tokenizers 库中底层 tokenizer 的访问。 backend_tokenizer 的 normalizer 属性可以获取执行标准化的 normalizer 。而 normalizer 的 normalize_str() 方法执行标准化。
+
+         
+
+         xxxxxxxxxx 
+
+         from transformers import AutoTokenizer  
+
+          
+
+         tokenizer = AutoTokenizer . from_pretrained ( "bert-base-uncased" ) 
+
+         print ( type ( tokenizer . backend_tokenizer )) 
+
+         # <class 'tokenizers.Tokenizer'>  
+
+          
+
+         normalizer = tokenizer . backend_tokenizer . normalizer  
+
+         print ( normalizer . normalize_str ( "Héllò hôw are ü?" )) 
+
+         # hello how are u?  
+
+         
+
+        Pre-tokenization ： tokenizer 不能单独在原始文本上进行训练。相反，我们首先需要将文本拆分为小的单元，例如单词。这就是 pre-tokenization 步骤。基于单词的 tokenizer 可以简单地基于空白和标点符号将原始文本拆分为单词。这些词将是 tokenizer 在训练期间可以学习的子词边界。
+
+        backend_tokenizer 的 pre_tokenizer 属性可以获取执行 pre-tokenization 的 pre_tokenizer 。而 pre_tokenizer 的 pre_tokenize_str() 方法执行 pre-tokenization 。
+
+         
+
+         xxxxxxxxxx 
+
+         from transformers import AutoTokenizer  
+
+          
+
+         tokenizer = AutoTokenizer . from_pretrained ( "bert-base-uncased" ) 
+
+         print ( type ( tokenizer . backend_tokenizer )) 
+
+         # <class 'tokenizers.Tokenizer'>  
+
+          
+
+         pre_tokenizer = tokenizer . backend_tokenizer . pre_tokenizer  
+
+         print ( pre_tokenizer . pre_tokenize_str ( "hello how are u?" )) # are 和 u 之间是双空格  
+
+         # [('hello', (0, 5)), ('how', (6, 9)), ('are', (10, 13)), ('u', (15, 16)), ('?', (16, 17))]  
+
+         
+
+        请注意 tokenizer 如何跟踪单词的偏移量。
+
+        由于我们使用的是 BERT tokenizer ， pre_tokenizer 涉及对空格和标点符号进行拆分。而其他 tokenizer 可以有不同的规则。例如， GPT-2 tokenizer 和 T5 tokenizer ：
+
+         
+
+         xxxxxxxxxx 
+
+         AutoTokenizer . from_pretrained ( "gpt2" ). backend_tokenizer . pre_tokenizer . pre_tokenize_str ( "hello how are u?" )   # are 和 u 之间是双空格  
+
+         # [('hello', (0, 5)),  
+
+         # ('Ġhow', (5, 9)),  
+
+         # ('Ġare', (9, 13)),  
+
+         # ('Ġ', (13, 14)),  
+
+         # ('Ġu', (14, 16)),  
+
+         # ('?', (16, 17))]  
+
+         AutoTokenizer . from_pretrained ( "t5-small" ). backend_tokenizer . pre_tokenizer . pre_tokenize_str ( "hello how are u?" )   # are 和 u 之间是双空格  
+
+         # [('▁hello', (0, 5)), ('▁how', (6, 9)), ('▁are', (10, 13)), ('▁u?', (15, 17))]  
+
+         
+
+        GPT-2 tokenizer 也会在空格和标点符号上拆分，但它会保留空格并将它们替换为 Ġ 符号。注意，与 BERT tokenizer 不同， GPT-2 tokenizer 不会忽略双空格。
+
+        与 GPT-2 tokenizer 一样， T-5 tokenizer 保留空格并用特定 token （即 "_" ）替换它们。但是， T-5 tokenizer 只在空格上拆分，而不拆分标点符号。注意， T-5 tokenizer 默认在句子的开头添加了一个空格（即， _hello ），并忽略了 are 和 u 之间的双空格。
+
+        Model ：执行 tokenization 从而生成 token 序列。
+
+        Postprocessor ：针对具体的任务插入 special token ，以及生成 attention mask 和 token-type ID 。
+
+    Tokenizers 库 旨在为每个步骤提供多个选项，从而方便用于自由地组合。
+
+3.1 Normalizers
+
+    class tokenizers.normalizers.Normalizer ：所有 normalizer 的基类。
+
+    方法：
+
+        normalize(normalized) ：执行标准化（原地操作）。如果你仅仅想知道在原始字符串上执行标准化的结果，建议使用 normalize_str() 。
+
+        参数： normalized ，被执行标准化的字符串。
+
+        normalize_str(sequence) -> str ：执行标准化，返回标准化后的字符串。
+
+        参数： sequence ，被执行标准化的字符串。
+
+    class tokenizers.normalizers.BertNormalizer ： Bert normalizer ，包括清理文本（移除控制字符并替代以空格）、移除重音、处理中文字符（中文字符周围添加空格）、字母转小写。
+
+     
+
+     xxxxxxxxxx 
+
+     class tokenizers . normalizers . BertNormalizer ( clean_text = True , handle_chinese_chars = True , strip_accents = None , lowercase = True ) 
+
+     
+
+    其它的一些 normalizer ：
+
+     
+
+     xxxxxxxxxx 
+
+     class tokenizers . normalizers . Lowercase () # Lowercase Normalizer  
+
+     class tokenizers . normalizers . NFC () # NFC Unicode Normalizer  
+
+     class tokenizers . normalizers . NFD () # NFD Unicode Normalizer  
+
+     class tokenizers . normalizers . NFKC () # NFKC Unicode Normalizer  
+
+     class tokenizers . normalizers . NFKD () # NFKD Unicode Normalizer  
+
+     class tokenizers . normalizers . Nmt () # Nmt normalizer  
+
+     class tokenizers . normalizers . StripAccents () # StripAccents normalizer  
+
+     class tokenizers . normalizers . Strip ( left = True , right = True ) # Strip normalizer  
+
+     class tokenizers . normalizers . Replace ( pattern , content ) # Replace normalizer  
+
+     
+
+    class tokenizers.normalizers.Sequence(normalizers) ：将一组 normalizer 拼成一个序列，以给定的顺序依次执行各个 normalizer 。
+
+    示例：
+
+     
+
+     xxxxxxxxxx 
+
+     normalizer_map = { 
+
+         'BertNormalizer()' : BertNormalizer (), 
+
+         'Lowercase()' : Lowercase (), 
+
+         'NFC()' : NFC (), 
+
+         'NFD()' : NFD (), 
+
+         'NFKC()' : NFKC (), 
+
+         'NFKD()' : NFKD (), 
+
+         'Nmt()' : Nmt (), 
+
+         'StripAccents()' : StripAccents (), 
+
+         'Strip()' : Strip (), 
+
+         "Replace('I','you')" : Replace ( 'I' , 'you' ), 
+
+     } 
+
+     string = " Héllò, I like play football "  
+
+     for ( name , normalizer ) in normalizer_map . items (): 
+
+         normalized_str = normalizer . normalize_str ( string ) 
+
+         print ( "%s -> '%s'" % ( name , normalized_str )) 
+
+     # BertNormalizer() -> ' hello, i like play football '  
+
+     # Lowercase() -> ' héllò, i like play football '  
+
+     # NFC() -> ' Héllò, I like play football '  
+
+     # NFD() -> ' Héllò, I like play football '  
+
+     # NFKC() -> ' Héllò, I like play football '  
+
+     # NFKD() -> ' Héllò, I like play football '  
+
+     # Nmt() -> ' Héllò, I like play football '  
+
+     # StripAccents() -> ' Héllò, I like play football '  
+
+     # Strip() -> 'Héllò, I like play football'  
+
+     # Replace('I','you') -> ' Héllò, you like play football '  
+
+     
+
+3.2 Pre-tokenizers
+
+    class tokenizers.pre_tokenizers.PreTokenizer() ：所有 pre-tokenizer 的基类。
+
+    方法：
+
+        pre_tokenize(pretok) ：执行 pre-tokenize （原地操作）。如果你仅仅想知道在原始字符串上执行 pre-tokenize 的结果，建议使用 pre_tokenize_str() 。
+
+        参数： pretok ，被执行标准化的字符串。
+
+        pre_tokenize_str(sequence) -> List[Tuple[str, Offsets]] ：执行 pre-tokenize ，返回结果字符串序列以及每个结果的偏移量。
+
+        参数： sequence ，被执行 pre-tokenize 的字符串。
+
+    class tokenizers.pre_tokenizers.BertPreTokenizer() ： BertPreTokenizer ，在每个空格和标点符号上拆分。每个标点符号被视为一个独立的单元。
+
+    class tokenizers.pre_tokenizers.ByteLevel(add_prefix_space = True, use_regex = True) ： ByteLevel PreTokenizer ，将给定字符串的所有字节替换为相应的表示并拆分为单词。
+
+    参数：
+        add_prefix_space ：是否在第一个单词前面添加空格，如果第一个单词前面目前还没有空格。
+        use_regex ：如果为 False 则阻止该 pre_tokenizer 使用 GPT2 的正则表达式来在空格上拆分。 
+
+    方法：
+        alphabet() -> List[str] ：返回所有字母组成的字符的列表。由于 ByteLevel PreTokenizer 作用在 byte level ，因此字母表里有 256 个不同的字符。 
+
+    class tokenizers.pre_tokenizers.CharDelimiterSplit(delimiter) ： CharDelimiterSplit ，简单地在给定的 char 上拆分，类似于 .split(delimiter) 。
+
+    参数： delimiter ：一个字符，指定拆分的分隔符。
+
+    class tokenizers.pre_tokenizers.Digits(individual_digits = False) ： Digits ，利用数字来拆分。
+
+    参数： individual_digits ，一个布尔值，如果为 True 则每个数字都单独处理（如 "123" 被拆分为 "1", "2", "3" ）；否则数字被整体处理（如 "123" 被视为一个整体）。
+
+    class tokenizers.pre_tokenizers.Metaspace(replacement = '_', add_prefix_space = True ) ： Metaspace pre-tokenizer ，用给定的 replacement 字符来代替任意空白符，并在空白符上执行拆分。
+
+    参数：
+        replacement ：一个字符串，指定替换字符，必须只有一个字符。默认为 SentencePiece 中的配置。
+        add_prefix_space ：一个布尔值，是否在首个单词之前没有空格的时候添加一个空格。 
+
+    class tokenizers.pre_tokenizers.Punctuation( behavior = 'isolated' ) ： Punctuation pre-tokenizer ，在标点符号上进行拆分。
+
+    参数： behavior ：指定拆分之后如何处理标点符号。可以为 "removed", "isolated", "merged_with_previous", "merged_with_next", "contiguous" 。
+
+    class tokenizers.pre_tokenizers.Split( pattern, behavior, invert = False ) ： Split PreTokenizer ，基于指定的模式和行为来拆分。
+
+    参数：
+        pattern ：一个字符串或正则表达式，指定拆分模式。
+        behavior ：一个字符串，指定拆分之后如何处理这个模式。可以为 "removed", "isolated", "merged_with_previous", "merged_with_next", "contiguous" 。
+        invert ：一个布尔值，指定是否翻转 pattern 。 
+
+    class class tokenizers.pre_tokenizers.UnicodeScripts() ：这个 pre-tokenizer 在不同的 language family 上进行拆分。遵从 SentencePiece Unigram 的实现。
+
+    class tokenizers.pre_tokenizers.Whitespace() ：这个 pre-tokenizer 在使用如下的正则表达式进行拆分： \w+|[^\w\s]+ 。
+
+    class tokenizers.pre_tokenizers.WhitespaceSplit() ：这个 pre-tokenizer 在空格上拆分，类似于 .split() 。
+
+    示例：
+
+     
+
+     xxxxxxxxxx 
+
+     pre_tokenizer_map = { 
+
+         'BertPreTokenizer()' : BertPreTokenizer (), 
+
+         'ByteLevel()' : ByteLevel (), 
+
+         "CharDelimiterSplit('n')" : CharDelimiterSplit ( 'n' ), 
+
+         'Digits()' : Digits (), 
+
+         'Metaspace()' : Metaspace (), 
+
+         'Punctuation()' : Punctuation (), 
+
+         "Split('e','isolated')" : Split ( 'e' , 'isolated' ), 
+
+         'UnicodeScripts()' : UnicodeScripts (), 
+
+         'Whitespace()' : Whitespace (), 
+
+         "WhitespaceSplit()" : WhitespaceSplit (), 
+
+     } 
+
+     string = "English line; 中文的；And 123456."  
+
+     for ( name , pre_tokenizer ) in pre_tokenizer_map . items (): 
+
+         pre_tokenized_str = pre_tokenizer . pre_tokenize_str ( string ) 
+
+         print ( "%s -> '%s'" % ( name , pre_tokenized_str )) 
+
+         
+
+     # BertPreTokenizer() -> '[('English', (0, 7)), ('line', (8, 12)), (';', (12, 13)), ('中文的', (14, 17)), ('；', (17, 18)), ('And', (18, 21)), ('123456', (22, 28)), ('.', (28, 29))]'  
+
+     # ByteLevel() -> '[('ĠEnglish', (0, 7)), ('Ġline', (7, 12)), (';', (12, 13)), ('Ġä¸ŃæĸĩçļĦ', (13, 17)), ('ï¼Ľ', (17, 18)), ('And', (18, 21)), ('Ġ123456', (21, 28)), ('.', (28, 29))]'  
+
+     # CharDelimiterSplit('n') -> '[('E', (0, 1)), ('glish li', (2, 10)), ('e; 中文的；A', (11, 19)), ('d 123456.', (20, 29))]'  
+
+     # Digits() -> '[('English line; 中文的；And ', (0, 22)), ('123456', (22, 28)), ('.', (28, 29))]'  
+
+     # Metaspace() -> '[('▁English', (0, 7)), ('▁line;', (7, 13)), ('▁中文的；And', (13, 21)), ('▁123456.', (21, 29))]'  
+
+     # Punctuation() -> '[('English line', (0, 12)), (';', (12, 13)), (' 中文的', (13, 17)), ('；', (17, 18)), ('And 123456', (18, 28)), ('.', (28, 29))]'  
+
+     # Split('e','isolated') -> '[('English lin', (0, 11)), ('e', (11, 12)), ('; 中文的；And 123456.', (12, 29))]'  
+
+     # UnicodeScripts() -> '[('English line', (0, 12)), ('; ', (12, 14)), ('中文的', (14, 17)), ('；', (17, 18)), ('And ', (18, 22)), ('123456.', (22, 29))]'  
+
+     # Whitespace() -> '[('English', (0, 7)), ('line', (8, 12)), (';', (12, 13)), ('中文的', (14, 17)), ('；', (17, 18)), ('And', (18, 21)), ('123456', (22, 28)), ('.', (28, 29))]'  
+
+     # WhitespaceSplit() -> '[('English', (0, 7)), ('line;', (8, 13)), ('中文的；And', (14, 21)), ('123456.', (22, 29))]'  
+
+     
+
+3.3 Models
+
+    class tokenizers.models.Model() ：所有 Model 的基类。
+
+    每个 model 代表一个实际的 tokenization 算法。
+
+    方法：
+
+        get_trainer() -> Trainer ：返回关联的 Trainer ，该 Trainer 用于训练该 model 。
+
+        id_to_token(id) -> str ：返回 id 关联的 token 字符串。
+
+        参数： id ：待转换的 ID 。
+
+        token_to_id(token) -> int ：返回 token 字符串关联的整数 id 。
+
+        参数： token ：待转换的 token 字符串。
+
+        tokenize( sequence ) -> A List of Token ：把给定的字符串执行 tokenize ，返回一个 token 序列。
+
+        参数： sequence ：一个字符串。
+
+        save( folder, prefix) -> List[str] ：在指定的目录中保存 model 。其中被创建的文件使用指定的前缀。如果目录中已有同名的文件，则直接覆盖同名文件。
+
+        参数：
+            folder ：模型保存的目录。
+            prefix ：一个字符串，指定被保存的各种文件的文件名前缀。 
+
+        返回值：一个字符串列表，表示被保存的各种文件的文件名。
+
+    class tokenizers.models.BPE ： BPE 模型。
+
+     
+
+     xxxxxxxxxx 
+
+     class tokenizers . models . BPE ( vocab = None , merges = None , cache_capacity = None , dropout = None , unk_token = None , continuing_subword_prefix = None , end_of_word_suffix = None , fuse_unk = None ) 
+
+     
+
+    参数：
+        vocab ：一个字典 Dict[str, int] ，指定字符串 key 及其 id ，表示词表。
+        merges ： token pair 的列表 List[Tuple[str, str]] ，表示 merge 规则。
+        cache_capacity ：一个整数，指定 BPE cache 包含的单词数量。 BPE cache 能够通过保存多个单词的 merge 操作的结果来加速该过程。
+        dropout ：一个浮点数，指定 BPE dropout 比例。取值在 0.0 ~ 1.0 之间。
+        unk_token ：一个字符串，指定 unknown token 。
+        continuing_subword_prefix ：一个字符串，指定当该子词不是单词的首个子词时，子词的前缀，。
+        end_of_word_suffix ：一个字符串，指定当该子词是单词的最后一个子词时，子词的后缀。
+        fuse_unk ：一个布尔值，指定是否将连续的多个 unknown token 合并为单个 unknown token 。 
+
+    方法：
+
+        from_file( vocab, merges, **kwargs) -> BPE ：从文件中初始化一个 BPE 。
+
+        参数：
+            vocab ： vocab.json 文件的路径。
+            merges ： merges.txt 文件的路径。 
+
+        该方法等价于：
+
+         
+
+         xxxxxxxxxx 
+
+         vocab , merges = BPE . read_file ( vocab_filename , merges_filename ) 
+
+         bpe = BPE ( vocab , merges ) 
+
+         
+
+        read_file( vocab, merges) -> A Tuple ：从文件中加载词表和 merge 规则。
+
+        参数：参考 from_file() 。
+
+    class tokenizers.models.Unigram( vocab ) ： Unigram 模型。
+
+    参数：
+        vocab ：由字符串和浮点数组成的元组的列表 List[Tuple[str, float]] ，指定 token 及其 score ，如 [("am", -0.2442), ...] 
+
+    class tokenizers.models.WordLevel( vocab, unk_token ) ： WordLevel 模型。
+
+    参数：参考 BPE 模型。
+
+    方法：
+
+        from_file( vocab, un_token) -> WordLevel ：从文件中初始化一个 WordLevel 。
+
+        参数：
+            vocab ： vocab.json 文件的路径。
+            un_token ：一个字符串，指定 unknown token 。 
+
+        read_file(vocab) -> Dict[str, int] ：从文件中读取词表。
+
+        参数：参考 from_file 。
+
+    class tokenizers.models.WordPiece( vocab, unk_token, max_input_chars_per_word) ： WordPiece 模型。
+
+    参数：
+        vocab ：一个字典 Dict[str, int] ，指定字符串 key 及其 id ，表示词表。
+        unk_token ：一个字符串，指定 unknown token 。
+        max_input_chars_per_word ：一个整数，指定一个单词中允许的最大字符数。 
+
+    方法：
+
+        from_file(vocab, **kwargs) -> WordPiece ：从文件中初始化一个 WordPiece 。
+
+        参数： vocab ： vocab.json 文件的路径。
+
+        read_file(vocab) -> Dict[Str, int] ：从文件中读取词表。
+
+        参数：参考 from_file 。
+
+3.4 Trainers
+
+    class tokenizers.trainers.BpeTrainer ： BPE Trainer ，用于训练 BPE 模型。
+
+     
+
+     xxxxxxxxxx 
+
+     class tokenizers . trainers . BpeTrainer ( vocab_size = 30000 , min_frequency = 0 , show_progress = True , special_tokens = [], limit_alphabet = None , initial_alphabet = [], continuing_subword_prefix = None , end_of_word_suffix = None ) 
+
+     
+
+    参数：
+        vocab_size ：一个整数，表示 final vocabulary 大小，包括所有的 token 和字母表 alphabet 。
+        min_frequency ：一个整数，表示一个 pair 的频次至少为多少时才考虑被 merge 。
+        show_progress ：一个布尔值，指定在训练期间是否展示进度条。
+        special_tokens ：一个字符串列表，指定 special token 。
+        limit_alphabet ：一个整数，指定字母表中最多保持多少个不同的字符。
+        initial_alphabet ：一个字符串列表，指定初始的字母表。如果字符串包含多个字符，那么仅考虑首个字符。这个字母表可以包含训练数据集中不存在的字符。
+        continuing_subword_prefix ：一个字符串，如果子词不是单词的首个子词，那么添加这个前缀。
+        end_of_word_suffix ：一个字符串，如果子词是单词的末尾子词，那么添加这个后缀。 
+
+    class tokenizers.trainers.UnigramTrainer ： Unigram Trainer ，用于训练 Unigram 模型。
+
+     
+
+     xxxxxxxxxx 
+
+     class UnigramTrainer ( vocab_size = 8000 , show_progress = True , special_tokens = [], shrinking_factor = 0.75 , unk_token = None , max_piece_length = 16 , n_sub_iterations = 2 ) 
+
+     
+
+    参数：
+        vocab_size, show_progress, special_tokens ：参考 BpeTrainer 。
+        shrinking_factor ：一个浮点数，指定在训练的每个 step 需要对词表规模缩放多少比例（即，保留 top 的多少）。
+        unk_token ：一个字符串，指定 unknown token 。
+        max_piece_length ：一个整数，指定 token 的最大长度（字符个数）。
+        n_sub_iterations ：一个整数，指定裁剪词表之前执行 EM 算法的迭代次数。 
+
+    class tokenizers.trainers.WordLevelTrainer ： WordLevel Trainer ，用于训练 WordLevel 模型。
+
+     
+
+     xxxxxxxxxx 
+
+     class tokenizers . trainers . WordLevelTrainer ( vocab_size = 30000 , min_frequency = 0 , show_progress = True , special_tokens = []) 
+
+     
+
+    参数：参考 BpeTrainer 。
+
+    class tokenizers.trainers.WordPieceTrainer ： WordPiece Trainer ，用于训练 WordPiece 模型。
+
+     
+
+     xxxxxxxxxx 
+
+     class   WordPieceTrainer ( vocab_size = 30000 , min_frequency = 0 , show_progress = True , special_tokens = [], limit_alphabet = None , initial_alphabet = [], continuing_subword_prefix = '##' , end_of_word_suffix = None ) 
+
+     
+
+    参数：参考 BpeTrainer 。
+
+3.5 Post-processors
+
+    class tokenizers.processors.BertProcessing( sep, cls) ： BERT 的 Post-processor 。
+
+    参数：
+        sep ：一个 (str, int) 的元组，给出 [SEP] token 及其 id 。
+        cls ：一个 (str, int) 的元组，给出 [CLS] token 及其 id 。 
+
+    方法：
+
+        num_special_tokens_to_add(is_pair) ：返回需要添加到 single/pair 句子的 special token 的数量。
+
+        参数： is_pair ：一个布尔值，指定预期的输入是单个句子还是句子对。
+
+        process(encoding, pair=None, add_special_tokens=True) ：对指定的 encoding 执行后处理。
+
+        参数：
+            encoding ：单个句子的 encoding ，类型为 tokenizer.Encoding 。
+            pair ：一对句子的 encoding ，类型为 tokenizer.Encoding 。
+            add_special_tokens ：一个布尔值，指定是否添加 special token 。 
+
+    BertProcessing 会把 [SEP] token 和 [CLS] token 添加到被 tokenized 的 token 序列中。
+
+    class tokenizers.processors.ByteLevel( trim_offsets = True) ： ByteLevel BPE 的 Post-processor 。
+
+    参数：
+        trim_offsets ：一个布尔值，是否从生成的 offsets 中移除空格。 
+
+    方法：参考 BertProcessing 。
+
+    这个 Post-processor 会小心地裁剪 offsets 。默认情况下， ByteLevel BPE 可能会在生成的 token 中包含空格。如果你不希望 offsets 中包含这些空格，则可以使用这个 Post-processor 。
+
+    class tokenizers.processors.RobertaProcessing( sep, cls, trim_offsets=True, add_prefix_space=True) ： Roberta 的 Post-processor 。
+
+    参数：
+        sep,cls ：参考 BertProcessing 。
+        trim_offsets ：参考 ByteLevel 。
+        add_prefix_space ：一个布尔值，指定是否在 pre-tokenization 阶段启用了 add_prefix_space 。这个参数是为了配合 trim_offsets 使用。 
+
+    方法：参考 BertProcessing 。
+
+    class tokenizers.processors.TemplateProcessing(single, pair, special_tokens) ：这是一个 Post-processor 的模板，以便将 special token 添加到相关的每个输入序列。、
+
+    参数：
+
+        single ：一个模板字符串或模板字符串列表，用于单个输入序列。如果是字符串，那么使用空格来拆分 token 。
+
+        pair ：一个模板字符串或模板字符串列表，用于一对输入序列。如果是字符串，那么使用空格来拆分 token 。
+
+        模板的标准格式为 <identifier>(:<type_id>) 。
+            模板中可以基于 type_id 来占位，如 "[CLS] $0, $1, $2 [SEP]" ，此时 identifier 默认为 A 。
+            模板中也可以基于 sequence identifier 来占位，如 "[CLS] $A, $B [SEP]" ，此时 type_id 默认为 0 。
+            模板中也可以同时使用 type_id 和 sequence 来占位，如 "[CLS] $A:0 [SEP]" 。 
+
+        special_tokens ：一个元组序列，指定每个模板字符串使用的 special token 及其 id 。
+
+        或者是一个字典，键包括： "id" ，指定 special token id ； "ids" ，指定关联的 ID ； "tokens" ：指定关联的 token 。
+
+    方法：参考 BertProcessing 。
+
+    以 BERT tokenizer 为例，它需要两个 special token ： [CLS] （用于第一个句子的开头）、 [SEP] （用于每个句子的结尾）。最终结果看起来如下所示：
+
+     
+
+     xxxxxxxxxx 
+
+     "[CLS] Hello there [SEP]"   # 单个输入序列  
+
+     "[CLS] My name is Anthony [SEP] What is my name? [SEP]" # 一对输入序列  
+
+     
+
+    其中这一对输入序列的 type-id 如下：
+
+     
+
+     xxxxxxxxxx 
+
+     [ CLS ]   ...   [ SEP ]   ...   [ SEP ] 
+
+     0       0       0       1       1  
+
+     
+
+    此时可以应用 TemplateProcessing 为：
+
+     
+
+     xxxxxxxxxx 
+
+     TemplateProcessing ( 
+
+         single = "[CLS] $0 [SEP]" , 
+
+         pair = "[CLS] $A [SEP] $B:1 [SEP]:1" , 
+
+         special_tokens = [( "[CLS]" , 1 ), ( "[SEP]" , 0 )], 
+
+     ) 
+
+     
+
+    注意： [SEP]:1 表示最后一个 [SEP] 的 type_id = 1 。
+
+3.6 Decoders
+
+    class tokenizers.decoders.BPEDecoder(suffix = '</w>') ： BPE 解码器。
+
+    参数： suffix ：一个字符串，用来表示单词结尾的后缀。在解码过程中，这个后缀将被替换为空格。
+
+    方法：
+        decode(tokens) ：解码给定的 token 列表，返回解码后的字符串。 
+
+    class tokenizers.decoders.ByteLevel() ： ByteLevel 解码器，用于 ByteLevel PreTokenizer 配合使用。
+
+    方法：参考 BPEDecoder 。
+
+    class tokenizers.decoders.CTC( pad_token = '<pad>', word_delimiter_token = '|', cleanup = True) ： CTC 解码器。
+
+    参数：
+        pad_token ：一个字符串，由 CTC 使用来分隔一个新的 token 。
+        word_delimiter_token ：一个字符串，表示单词的分隔符 token ，它将被空格符替代。
+        cleanup ：一个字符串，指定是否清理一些人工增加的 token ，如标点符号之前的空格。 
+
+    方法：参考 BPEDecoder 。
+
+    class tokenizers.decoders.Metaspace(replacement='▁', add_prefix_space =True) ： Metaspace 解码器。
+
+    参数：
+        replacement ：一个字符串，指定编码时的替换字符（必须为单个字符）。默认为 '▁' （ U+2581 ），被 SentencePiece 所使用。
+        add_prefix_space ：一个布尔值，指定编码时是否启用了 add_prefix_space 。 
+
+    方法：参考 BPEDecoder 。
+
+    class tokenizers.decoders.WordPiece(prefix='##', cleanup=True) ： WordPiece 编码器。
+
+    参数：
+        prefix ：一个字符串，指定编码时的 prefix 。
+        cleanup ：一个布尔值，指定是否清理一些人工增加的 token ，如标点符号之前的空格。 
+
+    方法：参考 BPEDecoder 。
+
+3.7 Tokenizer
+
+    class tokenizers.Tokenizer(model) ： Tokenizer ，它处理原始文本输入并输出一个 Encoding 对象。
+
+    参数：
+        model ：一个 Model 对象，代表 Tokenizer 使用到的核心算法，如 tokenizers.models.BPE 等等。 
+
+    属性：
+
+        decoder ：一个 Decoder 对象，代表 Tokenizer 使用到的解码器，如 tokenizers.decoders.BPEDecoder 。
+
+        model ：一个 Model 对象，代表 Tokenizer 使用到的核心算法。
+
+        normalizer ：一个 Normalizer 对象，用于对输入进行标准化。
+
+        padding ：一个字典，如果开启 padding ，则它给出当前的 padding 参数。
+
+        该属性无法被 set ，可以用 enable_padding() 来开启。
+
+        post_processor ：一个 PostProcessor 对象，用于后处理。
+
+        pre_tokenizer ：一个 PreTokenizer 对象，用于前处理。
+
+        truncation ：一个字典，如果开启 truncation ，则它给出当前的 truncation 参数。
+
+        该属性无法被 set ，可以用 enable_truncation() 来开启。
+
+    方法：
+
+        add_special_tokens(tokens) -> int ：添加指定的 special token 到 Tokenizer 。
+
+        参数： tokens ：一个字符串列表或 AddedToken 列表，指定被添加的 special token 。这些 special token 被添加到词表。
+
+        返回值：词表中被新增的 token 数量。如果 special token 已经位于词表中，那么它就不是新增的了。
+
+        这些 special token 不会被 model 处理（即，不会被拆分为多个 token ），并且在解码期间从输出中被删除。
+
+        add_tokens(tokens) -> int ：添加指定的 token 到 Tokenizer 。
+
+        参数和返回值：参考 add_special_tokens 。
+
+        这些 token 不会被 model 处理（即，不会被拆分为多个 token ）。
+
+        decode( ids, skip_special_tokens = True) -> str ：解码得到字符串。
+
+        参数：
+            ids ：一个整数序列，表示待解码的 token id 。
+            skip_special_tokens ：一个布尔值，指定是否从解码结果中移除 special token 。 
+
+        decode_batch( sequences, skip_special_tokens = True) -> List[str] ：解码一个 batch 的字符串。
+
+        参数：
+            sequences ：一个 batch 的整数序列，表示待解码的 token id 。
+            skip_special_tokens ：参考 decode 。 
+
+        enable_padding(direction = 'right', pad_id = 0, pad_type_id = 0, pad_token = '[PAD]', length = None, pad_to_multiple_of = None) ：启用 padding 功能。
+
+        参数：
+            direction ：一个字符串，指定填充方式，可以是左填充 'left' 或右填充 'right' 。
+            pad_id ：一个整数，指定 pad token 的 id 。
+            pad_token ：一个字符串，指定 pad token 字符串。
+            length ：一个整数，指定填充后的字符串长度。如果为 None ，则选择 batch 中的最长序列的长度。
+            pad_to_multiple_of ：一个整数，假设为 n ，那么填充后的长度与 2 n 对齐。例如， length=250 ，但是 pad_to_multiple_of=8 ，那么将填充到长度为 256 。 
+
+        enable_truncation( max_length, stride=0, strategy = 'longest_first', direction='right') ：启用 truncation 功能。
+
+        参数：
+
+            max_length ：一个整数，指定截断后的字符串长度。
+
+            stride ：一个整数，指定在溢出序列中，需要包含前一个序列的长度。
+
+            溢出序列指的是被截断后的尾部序列。如 abcdefg ，截断长度为 4 ， stride=2 ，那么截断方式为： abcd, cdef, efg 。
+
+            strategy ：一个字符串，指定截断的策略。可以为： "longest_first" 、 "only_first " 、 "only_second" 。
+
+            其中 "only_first " 、 "only_second" 用于句子对，仅对第一个句子或第二个句子进行截断。
+
+            direction ：一个字符串，指定截断方向。可以为： "left" 、 "right" 。
+
+        encode(sequence, pair = None, is_pretokenized = False, add_special_tokens = True) -> Encoding ：编码指定的句子或句子对，返回编码结果。
+
+        参数：
+            sequence ：一个 InputSequence 对象，指定输入的句子。如果 is_pretokenized =True ，那么 sequence 是 PreTokenizedInputSequence 对象；否则是 TextInputSequence 对象。
+            pair ：一个 InputSequence 对象，指定输入的句子 pair 。如果 is_pretokenized =True ，那么 sequence 是 PreTokenizedInputSequence 对象；否则是 TextInputSequence 对象。
+            is_pretokenized ：一个布尔值，指定输入是否已经被 pre-tokenized 。
+            add_special_tokens ：一个布尔值，指定是否添加 special token 。 
+
+        encode_batch(input, is_pretokenized = False, add_special_tokens = True) -> List[Encoding] ：编码一个 batch 的句子或句子对，返回编码结果。
+
+        参数：
+            input ： TextInputSequence 或者 PreTokenizedInputSequence 的一个列表。参考 encode() 。
+            is_pretokenized/add_special_tokens ：参考 encode() 。 
+
+        from_buffer( buffer ) -> Tokenizer ：从 buffer 中创建并返回一个 Tokenizer 。
+
+        参数： buffer ：一个 bytes ，包含了已经序列化好的 Tokenizer 。
+
+        from_file( path) -> Tokenizer ：从文件中创建并返回一个 Tokenizer 。
+
+        参数： path ：一个本地 JSON 文件，包含了已经序列化好的 Tokenizer 。
+
+        from_pretrained(identifier, revision = 'main', auth_token = None) -> Tokenizer ：从 Hugging Face Hub 上的已有文件来创建并返回一个 Tokenizer 。
+
+        参数：
+            identifier ：一个字符串，用于指定 Hugging Face Hub 上的一个模型，它包含一个 tokenizer.json 文件。
+            revision ：指定选择 Hugging Face Hub 上的模型的哪个 git branch 或者 git commit id 。
+            auth_token ：一个字符串，指定 auth token 从而用于访问 Hugging Face Hub 上的私有 repository 。 
+
+        from_str(json) -> Tokenizer ：从字符串中创建并返回一个 Tokenizer 。
+
+        参数： json ：一个有效的 JSON 字符串，表示已经序列化好的 Tokenizer 。
+
+        get_vocab( with_added_tokens = True) -> Dict[str, int] ：返回词表（ token 及其 id ）。
+
+        参数：
+            with_added_tokens ：一个布尔值，指定是否包含 added token 。 
+
+        get_vocab_size( with_added_tokens = True) ->int ：返回词表的大小。
+
+        参数：参考 get_vocab() 。
+
+        id_to_token(id) -> str ：将 id 转换回字符串。如果 id 不在词表中，则返回 None 。
+
+        参数： id ：一个整数，表示要转换的 id 。
+
+        no_padding() ：关闭 padding 。
+
+        no_truncation() ：关闭 truncation 。
+
+        num_special_tokens_to_add( is_pair) ：返回预期要添加到单个句子或者句子对中的 special token 的数量。
+
+        参数： is_pair ：一个布尔值，表示要计算单个句子的还是句子对的 special token 数量。
+
+        post_process(encoding, pair = None, add_special_tokens = True ) -> Encoding ： final 后处理。
+
+        参数：
+            encoding ：一个 Encoding 对象，表示对单个句子的编码结果。
+            pair ：一个 Encoding 对象，表示对句子对的编码结果。
+            add_special_tokens ：一个布尔值，指定是否添加 special token 。 
+
+        后处理步骤包括：
+            根据 truncation 参数执行截断（根据 enable_truncation() 来开启）。
+            应用 PostProcessor 。
+            根据 padding 参数执行填充（根据 enable_padding() 来开启）。 
+
+        save(path, pretty=True) ：将 Tokenizer 保存到指定路径的文件。
+
+        参数：
+            path ：一个字符串，指定保存文件的路径。
+            pretty ：一个布尔值，指定保存的 JSON 文件是否需要被 pretty formated 。 
+
+        to_str(pretty = False) -> str ：返回一个字符串代表被序列化的 Tokenizer 。
+
+        token_to_id(token) -> int ：将给定的 token 转换为对应的 id 。如果 token 不在词表中，则返回 None 。
+
+        参数： token ：一个字符串，指定待转换的 token 。
+
+        train(files, trainer = None) ：利用给定的文件来训练 Tokenizer 。
+
+        参数：
+            files ：一个字符串列表，指定用于训练 Tokenizer 的文件路径。
+            trainer ：一个 Trainer 对象，指定用于训练 Model 的 trainer 。 
+
+        该方法从文件中一行一行地读取，保留所有的空格和换行符。
+
+        train_from_iterator(iterator, trainer=None, length=None) ：利用给定的迭代器来训练 Tokenizer 。
+
+        参数：
+            iterator ：一个 Iterator 对象，对它迭代的结果返回字符串或者字符串列表。
+            trainer ：一个 Trainer 对象，指定用于训练 Model 的 trainer 。
+            length ：一个整数，指定 iterator 中的序列数量，这用于提供有意义的进度跟踪。 
+
+    tokenizers.InputSequence ：代表所有类型的输入序列，作为 Tokenizer 的输入。
+
+    如果 is_pretokenized=False ，则为 TextInputSequence ；如果 is_pretokenized=True ，则为 PreTokenizedInputSequence 。
+
+        tokenizers.TextInputSequence ：一个字符串，代表一个输入序列。
+
+        TextInputSequence 就是 str 的别名。
+
+        tokenizers.PreTokenizedInputSequence ：一个 pre-tokenized 的输入序列，可以为一个字符串列表、或者一个字符串元组。
+
+        PreTokenizedInputSequence 是 Union[List[str], Tuple[str]] 的别名。
+
+    tokenizers.EncodeInput ：代表所有类型的、用于 batch 编码的输入序列，作为 Tokenizer 的 batch 编码的输入。
+
+    如果 is_pretokenized=False ，则为 TextEncodeInput ；如果 is_pretokenized=True ，则为 PreTokenizedEncodeInput 。
+
+        tokenizers.TextEncodeInput ：用于编码的文本输入，可以为 TextInputSequence 的一个元组、或者长度为 2 的列表。
+
+        TextEncodeInput 是 Union[str, Tuple[str, str], List[str]] 的别名。
+
+        tokenizers.PreTokenizedEncodeInput ： pre-tokenized 的、用于编码的文本输入。可以为 PreTokenizedInputSequence 的一个序列、或者一对序列（每个元素为 PreTokenizedInputSequence 的元组或者长度为 2 的列表）。
+
+        PreTokenizedEncodeInput 是 Union[List[str], Tuple[str], Tuple[Union[List[str], Tuple[str]], Union[List[str], Tuple[str]]], List[Union[List[str], Tuple[str]]]] 的别名。
+
+    class tokenizers.AddedToken(content, single_word=False, lstrip=False, rstrip=False, normalized=True) ：代表要被添加到 Tokenizer 中的一个 token 。
+
+    参数：
+        content ：一个字符串，指定 token 的内容。
+        single_word ：一个布尔值，指定该 token 是否仅匹配单个 word 。例如，该值为 True 时， "ing" 不会匹配单词 "playing" ；改值为 False 时， "ing" 可以匹配单词 "playing" 。
+        lstrip ：一个布尔值，指定是否移除该 token 的所有左侧空格。
+        rstrip ：一个布尔值，指定是否移除该 token 的所有右侧空格。
+        normalized ：一个布尔值，指定该 token 是否匹配输入文本的 normalized 版本。 
+
+    class tokenizers.Encoding() ： Encoding 代表 Tokenizer 的输出。
+
+    属性：
+
+        attention_mask ：一个整数列表，给出 attention mask ，表示哪些 token 应该被 attended （ 1 对应的） 、哪些不应该被 attended （ 0 对应的）。
+
+        ids ：一个整数列表，给出编码后的 ID 列表。
+
+        n_sequences ：一个整数，返回 Encoding 中包含多少个句子。
+
+        offsets ：元组 (int, int) 的一个列表，指定每个 token 的偏移量（相对于文本开头）。通过这个 offsets 以及给定的文本，你可以获取对应的 token 。
+
+        overflowing ： overflowing Encoding 的一个列表。当使用截断时， Tokenizer 会根据需要将输出分成尽可能多的部分，从而匹配指定的 max length 。这个字段允许你检索所有截断之后的、后续的片段。
+
+        当你使用句子对时， overflowing pieces 将包含足够多的变化，从而覆盖所有可能的组合，同时考虑到所提供的 max length 。
+
+        sequence_ids ：一个整数列表，表示序列的 id （一个序列就是一个句子）。每个 id 代表一个句子并关联到该句子的每个 token 。
+
+        注意，如果 token 属于任何句子（如 special token ），那么它的 sequence_id 为 None 。
+
+        special_token_mask ：一个整数列表，指定哪些 token 是 special token 、哪些不是。
+
+        tokens ：一个字符串列表，表示生成的 token 序列。
+
+        type_ids ：一个整数列表，表示生成的 type ID 。常用于序列分类或问答任务，使得语言模型知道每个 token 来自于哪个输入序列。
+
+            它和 sequence_ids 相同的功能。
+
+        word_ids ：一个整数列表，指定每个单词的位置编号（用于指示哪些 token 是属于同一个单词）。它们表示每个 token 关联的单词的位置。
+
+        如果输入是 pre-tokenized ，那么它们对应于给定的 input label 的 ID ；否则它们对应于所使用的 PreTokenizer 定义的单词索引。
+
+            例如，如果 word_ids = [0,0,0,1] ，那么表明前三个 token 都属于同一个单词，第四个 token 属于另一个单词。
+
+        words ：一个整数的列表，指定生成的单词的索引。将来被废弃，推荐使用 word_ids 属性。
+
+    方法：
+
+        char_to_token(char_pos, sequence_index=0) -> int ：返回包含指定字符的 token 是 token 序列中的第几个 token 。
+
+        参数：
+            char_pos ：一个整数，指定目标字符在输入序列的哪个位置。
+            sequence_index ：一个整数，指定目标字符位于哪个句子。 
+
+        char_to_word(char_pos, sequence_index=0) -> int ：返回包含指定字符是该句子中的第几个单词。
+
+        参数：参考 char_to_token() 。
+
+        merge( encodings, growing_offsets = True ) -> Encoding ：合并 encoding 列表到 final Encoding 。
+
+        参数：
+            encodings ：一个 Encoding 列表，表示待合并的 encoding 。
+            growing_offsets ：一个布尔值，指定合并过程中，偏移量是否需要累加。 
+
+        pad(length, direction = 'right', pad_id = 0, pad_type_id = 0, pad_token = '[PAD]' ) ：将 Encoding 填充到指定长度。
+
+        参数：
+            length ：一个整数，指定要填充到的长度。
+            direction ：一个字符串，指定填充方式，可以是左填充 'left' 或右填充 'right' 。
+            pad_id ：一个整数，指定 pad token 的 id 。
+            pad_type_id ：一个整数，指定 pad token 对应的 type ID 。
+            pad_token ：一个字符串，指定 pad token 字符串。 
+
+        set_sequence_id(sequence_id) ：设定为当前 Encoding 中的所有 token 设置 sequence_id 。
+
+        参数： sequence_id ：一个整数，指定 sequence_id 。
+
+        token_to_chars(token_index) -> Tuple[int, int] ：获取指定 token 的偏移量。通过这个偏移量，我们可以从原始的输入序列中获取到该 token 。
+
+        参数： token_index ：被编码的序列中的 token 的索引。
+
+        token_to_sequence(token_index) -> int ：获取指定 token 的 sequence id 。
+
+        参数： token_index ：被编码的序列中的 token 的索引。
+
+        对于单个句子的输入，返回结果通常是 0 ；对于句子对的输入，如果 token 位于第一个句子则返回 0 ；如果位于第二个句子则返回 1 。
+
+        token_to_word(token_index) -> int ：获取包含指定 token 的单词是该句子中的第几个单词。
+
+        参数： token_index ：被编码的序列中的 token 的索引。
+
+        truncate(max_length, stride=0, direction='right') ：截断 Encoding 到指定的长度。
+
+        参数：
+            max_length ：一个整数，指定要截断到的长度。
+            stride ：一个整数，指定每个 overflowing 片段包含前一个片段的长度（以 token 为基本单位）。
+            direction ：一个字符串，指定截断方向。可以为 'right' 或 'left' 。 
+
+        如果 Encoding 代表多个序列，那么截断之后，这个信息被丢失。结果被认为是单个序列。
+
+        word_to_chars(word_index, sequence_index = 0) -> Tuple(int, int) ：返回指定的单词在原始句子中的区间。
+
+        参数：
+            word_index ：一个整数，指定了目标单词的索引。
+            sequence_index ：一个整数，指定目标单词位于哪个句子。 
+
+        word_to_tokens(word_index, sequence_index = 0) -> Tuple(int, int) ：返回指定的单词在 token 序列中的区间。
+
+        参数：参考 word_to_chars 。
+
+    class tokenizers.tools.Annotation(start: int, end:int, label:str) ：一个 Annotation ，用于可视化。
+
+    参数：
+        start ：一个整数，指定位于字符串中的开始位置。
+        end ：一个整数，指定位于字符串中的结束位置。
+        label ：一个字符串，指定 label 字符串。 
+
+    class tokenizers.tools.EncodingVisualizer(tokenizer: Tokenizer, default_to_notebook: bool = True, annotation_converter:typing.Union[typing.Callable[[typing.Any], tokenizers.tools.visualizer.Annotation], NoneType] = None ) ：构建一个 EncodingVisualizer 。
+
+    参数：
+        tokenizer ：一个 Tokenizer 对象，表示 tokenizer 实例。
+        default_to_notebook ：一个布尔值，指定是否渲染 html 输出从而适配 notebook 。
+        annotation_converter ：一个可调用对象，它通常是一个 lambda 函数，接受一个任意类型的输入并返回一个 Annotation 对象。 
+
+    方法：
+
+        __call__(text: str, annotations: typing.List[tokenizers.tools.visualizer.Annotation] = [], default_to_notebook: typing.Optional[bool] = None ) ：对给定的文本构建一个可视化。
+
+        参数：
+            text ：一个字符串，指定需要被 tokenize 的字符串。
+            annotations ： text 对应的一个列表的注解。可以是一个 Annotation 类，或者通过一个转换函数返回一个 Annotation 。
+            default_to_notebook ：一个布尔值，如果为 True 则渲染 html 字符串到 notebook ；否则直接返回一个 html 字符串。 
+
+四、Tokenizer 库的应用
+4.1 从头开始训练 WordPiece
+
+    代码：
+
+     
+
+     xxxxxxxxxx 
+
+     from tokenizers import pre_tokenizers  
+
+     # 使用 WordPiece 模型  
+
+     model = models . WordPiece ( unk_token = "[UNK]" ) # 未设置 vocab, 因为词表需要从数据中训练  
+
+     tokenizer = Tokenizer ( model ) 
+
+      
+
+     ################# Step1: Normalization ###################  
+
+     tokenizer . normalizer = normalizers . Sequence ( 
+
+       [ normalizers . NFD (),   
+
+         # NFD Unicode normalizer, 否则 StripAccents normalizer 无法正确识别带重音的字符  
+
+         normalizers . Lowercase (),  
+
+         normalizers . StripAccents ()] 
+
+     ) # 这个整体等价于 normalizers.BertNormalizer(lowercase=True)  
+
+      
+
+     print ( tokenizer . normalizer . normalize_str ( "Héllò hôw are ü?" )) 
+
+     # hello how are u?  
+
+      
+
+     ################# Step2: Pre-tokenization ###################  
+
+     tokenizer . pre_tokenizer = pre_tokenizers . Sequence ( 
+
+       [ pre_tokenizers . WhitespaceSplit (),  
+
+         pre_tokenizers . Punctuation ()] 
+
+     ) # 这个整体等价于 pre_tokenizers.BertPreTokenizer()  
+
+      
+
+     print ( tokenizer . pre_tokenizer . pre_tokenize_str ( "This's me ." )) 
+
+     # [('This', (0, 4)), ("'", (4, 5)), ('s', (5, 6)), ('me', (7, 9)), ('.', (11, 12))]  
+
+      
+
+     ################# Step3: Trainer ###################  
+
+     special_tokens = [ "[UNK]" , "[PAD]" , "[CLS]" , "[SEP]" , "[MASK]" ] 
+
+     trainer = trainers . WordPieceTrainer ( vocab_size = 25000 , special_tokens = special_tokens ) 
+
+      
+
+     ################# Step4: dataset ###################  
+
+     from datasets import load_dataset # pip install datasets  
+
+     dataset = load_dataset ( "wikitext" , name = "wikitext-2-raw-v1" , split = "train" ) 
+
+     def get_training_corpus (): 
+
+         for i in range ( 0 , len ( dataset ), 1000 ): 
+
+             yield dataset [ i : i + 1000 ][ "text" ] # batch size = 1000  
+
+      
+
+     ################# Step5: train ####################  
+
+     tokenizer . train_from_iterator ( get_training_corpus (), trainer = trainer ) 
+
+     # tokenizer.train(["wikitext-2.txt"], trainer=trainer) # 也可以从文本文件来训练  
+
+      
+
+     ## 测试训练好的 WordPiece  
+
+     encoding = tokenizer . encode ( "This's me ." ) 
+
+     print ( encoding ) 
+
+     # Encoding(num_tokens=5, attributes=[ids, type_ids, tokens, offsets, attention_mask, special_tokens_mask, overflowing])  
+
+     print ( encoding . ids ) 
+
+     # [1511, 11, 61, 1607, 18]  
+
+     print ( encoding . type_ids ) 
+
+     # [0, 0, 0, 0, 0]  
+
+     print ( encoding . tokens ) 
+
+     # ['this', "'", 's', 'me', '.']  
+
+     print ( encoding . offsets ) 
+
+     # [(0, 4), (4, 5), (5, 6), (7, 9), (11, 12)]  
+
+     print ( encoding . attention_mask ) 
+
+     # [1, 1, 1, 1, 1]  
+
+     print ( encoding . special_tokens_mask ) 
+
+     # [0, 0, 0, 0, 0]  
+
+     print ( encoding . overflowing ) 
+
+     # []  
+
+      
+
+     ################# Step6: Post-Processing ####################  
+
+     cls_token_id = tokenizer . token_to_id ( "[CLS]" ) 
+
+     sep_token_id = tokenizer . token_to_id ( "[SEP]" ) 
+
+     print ( cls_token_id ) 
+
+     # 2  
+
+     print ( sep_token_id ) 
+
+     # 3  
+
+      
+
+     tokenizer . post_processor = processors . TemplateProcessing ( 
+
+         single = "[CLS]:0 $A:0 [SEP]:0" , 
+
+         pair = "[CLS]:0 $A:0 [SEP]:0 $B:1 [SEP]:1" , 
+
+         special_tokens = [( "[CLS]" , cls_token_id ), ( "[SEP]" , sep_token_id )], 
+
+     ) 
+
+      
+
+     ## 测试训练好的 WordPiece(单个句子)  
+
+     encoding = tokenizer . encode ( "This's me ." ) 
+
+     print ( encoding ) 
+
+     # Encoding(num_tokens=7, attributes=[ids, type_ids, tokens, offsets, attention_mask, special_tokens_mask, overflowing])  
+
+     print ( encoding . ids ) 
+
+     # [2, 1511, 11, 61, 1607, 18, 3]  
+
+     print ( encoding . type_ids ) 
+
+     # [0, 0, 0, 0, 0, 0, 0]  
+
+     print ( encoding . tokens ) 
+
+     # ['[CLS]', 'this', "'", 's', 'me', '.', '[SEP]']  
+
+     print ( encoding . offsets ) 
+
+     # [(0, 0), (0, 4), (4, 5), (5, 6), (7, 9), (11, 12), (0, 0)]  
+
+     print ( encoding . attention_mask ) 
+
+     # [1, 1, 1, 1, 1, 1, 1]  
+
+     print ( encoding . special_tokens_mask ) 
+
+     # [1, 0, 0, 0, 0, 0, 1]  
+
+     print ( encoding . overflowing ) 
+
+     # []  
+
+      
+
+     ## 测试训练好的 WordPiece(多个句子)  
+
+     encoding = tokenizer . encode ( "This's me ." , "That's is fine-tuning." ) 
+
+     print ( encoding ) 
+
+     # Encoding(num_tokens=17, attributes=[ids, type_ids, tokens, offsets, attention_mask, special_tokens_mask, overflowing])  
+
+     print ( encoding . ids ) 
+
+     # [2, 1511, 11, 61, 1607, 18, 3, 1389, 11, 61, 1390, 6774, 17, 4992, 1343, 18, 3]  
+
+     print ( encoding . type_ids ) 
+
+     # [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]  
+
+     print ( encoding . tokens ) 
+
+     # ['[CLS]', 'this', "'", 's', 'me', '.', '[SEP]', 'that', "'", 's', 'is', 'fine', '-', 'tun', '##ing', '.', '[SEP]']  
+
+     print ( encoding . offsets ) 
+
+     # [(0, 0), (0, 4), (4, 5), (5, 6), (7, 9), (11, 12), (0, 0), (0, 4), (4, 5), (5, 6), (7, 9), (10, 14), (14, 15), (15, 18), (18, 21), (21, 22), (0, 0)]  
+
+     print ( encoding . attention_mask ) 
+
+     # [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]  
+
+     print ( encoding . special_tokens_mask ) 
+
+     # [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]  
+
+     print ( encoding . overflowing ) 
+
+     # []  
+
+      
+
+     ################# Step7: Decode ####################  
+
+     tokenizer . decoder = decoders . WordPiece ( prefix = "##" ) 
+
+     tokenizer . decode ( encoding . ids ) # 注意：空格没有被还原  
+
+     # "this's me. that's is fine - tuning."  
+
+      
+
+     ################# Step8: Save ####################  
+
+     tokenizer . save ( "tokenizer.json" ) 
+
+     new_tokenizer = Tokenizer . from_file ( "tokenizer.json" ) 
+
+     print ( new_tokenizer . decode ( encoding . ids )) 
+
+     # this's me. that's is fine - tuning.  
+
+     
+
+    要在 Transformers 中使用这个 tokenizer ，我们必须将它封装在一个 PreTrainedTokenizerFast 类中。
+
+        如果是 Transformers 已有的模型，如 BERT ，那么就可以用对应的 PreTrainedTokenizerFast 子类，如 BertTokenizerFast 。
+
+         
+
+         xxxxxxxxxx 
+
+         from transformers import BertTokenizerFast  
+
+          
+
+         wrapped_tokenizer = BertTokenizerFast ( tokenizer_object = tokenizer ) 
+
+         # wrapped_tokenizer = BertTokenizerFast(tokenizer_file="tokenizer.json")  
+
+         
+
+        或者也可以直接使用 PreTrainedTokenizerFast ，方法为：
+
+         
+
+         xxxxxxxxxx 
+
+         from transformers import PreTrainedTokenizerFast  
+
+          
+
+         wrapped_tokenizer = PreTrainedTokenizerFast ( 
+
+             tokenizer_object = tokenizer , 
+
+             # tokenizer_file="tokenizer.json", # 或者从文件加载  
+
+             unk_token = "[UNK]" , 
+
+             pad_token = "[PAD]" , 
+
+             cls_token = "[CLS]" , 
+
+             sep_token = "[SEP]" , 
+
+             mask_token = "[MASK]" , 
+
+         ) 
+
+         
+
+        注意：我们必须手动设置所有 special token ，因为 PreTrainedTokenizerFast 无法从 tokenizer 对象推断出这些 special token 。
+
+            虽然 tokenizer 有 special token 属性，但是这个属性是所有 special token 的集合，无法区分哪个是 CLS 、哪个是 SEP 。
+
+    最后，这些 wrapped_tokenizer 可以使用 save_pretrained() 方法或 push_to_hub() 方法来保存到 Hugging Face Hub 。其中 save_pretrained() 方法会保存三个文件： 'tokenizer_config.json' 、 'special_tokens_map.json' 、 'tokenizer.json' 。
+
+4.2 从头开始训练 BPE
+
+    代码：
+
+     
+
+     xxxxxxxxxx 
+
+     from tokenizers import decoders , models , normalizers , \ 
+
+     pre_tokenizers , processors , trainers , Tokenizer  
+
+     # 使用 BPE 模型  
+
+     model = models . BPE () # 未设置 vocab, 因为词表需要从数据中训练; 不需要 unk_token  
+
+     tokenizer = Tokenizer ( model ) 
+
+      
+
+     ################# GPT-2 Skip Normalization ##################  
+
+      
+
+     ################# Step1: Pre-tokenization ###################  
+
+     tokenizer . pre_tokenizer = pre_tokenizers . ByteLevel ( add_prefix_space = False ) 
+
+      
+
+     print ( tokenizer . pre_tokenizer . pre_tokenize_str ( "This's me ." )) 
+
+     # [('This', (0, 4)), ("'s", (4, 6)), ('Ġme', (6, 9)), ('Ġ', (9, 10)), ('Ġ.', (10, 12))]  
+
+      
+
+     ################# Step2: Trainer ###################  
+
+     special_tokens = [ "<|endoftext|>" ] # end-of-text token  
+
+     trainer = trainers . BpeTrainer ( vocab_size = 25000 , special_tokens = special_tokens ) 
+
+      
+
+     ################# Step3: dataset ###################  
+
+     from datasets import load_dataset # pip install datasets  
+
+     dataset = load_dataset ( "wikitext" , name = "wikitext-2-raw-v1" , split = "train" ) 
+
+     def get_training_corpus (): 
+
+         for i in range ( 0 , len ( dataset ), 1000 ): 
+
+             yield dataset [ i : i + 1000 ][ "text" ] # batch size = 1000  
+
+      
+
+     ################# Step4: train ####################  
+
+     tokenizer . train_from_iterator ( get_training_corpus (), trainer = trainer ) 
+
+     # tokenizer.train(["wikitext-2.txt"], trainer=trainer) # 也可以从文本文件来训练  
+
+      
+
+     ## 测试训练好的 BPE  
+
+     encoding = tokenizer . encode ( "This's me ." ) 
+
+     print ( encoding ) 
+
+     # Encoding(num_tokens=8, attributes=[ids, type_ids, tokens, offsets, attention_mask, special_tokens_mask, overflowing])  
+
+     print ( encoding . ids ) 
+
+     # [52, 72, 215, 7, 83, 701, 159, 209]  
+
+     print ( encoding . type_ids ) 
+
+     # [0, 0, 0, 0, 0, 0, 0, 0]  
+
+     print ( encoding . tokens ) 
+
+     # ['T', 'h', 'is', "'", 's', 'Ġme', 'Ġ', 'Ġ.']  
+
+     print ( encoding . offsets ) 
+
+     # [(0, 1), (1, 2), (2, 4), (4, 5), (5, 6), (6, 9), (9, 10), (10, 12)]  
+
+     print ( encoding . attention_mask ) 
+
+     # [1, 1, 1, 1, 1, 1, 1, 1]  
+
+     print ( encoding . special_tokens_mask ) 
+
+     # [0, 0, 0, 0, 0, 0, 0, 0]  
+
+     print ( encoding . overflowing ) 
+
+     # []  
+
+      
+
+     ################# Step5: Post-Processing ####################  
+
+     tokenizer . post_processor = processors . ByteLevel ( trim_offsets = False ) # 保留 ‘Ġ’ 代表的空格  
+
+      
+
+     ## 测试训练好的 BPE (单个句子)  
+
+     encoding = tokenizer . encode ( "This's me ." ) 
+
+     print ( encoding ) 
+
+     # Encoding(num_tokens=8, attributes=[ids, type_ids, tokens, offsets, attention_mask, special_tokens_mask, overflowing])  
+
+     print ( encoding . ids ) 
+
+     # [52, 72, 215, 7, 83, 701, 159, 209]  
+
+     print ( encoding . type_ids ) 
+
+     # [0, 0, 0, 0, 0, 0, 0, 0]  
+
+     print ( encoding . tokens ) 
+
+     # ['T', 'h', 'is', "'", 's', 'Ġme', 'Ġ', 'Ġ.']  
+
+     print ( encoding . offsets ) 
+
+     # [(0, 1), (1, 2), (2, 4), (4, 5), (5, 6), (6, 9), (9, 10), (10, 12)]  
+
+     print ( encoding . attention_mask ) 
+
+     # [1, 1, 1, 1, 1, 1, 1, 1]  
+
+     print ( encoding . special_tokens_mask ) 
+
+     # [0, 0, 0, 0, 0, 0, 0, 0]  
+
+     print ( encoding . overflowing ) 
+
+     # []  
+
+      
+
+     ## 测试训练好的 BPE (多个句子)  
+
+     encoding = tokenizer . encode ( "This's me ." , "That's is fine-tuning." ) 
+
+     print ( encoding ) 
+
+     # Encoding(num_tokens=19, attributes=[ids, type_ids, tokens, offsets, attention_mask, special_tokens_mask, overflowing])  
+
+     print ( encoding . ids ) 
+
+     # [52, 72, 215, 7, 83, 701, 159, 209, 52, 6312, 7, 83, 301, 7620, 13, 84, 302, 223, 14]  
+
+     print ( encoding . type_ids ) 
+
+     # [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]  
+
+     print ( encoding . tokens ) 
+
+     # ['T', 'h', 'is', "'", 's', 'Ġme', 'Ġ', 'Ġ.', 'T', 'hat', "'", 's', 'Ġis', 'Ġfine', '-', 't', 'un', 'ing', '.']  
+
+     print ( encoding . offsets ) 
+
+     # [(0, 1), (1, 2), (2, 4), (4, 5), (5, 6), (6, 9), (9, 10), (10, 12), (0, 1), (1, 4), (4, 5), (5, 6), (6, 9), (9, 14), (14, 15), (15, 16), (16, 18), (18, 21), (21, 22)]  
+
+     print ( encoding . attention_mask ) 
+
+     # [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]  
+
+     print ( encoding . special_tokens_mask ) 
+
+     # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  
+
+     print ( encoding . overflowing ) 
+
+     # []  
+
+      
+
+     ################# Step6: Decode ####################  
+
+     tokenizer . decoder = decoders . ByteLevel () 
+
+     tokenizer . decode ( encoding . ids ) # 注意：空格能够被还原  
+
+     # "This's me .That's is fine-tuning."  
+
+      
+
+     ################# Step7: Save ####################  
+
+     tokenizer . save ( "tokenizer.json" ) 
+
+     new_tokenizer = Tokenizer . from_file ( "tokenizer.json" ) 
+
+     print ( new_tokenizer . decode ( encoding . ids )) 
+
+     # This's me .That's is fine-tuning.  
+
+     
+
+    我们可以把训练好的 tokenizer 封装在一个 PreTrainedTokenizerFast 类中，从而在 Transformers 中使用：
+
+        直接使用 GPT2TokenizerFast ：
+
+         
+
+         xxxxxxxxxx 
+
+         from transformers import GPT2TokenizerFast  
+
+         wrapped_tokenizer = GPT2TokenizerFast ( tokenizer_object = tokenizer ) 
+
+         # wrapped_tokenizer = GPT2TokenizerFast(tokenizer_file="tokenizer.json")  
+
+         
+
+        使用 PreTrainedTokenizerFast 类：
+
+         
+
+         xxxxxxxxxx 
+
+         from transformers import PreTrainedTokenizerFast  
+
+          
+
+         wrapped_tokenizer = PreTrainedTokenizerFast ( 
+
+             tokenizer_object = tokenizer , 
+
+             # tokenizer_file="tokenizer.json", # 或者从文件加载  
+
+             bos_token = "<|endoftext|>" , 
+
+             eos_token = "<|endoftext|>" , 
+
+         ) 
+
+         
+
+ 
+4.3 从头开始训练 Unigram
+
+    代码：
+
+     
+
+     xxxxxxxxxx 
+
+     from tokenizers import decoders , models , normalizers , \ 
+
+     pre_tokenizers , processors , trainers , Tokenizer , Regex  
+
+     # 使用 Unigram 模型  
+
+     model = models . models . Unigram () # 未设置 vocab, 因为词表需要从数据中训练  
+
+     tokenizer = Tokenizer ( model ) 
+
+      
+
+     ################# Step1: Normalization ###################  
+
+     tokenizer . normalizer = normalizers . Sequence ( 
+
+       [ 
+
+             normalizers . Replace ( "``" , '"' ), 
+
+             normalizers . Replace ( "''" , '"' ), 
+
+             normalizers . NFKD (), 
+
+             # NFKD Unicode normalizer, 否则 StripAccents normalizer 无法正确识别带重音的字符  
+
+             normalizers . StripAccents (), 
+
+             normalizers . Replace ( Regex ( " {2,}" ), " " ), # ' {2,}' 表示至少两个空格，因此这里将多个空格替换为一个空格  
+
+       ] 
+
+     ) 
+
+      
+
+     print ( tokenizer . normalizer . normalize_str ( "Héllò hôw are ü?" )) 
+
+     # Hello how are u?  
+
+      
+
+     ################# Step2: Pre-tokenization ###################  
+
+     tokenizer . pre_tokenizer = pre_tokenizers . Metaspace () 
+
+      
+
+     print ( tokenizer . pre_tokenizer . pre_tokenize_str ( "This's me ." )) 
+
+     # [("▁This's", (0, 6)), ('▁me', (6, 9)), ('▁', (9, 10)), ('▁.', (10, 12))]  
+
+      
+
+     ################# Step3: Trainer ###################  
+
+     special_tokens = [ "<cls>" , "<sep>" , "<unk>" , "<pad>" , "<mask>" , "<s>" , "</s>" ] 
+
+     trainer = trainers . UnigramTrainer ( 
+
+         vocab_size = 25000 , special_tokens = special_tokens , unk_token = "<unk>"  
+
+     ) 
+
+      
+
+     ################# Step4: dataset ###################  
+
+     from datasets import load_dataset # pip install datasets  
+
+     dataset = load_dataset ( "wikitext" , name = "wikitext-2-raw-v1" , split = "train" ) 
+
+     def get_training_corpus (): 
+
+         for i in range ( 0 , len ( dataset ), 1000 ): 
+
+             yield dataset [ i : i + 1000 ][ "text" ] # batch size = 1000  
+
+      
+
+     ################# Step5: train ####################  
+
+     tokenizer . train_from_iterator ( get_training_corpus (), trainer = trainer ) 
+
+     # tokenizer.train(["wikitext-2.txt"], trainer=trainer) # 也可以从文本文件来训练  
+
+      
+
+     ## 测试训练好的 Unigram  
+
+     encoding = tokenizer . encode ( "This's me ." ) 
+
+     print ( encoding ) 
+
+     # Encoding(num_tokens=6, attributes=[ids, type_ids, tokens, offsets, attention_mask, special_tokens_mask, overflowing])  
+
+     print ( encoding . ids ) 
+
+     # [164, 8030, 9, 918, 7, 11]  
+
+     print ( encoding . type_ids ) 
+
+     # [0, 0, 0, 0, 0, 0]  
+
+     print ( encoding . tokens ) 
+
+     # ['▁This', "'", 's', '▁me', '▁', '.']  
+
+     print ( encoding . offsets ) 
+
+     # [(0, 4), (4, 5), (5, 6), (6, 9), (10, 11), (11, 12)]  
+
+     print ( encoding . attention_mask ) 
+
+     # [1, 1, 1, 1, 1, 1]  
+
+     print ( encoding . special_tokens_mask ) 
+
+     # [0, 0, 0, 0, 0, 0]  
+
+     print ( encoding . overflowing ) 
+
+     # []  
+
+      
+
+     ################# Step6: Post-Processing ####################  
+
+     cls_token_id = tokenizer . token_to_id ( "<cls>" ) 
+
+     sep_token_id = tokenizer . token_to_id ( "<sep>" ) 
+
+     print ( cls_token_id ) 
+
+     # 0  
+
+     print ( sep_token_id ) 
+
+     # 1  
+
+      
+
+     tokenizer . post_processor = processors . TemplateProcessing ( 
+
+         single = "$A:0 <sep>:0 <cls>:2" , 
+
+         pair = "$A:0 <sep>:0 $B:1 <sep>:1 <cls>:2" , 
+
+         special_tokens = [( "<sep>" , sep_token_id ), ( "<cls>" , cls_token_id )], 
+
+     ) 
+
+      
+
+     ## 测试训练好的 Unigram (单个句子)  
+
+     encoding = tokenizer . encode ( "This's me ." ) 
+
+     print ( encoding ) 
+
+     # Encoding(num_tokens=8, attributes=[ids, type_ids, tokens, offsets, attention_mask, special_tokens_mask, overflowing])  
+
+     print ( encoding . ids ) 
+
+     # [164, 8030, 9, 918, 7, 11, 1, 0]  
+
+     print ( encoding . type_ids ) 
+
+     # [0, 0, 0, 0, 0, 0, 0, 2]  
+
+     print ( encoding . tokens ) 
+
+     # ['▁This', "'", 's', '▁me', '▁', '.', '<sep>', '<cls>']  
+
+     print ( encoding . offsets ) 
+
+     # [(0, 4), (4, 5), (5, 6), (6, 9), (10, 11), (11, 12), (0, 0), (0, 0)]  
+
+     print ( encoding . attention_mask ) 
+
+     # [1, 1, 1, 1, 1, 1, 1, 1]  
+
+     print ( encoding . special_tokens_mask ) 
+
+     # [0, 0, 0, 0, 0, 0, 1, 1]  
+
+     print ( encoding . overflowing ) 
+
+     # []  
+
+      
+
+     ## 测试训练好的 Unigram (多个句子)  
+
+     encoding = tokenizer . encode ( "This's me ." , "That's is fine-tuning." ) 
+
+     print ( encoding ) 
+
+     # Encoding(num_tokens=19, attributes=[ids, type_ids, tokens, offsets, attention_mask, special_tokens_mask, overflowing])  
+
+     print ( encoding . ids ) 
+
+     #[164, 8030, 9, 918, 7, 11, 1, 1126, 8030, 9, 41, 3030, 28, 37, 2669, 21, 11, 1, 0]  
+
+     print ( encoding . type_ids ) 
+
+     # [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2]  
+
+     print ( encoding . tokens ) 
+
+     # ['▁This', "'", 's', '▁me', '▁', '.', '<sep>', '▁That', "'", 's', '▁is', '▁fine', '-', 't', 'un', 'ing', '.', '<sep>', '<cls>']  
+
+     print ( encoding . offsets ) 
+
+     #[(0, 4), (4, 5), (5, 6), (6, 9), (10, 11), (11, 12), (0, 0), (0, 4), (4, 5), (5, 6), (6, 9), (9, 14), (14, 15), (15, 16), (16, 18), (18, 21), (21, 22), (0, 0), (0, 0)]  
+
+     print ( encoding . attention_mask ) 
+
+     # [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]  
+
+     print ( encoding . special_tokens_mask ) 
+
+     # [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1]  
+
+     print ( encoding . overflowing ) 
+
+     # []  
+
+      
+
+     ################# Step7: Decode ####################  
+
+     tokenizer . decoder = decoders . Metaspace () 
+
+     tokenizer . decode ( encoding . ids ) # 注意：空格没有被还原 ( 'me' 后面的两个空格只剩下一个)  
+
+     # "This's me . That's is fine-tuning."  
+
+      
+
+     ################# Step8: Save ####################  
+
+     tokenizer . save ( "tokenizer.json" ) 
+
+     new_tokenizer = Tokenizer . from_file ( "tokenizer.json" ) 
+
+     print ( new_tokenizer . decode ( encoding . ids )) 
+
+     # this's me. that's is fine - tuning.  
+
+     
+
+    我们可以把训练好的 tokenizer 封装在一个 PreTrainedTokenizerFast 类中，从而在 Transformers 中使用：
+
+        直接使用 XLNetTokenizerFast ：
+
+         
+
+         xxxxxxxxxx 
+
+         from transformers import XLNetTokenizerFast  
+
+         wrapped_tokenizer = XLNetTokenizerFast ( tokenizer_object = tokenizer ) 
+
+         # wrapped_tokenizer = XLNetTokenizerFast(tokenizer_file="tokenizer.json")  
+
+         
+
+        使用 PreTrainedTokenizerFast 类：
+
+         
+
+         xxxxxxxxxx 
+
+         from transformers import PreTrainedTokenizerFast  
+
+          
+
+         wrapped_tokenizer = PreTrainedTokenizerFast ( 
+
+             tokenizer_object = tokenizer , 
+
+             bos_token = "<s>" , 
+
+             eos_token = "</s>" , 
+
+             unk_token = "<unk>" , 
+
+             pad_token = "<pad>" , 
+
+             cls_token = "<cls>" , 
+
+             sep_token = "<sep>" , 
+
+             mask_token = "<mask>" , 
+
+             padding_side = "left" , 
+
+         ) 
+
+         
+
+五、Tokenizer in Transformers
+
+    tokenizer 负责为模型准备 input 。大多数 tokenizer 有两种风格：基于 Python 的实现、以及基于 Rust library Tokenizer 的 "Fast" 实现。
+
+    这个 "Fast" 实现的优点：在 batched tokenization 、以及原始字符串到 token space 之间的方法上（如，获得给定 token 的 span 时），获得显著的加速。
+
+    PreTrainedTokenizer 基类和 PreTrainedTokenizerFast 基类实现了通用的方法，它们都依赖于 SpecialTokensMixin 、以及包含通用方法的 PreTrainedTokenizerBase 。
+
+5.1 PreTrainedTokenizerBase
+
+    class PreTrainedTokenizerBase(**kwargs) ： PreTrainedTokenizer 和 PreTrainedTokenizerFast 的基类。
+
+    参数：
+
+        model_max_length ：一个整数，指定 transformer model 的输入的 max 长度（以 token 为单位衡量）。当 tokenizer 采用 from_pretrained() 被加载时， model_max_length 被设置为 transformer model 关联的 max_model_input_sizes 值。
+
+        如果未提供，则默认为 VERY_LARGE_INTEGER （等于 int(1e30) ）。
+
+        padding_side ：一个字符串，指定填充发生在哪一侧。可以为 'right' 或 'left' 。默认从相同名字的 class attribute 中选取。
+
+        truncation_side ：一个字符串，指定截断发生在哪一侧。可以为 'right' 或 'left' 。默认从相同名字的 class attribute 中选取。
+
+        model_input_names ：一个字符串列表，指定模型的前向传播所接受的 input 的列表，如 ["token_type_ids", "attention_mask"] 。默认从相同名字的 class attribute 中选取。
+
+        bos_token ：一个字符串或者 AddedToken ，表示句子开始的 special token 。 self.bos_token 将和 self.bos_token_id 关联。
+
+        eos_token ：一个字符串或者 AddedToken ，表示句子结束的 special token 。 self.eos_token 将和 self.eos_token_id 关联。
+
+        unk_token ：一个字符串或者 AddedToken ，表示 out-of-vocabulary token 的 special token 。 self.unk_token 将和 self.unk_token_id 关联。
+
+        sep_token ：一个字符串或者 AddedToken ，表示同一个输入中分隔两个不同句子的 special token 。 self.sep_token 将和 self.sep_token_id 关联。
+
+        pad_token ：一个字符串或者 AddedToken ，表示 padding token 的 special token 。 self.pad_token 将和 self.pad_token_id 关联。
+
+        cls_token ：一个字符串或者 AddedToken ，表示 cls token 的 special token 。 self.cls_token 将和 self.cls_token_id 关联。
+
+        mask_token ：一个字符串或者 AddedToken ，表示 mask token 的 special token 。 self.mask_token 将和 self.mask_token_id 关联。
+
+        additional_special_tokens ：字符串或者 AddedToken 的一个元组或列表，表示额外的 special token 。可以确保它们不会被 tokenization 过程所拆分。 self.additional_special_tokens 将和 self.additional_special_tokens_ids 关联。
+
+    class attribute （被派生类所重写）：
+        vocab_files_names ：一个字典 Dict[str, str] ，键为每个模型的初始化方法中的针对 vocabulary file 的 keyword name ，值为 vocabulary file 的文件名。
+        pretrained_vocab_files_map ：一个字典的字典 Dict[str, Dict[str, str]] ， high-level 的键为每个模型的初始化方法中的针对 vocabulary file 的 keyword name ， low-level 的键为预训练模型的简称 short-cut-name ，值为预训练的词表文件的 url 。
+        max_model_input_sizes ：一个字典 Dict[str, int] ，键为预训练模型的简称，值为该模型的序列输入的最大长度。如果模型没有最大输入大小，则为 None 。
+        pretrained_init_configuration ：一个字典的字典， Dict[str, Dict[str, Any]] ，键为预训练模型的简称，值为包含特定参数的字典。当使用 from_pretrained() 方法加载 tokenizer 时，这些参数将传递给针对该预训练模型的 tokenizer class 的初始化方法。
+        model_input_names ：字符串的一个列表，指定模型的前向传播所接受的 input 的列表。
+        padding_side ：一个字符串，指定填充发生在哪一侧。
+        truncation_side ：一个字符串，指定截断发生在哪一侧。 
+
+    方法：
+
+        __call__ ：核心方法，用于执行 tokenization 过程从而为模型准备输入。
+
+         
+
+         xxxxxxxxxx 
+
+         __call__ ( text : Union [ TextInput , PreTokenizedInput , List [ TextInput ], List [ PreTokenizedInput ]] = None , 
+
+                 text_pair : Optional [ Union [ TextInput , PreTokenizedInput , List [ TextInput ], List [ PreTokenizedInput ]]] = None , 
+
+                 text_target : Union [ TextInput , PreTokenizedInput , List [ TextInput ], List [ PreTokenizedInput ]] = None , 
+
+                 text_pair_target : Optional [ 
+
+                     Union [ TextInput , PreTokenizedInput , List [ TextInput ], List [ PreTokenizedInput ]] 
+
+               ] = None , 
+
+                 add_special_tokens : bool = True , 
+
+                 padding : Union [ bool , str , PaddingStrategy ] = False , 
+
+                 truncation : Union [ bool , str , TruncationStrategy ] = None , 
+
+                 max_length : Optional [ int ] = None , 
+
+                 stride : int = 0 , 
+
+                 is_split_into_words : bool = False , 
+
+                 pad_to_multiple_of : Optional [ int ] = None , 
+
+                 return_tensors : Optional [ Union [ str , TensorType ]] = None , 
+
+                 return_token_type_ids : Optional [ bool ] = None , 
+
+                 return_attention_mask : Optional [ bool ] = None , 
+
+                 return_overflowing_tokens : bool = False , 
+
+                 return_special_tokens_mask : bool = False , 
+
+                 return_offsets_mapping : bool = False , 
+
+                 return_length : bool = False , 
+
+                 verbose : bool = True , 
+
+                 ** kwargs  
+
+           ) -> BatchEncoding : 
+
+         
+
+        参数：
+
+            text ：一个字符串、字符串的列表、字符串的列表的列表，指定需要被编码的序列或 batched 序列。每个序列可以是一个字符串（原始文本）、或者字符串的列表（ pretokenized 字符串）、或者字符串的列表的列表（ batched 的 pretokenized 字符串）。
+
+            此外，如果你提供了字符串的列表，那么必须设置 is_split_into_words 参数从而消除歧义。如果 is_split_into_words=True ，此时字符串的列表代表 pretokenized 字符串；如果 is_split_into_words=False ，此时字符串的列表代表 batched 的原始字符串。
+
+            text_pair ：一个字符串、字符串的列表、字符串的列表的列表，指定需要被编码的序列或 batched 序列。格式的解释参考 text 。
+
+            text_target ：一个字符串、字符串的列表、字符串的列表的列表，指定需要被编码的 target text 的序列或 batched 序列。格式的解释参考 text 。
+
+            text_pair_target ：一个字符串、字符串的列表、字符串的列表的列表，指定需要被编码的 target text 的序列或 batched 序列。格式的解释参考 text 。
+
+            add_special_tokens ：一个布尔值，指定是否使用与模型相关的 special token 来编码序列。
+
+            padding ：一个布尔值、字符串、或 PaddingStrategy ，指定启用填充并控制填充。可以为：
+                True 或 "longest" ：填充到 batch 中最长的序列。如果仅提供单个序列，则不填充。
+                "max_length" ：填充到由 max_length 所指定的最大长度，或填充到模型可接受的最大输入长度（如果 max_length 参数未提供）。
+                False 或 "do_not_pad" （默认值）：不填充。此时 batch 的输出可能具有不同的序列长度。 
+
+            truncation ：一个布尔值、字符串、或 TruncationStrategy ，指定启用截断并控制截断。可以为：
+
+                True 或 "longest_first" ：截断到由参数 max_length 指定的最大长度，或截断到模型可接受的最大输入长度（如果 max_length 参数未提供）。
+
+                如果输入是序列的 pair ，那么将同时截断第一个序列和第二个序列，然后根据两两组合进行笛卡尔积得到多个结果。假设第一个序列为 abc ，第二个序列为 xyz ，假设 max_length=2 ，那么得到四个结果： (ab, xy), (c, xy), (ab, z), (y,z) 。
+
+                "only_first" ：截断到由参数 max_length 指定的最大长度，或截断到模型可接受的最大输入长度（如果 max_length 参数未提供）。
+
+                如果输入是序列的 pair ，那么仅截断第一个序列。
+
+                "only_second" ：截断到由参数 max_length 指定的最大长度，或截断到模型可接受的最大输入长度（如果 max_length 参数未提供）。
+
+                如果输入是序列的 pair ，那么仅截断第二个序列。
+
+                False 或 "do_not_truncate" （默认值）：不截断。此时 batch 的输出可能出现超过模型可接受的最大输入长度。
+
+            max_length ：一个整数控制，控制 truncation/padding 使用的最大长度。如果未设置或者为 None ，则使用预定义的 model maximum length 。如果模型没有特定的 maximum input length （如 XLNet ），那么 truncation/padding 到最大长度的能力将被禁用。
+
+            stride ：一个整数，默认为 0 。如果 return_overflowing_tokens = True ，那么返回的 overflowing token 将包含被截断的序列的末尾的一些 token ，那么 stride 参数将指定 truncated sequence 和 overflowing sequence 之间的重叠 token 的数量。
+
+            is_split_into_words ：一个布尔值，指定提供的输入字符串是否已经被 pre-tokenized 。如果为 True ，那么 tokenizer 假设输入已被拆分为单词，那么 tokenizer 将对这些单词进行 tokenize 。
+
+            pad_to_multiple_of ：一个整数，指定将序列填充到指定的倍数。这对于在 NVIDA 硬件上使用 Tensor Cores 非常有用。
+
+            return_tensors ：一个字符串或 TensorType ，指定返回张量而不是返回 python 整数列表。可以为： "tf" （ TensorFlow 张量）、 "pt" （ Pytorch 张量）、 "np" （ np.ndarray 对象）。
+
+            return_token_type_ids ：一个布尔值，指定是否返回 token type ID 。如果为 None ，则将根据特定 tokenizer 的默认值（由 return_outputs 属性来定义）来返回 token type ID 。
+
+            return_attention_mask ：一个布尔值，指定是否返回 attention mask 。如果为 None ，则将根据特定 tokenizer 的默认值（由 return_outputs 属性来定义）来返回 attention mask 。
+
+            return_overflowing_tokens ：指定是否返回 overflowing token sequence 。如果为 sequence pair 或者 batched 的 sequence pair ，并且 truncation_strategy = 'longest_first'/True ，那么抛出异常而不是返回 overflowing token 。
+
+            return_special_tokens_mask ：一个布尔值，指定是否返回 special tokens mask 。
+
+            return_offsets_mapping ：一个布尔值，指定是否为每个 token 返回 (char_start, char_end) 的偏移量。
+
+            这仅在从 PreTrainedTokenizerFast 继承的 fask tokenizer 上可用。如果使用 Python tokenizer ，则抛出 NotImplementedError 异常。
+
+            return_length ：一个布尔值，指定是否返回被编码的 input 的长度。
+
+            verbose ：一个布尔值，指定是否打印更多信息和警告。
+
+            **kwargs ：关键字参数，传递给 self.tokenize() 方法。
+
+        返回值：一个 BatchEncoding 对象。
+
+        as_target_tokenizer() ：临时设置 tokenizer 对 target 进行编码（一对句子的第二个句子）。对 seq-to-seq 模型关联的 tokenizer 非常有用，这些模型需要对 label 序列进行稍微不同的处理。
+
+        batch_decode() ：通过调用 decode 方法将 token id 的列表的列表（内层列表表示一个序列，外层列表表示 batch ）转换成字符串的列表。
+
+         
+
+         xxxxxxxxxx 
+
+         batch_decode ( sequences : Union [ List [ int ], List [ List [ int ]], "np.ndarray" , "torch.Tensor" , "tf.Tensor" ], 
+
+                 skip_special_tokens : bool = False , 
+
+                 clean_up_tokenization_spaces : bool = True , 
+
+                 ** kwargs  
+
+         ) -> List [ str ]: 
+
+         
+
+        参数：
+            sequences ： tokenized input id 的列表，表示解码的 id 序列。它可以从 __calll__ 方法返回而来。
+            skip_special_tokens ：一个布尔值，指定是否从解码结果中移除 special token 。
+            clean_up_tokenization_spaces ：一个布尔值，指定是否清理 tokenization 空格。
+            kwargs ：关键字参数，将传递给具体于底层模型的 decode() 方法。 
+
+        返回值：一个字符串列表，表示解码结果。
+
+        batch_encode_plus() ：对序列的一个列表、或者 sequence pair 的一个列表进行 tokenize 和 prepare 。该方法被废弃，推荐使用 __call__() 方法。
+
+         
+
+         xxxxxxxxxx 
+
+         batch_encode_plus ( batch_text_or_text_pairs : Union [ 
+
+                     List [ TextInput ], 
+
+                     List [ TextInputPair ], 
+
+                     List [ PreTokenizedInput ], 
+
+                     List [ PreTokenizedInputPair ], 
+
+                     List [ EncodedInput ], 
+
+                     List [ EncodedInputPair ], 
+
+               ], 
+
+                 add_special_tokens : bool = True , 
+
+                 padding : Union [ bool , str , PaddingStrategy ] = False , 
+
+                 truncation : Union [ bool , str , TruncationStrategy ] = None , 
+
+                 max_length : Optional [ int ] = None , 
+
+                 stride : int = 0 , 
+
+                 is_split_into_words : bool = False , 
+
+                 pad_to_multiple_of : Optional [ int ] = None , 
+
+                 return_tensors : Optional [ Union [ str , TensorType ]] = None , 
+
+                 return_token_type_ids : Optional [ bool ] = None , 
+
+                 return_attention_mask : Optional [ bool ] = None , 
+
+                 return_overflowing_tokens : bool = False , 
+
+                 return_special_tokens_mask : bool = False , 
+
+                 return_offsets_mapping : bool = False , 
+
+                 return_length : bool = False , 
+
+                 verbose : bool = True , 
+
+                 ** kwargs  
+
+           ) -> BatchEncoding : 
+
+         
+
+        参数：
+            batch_text_or_text_pairs ：一个 batch 的序列、或者一个 batch 的 sequence pair 。
+            其它参数参考 __call__() 方法。 
+
+        返回值：一个 BatchEncoding 对象。
+
+        build_inputs_with_special_tokens(token_ids_0: List[int], token_ids_1: Optional[List[int]] = None) -> List[int] ：向 model input 中插入 special token 。
+
+        参数：
+            token_ids_0 ：一个整数列表，指定第一个 tokenized 序列。
+            token_ids_ ：一个整数列表，指定第二个 tokenized 序列。 
+
+        返回值：一个整数列表，表示插入了 special token 之后的 model input 。
+
+        注意，这里面的实现并没有添加 special token ，并且该方法需要被子类所重写。
+
+        clean_up_tokenization(out_string: str) -> str ：执行一些简单的英文 tokenization artifact （如标点符号前的空格，以及缩写形式）。
+
+        参数： out_string ：待清理的文本。
+
+        返回值：清理后的文本。
+
+        convert_tokens_to_string(tokens: typing.List[str]) -> str ：将一个 token 序列转换成单个字符串。
+
+        参数： tokens ：一个 token 序列。
+
+        返回值：转换后的字符串。
+
+        最简单的转换方式为 " ".join(tokens) ，但是我们可能需要移除 sub-word 的某些前缀（如 ## ）。
+
+        create_token_type_ids_from_sequences(token_ids_0: List[int], token_ids_1: Optional[List[int]] = None) -> List[int] ：创建 token type ID 。
+
+        参数：
+            token_ids_0 ：一个整数列表，指定第一个 tokenized 序列。
+            token_ids_ ：一个整数列表，指定第二个 tokenized 序列。 
+
+        返回值：一个整数列表，表示 token type ID 。
+
+        decode() ：把 token id 的一个序列转换成字符串，类似于 self.convert_tokens_to_string(self.convert_ids_to_tokens(token_ids)) 。
+
+         
+
+         xxxxxxxxxx 
+
+         decode ( token_ids : Union [ int , List [ int ], "np.ndarray" , "torch.Tensor" , "tf.Tensor" ], 
+
+                 skip_special_tokens : bool = False , 
+
+                 clean_up_tokenization_spaces : bool = True , 
+
+                 ** kwargs  
+
+           ) -> str  
+
+         
+
+        参数：
+            token_ids ： tokenized input id 的列表，它可以从 __calll__ 方法返回而来。
+            其它参数参考 batch_decode() 。 
+
+        返回值：解码后的字符串。
+
+        encode() ：将一个字符串转换为 token id 序列，它类似于 self.convert_tokens_to_ids(self.tokenize(text)) 。
+
+         
+
+         xxxxxxxxxx 
+
+         encode ( text : Union [ TextInput , PreTokenizedInput , EncodedInput ], 
+
+                 text_pair : Optional [ Union [ TextInput , PreTokenizedInput , EncodedInput ]] = None , 
+
+                 add_special_tokens : bool = True , 
+
+                 padding : Union [ bool , str , PaddingStrategy ] = False , 
+
+                 truncation : Union [ bool , str , TruncationStrategy ] = None , 
+
+                 max_length : Optional [ int ] = None , 
+
+                 stride : int = 0 , 
+
+                 return_tensors : Optional [ Union [ str , TensorType ]] = None , 
+
+                 ** kwargs  
+
+           ) -> List [ int ] 
+
+         
+
+        参数：
+            text ：指定待编码的第一个字符串。可以为一个字符串、一个字符串的列表（表示 tokenized string ）、一个整数的列表（通过 convert_tokens_to_ids 将 tokenized string 转换而来）。
+            text_pair ：指定待编码的第二个字符串。格式参考 text 。
+            其它参数参考 batch_encode_plus() 方法 。 
+
+        返回值：文本对应的 tokenized id 。
+
+        encode_plus() ：对序列或 sequence pair 进行 tokenize 和 prepare 。该方法被废弃，推荐使用 __call__() 方法。
+
+         
+
+         xxxxxxxxxx 
+
+         encode_plus ( text : Union [ TextInput , PreTokenizedInput , EncodedInput ], 
+
+                 text_pair : Optional [ Union [ TextInput , PreTokenizedInput , EncodedInput ]] = None , 
+
+                 add_special_tokens : bool = True , 
+
+                 padding : Union [ bool , str , PaddingStrategy ] = False , 
+
+                 truncation : Union [ bool , str , TruncationStrategy ] = None , 
+
+                 max_length : Optional [ int ] = None , 
+
+                 stride : int = 0 , 
+
+                 is_split_into_words : bool = False , 
+
+                 pad_to_multiple_of : Optional [ int ] = None , 
+
+                 return_tensors : Optional [ Union [ str , TensorType ]] = None , 
+
+                 return_token_type_ids : Optional [ bool ] = None , 
+
+                 return_attention_mask : Optional [ bool ] = None , 
+
+                 return_overflowing_tokens : bool = False , 
+
+                 return_special_tokens_mask : bool = False , 
+
+                 return_offsets_mapping : bool = False , 
+
+                 return_length : bool = False , 
+
+                 verbose : bool = True , 
+
+                 ** kwargs  
+
+           ) -> BatchEncoding  
+
+         
+
+        参数：
+            text/text_pair ：参考 encode() 方法。
+            其它参数参考 batch_encode_plus() 方法 。 
+
+        返回值：一个 BatchEncoding 对象。
+
+        from_pretrained(pretrained_model_name_or_path: Union[str, os.PathLike], *init_inputs, **kwargs) ：从一个预定义的 tokenizer 中初始化一个 PreTrainedTokenizerBase （或者派生类）的对象。
+
+        参数：
+
+            pretrained_model_name_or_path ：一个字符串或者 os.PathLike 对象，指定预定义的 tokenizer 的位置。可以为：
+                一个字符串，指定托管在 huggingface.co 上的 model repo 中的预定义 tokenizer 的 model id 。有效的 model id 可以位于 root-level ，如 bert-base-uncased ；也可以位于某个 namespace 下，如 huaxz/bert-base-german-cased 。
+                包含 vocabulary 文件的目录的路径，这些 vocabulary 被 tokenizer 所要求。这个路径可以由 save_pretrained() 方法来得到。
+                指向单个 vovabulary file 的文件名（被废弃，因为无法应用于所有派生类），例如 BERT/XLNet 的 tokenizer 只需要单个 vocabulary file 。 
+
+            cache_dir ：一个字符串或者 os.PathLike 对象，指定下载的 predefined tokenizer 词表文件被缓存的目录。
+
+            force_download ：一个布尔值，指定是否强制下载词表文件并覆盖已被缓存的版本（如果已经存在的话）。
+
+            resume_download ：一个布尔值，指定是否删除未完整接收的文件。否则，如果存在这样的文件，将尝试恢复下载。
+
+            proxies ：一个字典，指定协议或端口的代理服务器，如 {'http': 'foo.bar:3128', 'http://hostname': 'foo.bar:4012'} 。
+
+            use_auth_token ：一个字符串或布尔值，指定 authorization token 用于认证。如果为 True ，则使用 huggingface-cli 登录时所生成的 token （存储在 ~/.huggingface ）。
+
+            local_files_only ：一个布尔值，指定是否仅依赖于本地文件而不尝试下载任何文件。
+
+            revision ：一个字符串，指定要使用的 specific model version 。它可以是 git branch 名称、 git tag 名称、或者 git commit id 。因为 huggingface.co 依赖于 git-based 系统。
+
+            subfolder ：一个字符串，如果相关文件位于 huggingface.co 模型的 model repo 的子目录中时，需要指定该参数。
+
+            inputs ：其它的位置参数，用于传递给 Tokenizer__init__() 方法。
+
+            kwargs ：其它的关键字参数，用于传递给 Tokenizer__init__() 方法。可以用于设置 special token ，如 bos_token, eos_token,... 。
+
+        返回值：一个初始化好的 tokenizer 。
+
+        get_special_tokens_mask(self, token_ids_0: List[int], token_ids_1: Optional[List[int]] = None, already_has_special_tokens: bool = False) -> List[int] ：获取 special token mask 。
+
+        参数：
+            token_ids_0 ：一个整数列表，指定第一个序列的 token id 。
+            token_ids_1 ：一个整数列表，指定第二个序列的 token id 。
+            already_has_special_tokens ：一个布尔值，指定 token list 是否已经使用 special token 进行了格式化。 
+
+        返回值：一个整数列表，每个元素取值为 0 或 1 ，其中 1 代表该位置是 special token 。
+
+        get_vocab() -> Dict[str, int] ：获取词表，它是一个 token 字符串到 token id 的字典。
+
+        当 token 位于词表中时， tokenizer.get_vocab()[token] 等价于 tokenizer.convert_tokens_to_ids(token) 。
+
+        pad() ：填充单个 encoded input 或者 batch encoded input 到指定的长度（或 batch 内的最大长度）。注意，对于 fask tokenizer ，直接调用 __call__() 方法要比 encode() + pad() 方法快得多。
+
+         
+
+         xxxxxxxxxx 
+
+         pad ( encoded_inputs : Union [ 
+
+                     BatchEncoding , 
+
+                     List [ BatchEncoding ], 
+
+                     Dict [ str , EncodedInput ], 
+
+                     Dict [ str , List [ EncodedInput ]], 
+
+                     List [ Dict [ str , EncodedInput ]], 
+
+               ], 
+
+                 padding : Union [ bool , str , PaddingStrategy ] = True , 
+
+                 max_length : Optional [ int ] = None , 
+
+                 pad_to_multiple_of : Optional [ int ] = None , 
+
+                 return_attention_mask : Optional [ bool ] = None , 
+
+                 return_tensors : Optional [ Union [ str , TensorType ]] = None , 
+
+                 verbose : bool = True , 
+
+           ) -> BatchEncoding  
+
+         
+
+        参数：
+            encoded_inputs ： 单个 tokenized input ，或者 batched 的 tokenized input 。
+            其它参数：参考 __call__() 。 
+
+        返回值：一个 BatchEncoding 对象。
+
+        prepare_for_model() ：
+
+         
+
+         xxxxxxxxxx 
+
+         prepare_for_model ( ids : List [ int ], 
+
+                 pair_ids : Optional [ List [ int ]] = None , 
+
+                 add_special_tokens : bool = True , 
+
+                 padding : Union [ bool , str , PaddingStrategy ] = False , 
+
+                 truncation : Union [ bool , str , TruncationStrategy ] = None , 
+
+                 max_length : Optional [ int ] = None , 
+
+                 stride : int = 0 , 
+
+                 pad_to_multiple_of : Optional [ int ] = None , 
+
+                 return_tensors : Optional [ Union [ str , TensorType ]] = None , 
+
+                 return_token_type_ids : Optional [ bool ] = None , 
+
+                 return_attention_mask : Optional [ bool ] = None , 
+
+                 return_overflowing_tokens : bool = False , 
+
+                 return_special_tokens_mask : bool = False , 
+
+                 return_offsets_mapping : bool = False , 
+
+                 return_length : bool = False , 
+
+                 verbose : bool = True , 
+
+                 prepend_batch_axis : bool = False , 
+
+                 ** kwargs  
+
+           ) -> BatchEncoding  
+
+         
+
+        参数：
+            ids ：一个整数列表，指定第一个序列的 tokenized input id 。
+            pair_ids ：一个整数列表，指定第二个序列的 tokenized input id 。
+            其它参数：参考 __call__() 。 
+
+        返回值：一个 BatchEncoding 对象。
+
+        对 input id 的序列、 input id 的一对序列进行 prepare ，以便模型可以使用。它添加 special token 、截断序列。
+
+        注意，如果 pair_ids 不是 None ，且 truncation_strategy ='longest_first' / True ，那么抛出异常。
+
+        prepare_seq2seq_batch() ：为翻译任务准备 model input 。
+
+         
+
+         xxxxxxxxxx 
+
+         prepare_seq2seq_batch ( src_texts : List [ str ], 
+
+                 tgt_texts : Optional [ List [ str ]] = None , 
+
+                 max_length : Optional [ int ] = None , 
+
+                 max_target_length : Optional [ int ] = None , 
+
+                 padding : str = "longest" , 
+
+                 return_tensors : str = None , 
+
+                 truncation : bool = True , 
+
+                 ** kwargs , 
+
+           ) -> BatchEncoding  
+
+         
+
+        参数：
+            src_texts ：一个文档序列，指定 source 文本。
+            tgt_texts ：一个文档序列，指定 target 文本。
+            max_length ：一个整数，指定编码器输入的最大长度。如果为 None ，则使用预定义的 model maximum length 。如果模型没有特定的 maximum input length （如 XLNet ），那么 truncation/padding 到最大长度的能力将被禁用。
+            max_target_length ：一个整数，指定解码器输入的最大长度。如果为 None ，则使用 max_length 值。
+            其它参数：参考 __call__() 。 
+
+        返回值：一个 BatchEncoding 对象。
+
+        push_to_hub() ：将 tokenizer 文件上传到 Model Hub （对应于本地 repo clone 的远程 repo path 或 repo name ）。
+
+         
+
+         xxxxxxxxxx 
+
+         push_to_hub ( repo_id : str , use_temp_dir : typing . Optional [ bool ] = None , commit_message : typing . Optional [ str ] = None , private : typing . Optional [ bool ] = None , use_auth_token : typing . Union [ bool , str , NoneType ] = None , max_shard_size : typing . Union [ int , str , NoneType ] = '10GB' , create_pr : bool = False , ** deprecated_kwargs ) 
+
+         
+
+        参数：
+            repo_id ：一个字符串，指定你的 tokenizer 要被 push 到的 repository 的名字。它应该包含你的 organization name 。
+            use_temp_dir ：一个字符串，指定在将文件推送到 Hub 之前是否使用临时目录来存储文件。如果没有 repo_id 名字的目录，则默认为 True ；否则默认为 False 。
+            commit_message ：一个字符串，指定 git commit mesage 。默认为 "Upload tokenizer" 。
+            private ：一个字符串，指定被创建的 repository 是否是 private 的。
+            use_auth_token ：参考 from_pretrained() 。
+            max_shard_size ：一个整数或者字符串，仅用于模型，指定 checkpoint 被分片之前的最大的大小。 checkpoint 将被分片使得每个文件低于这个大小。默认为 "10GB" 。如果是字符串，需要指定单位。
+            create_pr ：一个布尔值，指定是否创建一个 PR 还是直接 commit 。 
+
+        register_for_auto_class(auto_class = 'AutoTokenizer') ：以指定的 auto class 来注册当前的 class 。仅用于自定义的 tokenizer ，因为库中的 tokenizer 已经映射到 AutoTokenizer 。
+
+        参数： auto_class ：一个字符串或 type ，指定这个新的 tokenizer 注册到哪个 class 。
+
+        save_pretrained() ：保存 full tokenizer state 。
+
+         
+
+         xxxxxxxxxx 
+
+         save_pretrained ( save_directory : typing . Union [ str , os . PathLike ], legacy_format : typing . Optional [ bool ] = None , filename_prefix : typing . Optional [ str ] = None , push_to_hub : bool = False < ** kwargs ) -> A tuple of str  
+
+         
+
+        参数：
+
+            save_directory ：一个字符串或者 os.PathLike 对象，指定将 tokenizer 保存到哪里。
+
+            legacy_format ：一个布尔值，仅适用于 fast tokenizer 。如果为 None ，那么如果存在 legacy format 就以该格式保存 tokenizer ；如果不存在 legacy format 就以统一的 JSON 格式保存 tokenizer 。其中， legacy format 具有 tokenizer specific vocabulary 文件和独立的 added_tokens 文件。
+
+            如果为 False ，则将仅以统一的 JSON 格式保存 tokenizer 。如果为 True ，则以 legacy format 格式保存 tokenizer 。
+
+            legacy format 格式与 slow tokenizer 是不兼容的，因此无法加载到 slow tokenizer 中。
+
+            filename_prefix ：一个字符串，指定添加到 tokenizer 保存文件的文件名前缀。
+
+            push_to_hub ：一个布尔值，指定是否在保存之后将 tokenizer 推送到 Hugging Face Hub 上。你可以设置 repo_id 指定推送到哪个 repository ，默认为 repo_id = save_directory 。
+
+            kwargs ：传递给 push_to_hub() 方法的关键字参数。
+
+        返回值：字符串的一个元组，表示被保存的文件名。
+
+        save_vocabulary(save_directory: str, filename_prefix: typing.Optional[str] = None ) -> Tuple(str) ：仅保存 tokenizer 的词表（ vocabulary + added tokens ）。该方法不会保存 configuration 以及 special token 。
+
+        参数和返回值：参考 save_pretrained() 。
+
+        tokenize(text: str, pair: typing.Optional[str] = None, add_special_tokens: bool = False, **kwargs ) -> List[str] ：将一个字符串转换为 token 序列，用 unk_token 来替代 unknown token 。
+
+        参数：
+            text ：一个字符串，指定被 tokenized 文本。
+            pair ：一个字符串，指定第二个被 tokenized 文本。
+            add_special_tokens ：一个布尔值，指定是否添加 special token ，其中这些 special token 关联了对应的模型。
+            kwargs ：关键字参数，传递给底层的 model spedific encode 方法，参考 __call__() 。 
+
+        返回值：一个字符串列表，表示被 token 序列。
+
+        truncate_sequences() ：
+
+         
+
+         xxxxxxxxxx 
+
+         truncate_sequences ( ids : List [ int ], 
+
+                 pair_ids : Optional [ List [ int ]] = None , 
+
+                 num_tokens_to_remove : int = 0 , 
+
+                 truncation_strategy : Union [ str , TruncationStrategy ] = "longest_first" , 
+
+                 stride : int = 0 , 
+
+           ) -> Tuple [ List [ int ], List [ int ], List [ int ]]: 
+
+         
+
+        参数：
+            ids ：一个整数列表，表示第一个序列的 tokenized input id 。可以通过对一个字符串执行 toenize() + convert_token_to_ids() 来获得。
+            pair_ids ：一个整数列表，表示第二个序列的 tokenized input id 。
+            num_tokens_to_remove ：一个整数，指定使用截断策略要移除的 token 的数量。
+            truncation_strategy/stride ：参考 __call__() 方法。 
+
+        返回值：一个元组，分别给出了 truncated ids 、 truncated pair_ids 、以及 overflowing token 的列表。
+
+        注意：如果截断策略为 "longest_first" 且提供了 sequence pair 或者 batched 的 sequence pair ，则 overflowing token 为空列表。
+
+5.2 SpecialTokensMixin
+
+    class transformers.SpecialTokensMixin(verbose = True, **kwargs) ：由 PreTrainedTokenizer 和 PreTrainedTokenizerFast 派生的 mixin ，用于处理关于 special token 的特定行为。
+
+    参数：
+        bos_token ：一个字符串或 AddedToken ，指定代表句子开头的 special token 。
+        eos_token ：一个字符串或 AddedToken ，指定代表句子结尾的 special token 。
+        unk_token ：一个字符串或 AddedToken ，指定代表 out-of-vocabulary token 的 special token 。
+        sep_token ：一个字符串或 AddedToken ，指定代表同一个输入中分隔两个不同句子的 special token 。
+        pad_token ：一个字符串或者 AddedToken ，指定代表 padding token 的 special token 。 self.pad_token 将和 self.pad_token_id 关联。
+        cls_token ：一个字符串或者 AddedToken ，指定代表 cls token 的 special token 。
+        mask_token ：一个字符串或者 AddedToken ，指定代表 mask token 的 special token 。
+        additional_special_tokens ：字符串或者 AddedToken 的一个元组或列表，指定代表额外的 special token 。 
+
+    方法：
+
+        add_special_tokens(special_tokens_dict: typing.Dict[str, typing.Union[str, tokenizers.AddedToken]]) -> int ：添加一个 special token 的字典（如 eos,pad,cls ）到 encoder 中。如果 special token 不在 vocabulary 中，则添加这些 special token 。
+
+        参数： special_tokens_dict ：一个字典， key 为 special token 的名字（如 'bos_token', 'eos_token',.. 等等），值为 special token 的取值。
+
+        返回值：新增到 vocabulary 中的 token 的数量。
+
+        注意：当 vocabulary 添加了新的 special token 之后，词表规模发生了变化，此时你需要 resize token embedding matrix 从而使得 embedding matrix 匹配词表。方法是调用 resize_token_embeddings() 方法。
+
+        add_tokens(new_tokens: typing.Union[str, tokenizers.AddedToken, typing.List[typing.Union[str, tokenizers.AddedToken]]], special_tokens: bool = False ) -> int ：添加新的 token 到 tokenizer class 中。如果新 token 不在词表中，则会被添加到词表中。
+
+        参数：
+            new_tokens ：一个字符串、 AddedToken 、或者 str/AddedToken 的字符串，指定被添加到 tokenizer 中的 token 。
+            special_tokens ：一个布尔值，指定是否可用于指定 token 为一个 special token 。 
+
+        返回值：新增到词表中的 token 数量。
+
+        注意：当 vocabulary 添加了新的 special token 之后，词表规模发生了变化，此时你需要 resize token embedding matrix 从而使得 embedding matrix 匹配词表。
+
+        sanitize_special_tokens() -> int ：检查词表中的 token 并返回词表中的 token 数量。
+
+    class transformers.tokenization_utils_base.TruncationStrategy(value, names = None, module = None, qualname = None, type = None, start = 1 ) ： TruncationStrategy 的枚举类。
+
+    class transformers.CharSpan(start: int, end: int) ：原始字符串中的 character span 。
+
+    参数：
+        start ：一个整数，指定字符的开始位置。
+        end ：一个整数，指定字符的结束位置。 
+
+    class transformers.TokenSpan(start: int, end: int) ：原始字符串中的 token span 。
+
+    参数：
+        start ：一个整数，指定 token 的开始位置。
+        end ：一个整数，指定 token 的结束位置。 
+
+5.3 PreTrainedTokenizer
+
+    class transformers.PreTrainedTokenizer(**kwargs) ：所有 slow tokenizer 的基类，继承自 PreTrainedTokenizerBase 。
+
+    PreTrainedTokenizer 在所有 tokenizer 之上以统一的方式包含 added token ，因此我们不必处理各种底层字典结构的 specific vocabulary augmentation 方法（如 BPE 、 sentencepiece 、...）。
+
+    参数：参考 PreTrainedTokenizerBase 。
+
+    class attribute （被派生类所重写）：参考 PreTrainedTokenizerBase 。
+
+    方法：
+
+        convert_ids_to_tokens(ids: typing.Union[int, typing.List[int]], skip_special_tokens: bool = False ) -> str or List[str] ：解码，将 token id 序列转换为 token 序列。
+
+        参数：
+            ids ：一个整数或整数序列，指定需要被转换的 token id 。
+            skip_special_tokens ：一个布尔值，指定是否从解码结果中移除 special token 。 
+
+        返回值：一个字符串或字符串序列。
+
+        convert_tokens_to_ids(tokens: typing.Union[str, typing.List[str]] ) -> int or List[int] ：编码，将 token 序列转换为 token id 序列。
+
+        参数： tokens ：一个字符串或字符串序列，表示单个 token 或 token 序列。
+
+        返回值：一个整数或整数序列。
+
+        get_added_vocab() -> Dict[str, int] ：返回词表中的 added token 。
+
+        返回值：一个字典， key 为 added token ，值为对应的 id 。
+
+        num_special_tokens_to_add( pair: bool=False) -> int ：返回需要添加到 single/pair 句子的 special token 的数量。
+
+        参数： is_pair ：一个布尔值，指定预期的输入是单个句子还是句子对。
+
+        prepare_for_tokenization(text: str, is_split_into_words: bool = False, **kwargs ) -> Tuple[str, Dict[str, Any]] ：执行 tokenization 之前的任何必要的转换。
+
+        参数：
+            text ：一个字符串，指定被处理的文本。
+            is_split_into_words ：一个布尔值，指定输入是否已经被 pre-tokenized 。如果为 True ，那么 tokenizer 假定 input 已经被拆分为单词了。 
+
+        返回值：一个元组，分别表示处理后的文本、以及处理后的 kwargs 。
+
+        这个方法应该从 kwargs 中弹出参数，并返回剩余的 kwargs 。我们在编码过程的最后测试 kwargs ，从而确保所有的参数都被使用。
+
+        tokenize(text: str, **kwargs ) -> List[str] ：将字符串转换为 token 序列。
+
+        参数：
+            text ：一个字符串，指定被处理的文本。
+            **kwargs ：关键字参数，被传给 prepare_for_tokenization() 方法。 
+
+        返回值：一个字符串列表，表示 token 序列。
+
+        其它方法参考 PreTrainedTokenizerBase 。
+
+5.4 PreTrainedTokenizerFast
+
+    class transformers.PreTrainedTokenizerFast(*args, **kwargs) ：所有 fast tokenizer 的基类，继承自 PreTrainedTokenizerBase 。
+
+    PreTrainedTokenizerFast 在所有 tokenizer 之上以统一的方式包含 added token ，因此我们不必处理各种底层字典结构的 specific vocabulary augmentation 方法（如 BPE 、 sentencepiece 、...）。
+
+    参数：参考 PreTrainedTokenizerBase 。
+
+    class attribute （被派生类所重写）：参考 PreTrainedTokenizerBase 。
+
+    方法：
+
+        set_truncation_and_padding() ：一个上下文管理器，为 fast tokenizer 定义截断策略和填充策略。一旦设置好之后，后面就延续这个设置。
+
+         
+
+         xxxxxxxxxx 
+
+         set_truncation_and_padding ( padding_strategy : PaddingStrategy , truncation_strategy : TruncationStrategy , max_length : int , stride : int , pad_to_multiple_of : typing . Optional [ int ] ) 
+
+         
+
+        参数：参考 PreTrainedTokenizerBase.__call__() 方法。
+
+        默认的 tokenizer 都是没有填充、没有截断的。在该方法管理的代码段，可以使用指定的策略；一旦退出该代码段，则又恢复回没有填充、没有截断的策略。
+
+        train_new_from_iterator(text_iterator, vocab_size, length = None, new_special_tokens = None, special_tokens_map = None, **kwargs) -> PreTrainedTokenizerFast ：返回一个新的 tokenizer ，这个 new tokenizer 与原始 tokenizer 具有相同的类型但是在 text_iterator 上训练得到（使用原始 tokenizer 相同的默认值，如 special token ）。
+
+        参数：
+            text_iterator ：一个生成器或者字符串列表，指定训练语料库。对 text_iterator 迭代的结果是字符串。
+            vocab_size ：一个整数，指定新 tokenizer 期待的词表大小。
+            length ：一个整数，指定 text_iterator 中的总的文本数量。这用于有意义的进度跟踪。
+            new_special_tokens ：一个 str/AddedToken 的列表，指定添加到新 tokenizer 中的 new spiecial token 。
+            special_tokens_map ：一个字典，用于为新 tokenizer 重新命名某些 special token ，即 old special token name -> new special token name 。
+            kwargs ：关键字参数，用于传递给 trainer 。 
+
+        返回值：一个 PreTrainedTokenizerFast 对象。
+
+    有两种方法来检查 tokenizer 是快的还是慢的：
+        通过 tokenizer.is_fast 属性。
+        通过 Encoding 对象（ tokenizer 编码的结果）的 encoding.is_fast 属性。 
+
+5.5 BatchEncoding
+
+    class class transformers.BatchEncoding() ： BatchEncoding 持有 __call__(), encode_plus(), batch_encode_plus() 等方法的输出。
+
+     
+
+     xxxxxxxxxx 
+
+     class BatchEncoding ( data : Optional [ Dict [ str , Any ]] = None , 
+
+             encoding : Optional [ Union [ EncodingFast , Sequence [ EncodingFast ]]] = None , 
+
+             tensor_type : Union [ None , str , TensorType ] = None , 
+
+             prepend_batch_axis : bool = False , 
+
+             n_sequences : Optional [ int ] = None , 
+
+     ) 
+
+     
+
+    参数：
+        data ：一个字典，键为 'input_ids', 'attention_mask',... 。该数据由 __call__/encode_plus/batch_encode_plus 等方法返回。
+        encoding ： EncodingFast 或 EncodingFast 的序列。如果 tokenizer 是一个 fast tokenizer ，那么它将输出额外的信息，如，从 word/character space 到 token space 的映射。那么 EncodingFast 就用于保存这些额外的信息。
+        tensor_type ：一个字符串或者 TensorType 。你可以指定一种类型从而将整数列表转换为对应的张量类型。
+        prepend_batch_axis ：一个布尔值，指定在整数列表转换为对应的张量类型时，是否添加一个 batch axis 。
+        n_sequences ：一个整数，指定生成当前 BatchEncoding 的序列的数量。 
+
+    BatchEncoding 派生自 python 字典，因此可以直接用作一个字典。此外，它还有一些自定义的方法。
+
+    方法：
+
+        char_to_token(batch_or_char_index: int, char_index: Optional[int] = None, sequence_index: int = 0) -> int ： 返回 encoded output 中指定索引（索引相对于原始文本）的 character 所在位置的 token 的索引。
+
+        参数：
+            batch_or_char_index ：一个整数，如果原始输入是一个 batch ，则指定 character 位于第几个样本；如果原始输入是单个序列，则指定 character 的索引。
+            char_index ：一个整数，配合 batch_or_char_index 使用，则它指定 character 位于 batch 内哪个样本的哪个索引。
+            sequence_index ：一个整数，如果输入是一对句子，则指定 character 位于是第一个句子还是第二个句子。 
+
+        返回值：一个整数，表示对应的 token 的索引。
+
+        调用方式：
+
+         
+
+         xxxxxxxxxx 
+
+         self . char_to_token ( char_index )               # batch size = 1  
+
+         self . char_to_token ( batch_index , char_index )   # batch size >= 1  
+
+         
+
+        char_to_word(batch_or_char_index: int, char_index: Optional[int] = None, sequence_index: int = 0) -> int or List[int] ： 返回 encoded output 中指定索引（索引相对于原始文本）的 character 所在的 word 的索引。
+
+        参数：参考 char_to_token() 。
+
+        返回值：一个整数或整数列表，表示对应的 word 的索引。
+
+        convert_to_tensors(self, tensor_type: Optional[Union[str, TensorType]] = None, prepend_batch_axis: bool = False) ：将内部内容转换为张量。
+
+        参数：参考 BatchEncoding.__init__() 方法。
+
+        sequence_ids( batch_index: int = 0) -> List[Optional[int]] ：返回 sequence id 的列表，列表中每个元素表示每个 token 的 sequence id （即，是样本内的第几个句子）。
+
+        参数： batch_index ：一个整数，指定 batch 内第几个序列。
+
+        返回值：一个整数列表。
+
+        sequence id 表示原始句子的 id ：
+            None ：表示 special token 。
+            0 ：表示 token 对应的单词位于第一个句子。
+            1 ：表示 token 对应的单词位于第二个句子。 
+
+        to(device: Union[str, torch.device]) -> BatchEncoding ：将 BatchEncoding 移动到指定的设备上，仅用于 PyTorch 。
+
+        参数： device ：一个字符串或者 torch.device ，指定指定的设备。
+
+        返回：相同的 BatchEncoding ，但是位于指定的设备上。
+
+        token_to_chars(batch_or_token_index: int, token_index: Optional[int] = None) -> CharSpan ：返回 token 在原始字符串中的区间。
+
+        参数：
+            batch_or_token_index ：一个整数，如果原始输入是一个 batch ，则指定 token 位于第几个样本；如果原始输入是单个样本，则指定 token 的索引。
+            token_index ：一个整数，配合 batch_or_token_index 使用，则它指定 token 位于 batch 内哪个样本的哪个索引。 
+
+        返回值：一个 CharSpan ，表示对应的字符的区间（ [a,b) 这种半闭半开区间）。
+
+        调用方式：
+
+         
+
+         xxxxxxxxxx 
+
+         self . token_to_chars ( token_index )               # if batch size = 1  
+
+         self . token_to_chars ( batch_index , token_index )   # if batch size >= 1  
+
+         
+
+            token_to_sequence(batch_or_token_index: int, token_index: Optional[int] = None) -> int ：返回 token 在原始输入的第几个句子。 
+
+ 
+
+ xxxxxxxxxx 
+
+ 参数：参考 `token_to_chars` 。 
+
+  
+
+ 返回值：一个整数，表示 `sequence id` 。 
+
+  
+
+ 如果单个句子的输入，那么该方法始终返回 `0`；如果是句子对输入，且 `token` 位于第二个句子，那么该方法返回 `1` 。 
+
+ 
+
+    token_to_word(batch_or_token_index: int, token_index: Optional[int] = None) -> int ：返回 token 在原始输入的 word 的索引。
+
+    参数：参考 token_to_chars 。
+
+    返回值：一个整数，表示 word 的索引。
+
+    tokens( batch_index: int = 0) -> List[str] ：返回指定 batch 索引处的 token 列表。
+
+    参数： batch_index ：一个整数，指定 batch 索引。
+
+    返回值：一个字符串列表，表示 token 列表。
+
+    word_ids( batch_index: int = 0) -> List[Optional[int]] ：返回指定 batch 索引处的 token 对应的 word 索引的列表。
+
+    参数：参考 tokens() 。
+
+    返回值：一个整数列表，表示每个 token 对应的 word 索引。 special token 被映射到 None 。
+
+    word_to_chars(batch_or_word_index: int, word_index: Optional[int] = None, sequence_index: int = 0) -> CharSpan ：返回指定的单词在原始字符串中的区间。
+
+    参数：
+        batch_or_word_index ：一个整数，如果原始输入是一个 batch ，则指定 word 位于第几个样本；如果原始输入是单个样本，则指定 word 的索引。
+        word_index ：一个整数，配合 batch_or_word_index 使用，则它指定 word 位于 batch 内哪个样本的哪个索引。
+        sequence_index ：一个整数，指定目标单词位于第一个句子还是第二个句子。 
+
+    返回值：一个 CharSpan 。
+
+    word_to_tokens( batch_or_word_index: int, word_index: Optional[int] = None, sequence_index: int = 0) -> Optional[TokenSpan] ：返回指定的单词对应的 token 的索引。
+
+    参数：参考 word_to_chars 。
+
+    返回值：一个 TokenSpan 。
+
+    words( batch_index: int = 0) -> List[Optional[int]] ：返回指定 batch 处每个 token 对应的单词的索引。
+
+    参数：
+        batch_idex ：一个整数，指定获取 batch 中第几个样本。 
+
+    返回值：一个整数列表，表示每个单词的索引。
+
+    special token 将被映射到 None 。相同单词的不同 token 被映射到相同的单词索引。
+
+    示例：
+
+     
+
+     xxxxxxxxxx 
+
+     from transformers import BertTokenizerFast  
+
+     tokenizer = BertTokenizerFast . from_pretrained ( "bert-base-cased" ) 
+
+     result = tokenizer ( "This is the first line!" , "This is the second line!" )  
+
+      
+
+     ################# check result ###########  
+
+     print ( type ( result )) 
+
+     # <class 'transformers.tokenization_utils_base.BatchEncoding'>  
+
+     print ( result ) 
+
+     # {'input_ids': [101, 1188, 1110, 1103, 1148, 1413, 106, 102, 1188, 1110, 1103, 1248, 1413, 106, 102], 'token_type_ids': [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1], 'attention_mask': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}  
+
+     print ( result . tokens ())  
+
+     # ['[CLS]', 'This', 'is', 'the', 'first', 'line', '!', '[SEP]', 'This', 'is', 'the', 'second', 'line', '!', '[SEP]']  
+
+     print ( result . words ()) # 每个 token 属于该句子的第几个单词  
+
+     # [None, 0, 1, 2, 3, 4, 5, None, 0, 1, 2, 3, 4, 5, None]  
+
+     print ( result . word_ids ()) # 每个 token 属于该句子的第几个单词  
+
+     # [None, 0, 1, 2, 3, 4, 5, None, 0, 1, 2, 3, 4, 5, None]  
+
+     print ( result . sequence_ids ()) # 每个 token 属于第几个句子  
+
+     # [None, 0, 0, 0, 0, 0, 0, None, 1, 1, 1, 1, 1, 1, None]  
+
+     print ( result . is_fast ) # 是否 fast tokenizer  
+
+     # True  
+
+     ################## convert ################  
+
+     print ( result . char_to_token ( 3 )) # 第一个句子第三个字符属于第几个 token  
+
+     # 1  
+
+     print ( result . char_to_token ( 3 , sequence_index = 1 )) # 第二个句子第三个字符属于第几个 token  
+
+     # 8  
+
+      
+
+     print ( result . token_to_chars ( 3 )) # 第三个 token 在原始句子中的区间  
+
+     # CharSpan(start=8, end=11)  
+
+     print ( result . token_to_chars ( 10 )) # 第十个 token 在原始句子中的区间  
+
+     # CharSpan(start=8, end=11)  
+
+      
+
+     print ( result . token_to_sequence ( 3 )) # 第三个 token 是第一个句子还是第二个句子  
+
+     # 0  
+
+     print ( result . token_to_sequence ( 10 )) # 第十个 token 是第一个句子还是第二个句子  
+
+     # 1  
+
+      
+
+     print ( result . token_to_word ( 3 )) # 第三个 token 是在该句子中的第几个单词  
+
+     # 2  
+
+     print ( result . token_to_word ( 10 )) # 第十个 token 是在该句子中的第几个单词  
+
+     # 2  
+
+      
+
+     print ( result . word_to_chars ( 3 )) # 第一个句子第三个单词位于原始句子中的区间  
+
+     # CharSpan(start=12, end=17)  
+
+     print ( result . word_to_chars ( 3 , sequence_index = 1 )) # 第二个句子第三个单词位于原始句子中的区间  
+
+     # CharSpan(start=12, end=18)  
+
+      
+
+     print ( result . word_to_tokens ( 0 )) # 第一个句子第一个单词对应的 token 区间  
+
+     # TokenSpan(start=1, end=2)  
+
+     print ( result . word_to_tokens ( 0 , sequence_index = 1 )) # 第二个句子第一个单词对应的 token 区间  
+
+     # TokenSpan(start=8, end=9)  
+
+     
+
+5.6 应用
+
+    编码：直接调用 __call__() 方法：
+
+     
+
+     xxxxxxxxxx 
+
+     from transformers import BertTokenizerFast  
+
+     tokenizer = BertTokenizerFast . from_pretrained ( "bert-base-cased" ) 
+
+     sequence = "This is the first line!"  
+
+      
+
+     print ( tokenizer ( sequence )) 
+
+     # {'input_ids': [101, 1188, 1110, 1103, 1148, 1413, 106, 102], 'token_type_ids': [0, 0, 0, 0, 0, 0, 0, 0], 'attention_mask': [1, 1, 1, 1, 1, 1, 1, 1]}  
+
+      
+
+     print ( tokenizer ( sequence , return_tensors = "pt" )[ 'input_ids' ]) # 默认自动添加了 batch 维  
+
+     # tensor([[ 101, 1188, 1110, 1103, 1148, 1413, 106, 102]])  
+
+     
+
+    或者依次调用 tokenize 和 convert_tokens_to_ids ：
+
+     
+
+     xxxxxxxxxx 
+
+     from transformers import BertTokenizerFast  
+
+     tokenizer = BertTokenizerFast . from_pretrained ( "bert-base-cased" ) 
+
+     sequence = "This is the first line!"  
+
+      
+
+     ########## step1: tokenization ##########  
+
+     tokens = tokenizer . tokenize ( sequence ) 
+
+     print ( tokens ) 
+
+     # ['This', 'is', 'the', 'first', 'line', '!']  
+
+     ########### step2 : convert to id ########  
+
+     ids = tokenizer . convert_tokens_to_ids ( tokens ) 
+
+     print ( ids ) 
+
+     # [1188, 1110, 1103, 1148, 1413, 106]  
+
+     
+
+    解码：通过 decode() 方法实现：
+
+     
+
+     xxxxxxxxxx 
+
+     from transformers import BertTokenizerFast  
+
+     tokenizer = BertTokenizerFast . from_pretrained ( "bert-base-cased" ) 
+
+     sequence = "This is the first line!"  
+
+      
+
+     input_ids = tokenizer ( sequence )[ 'input_ids' ] 
+
+     print ( input_ids ) 
+
+     # [101, 1188, 1110, 1103, 1148, 1413, 106, 102]  
+
+     print ( tokenizer . decode ( input_ids )) 
+
+     # [CLS] This is the first line! [SEP]  
+
+     print ( tokenizer . decode ( input_ids , skip_special_tokens = True )) 
+
+     # This is the first line!  
+
+     
+
+    一个 batch 的输入：填充：
+
+     
+
+     xxxxxxxxxx 
+
+     from transformers import BertTokenizerFast  
+
+     tokenizer = BertTokenizerFast . from_pretrained ( "bert-base-cased" ) 
+
+     print ( tokenizer . pad_token_id ) 
+
+     # 0  
+
+      
+
+     batch_seq = [ 
+
+       ( "The first line" , "The second line" ), 
+
+       ( "The first line and much longer" , "The second line and much longer" ), 
+
+     ] 
+
+     result = tokenizer ( batch_seq , padding = "longest" ,  
+
+                       return_tensors = "pt" ) # 填充到 batch 内最大长度  
+
+     print ( result [ 'input_ids' ]) # 填充的位置均为 pad_token_id  
+
+     # tensor([[ 101, 1109, 1148, 1413, 102, 1109, 1248, 1413, 102,   0,   0,   0,  
+
+     #           0,   0,   0],  
+
+     #       [ 101, 1109, 1148, 1413, 1105, 1277, 2039, 102, 1109, 1248, 1413, 1105,  
+
+     #         1277, 2039, 102]])  
+
+     print ( result [ 'token_type_ids' ]) 
+
+     # tensor([[0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],  
+
+     #         [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1]])  
+
+     print ( result [ 'attention_mask' ]) # 填充的位置均为 0  
+
+     # tensor([[1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],  
+
+     #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])  
+
+      
+
+     print ( tokenizer ( batch_seq , max_length = 20 , padding = "max_length" , 
+
+                     return_tensors = "pt" )[ 'input_ids' ]. shape ) # 填充到 20 个 token  
+
+     # torch.Size([2, 20])  
+
+      
+
+     print ( tokenizer ( batch_seq , padding = "max_length" ,  
+
+                     return_tensors = "pt" )[ 'input_ids' ]. shape ) # 填充到模型的最大输入长度  
+
+     # torch.Size([2, 512])  
+
+      
+
+     print ( tokenizer ( batch_seq , padding = False )[ 'input_ids' ]) # 无填充，无法转换成张量  
+
+     # [[101, 1109, 1148, 1413, 102, 1109, 1248, 1413, 102],  
+
+     # [101, 1109, 1148, 1413, 1105, 1277, 2039, 102, 1109, 1248, 1413, 1105, 1277, 2039, 102]]  
+
+     
+
+    截断序列：
+
+        longest_first 截断：
+
+         
+
+         xxxxxxxxxx 
+
+         from transformers import BertTokenizerFast  
+
+         tokenizer = BertTokenizerFast . from_pretrained ( "bert-base-cased" ) 
+
+          
+
+         batch_seq = [ 
+
+           ( "Hello" , "NLP world!" ), 
+
+           ( "The first line and much longer" , "The second line and much longer" ), 
+
+         ] 
+
+          
+
+         # 截断到 max_length  
+
+         # 第一个样本: 无需截断  
+
+         # 第二个样本: 需要被截断, 两个句子中，保留的部分和剩余的部分两两组合得到四个结果  
+
+         result = tokenizer ( batch_seq , truncation = "longest_first" , max_length = 12 , 
+
+                           return_overflowing_tokens = True , stride = 0 )  
+
+         print ( result [ 'input_ids' ])   
+
+         # [[101, 8667, 102, 21239, 2101, 1362, 106, 102],  
+
+         # [101, 1109, 1148, 1413, 1105, 102, 1109, 1248, 1413, 1105, 1277, 102],  
+
+         # [101, 1277, 2039, 102, 1109, 1248, 1413, 1105, 1277, 102],  
+
+         # [101, 1277, 2039, 102, 2039, 102],  
+
+         # [101, 1109, 1148, 1413, 1105, 102, 2039, 102]]  
+
+         print ( result [ 'token_type_ids' ]) 
+
+         # [[0, 0, 0, 1, 1, 1, 1, 1],  
+
+         # [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1],  
+
+         # [0, 0, 0, 0, 1, 1, 1, 1, 1, 1],  
+
+         # [0, 0, 0, 0, 1, 1],  
+
+         # [0, 0, 0, 0, 0, 0, 1, 1]]  
+
+         print ( result [ 'attention_mask' ])   
+
+         # [[1, 1, 1, 1, 1, 1, 1, 1],  
+
+         # [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  
+
+         # [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  
+
+         # [1, 1, 1, 1, 1, 1],  
+
+         # [1, 1, 1, 1, 1, 1, 1, 1]]  
+
+         print ( result [ 'overflow_to_sample_mapping' ])  
+
+         # [0, 1, 1, 1, 1]  
+
+          
+
+         for element in result [ 'input_ids' ]: 
+
+             print ( tokenizer . convert_ids_to_tokens ( element )) 
+
+             # ['[CLS]', 'Hello', '[SEP]', 'NL', '##P', 'world', '!', '[SEP]']  
+
+             # ['[CLS]', 'The', 'first', 'line', 'and', '[SEP]', 'The', 'second', 'line', 'and', 'much', '[SEP]']  
+
+             # ['[CLS]', 'much', 'longer', '[SEP]', 'The', 'second', 'line', 'and', 'much', '[SEP]']  
+
+             # ['[CLS]', 'much', 'longer', '[SEP]', 'longer', '[SEP]']  
+
+             # ['[CLS]', 'The', 'first', 'line', 'and', '[SEP]', 'longer', '[SEP]']  
+
+         
+
+        only_second 截断方式：
+
+         
+
+         xxxxxxxxxx 
+
+         from transformers import BertTokenizerFast  
+
+         tokenizer = BertTokenizerFast . from_pretrained ( "bert-base-cased" ) 
+
+          
+
+         batch_seq = [ 
+
+           ( "Hello" , "NLP world!" ), 
+
+           ( "The first line and much longer" , "The second line and much longer" ), 
+
+         ] 
+
+          
+
+         # 截断到 max_length  
+
+         # 第一个样本: 无需截断  
+
+         # 第二个样本: 需要被截断, 第一个句子保留，每次截取第二个句子中的一部分，使得整体满足 max_legnth  
+
+         result = tokenizer ( batch_seq , truncation = "only_second" , max_length = 12 , 
+
+                           return_overflowing_tokens = True , stride = 0 )  
+
+          
+
+         for element in result [ 'input_ids' ]: 
+
+             print ( tokenizer . convert_ids_to_tokens ( element )) 
+
+             # ['[CLS]', 'Hello', '[SEP]', 'NL', '##P', 'world', '!', '[SEP]']  
+
+             # ['[CLS]', 'The', 'first', 'line', 'and', 'much', 'longer', '[SEP]', 'The', 'second', 'line', '[SEP]']  
+
+             # ['[CLS]', 'The', 'first', 'line', 'and', 'much', 'longer', '[SEP]', 'and', 'much', 'longer', '[SEP]']  
+
+         
+
+        only_first 截断方式：
+
+         
+
+         xxxxxxxxxx 
+
+         from transformers import BertTokenizerFast  
+
+         tokenizer = BertTokenizerFast . from_pretrained ( "bert-base-cased" ) 
+
+          
+
+         batch_seq = [ 
+
+           ( "Hello" , "NLP world!" ), 
+
+           ( "The first line and much longer" , "The second line and much longer" ), 
+
+         ] 
+
+          
+
+         # 截断到 max_length  
+
+         # 第一个样本: 无需截断  
+
+         # 第二个样本: 需要被截断, 第二个句子保留，每次截取第一个句子中的一部分，使得整体满足 max_legnth  
+
+         result = tokenizer ( batch_seq , truncation = "only_first" , max_length = 12 , 
+
+                           return_overflowing_tokens = True , stride = 0 )  
+
+          
+
+         for element in result [ 'input_ids' ]: 
+
+             print ( tokenizer . convert_ids_to_tokens ( element )) 
+
+             # ['[CLS]', 'Hello', '[SEP]', 'NL', '##P', 'world', '!', '[SEP]']  
+
+             # ['[CLS]', 'The', 'first', 'line', '[SEP]', 'The', 'second', 'line', 'and', 'much', 'longer', '[SEP]']  
+
+             # ['[CLS]', 'and', 'much', 'longer', '[SEP]', 'The', 'second', 'line', 'and', 'much', 'longer', '[SEP]']  
+
+         
+
+        非零的 stride 叠加 only_second 截断方式：
+
+         
+
+         xxxxxxxxxx 
+
+         from transformers import BertTokenizerFast  
+
+         tokenizer = BertTokenizerFast . from_pretrained ( "bert-base-cased" ) 
+
+          
+
+         batch_seq = [ 
+
+           ( "Hello" , "NLP world!" ), 
+
+           ( "The first line and much longer" , "The second line and much longer" ), 
+
+         ] 
+
+          
+
+         # 截断到 max_length  
+
+         # 第一个样本: 无需截断  
+
+         # 第二个样本: 需要被截断, 第一个句子保留，每次截取第二个句子中的一部分，使得整体满足 max_legnth  
+
+         # 截断时每次重叠之前的 2 个 token  
+
+         result = tokenizer ( batch_seq , truncation = "only_second" , max_length = 12 , 
+
+                           return_overflowing_tokens = True , stride = 2 )  
+
+          
+
+         for element in result [ 'input_ids' ]: 
+
+             print ( tokenizer . convert_ids_to_tokens ( element )) 
+
+             # ['[CLS]', 'Hello', '[SEP]', 'NL', '##P', 'world', '!', '[SEP]']  
+
+             # ['[CLS]', 'The', 'first', 'line', 'and', 'much', 'longer', '[SEP]', 'The', 'second', 'line', '[SEP]']  
+
+             # ['[CLS]', 'The', 'first', 'line', 'and', 'much', 'longer', '[SEP]', 'second', 'line', 'and', '[SEP]']  
+
+             # ['[CLS]', 'The', 'first', 'line', 'and', 'much', 'longer', '[SEP]', 'line', 'and', 'much', '[SEP]']  
+
+             # ['[CLS]', 'The', 'first', 'line', 'and', 'much', 'longer', '[SEP]', 'and', 'much', 'longer', '[SEP]']  
+
+         
+
+         
+
+     
+

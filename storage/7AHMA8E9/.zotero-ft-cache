@@ -1,0 +1,89 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2006.04330
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 8 Jun 2020]
+Title: Eigen-GNN: A Graph Structure Preserving Plug-in for GNNs
+Authors: Ziwei Zhang , Peng Cui , Jian Pei , Xin Wang , Wenwu Zhu
+Download a PDF of the paper titled Eigen-GNN: A Graph Structure Preserving Plug-in for GNNs, by Ziwei Zhang and 4 other authors
+Download PDF
+
+    Abstract: Graph Neural Networks (GNNs) are emerging machine learning models on graphs. Although sufficiently deep GNNs are shown theoretically capable of fully preserving graph structures, most existing GNN models in practice are shallow and essentially feature-centric. We show empirically and analytically that the existing shallow GNNs cannot preserve graph structures well. To overcome this fundamental challenge, we propose Eigen-GNN, a simple yet effective and general plug-in module to boost GNNs ability in preserving graph structures. Specifically, we integrate the eigenspace of graph structures with GNNs by treating GNNs as a type of dimensionality reduction and expanding the initial dimensionality reduction bases. Without needing to increase depths, Eigen-GNN possesses more flexibilities in handling both feature-driven and structure-driven tasks since the initial bases contain both node features and graph structures. We present extensive experimental results to demonstrate the effectiveness of Eigen-GNN for tasks including node classification, link prediction, and graph isomorphism tests. 
+
+Comments: 	11 pages plus 8 pages for appendices, 4 figures
+Subjects: 	Machine Learning (cs.LG) ; Machine Learning (stat.ML)
+Cite as: 	arXiv:2006.04330 [cs.LG]
+  	(or arXiv:2006.04330v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2006.04330
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Ziwei Zhang [ view email ]
+[v1] Mon, 8 Jun 2020 02:47:38 UTC (300 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Eigen-GNN: A Graph Structure Preserving Plug-in for GNNs, by Ziwei Zhang and 4 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2006
+Change to browse by:
+cs
+stat
+stat.ML
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+DBLP - CS Bibliography
+listing | bibtex
+Ziwei Zhang
+Peng Cui
+Jian Pei
+Xin Wang
+Wenwu Zhu
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

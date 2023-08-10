@@ -1,0 +1,80 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2302.10637
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 21 Feb 2023]
+Title: A Survey of Trustworthy Federated Learning with Perspectives on Security, Robustness, and Privacy
+Authors: Yifei Zhang , Dun Zeng , Jinglong Luo , Zenglin Xu , Irwin King
+Download a PDF of the paper titled A Survey of Trustworthy Federated Learning with Perspectives on Security, Robustness, and Privacy, by Yifei Zhang and 4 other authors
+Download PDF
+
+    Abstract: Trustworthy artificial intelligence (AI) technology has revolutionized daily life and greatly benefited human society. Among various AI technologies, Federated Learning (FL) stands out as a promising solution for diverse real-world scenarios, ranging from risk evaluation systems in finance to cutting-edge technologies like drug discovery in life sciences. However, challenges around data isolation and privacy threaten the trustworthiness of FL systems. Adversarial attacks against data privacy, learning algorithm stability, and system confidentiality are particularly concerning in the context of distributed training in federated learning. Therefore, it is crucial to develop FL in a trustworthy manner, with a focus on security, robustness, and privacy. In this survey, we propose a comprehensive roadmap for developing trustworthy FL systems and summarize existing efforts from three key aspects: security, robustness, and privacy. We outline the threats that pose vulnerabilities to trustworthy federated learning across different stages of development, including data processing, model training, and deployment. To guide the selection of the most appropriate defense methods, we discuss specific technical solutions for realizing each aspect of Trustworthy FL (TFL). Our approach differs from previous work that primarily discusses TFL from a legal perspective or presents FL from a high-level, non-technical viewpoint. 
+
+Subjects: 	Machine Learning (cs.LG) ; Cryptography and Security (cs.CR)
+Cite as: 	arXiv:2302.10637 [cs.LG]
+  	(or arXiv:2302.10637v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2302.10637
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Yifei Zhang [ view email ]
+[v1] Tue, 21 Feb 2023 12:52:12 UTC (3,283 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled A Survey of Trustworthy Federated Learning with Perspectives on Security, Robustness, and Privacy, by Yifei Zhang and 4 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2302
+Change to browse by:
+cs
+cs.CR
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

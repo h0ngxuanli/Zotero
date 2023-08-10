@@ -1,0 +1,86 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2201.12872
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 30 Jan 2022]
+Title: Discovering Invariant Rationales for Graph Neural Networks
+Authors: Ying-Xin Wu , Xiang Wang , An Zhang , Xiangnan He , Tat-Seng Chua
+Download a PDF of the paper titled Discovering Invariant Rationales for Graph Neural Networks, by Ying-Xin Wu and 4 other authors
+Download PDF
+
+    Abstract: Intrinsic interpretability of graph neural networks (GNNs) is to find a small subset of the input graph's features -- rationale -- which guides the model prediction. Unfortunately, the leading rationalization models often rely on data biases, especially shortcut features, to compose rationales and make predictions without probing the critical and causal patterns. Moreover, such data biases easily change outside the training distribution. As a result, these models suffer from a huge drop in interpretability and predictive performance on out-of-distribution data. In this work, we propose a new strategy of discovering invariant rationale (DIR) to construct intrinsically interpretable GNNs. It conducts interventions on the training distribution to create multiple interventional distributions. Then it approaches the causal rationales that are invariant across different distributions while filtering out the spurious patterns that are unstable. Experiments on both synthetic and real-world datasets validate the superiority of our DIR in terms of interpretability and generalization ability on graph classification over the leading baselines. Code and datasets are available at this https URL . 
+
+Comments: 	ICLR 2022
+Subjects: 	Machine Learning (cs.LG)
+Cite as: 	arXiv:2201.12872 [cs.LG]
+  	(or arXiv:2201.12872v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2201.12872
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Ying-Xin Wu [ view email ]
+[v1] Sun, 30 Jan 2022 16:43:40 UTC (7,878 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Discovering Invariant Rationales for Graph Neural Networks, by Ying-Xin Wu and 4 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2201
+Change to browse by:
+cs
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+DBLP - CS Bibliography
+listing | bibtex
+Xiang Wang
+An Zhang
+Xiangnan He
+Tat-Seng Chua
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

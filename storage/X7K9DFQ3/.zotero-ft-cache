@@ -1,0 +1,82 @@
+
+Skip to main content
+Cornell University
+We gratefully acknowledge support from
+the Simons Foundation and member institutions.
+arxiv logo > cs > arXiv:2301.02791
+
+Help | Advanced Search
+Search
+Computer Science > Machine Learning
+(cs)
+[Submitted on 7 Jan 2023]
+Title: Faithful and Consistent Graph Neural Network Explanations with Rationale Alignment
+Authors: Tianxiang Zhao , Dongsheng Luo , Xiang Zhang , Suhang Wang
+Download a PDF of the paper titled Faithful and Consistent Graph Neural Network Explanations with Rationale Alignment, by Tianxiang Zhao and 2 other authors
+Download PDF
+
+    Abstract: Uncovering rationales behind predictions of graph neural networks (GNNs) has received increasing attention over recent years. Instance-level GNN explanation aims to discover critical input elements, like nodes or edges, that the target GNN relies upon for making predictions. %These identified sub-structures can provide interpretations of GNN's behavior. Though various algorithms are proposed, most of them formalize this task by searching the minimal subgraph which can preserve original predictions. However, an inductive bias is deep-rooted in this framework: several subgraphs can result in the same or similar outputs as the original graphs. Consequently, they have the danger of providing spurious explanations and failing to provide consistent explanations. Applying them to explain weakly-performed GNNs would further amplify these issues. To address this problem, we theoretically examine the predictions of GNNs from the causality perspective. Two typical reasons for spurious explanations are identified: confounding effect of latent variables like distribution shift, and causal factors distinct from the original input. Observing that both confounding effects and diverse causal rationales are encoded in internal representations, \tianxiang{we propose a new explanation framework with an auxiliary alignment loss, which is theoretically proven to be optimizing a more faithful explanation objective intrinsically. Concretely for this alignment loss, a set of different perspectives are explored: anchor-based alignment, distributional alignment based on Gaussian mixture models, mutual-information-based alignment, etc. A comprehensive study is conducted both on the effectiveness of this new framework in terms of explanation faithfulness/consistency and on the advantages of these variants. 
+
+Comments: 	Under review. arXiv admin note: substantial text overlap with arXiv:2205.13733
+Subjects: 	Machine Learning (cs.LG) ; Human-Computer Interaction (cs.HC); Social and Information Networks (cs.SI)
+Cite as: 	arXiv:2301.02791 [cs.LG]
+  	(or arXiv:2301.02791v1 [cs.LG] for this version)
+  	https://doi.org/10.48550/arXiv.2301.02791
+Focus to learn more
+arXiv-issued DOI via DataCite
+Submission history
+From: Tianxiang Zhao [ view email ]
+[v1] Sat, 7 Jan 2023 06:33:35 UTC (1,962 KB)
+Full-text links:
+Download:
+
+    Download a PDF of the paper titled Faithful and Consistent Graph Neural Network Explanations with Rationale Alignment, by Tianxiang Zhao and 2 other authors
+    PDF
+    Other formats 
+
+( license )
+Current browse context:
+cs.LG
+< prev   |   next >
+new | recent | 2301
+Change to browse by:
+cs
+cs.HC
+cs.SI
+References & Citations
+
+    NASA ADS
+    Google Scholar
+    Semantic Scholar
+
+a export BibTeX citation Loading...
+Bookmark
+BibSonomy logo Mendeley logo Reddit logo ScienceWISE logo
+Bibliographic Tools
+Bibliographic and Citation Tools
+Bibliographic Explorer Toggle
+Bibliographic Explorer ( What is the Explorer? )
+Litmaps Toggle
+Litmaps ( What is Litmaps? )
+scite.ai Toggle
+scite Smart Citations ( What are Smart Citations? )
+Code, Data, Media
+Demos
+Related Papers
+About arXivLabs
+Which authors of this paper are endorsers? | Disable MathJax ( What is MathJax? )
+
+    About
+    Help
+
+    contact arXiv Click here to contact arXiv Contact
+    subscribe to arXiv mailings Click here to subscribe Subscribe
+
+    Copyright
+    Privacy Policy
+
+    Web Accessibility Assistance
+
+    arXiv Operational Status
+    Get status notifications via email or slack
+

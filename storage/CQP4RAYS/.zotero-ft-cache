@@ -1,0 +1,1294 @@
+arXiv:2208.02194v2 [cs.LG] 19 Jan 2023
+
+Interpretable bilinear attention network with domain adaptation improves drug-target prediction
+Peizhen Bai1, Filip Miljkovic´ 2, Bino John3, and Haiping Lu1*
+1Department of Computer Science, University of Shefﬁeld, Shefﬁeld, United Kingdom 2Imaging and Data Analytics, Clinical Pharmacology & Safety Sciences, R&D, AstraZeneca, Gothenburg, Sweden 3Imaging and Data Analytics, Clinical Pharmacology & Safety Sciences, R&D, AstraZeneca, Waltham, USA *corresponding author: Haiping Lu (h.lu@shefﬁeld.ac.uk)
+ABSTRACT
+Predicting drug-target interaction is key for drug discovery. Recent deep learning-based methods show promising performance but two challenges remain: (i) how to explicitly model and learn local interactions between drugs and targets for better prediction and interpretation; (ii) how to generalize prediction performance on novel drug-target pairs from different distribution. In this work, we propose DrugBAN, a deep bilinear attention network (BAN) framework with domain adaptation to explicitly learn pair-wise local interactions between drugs and targets, and adapt on out-of-distribution data. DrugBAN works on drug molecular graphs and target protein sequences to perform prediction, with conditional domain adversarial learning to align learned interaction representations across different distributions for better generalization on novel drug-target pairs. Experiments on three benchmark datasets under both in-domain and cross-domain settings show that DrugBAN achieves the best overall performance against ﬁve state-of-the-art baselines. Moreover, visualizing the learned bilinear attention map provides interpretable insights from prediction results.
+Introduction
+Drug-target interaction (DTI) prediction serves as an important step in the process of drug discovery1–3. Traditional biomedical measuring from in vitro experiments is reliable but has notably high cost and time-consuming development cycle, preventing its application on large-scale data4. In contrast, identifying high-conﬁdence DTI pairs by in silico approaches can greatly narrow down the search scope of compound candidates, and provide insights into the causes of potential side eﬀects in drug combinations. Therefore, in silico approaches have gained increasing attention and made much progress in the last few years5,6.
+For in silico approaches, traditional structure-based and ligand-based virtual screening (VS) methods have been studied widely for their decent performance7. However, structure-based VS requires molecular docking simulation, which is not applicable if the target protein’s three-dimensional (3D) structure is unknown. On the other hand, ligand-based VS predicts new active molecules based on the known actives to the same protein, but the performance is poor when the number of known actives is insuﬃcient8.
+More recently, deep learning (DL)-based approaches have rapidly progressed for computational DTI prediction due to their successes in other areas, enabling large-scale validation in a relatively short time9. Many of them are constructed from a chemogenomics perspective3,10, which integrates the chemical space, genomic space, and interaction information into a uniﬁed end-to-end framework. Since the number of biological targets that have available 3D structures is limited, many DL-based models take linear or two-dimensional (2D) structural information of drugs and proteins as inputs. They treat DTI prediction as a binary classiﬁcation task, and make predictions by feeding the inputs into diﬀerent deep encoding and decoding modules such as deep neural network (DNN)11, 12, graph neural network (GNN)9, 13–15 or transformer architectures16, 17. With the advances of deep learning techniques, such models can automatically learn data-driven representations of drugs and proteins from large-scale DTI data instead of only using pre-deﬁned descriptors.
+Despite these promising developments, two challenges remain in existing DL-based methods. The ﬁrst challenge is explicit learning of interactions between local structures of drug and protein. DTI is essentially decided by mutual eﬀects between important molecular substructures in the drug compound and binding sites in the protein sequence18. However, many previous studies learn global representations in their separate encoders, without explicitly learning local interactions2, 11, 13, 19, 20. Consequently, drug and protein representations are learned for the whole structures ﬁrst and mutual information is only implicitly learned in the black-box decoding module. Interactions between drug and target are particularly related to their crucial substructures, thus separate global representation learning tends to limit the modeling capacity and prediction performance. Moreover, without explicit learning of local interactions, the prediction result is hard to interpret, even if the prediction is
+
+a
+
+Input
+
+Drug
+
+Separate Feature Encoders Drug feature encoder
+
+Drug representation
+
+Bilinear Attention Network
+
+Decoder
+
+Atom embedding
+
+Fully connected Joint representation classification
+
+GCN-1
+
+GCN-3
+
+Residue M embedding E
+
+T
+
+L
+
+…
+
+METLCLRASFWLALV
+
+N
+
+GCVIS……SHKDSMN
+
+Protein
+
+Conv1
+
+Conv3
+
+… Protein feature encoder
+
+Multi heads ininBtBetileriilnarinacecetaitaoriornn
+
+BBiliilnineeaar r
+
+ppoooolilningg
+
+f
+
+p
+
+Bilinear attention map
+
+Protein representation
+
+Discriminator CDAN
+
+b
+
+Bilinear Attention Network
+
+Step 1: Bilinear interaction
+𝐇𝐇𝑑T𝑑 𝐔𝐔 1 • 𝐪𝐪T
+
+𝐕𝐕T𝐇𝐇𝑝𝑝
+
+𝐇𝐇𝑑𝑑: drug representation 𝐇𝐇𝑝𝑝: protein representation
+=I
+
+Step 2: Bilinear pooling
+
+𝐔𝐔T𝐇𝐇𝑑𝑑
+
+I
+
+= 𝐇𝐇𝑝T𝑝 𝐕𝐕
+
+Sum
+
+f
+
+Pooling
+
+c
+
+Conditional Adversarial Domain Adaptation (CDAN)
+
+source
+
+fs
+
+Decoder
+
+gs
+
+O HO
+HS
+
+H
+
+N
+
+CH3
+
+O
+
+target
+
+Separate Feature Encoders
+
+Bilinear Attention Network
+
+Feature extractor
+
+Discriminator
+
+Adversarial loss
+
+ft
+
+Decoder
+
+gt
+
+Figure 1. Overview of the DrugBAN framework. (a) The input drug molecule and protein sequence are separately encoded by graph convolutional networks and 1D-convolutional neural networks. Each row of the encoded drug representation is an aggregated representation of adjacent atoms in the drug molecule, and each row of the encoded protein representation is a subsequence representation in the protein sequence. The drug and protein representations are fed into a bilinear attention network to learn their pairwise local interactions. The joint representation is decoded by a fully connected decoder module to predict the DTI probability . If the prediction task is cross-domain, the conditional domain adversarial network21 (CDAN) module is employed to align learned representations in the source and target domains. (b) The bilinear attention network architecture. and are encoded drug and protein representations. In Step 1, the bilinear attention map matrix is obtained by a low-rank bilinear interaction modeling via transformation matrices and to measure the substructure-level interaction intensity22. Then is utilized to produce the joint representation in Step 2 by bilinear pooling via the shared transformation matrices and . (c) CDAN is a domain adaptation technique to reduce the domain shift between diﬀerent distributions of data. We use CDAN to embed joint representation and softmax logits for source and target domains into a joint conditional representation via the discriminator, a two-layer fully connected network that minimizes the domain classiﬁcation error to distinguish the target domain from the source domain.
+
+accurate. The second challenge is generalizing prediction performance across domains, i.e. out of learned distribution. Due to the vast
+regions of chemical and genomic space, drug-target pairs that need to be predicted in real-world applications are often unseen and dissimilar to any pairs in the training data. They have diﬀerent distributions and thus need cross-domain modeling23,24. A robust model should be able to transfer learned knowledge to a new domain that only has unlabeled data. In this case, we need to align distributions and improve cross-domain generalization performance by learning transferable representations, e.g. from "source" to "target". To the best of our knowledge, this is an underexplored direction in drug discovery25.
+To address these challenges, we propose an interpretable bilinear attention network-based model (DrugBAN) for DTI prediction, as shown in Figure 1a. DrugBAN is a deep learning framework with explicit learning of local interactions between drug and target, and conditional domain adaptation for learning transferable representations across domains. Speciﬁcally, we ﬁrst use graph convolutional network26 (GCN) and convolutional neural network (CNN) to encode local structures in 2D
+2/19
+
+drug molecular graph and 1D protein sequence, respectively. Then the encoded local representations are fed into a pairwise interaction module that consists of a bilinear attention network27,28 to learn local interaction representations, as depicted in Figure 1b. The local joint interaction representations are decoded by a fully connected layer to make a DTI prediction. In this way, we can utilize the pairwise bilinear attention map to visualize the contribution of each substructure to the ﬁnal predictive result, improving the interpretability. For cross-domain prediction, we apply conditional domain adversarial network21 (CDAN) to transfer learned knowledge from source domain to target domain to enhance cross-domain generalization, as illustrated in Figure 1c. We conduct a comprehensive performance comparison against ﬁve state-of-the-art DTI prediction methods on both in-domain and cross-domain settings of drug discovery. The results show that our method achieves the best overall performance compared to state-of-the-art methods, while providing interpretable insights for the prediction results.
+To summarize, DrugBAN diﬀers from previous works by (i) capturing pairwise local interactions between drugs and targets via a bilinear attention mechanism, (ii) enhancing cross-domain generalization with an adversarial domain adaptation approach; and (iii) giving an interpretable prediction via bilinear attention weights instead of black-box results.
+Results
+Problem formulation In DTI prediction, the task is to determine whether a pair of a drug compound and a target protein will interact. For target protein, denoting each protein sequence as  = ( 1, ..., ), where each token represents one of the 23 amino acids. For drug compound, most existing deep learning-based methods represent the input by the Simpliﬁed Molecular Input Line Entry System (SMILES)29, which is a 1D sequence describing chemical atom and bond token information in the drug molecule. The SMILES format allows encoding drug information with many classic deep learning architectures. However, since the 1D sequence is not a natural representation for molecules, some important structural information of drugs could be lost, degrading model prediction performance. Our model converts input SMILES into its corresponding 2D molecular graph. Speciﬁcally, a drug molecule graph is deﬁned as  = (, ), where  is the set of vertices (atoms) and  is the set of edges (chemical bonds).
+Given a protein sequence  and a drug molecular graph , DTI prediction aims to learn a model  to map the joint feature representation space  ×  to an interaction probability score ∈ [0, 1]. Supplementary Table 3 provides the commonly used notations in this paper.
+DrugBAN framework Figure 1a shows the proposed DrugBAN framework. Given an input drug-target pair, ﬁrstly, we employ separate graph convolutional network (GCN) and 1D-convolutional neural network (1D-CNN) blocks to encode molecular graph and protein sequence information, respectively. Then we use a bilinear attention network module to learn local interactions between encoded drug and protein representations. The bilinear attention network consists of a bilinear attention step and a bilinear pooling step to generate a joint representation, as illustrated in Figure 1b. Next, a fully connected classiﬁcation layer learns a predictive score indicating the probability of interaction. For improving model generalization performance on cross-domain drug-target pairs, we further embed CDAN into the framework to adapt representations for better aligning source and target distributions, as depicted in Figure 1c.
+Evaluation strategies and metrics We study classiﬁcation performance on three public datasets separately: BindingDB30, BioSNAP31 and Human16,32, with test sets holding out as ‘unknown’ for evaluation. We use two diﬀerent split strategies for in-domain and cross-domain settings. For in-domain evaluation, each experimental dataset is randomly divided into training, validation, and test sets with a 7:1:2 ratio. For cross-domain evaluation, we propose a clustering-based pair split strategy to construct cross-domain scenario. We conduct cross-domain evaluation on the large-scale BindingDB and BioSNAP datasets. For each dataset, we ﬁrstly use the single-linkage algorithm to cluster drugs and proteins by ECFP4 (extended connectivity ﬁngerprint, up to four bonds)33 ﬁngerprint and pseudo amino acid composition (PSC)34, respectively. After that, we randomly select 60% drug clusters and 60% protein clusters from the clustering result, and consider all drug-target pairs between the selected drugs and proteins as source domain data. All the pairs between drugs and proteins in the remaining clusters are considered to be target domain data. The clustering implementation details are provided in Supplementary Section 1. Under the clustering-based pair split strategy, the source and target domains are non-overlapping with diﬀerent distributions. Following the general setting of domain adaptation, we use all labeled source domain data and 80% unlabeled target domain data as the training set, and the remaining 20% labeled target domain data as the test set. The cross-domain evaluation is more challenging than in-domain random split but provides a better measure of model generalization ability in real-world drug discovery. For a more comprehensive study, we report additional experiments across diﬀerent protein families, on unseen drugs/targets, and with high fraction of missing data in Supplementary Sections 4-6, respectively.
+3/19
+
+Table 1. In-domain performance comparison on the BindingDB and BioSNAP datasets with random split (Best, Second Best).
+
+Method
+SVM35 RF36 DeepConv-DTI11 GraphDTA13 MolTrans17 DrugBAN
+SVM35 RF36 DeepConv-DTI11 GraphDTA13 MolTrans17 DrugBAN
+
+AUROC
+0.939±0.001 0.942±0.011 0.945±0.002 0.951±0.002 0.952±0.002 0.960±0.001
+0.862±0.007 0.860±0.005 0.886±0.006 0.887±0.008 0.895±0.004 0.903±0.005
+
+AUPRC
+
+Accuracy
+
+BindingDB
+
+0.928±0.002
+
+0.825±0.004
+
+0.921±0.016
+
+0.880±0.012
+
+0.925±0.005
+
+0.882±0.007
+
+0.934±0.002
+
+0.888±0.005
+
+0.936±0.001
+
+0.887±0.006
+
+0.948±0.002
+
+0.904±0.004
+
+BioSNAP
+
+0.864±0.004
+
+0.777±0.011
+
+0.886±0.005
+
+0.804±0.005
+
+0.890±0.006
+
+0.805±0.009
+
+0.890±0.007
+
+0.800±0.007
+
+0.897±0.005
+
+0.825±0.010
+
+0.902±0.004
+
+0.834±0.008
+
+Sensitivity
+0.781±0.014 0.875±0.023 0.873±0.018 0.882±0.012 0.877±0.016 0.900±0.008
+0.711±0.042 0.823±0.032 0.760±0.029 0.745±0.032 0.818±0.031 0.820±0.021
+
+Speciﬁcity
+0.886±0.012 0.892±0.020 0.894±0.009 0.897±0.008 0.902±0.009 0.908±0.004
+0.841±0.028 0.786±0.025 0.851±0.013 0.854±0.025 0.831±0.013 0.847±0.010
+
+$852& $835&
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+5DQGRP
+
+&ROG
+
+5DQGRP
+
+&ROG
+
+690
+
+5)
+
+'HHS&RQY'7,
+
+*UDSK'7$
+
+0RO7UDQV
+
+'UXJ%$1
+
+Figure 2. In-domain performance comparison on the Human dataset with random split and cold pair split. The grey lines are error bars indicating the standard deviation.
+
+The AUROC (area under the receiver operating characteristic curve) and AUPRC (area under the precision-call curve) are used as the major metrics to evaluate model classiﬁcation performance. In addition, we also report the accuracy, sensitivity, and speciﬁcity at the threshold of the best F1 score. We conduct ﬁve independent runs with diﬀerent random seeds for each dataset split. The best performing model is selected to be the one with the best AUROC on the validation set. The selected model is then evaluated on the test set to report the performance metrics.
+In-domain performance comparison Here we compare DrugBAN with ﬁve baselines under the random split setting: support vector machine35 (SVM), random forest36 (RF), DeepConv-DTI11, GraphDTA13, and MolTrans17. This is the in-domain scenario so we use vanilla DrugBAN without embedding the CDAN module. Table 1 shows the comparison on the BindingDB and BioSNAP datasets. DrugBAN has consistently outperformed baselines in AUROC, AUPRC, and accuracy, while the performance in sensitivity and speciﬁcity is also competitive. The results indicate that data-driven representation learning can capture more important information than pre-deﬁned descriptor features in in-domain DTI prediction. Moreover, DrugBAN can capture interaction patterns via its pairwise interaction module, further improving prediction performance.
+Figure 2 shows the in-domain results on the Human dataset. Under the random split, the deep learning-based models all achieve similar and promising performance (AUROC > 0.98). However, Chen et al. (2020)16 pointed out that the Human dataset had some hidden ligand bias, resulting in the correct predictions being made only based on the drug features rather than interaction patterns. The high accuracy could be due to bias and overﬁtting, not indicating a model’s real-world performance on prospective prediction. Therefore, we further use a cold pair split strategy to evaluate models to mitigate the overoptimism of performance estimation under random split due to the data bias. This cold pair split strategy guarantees that all test drugs and proteins are not observed during training so that prediction on test data cannot rely only on the features of known drugs
+4/19
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+$852& $835&
+
+
+ 
+
+ 690
+
+/LQH &OXVWHUB%LR61$3
+
+
+
+&OXVWHUB%LQGLQJ'%
+
+/LQH &OXVWHUB%LR61$3 &OXVWHUB%LQGLQJ'%
+
+5)
+
+'HHS&RQY'7, *UDSK'7$
+
+0RO7UDQV
+
+'UXJ%$1 DrugBANCDAN
+
+690
+
+5)
+
+'HHS&RQY'7, *UDSK'7$
+
+0RO7UDQV
+
+'UXJ%$1 DrugBANCDAN
+
+Figure 3. Cross-domain performance comparison on the BindingDB and BioSNAP datasets with clustering-based
+
+pair split. The box plots show the median as the center lines, and the mean as the green triangles.
+
+Table 2. Ablation study in AUROC on the BindingDB and BioSNAP datasets with random and clustering-based split strategies (averaged over ﬁve random runs). The ﬁrst four models show the eﬀectiveness of our bilinear attention module, and the last three models show the strength of DrugBANCDAN on cross-domain prediction (Best, Second Best).
+
+Ablation tests
+Linear concatenation2, 11, 13 One-side target attention14 One-side drug attention14
+DrugBAN MolTransCDAN Dr ugBANDANN Dr ugBANCDAN
+
+BindingDBrandom
+0.949±0.002 0.950±0.002 0.953±0.002 0.960±0.001
+-
+
+BioSNAPrandom
+0.887±0.007 0.890±0.005 0.892±0.004 0.903±0.005
+-
+
+BindingDBcluster
+0.575±0.025 0.575±0.038 0.592±0.042 0.604±0.039
+
+BioSNAPcluster
+0.654±0.023 0.656±0.028 0.667±0.030 0.684±0.026
+
+or proteins. We randomly assign 5% and 10% DTI pairs into the validation and test sets respectively, and remove all their associated drugs and proteins from the training set. Figure 2 indicates that all models have a signiﬁcant performance drop from random split to cold pair split, especially for SVM and RF. However, we can see that DrugBAN still achieves the best performance against other state-of-the-art deep learning baselines.
+Cross-domain performance comparison In-domain classiﬁcation under random split is an easier task and of less practical importance. Therefore, next, we study more realistic and challenging cross-domain DTI prediction, where training data and test data have diﬀerent distributions. To imitate this scenario, the original data is divided into source and target domains by the clustering-based pair split. We turn on the CDAN module of DrugBAN to get DrugBANCDAN for studying knowledge transferability in cross-domain prediction.
+Figure 3 presents the performance evaluation on the BindingDB and BioSNAP datasets with clustering-based pair split. Compared to the previous in-domain prediction results, the performance of all DTI models drops signiﬁcantly due to much less information overlap between training and test data. In this scenario, vanilla DrugBAN still outperforms other state-of-the-art models on the whole. Speciﬁcally, it outperforms MolTrans by 2.9% and 7.4% in AUROC on the BioSNAP and BindingDB datasets, respectively. The results show that DrugBAN is a robust method under both in-domain and cross-domain settings. Interestingly, RF achieves good performance and even consistently outperforms other deep learning baselines (DeepConv, GraphDTA and MolTrans) on the BindingDB dataset. The results indicate that deep learning methods are not always superior to shallow machine learning methods under the cross-domain setting.
+Recently, domain adaptation techniques have received increasing attention due to the ability of transferring knowledge across domains, but they are mainly applied to computer vision and natural language processing problems. We combine vanilla DrugBAN with CDAN to tackle cross-domain DTI prediction. As shown in Figure 3, DrugBANCDAN has signiﬁcant performance improvements with the introduction of a domain adaptation module. On the BioSNAP dataset, it outperforms vanilla DrugBAN by 4.6% and 16.9% in AUROC and AUPRC, respectively. By minimizing the distribution discrepancy across domains, CDAN can eﬀectively enhance DrugBAN generalization ability and provide more reliable results.
+These results demonstrate the strength of DrugBAN in generalizing prediction performance across domains.
+5/19
+
+Ablation study Here we conduct an ablation study to investigate the inﬂuences of bilinear attention and domain adaptation modules on DrugBAN. The results are shown in Table 2. To validate the eﬀectiveness of bilinear attention, we study three variants of DrugBAN that diﬀer in the joint representation computation between drug and protein: one-side drug attention, one-side protein attention, and linear concatenation. The one-side attention is equivalent to the neural attention mechanism introduced by Tsubaki et al. (2019)14, which is used to capture the joint representation between a drug vector representation and a protein subsequence matrix representation. We replace the bilinear attention in DrugBAN with one-side attention to generate the two variants. Linear concatenation is a simple vector concatenation of drug and protein vector representations after a max-pooling layer. As shown in the ﬁrst four rows of Table 2, the results demonstrate that bilinear attention is the most eﬀective method to capture interaction information for DTI prediction. To examine the eﬀect of CDAN, we study two variants: DrugBAN with domain-adversarial neural network (DANN)37 (i.e. DrugBANDANN) and MolTrans with CDAN (i.e. MolTransCDAN). DANN is another adversarial domain adaptation technique without considering classiﬁcation distribution. The last four rows of Table 2 indicate that DrugBANCDAN still achieves the best performance improvement in cross-domain prediction.
+Interpretability with bilinear attention visualization A further strength of DrugBAN is to enable molecular level insights and interpretation critical for drug design eﬀorts, utilizing the components of the bilinear attention map to visualize the contribution of each substructure to the ﬁnal predictive result. Here, we examine the top three predictions (PDB ID: 6QL240, 5W8L41 and 4N6H42) of co-crystalized ligands from Protein Data Bank (PDB)43. Only X-ray structures with resolution greater than 2.5 Å that corresponded to human protein targets were proceeded for selection. In addition, co-crystalized ligands were required to have pIC50 ≤ 100 nM and not to be part of the training set. The visualization results are shown in Figure 4a alongside the ligand-protein interaction maps originating from the corresponding X-ray structures. For each molecule, we colored its top 20% weighted atoms in bilinear attention map with orange.
+For PDB structure 6QL2 (ethoxzolamide complexed with human carbonic anhydrase 2), our model correctly interpreted sulfonamide region as essential for ligand-protein binding (in 6QL2: sulfonamide oxygen as a hydrogen bond acceptor to the backbone of Leu198 and Thr199, and amino group as a hydrogen bond donor to the side chains of His94 and Thr199). On another hand, ethoxy group of ethoxzolamide was incorrectly predicted to form speciﬁc interactions with the protein, although its exposure to the solvent may promote further binding (blue highlight). In addition, benzothiazole scaﬀold, which forms an arene-H interaction with Leu198, is only partly highlighted by our interpretability model. It is worth mentioning that though top 20% of interacting atoms of ethoxzolamide only corresponded to three highlighted atoms, all of them indicated diﬀerent ligand-protein interaction sites corroborated by the X-ray structure.
+In 5W8L structure (9YA ligand bound to human L-lactate dehydrogenase A), the interpretability feature once more highlighted important interaction patterns for ligand-protein binding. For example, sulfonamide group was once more indicated to form speciﬁc interactions with the protein (in 5W8L: amino group as a hydrogen bond donor to the side chains of Asp140 and Glu191, and sulfonamide oxygen as a hydrogen bond acceptor to the backbone of Asp140 and Ile141). Similarly, we noted that carboxylic acid group was also partly highlighted (in 5W8L: carboxylic acid oxygens act as hydrogen bond acceptors to the side chains of Arg168, His192, and Thr247). Moreover, biphenyl rings were correctly predicted to participate in ligand-protein binding (in 5W8L: arene-H interaction with Arg105 and Asn137). Although 9YA (bound to 5W8L) was much larger and complex than ethoxzolamide (bound to 6QL2), the model showed good interpretability potential for the majority of the experimentally conﬁrmed interactions.
+In the third example, 4N6H X-ray complex of human delta-type opioid receptor with EJ4 ligand, main interacting functional groups of EJ4 were once more highlighted correctly. Here, a hydroxyl group of the aliphatic ring complex and a neighboring tertiary amine (in 4N6H: both as hydrogen bond donors to the side chain of Asp128) were correctly interpreted to form speciﬁc interactions. On the other hand, phenol group was wrongly predicted to participate in protein binding.
+As for the more challenging protein sequence interpretability, the results were overall weaker than those for the ligand interpretability. Although many amino acid residues that were predicted to potentially participate in ligand binding were in fact distantly located to the respective compounds, a number of amino acid residues forming the binding sites were yet correctly predicted, which is shown in Figure 4b. For example, in 6QL2 complex the following residues were highlighted: His94, His96, Thr200, Pro201, Pro202, Leu203, Val207, Trp209. Among these, only His94 forms speciﬁc interaction with ethoxzolamide. In 5W8L, none of the residues that constitute the ligand-protein binding site were highlighted. However, in 4N6H structure, there were several correctly predicted residues within the binding site: Lys214, Val217, Leu300, Cys303, Ile304, Gly307, and Tyr308. Unfortunately, none of the residues participated in the speciﬁc interactions with the ligand. Given these results, it is expected that protein sequence interpretability would be less conﬁdent because the one-dimensional protein sequence (used as protein information input in our model) does not necessarily imply the three-dimensional conﬁguration and locality of the binding pocket. However, the results from the primary protein sequence are encouraging enough to safely assume that the
+6/19
+
+a
+6QL2
+4N6H
+b
+6QL2
+
+5W8L
+
+5W8L
+
+4N6H
+
+Figure 4. Importance visualization of ligands and binding pockets. (a) Interpretability of co-crystalized ligands. The left-hand side of each panel shows the two-dimensional structures of ligands with highlighted atoms (orange) that were predicted to contribute to protein binding. All structures were visualized using RDKit38. In addition, ligand-protein interaction maps (right-hand side of each panel) from the corresponding crystal structures of these ligands are provided. At the right bottom, the legend panel for the ligand-protein interaction maps is displayed. (b) Interpretability of binding pocket structures. The three-dimensional representations of ligand-protein binding pockets are provided highlighting the correctly predicted amino acid residues (orange) that surround the corresponding ligands (cyan). Remaining amino acid residues, secondary structure elements, and surface maps are colored in grey. All ligand-protein interaction maps and three-dimensional representations of X-ray structures were visualized using the Molecular Operating Environment (MOE) software39. See text below for interesting interpretation.
+further incorporation of three-dimensional protein information into the modeling framework would eventually improve the model interpretability of drug-target interaction networks.
+In addition, as the interpretability provided by DrugBAN is adaptively learned from DTI data itself, such interpretation has potential to ﬁnd some hidden knowledge of local interactions that has not been explored, and could help drug hunters to improve binding properties of a given scaﬀold, or to reduce the oﬀ-target liabilities of a compound.
+Conclusion
+In this work, we present DrugBAN, an end-to-end bilinear attention deep learning framework for DTI prediction. We have integrated CDAN, an adversarial domain adaptation network, into the modeling process to enhance cross-domain generalization ability. Compared with other state-of-the-art DTI models and conventional machine learning models, the experimental results
+7/19
+
+show that DrugBAN consistently achieves improved DTI prediction performance in both in-domain and cross-domain settings. Furthermore, by mapping attention weights to protein subsequences and drug compound atoms, our model can provide biological insights for interpreting the nature of interactions. The proposed ideas are general in nature and can be extended to other interaction prediction problems, such as the prediction of drug-drug interaction and protein-protein interaction.
+This work focuses on chemogenomics-based DTI using 1D protein sequence and 2D molecular graph as input. Since the number of highly accurate 3D structured proteins only accounts for a small fraction of the known protein sequences, this work did not consider the modeling with such structural information. Nevertheless, DeepMind’s AlphaFold44 is making great progress in protein 3D structure prediction, recently generating 2 billion protein 3D structure predictions from 1 million species. Such progress opens doors for utilizing 3D structural information in chemogenomics-based DTI prediction. Following the idea of pairwise local interaction learning and domain adaptation, we believe that extending our ideas further on complex 3D structures can lead to even better performance and interpretability in future work. Finally, this work studies diﬀerent datasets separately, combining dataset integration with DrugBAN will be another interesting future direction to explore.
+Methods
+Bilinear attention network This is an attention-based model and was ﬁrst proposed to solve the problem of visual question answering (VQA)28. Given an image and relevant natural language question, VQA systems aim to provide a text-image matching answer. Therefore, VQA can be viewed as a multimodal learning task, similar to DTI prediction. Bilinear attention network (BAN) uses a bilinear attention map to gracefully extend unitary attention networks for adapting multimodal learning, which considers every pair of multimodal input channels, i.e., the pairs of image regions and question words to learn an interaction representation. Compared to using a unitary attention mechanism directly on multimodal data, BAN can provide richer joint information but keep the computational cost at the same scale. Due to the problem similarity between VQA and DTI, we design a BAN-inspired pairwise interaction module for DTI prediction.
+Domain adaptation These approaches learn a model that reduces domain distribution shift between the source domain and target domain, which is mainly developed and studied in computer vision45. Early domain adaptation methods tended to reweight sample importance or learn invariant feature representations in shallow feature space, using labeled data in the source domain and unlabeled data in the target domain. More recently, deep domain adaptation methods embed the adaptation module in various deep architectures to learn transferable representations46,47. In particular, Long et al. (2018)21 proposed a novel deep domain adaptation method, CDAN, that combines adversarial networks with multilinear conditioning for transferable representation learning. By introducing classiﬁer prediction information into adversarial learning, CDAN can eﬀectively align data distributions in diﬀerent domains. We embed CDAN as an adaptation module in DrugBAN to enhance model performance for cross-domain DTI prediction.
+DrugBAN architecture CNN for protein sequence. The protein feature encoder consists of three consecutive 1D-convolutional layers, which transforms an input protein sequence to a matrix representation in the latent feature space. Each row of the matrix denotes a subsequence representation in the protein. Drawing on the concept of word embedding, we ﬁrst initialize all amino acids into a learnable embedding matrix ∈ ℝ23× , where 23 is the number of amino acid types and is the latent space dimensionality. By looking up , each protein sequence  can be initialized to corresponding feature matrix ∈ ℝΘ × . Here Θ is the maximum allowed length of a protein sequence, which is set to align diﬀerent protein lengths and make batch training. Following previous works2,14,17, protein sequences with maximum allowed length are cut, and those with smaller length are padded with zeros.
+The CNN-block protein encoder extracts local residue patterns from the protein feature matrix . Here a protein sequence is considered as an overlapping 3-mer amino acids such as “METLCL...DSMN” → “MET”, “ETL”, “TLC”,..., “DSM”, “DLK”. The ﬁrst convolutional layer is utilized to capture the 3-mer residue-level features with kernel size = 3. Then the next two layers continue to enlarge the receptive ﬁeld and learn more abstract features of local protein fragments. The protein encoder is described as follows:
+
+( +1) =
+
+(CNN(
+
+( c
+
+)
+
+,
+
+( c
+
+),
+
+( ))),
+
+(1)
+
+where
+
+( c
+
+)
+
+and
+
+( c
+
+)
+
+are
+
+the
+
+learnable
+
+weight
+
+matrices
+
+(ﬁlters)
+
+and
+
+bias
+
+vector
+
+in
+
+the
+
+-th CNN layer.
+
+( ) is the -th hidden
+
+protein representation and (0) = . (⋅) denotes a non-linear activation function, with ReLU(⋅) used in our experiments.
+
+8/19
+
+GCN for molecular graph. For drug compound, we convert each SMILES string to its 2D molecular graph . To represent node information in , we ﬁrst initialize each atom node by its chemical properties, as implemented in the DGL-LifeSci48 package. Each atom is represented as a 74-dimensional integer vector describing eight pieces of information: the atom type, the
+atom degree, the number of implicit Hs, formal charge, the number of radical electrons, the atom hybridization, the number of
+total Hs and whether the atom is aromatic. Similar to the maximum allowed length setting in a protein sequence above, we
+set a maximum allowed number of nodes Θ . Molecules with less nodes will contain virtual nodes with zero padded. As a result, each graph’s node feature matrix is denoted as ∈ ℝΘ ×74. Moreover, we use a simple linear transformation to deﬁne
+= 0 ⊤, leading to a real-valued dense matrix ∈ ℝΘ × as the input feature. We employed a three-layer GCN-block to eﬀectively learn the graph representation on drug compounds. GCN generalizes
+the convolutional operator to an irregular domain. Speciﬁcally, we update the atom feature vectors by aggregating their
+corresponding sets of neighborhood atoms, connected by chemical bonds. This propagation mechanism automatically captures
+substructure information of a molecule. We keep the node-level drug representation for subsequent explicit learning of local
+interactions with protein fragments. The drug encoder is written as:
+
+( +1) = (GCN( ̃ ,
+
+( g
+
+),
+
+( g
+
+),
+
+( ))),
+
+(2)
+
+where
+
+() g
+
+and
+
+() g
+
+are
+
+the
+
+GCN’s layer-speciﬁc learnable
+
+weight
+
+matrix
+
+and bias vector,
+
+̃
+
+is
+
+the
+
+adjacency
+
+matrix
+
+with added
+
+self-connections in molecular graph , and ( ) is the -th hidden node representation with (0) = .
+
+Pairwise interaction learning. We apply a bilinear attention network module to capture pairwise local interactions between
+
+drug and protein. It consists of two layers: (i) A bilinear interaction map to capture pairwise attention weights and (ii) a bilinear
+
+pooling layer over the interaction map to extract joint drug-target representation. Given the third layer’s hidden protein and drug representations (3) = { 1, 2, ..., } and (3) = { 1 , 2 , ..., } after
+
+separate CNN and GCN encoders, where and denote the number of encoded substructures in a protein and atoms in a
+
+drug. The bilinear interaction map can obtain a single head pairwise interaction ∈ ℝ × :
+
+= (( ⋅ ⊤)◦ (( (3))⊤ )) ⋅ ( ⊤ (3)),
+
+(3)
+
+where ∈ ℝ × and ∈ ℝ × are learnable weight matrices for drug and protein representations, ∈ ℝ is a learnable weight vector, ∈ ℝ is a ﬁxed all-ones vector, and ◦ denotes Hadamard (element-wise) product. The elements in indicate the interaction intensity of respective drug-target sub-structural pairs, with mapping to potential binding sites and molecular substructures. To intuitively understand bilinear interaction, an element , in Equation (3) can also be written as:
+
+, = ⊤( ( ⊤ )◦ ( ⊤ )),
+
+(4)
+
+where is the -th column of (3) and is the -th column of (3), respectively denoting the -th and -th sub-structural
+representations of drug and protein. Therefore, we can see a bilinear interaction as ﬁrst mapping representations and to a common feature space with weight matrices and , then learn an interaction on Hadamard product and the weight of vector
+. In this way, pairwise interactions provide interpretability on the contribution of sub-structural pairs to the predicted result. To obtain the joint representation ′ ∈ ℝ , we introduce a bilinear pooling layer over the interaction map . Speciﬁcally,
+the -th element of ′ is computed as:
+
+′ = (( (3))⊤ )⊤ ⋅ ⋅ (( (3))⊤ )
+
+(5)
+
+∑∑
+
+=
+
+,(
+
+)⊤(
+
+⊤) ,
+
+=1 =1
+
+where and denote the -th column of weight matrices and . Notably, there are no new learnable parameters at this layer. The weight matrices and are shared with the previous interaction map layer to decrease the number of parameters and alleviate over-ﬁtting. Moreover, we add a sum pooling on the joint representation vector to obtain a compact feature map:
+
+= SumPool( ′, ),
+
+(6)
+
+9/19
+
+where the SumPool(⋅) function is a one-dimensional and non-overlapped sum pooling operation with stride . It reduces the dimensionality of ′ ∈ ℝ to ∈ ℝ ∕ . Furthermore, we can extend the single pairwise interaction to a multi-head form by calculating multiple bilinear interaction maps. The ﬁnal joint representation vector is a sum of individual heads. As the weight matrices and are shared, each additional head only adds one new weight vector , which is parameter-eﬃcient. In our experiments, the multi-head interaction has a better performance than a single one.
+Thus, using the novel bilinear attention mechanism, the model can explicitly learn pairwise local interactions between drug and protein. This interaction module is inspired by and adapted from Kim et al. (2018)28 and Yu et al. (2018)27, where two bilinear models are designed for the VQA problem. To compute the interaction probability, we feed the joint representation into the decoder, which is one fully connected classiﬁcation layer followed by a sigmoid function:
+
+= Sigmoid( + ),
+
+(7)
+
+where and are learnable weight matrix and bias vector. Finally, we jointly optimize all learnable parameters by backpropagation. The training objective is to minimize the
+cross-entropy loss as follows:
+
+∑  = − ( log( ) + (1 −
+
+)log(1 −
+
+)) + 2 ‖
+
+2
+‖2
+
+,
+
+(8)
+
+where is the set of all learnable weight matrices and bias vectors above, is the ground-truth label of the -th drug-target pair, is its output probability by the model, and is a hyperparameter for L2 regularization.
+Cross-domain adaptation for better generalization. Machine learning models tend to perform well on similar data from the same distribution (i.e. in-domain), but poorer on dissimilar data with diﬀerent distribution (i.e. cross-domain). It is a key challenge to improve model performance on cross-domain DTI prediction. In our framework, we embed conditional adversarial domain adaptation (CDAN) to enhance generalization from a source domain with suﬃcient labeled data to a target domain where only unlabeled data is available.
+Given a source domain  = {( , )} =1 of labeled drug-target pairs and a target domain  = { } =1 of unlabeled drug-target pairs, we leverage CDAN to align their distributions and improve prediction performance across domains. Figure 1c shows the CDAN workﬂow in our framework, including three key components: the feature extractor (⋅), the decoder (⋅), and the domain discriminator (⋅). We use (⋅) to denote the separate feature encoders and bilinear attention network together to generate joint representations of input domain data, i.e., = ( ) and = ( ). Next, we use the fully connected
+classiﬁcation layer mentioned above followed by a softmax function as (⋅) to get a classiﬁer prediction = ( ) ∈ ℝ2 and = ( ) ∈ ℝ2. Furthermore, we apply a multilinear map to embed joint representation and classiﬁer prediction into a
+joint conditional representation ∈ ℝ2 ∕ , which is deﬁned as the ﬂattening of the outer product of the two vectors:
+
+= FLATTEN( ⊗ ),
+
+(9)
+
+where ⊗ is the outer product. The multilinear map captures multiplicative interactions between two independent distributions49,50. Following the CDAN
+mechanism, we simultaneously align the joint representation and predicted classiﬁcation distributions of source and target domains by conditioning the domain discriminator (⋅) on the . The domain discriminator (⋅), consisting of a three-layer fully connected networks, learns to distinguish whether a joint conditional representation is derived from the source domain or the target domain. On the other hand, the feature extractor (⋅) and decoder (⋅) are trained to minimize the source domain cross-entropy loss  with source label information, and simultaneously generate indistinguishable representation to confuse the discriminator (⋅). As a result, we can formulate the two losses in the cross-domain modeling:
+
+ ( , ) = ( , )∼ ( ( ( )), ),
+
+(10)
+
+ ( , , ) = ∼ log(1 − ( , )) + ∼ ( ( , )),
+
+(11)
+
+(12)
+
+where  is the cross-entropy loss on the labeled source domain and  is the adversarial loss for domain discrimination. The optimization problem is written as a minimax paradigm:
+
+10/19
+
+max
+D
+
+min
+F,G
+
+s(F,
+
+G)
+
+−
+
+adv(F, G, D),
+
+(13)
+
+where > 0 is a hyperparameter to weight  . By introducing the adversarial training on  , our framework can reduce the data distribution shift between source and target domains, leading to the improved generalization on cross-domain prediction.
+
+Experimental setting Datasets. We evaluate DrugBAN and ﬁve state-of-the-art baselines on three public DTI datasets: BindingDB, BioSNAP and Human. The BindingDB dataset is a web-accessible database51 of experimentally validated binding aﬃnities, focusing
+primarily on the interactions of small drug-like molecules and proteins. We use a low-bias version of the BindingDB dataset constructed in our earlier work Bai et al. (2021)52, with the bias-reducing preprocessing steps described in Supplementary Section 2. The BioSNAP dataset is created from the DrugBank database53 by Huang et al. (2021)17 and Marinka et al. (2018)31,
+consisting of 4,510 drugs and 2,181 proteins. It is a balanced dataset with validated positive interactions and an equal number of negative samples randomly obtained from unseen pairs. The Human dataset is constructed by Liu et al. (2015)32, including highly credible negative samples via an in silico screening method. Following previous studies14,16,20, we also use the balanced
+version of Human dataset containing the same number of positive and negative samples. To mitigate the inﬂuence of the hidden data bias16, we use additional cold pair split for performance evaluation on the Human dataset. Supplementary Table 2 shows
+statistics of the three datasets. Implementation. DrugBAN is implemented in Python 3.8 and PyTorch 1.7.154, along with functions from DGL 0.7.155,
+DGLlifeSci 0.2.848, Scikit-learn 1.0.256, Numpy 1.20.257, Pandas 1.2.458 and RDKit 2021.03.238. The batch size is set to be
+64 and the Adam optimizer is used with a learning rate of 5e-5. We allow the model to run for at most 100 epochs for all
+datasets. The best performing model is selected at the epoch giving the best AUROC score on the validation set, which is then
+used to evaluate the ﬁnal performance on the test set. The protein feature encoder consists of three 1D-CNN layers with the
+number of ﬁlters [128, 128, 128] and kernel sizes [3, 6, 9]. The drug feature encoder consists of three GCN layers with hidden
+dimensions [128, 128, 128]. The maximum allowed sequence length for protein is set to be 1200, and the maximum allowed
+number of atoms for drug molecule is 290. In the bilinear attention module, we only employ two attention heads to provide
+better interpretability. The latent embedding size is set to be 768 and the sum pooling window size is 3. The number of
+hidden neurons in the fully connected decoder is 512. Our model performance is not sensitive to hyperparameter settings. The
+conﬁguration details and sensitivity analysis are provided in Supplementary Section 3. We also present a scalability study in
+Supplementary Section 7. Baselines. We compare DrugBAN with the following ﬁve models on DTI prediction: (1) Two shallow machine learning
+methods, support vector machine (SVM) and random forest (RF) applied on the concatenated ﬁngerprint ECFP4 and PSC features; (2) DeepConv-DTI11 that uses CNN and one global max-pooling layer to extract local patterns in protein sequence and a fully connected network to encode drug ﬁngerprint ECFP4; (3) GraphDTA13 that models DTI using graph neural networks
+to encode drug molecular graph and CNN to encode protein sequence. The learned drug and protein representation vectors
+are combined with a simple concatenation. To adapt GraphDTA from the original regression task to a binary classiﬁcation task, we follow the steps in earlier literature16,17 to add a Sigmoid function in its last fully connected layer, and then optimize its parameters with a cross-entropy loss. (4) MolTrans17, a deep learning model adapting transformer architecture to encode
+drug and protein information, and a CNN-based interactive module to learn sub-structural interaction. For the above deep DTI
+models, we follow the recommended model hyper-parameter settings described in their original papers.
+
+Data availability
+The experimental data with each split strategy is available at https://github.com/peizhenbai/DrugBAN/tree/main/datasets. All data used in this work are from public resource. The BindingDB source is at https://www.bindingdb.org/bind/index.jsp; The BioSNAP source is at https://github.com/kexinhuang12345/MolTrans and the Human source is at https://github.com/ lifanchen-simm/transformerCPI.
+
+Code availability
+The source code and implementation details of DrugBAN are freely available at GitHub repository (https://github.com/ peizhenbai/DrugBAN) and archived on Zenodo (https://doi.org/10.5281/zenodo.7231657)59.
+
+Additional information
+Competing interests: the authors declare no competing interests.
+
+11/19
+
+References
+1. Luo, Y. et al. A network integration approach for drug-target interaction prediction and computational drug repositioning from heterogeneous information. Nat. Commun. 8 (2017).
+2. Öztürk, H., Olmez, E. O. & Özgür, A. DeepDTA: deep drug–target binding aﬃnity prediction. Bioinformatics 34, i821 – i829 (2018).
+3. Yamanishi, Y., Araki, M., Gutteridge, A., Honda, W. & Kanehisa, M. Prediction of drug–target interaction networks from the integration of chemical and genomic spaces. Bioinformatics 24, i232 – i240 (2008).
+4. Zitnik, M. et al. Machine learning for integrating data in biology and medicine: Principles, Practice, and Opportunities. Inf. Fusion 50, 71–91 (2019).
+5. Bagherian, M. et al. Machine learning approaches and databases for prediction of drug–target interaction: a survey paper. Brieﬁngs Bioinforma. 22, 247 – 269 (2021).
+6. Wen, M. et al. Deep-learning-based drug-target interaction prediction. J. Proteome Res. 16 4, 1401–1409 (2017).
+7. Sieg, J., Flachsenberg, F. & Rarey, M. In need of bias control: Evaluating chemical data for machine learning in structurebased virtual screening. J. Chem. Inf. Model. 59 3, 947–961 (2019).
+8. Lim, S. et al. A review on compound-protein interaction prediction methods: Data, format, representation and model. Comput. Struct. Biotechnol. J. 19, 1541 – 1556 (2021).
+9. Gao, K. Y. et al. Interpretable drug target prediction using deep neural representation. In IJCAI, 3371–3377 (2018).
+10. Bredel, M. & Jacoby, E. Chemogenomics: an emerging strategy for rapid target and drug discovery. Nat. Rev. Genet. 5, 262–275 (2004).
+11. Lee, I., Keum, J. & Nam, H. DeepConv-DTI: Prediction of drug-target interactions via deep learning with convolution on protein sequences. PLoS Comput. Biol. 15 (2019).
+12. Hinnerichs, T. & Hoehndorf, R. DTI-Voodoo: machine learning over interaction networks and ontology-based background knowledge predicts drug–target interactions. Bioinformatics 37, 4835 – 4843 (2021).
+13. Nguyen, T. et al. GraphDTA: Predicting drug-target binding aﬃnity with graph neural networks. Bioinformatics 37, 1140–1147 (2021).
+14. Tsubaki, M., Tomii, K. & Sese, J. Compound-protein interaction prediction with end-to-end learning of neural networks for graphs and sequences. Bioinformatics 35, 309–318 (2019).
+15. Feng, Q., Dueva, E., Cherkasov, A. & Ester, M. PADME: A deep learning-based framework for drug-target interaction prediction. arXiv preprint arXiv:1807.09741 (2018).
+16. Chen, L. et al. TransformerCPI: improving compound-protein interaction prediction by sequence-based deep learning with self-attention mechanism and label reversal experiments. Bioinformatics (2020).
+17. Huang, K., Xiao, C., Glass, L. & Sun, J. MolTrans: Molecular interaction transformer for drug–target interaction prediction. Bioinformatics 37, 830 – 836 (2021).
+18. Schenone, M., Dancík, V., Wagner, B. K. & Clemons, P. A. Target identiﬁcation and mechanism of action in chemical biology and drug discovery. Nat. Chem. Biol. 9 4, 232–40 (2013).
+19. Öztürk, H., Ozkirimli, E. & Özgür, A. WideDTA: prediction of drug-target binding aﬃnity. arXiv preprint arXiv:1902.04166 (2019).
+20. Zheng, S., Li, Y., Chen, S., Xu, J. & Yang, Y. Predicting drug–protein interaction using quasi-visual question answering system. Nat. Mach. Intell. 2, 134–140 (2020).
+21. Long, M., Cao, Z., Wang, J. & Jordan, M. I. Conditional Adversarial Domain Adaptation. In NeurIPS (2018).
+22. Kim, J.-H. et al. Hadamard Product for Low-rank Bilinear Pooling. In ICLR (2017).
+23. Abbasi, K. et al. DeepCDA: deep cross-domain compound–protein aﬃnity prediction through lstm and convolutional neural networks. Bioinformatics 36, 4633–4642 (2020).
+24. Kao, P.-Y., Kao, S.-M., Huang, N.-L. & Lin, Y.-C. Toward drug-target interaction prediction via ensemble modeling and transfer learning. In 2021 IEEE International Conference on Bioinformatics and Biomedicine (BIBM), 2384–2391 (IEEE, 2021).
+25. Abbasi, K., Razzaghi, P., Poso, A., Ghanbari-Ara, S. & Masoudi-Nejad, A. Deep learning in drug target interaction prediction: current and future perspectives. Curr. Medicinal Chem. 28, 2100–2113 (2021).
+12/19
+
+26. Kipf, T. & Welling, M. Semi-supervised classiﬁcation with graph convolutional networks. In ICLR (2017). 27. Yu, Z., Yu, J., Xiang, C., Fan, J. & Tao, D. Beyond bilinear: Generalized multimodal factorized high-order pooling for
+visual question answering. IEEE Trans. Neural Netw. Learn. Syst. 29, 5947–5959 (2018). 28. Kim, J.-H., Jun, J. & Zhang, B.-T. Bilinear Attention Networks. In NeurIPS (2018). 29. Weininger, D. SMILES, a chemical language and information system. 1. introduction to methodology and encoding rules.
+J. Chem. Inf. Comput. Sci. 28, 31–36 (1988). 30. Liu, T., Lin, Y., Wen, X., Jorissen, R. N. & Gilson, M. K. Bindingdb: a web-accessible database of experimentally
+determined protein–ligand binding aﬃnities. Nucleic Acids Res. 35, D198 – D201 (2007). 31. Zitnik, M., Sosič, R., Maheshwari, S. & Leskovec, J. BioSNAP Datasets: Stanford biomedical network dataset collection
+(2018). 32. Liu, H., Sun, J., Guan, J., Zheng, J. & Zhou, S. Improving compound–protein interaction prediction by building up highly
+credible negative samples. Bioinformatics 31, i221 – i229 (2015). 33. Rogers, D. & Hahn, M. Extended-connectivity ﬁngerprints. J. Chem. Inf. Model. 50 5, 742–54 (2010). 34. Cao, D., Xu, Q. & Liang, Y. Propy: a tool to generate various modes of chou’s pseaac. Bioinformatics 29 7, 960–2 (2013). 35. Cortes, C. & Vapnik, V. Support-vector networks. Mach. learning 20, 273–297 (1995). 36. Ho, T. K. Random decision forests. In Proceedings of 3rd International Conference on Document Analysis and Recognition,
+vol. 1, 278–282 (1995). 37. Ganin, Y. et al. Domain-adversarial training of neural networks. In J. Mach. Learn. Res. (2016). 38. Greg Landrum et al. RDKit: Open-source cheminformatics (2006). 39. Molecular Operating Environment (MOE). 2020.09 Chemical Computing Group ULC, 1010 Sherbooke St. West, Suite
+#910, Montreal, QC, Canada, H3A 2R7 (2022). 40. Kazokaite˙, J. et al. Engineered carbonic anhydrase vi-mimic enzyme switched the structure and aﬃnities of inhibitors. Sci.
+reports 9, 1–17 (2019). 41. Rai, G. et al. Discovery and optimization of potent, cell-active pyrazole-based inhibitors of lactate dehydrogenase (ldh). J.
+medicinal chemistry 60, 9184–9204 (2017). 42. Fenalti, G. et al. Molecular control of -opioid receptor signalling. Nature 506, 191–196 (2014). 43. Berman, H. M. et al. The protein data bank. Nucleic acids research 28, 235–242 (2000). 44. Jumper, J. M. et al. Highly accurate protein structure prediction with alphafold. Nature 596, 583 – 589 (2021). 45. Pan, S. J. & Yang, Q. A survey on transfer learning. IEEE Trans. Knowl. Data Eng. 22, 1345–1359 (2010). 46. Gong, B., Grauman, K. & Sha, F. Connecting the dots with landmarks: Discriminatively learning domain-invariant features
+for unsupervised domain adaptation. In ICML (2013). 47. Huang, J., Smola, A., Gretton, A., Borgwardt, K. M. & Schölkopf, B. Correcting sample selection bias by unlabeled data.
+In NIPS (2006). 48. Li, M. et al. DGL-LifeSci: An Open-Source Toolkit for Deep Learning on Graphs in Life Science. ACS Omega (2021). 49. Song, L., Huang, J., Smola, A. & Fukumizu, K. Hilbert space embeddings of conditional distributions with applications to
+dynamical systems. In ICML (2009). 50. Song, L. & Dai, B. Robust low rank kernel embeddings of multivariate distributions. In NIPS (2013). 51. Gilson, M. K. et al. BindingDB in 2015: a public database for medicinal chemistry, computational chemistry and systems
+pharmacology. Nucleic acids research 44, D1045–D1053 (2016). 52. Bai, P. et al. Hierarchical clustering split for low-bias evaluation of drug-target interaction prediction. 2021 IEEE Int. Conf.
+on Bioinforma. Biomed. (BIBM) 641–644 (2021). 53. Wishart, D. S. et al. DrugBank: a knowledgebase for drugs, drug actions and drug targets. Nucleic Acids Res. 36, D901 –
+D906 (2008). 54. Paszke, A. et al. Automatic diﬀerentiation in PyTorch (2017). 55. Wang, M. et al. Deep Graph Library: A Graph-Centric, Highly-Performant Package for Graph Neural Networks. arXiv
+preprint arXiv:1909.01315 (2019).
+13/19
+
+56. Pedregosa, F. et al. Scikit-learn: Machine Learning in Python. J. Mach. Learn. Res. 12, 2825–2830 (2011). 57. Harris, C. R. et al. Array programming with NumPy. Nature 585, 357–362, DOI: 10.1038/s41586-020-2649-2 (2020). 58. The pandas development team. pandas-dev/pandas: Pandas 1.2.4, DOI: 10.5281/zenodo.4681666 (2021). 59. Bai, P. & Lu, H. peizhenbai/drugban: v1.2.0, DOI: 10.5281/zenodo.7415643 (2022). 60. Wang, Z., Liang, L., Yin, Z. & Lin, J. Improving chemical similarity ensemble approach in target prediction. J. cheminfor-
+matics 8, 1–10 (2016).
+14/19
+
+Supplementary Material
+S1. Clustering-based pair split strategy As mentioned in the main text, we separately cluster drug compounds and target proteins of the BindingDB and BioSNAP datasets for cross-domain performance evaluation. Speciﬁcally, we choose the single-linkage clustering, a bottom-up hierarchical clustering to ensure that the distances between samples in diﬀerent clusters are always larger than a pre-deﬁned distance, i.e., minimum distance threshold . This property can prevent clusters from being too close to help to generate the cross-domain scenario.
+We use binarized ECFP4 feature to represent drug compounds, and integral PSC feature to represent target proteins. For accurately measuring the pairwise distance, we use the Jaccard distance and cosine distance on ECFP4 and PSC, respectively. We choose = 0.5 in both drug and protein clusterings since this choice can prevent over-large clusters and be ensure separate dissimilar samples. We obtained 2,780 clusters of drugs and 1,693 clusters of proteins for the BindingDB dataset, and 2,387 clusters of drugs and 1,978 clusters of proteins for the BioSNAP dataset. Table 3 shows the number of samples in the ten largest clusters of the clustering results. It shows that BindingDB has a more balanced cluster distribution than BioSNAP in drug clustering. In addition, the protein clustering result tends to generate many small clusters with only a few proteins in both datasets, indicating that the average similarity between proteins is lower than that between drugs. We randomly select 60% drug clusters and 60% protein clusters from clustering result, and regard all associated drug-target pairs with them as source domain data. The associated pairs in the remaining clusters are considered to be source domain data. We conduct ﬁve independent clustering-based pair splits with diﬀerent random seeds for downstream model training and evaluation. Clustering-based pair split allows quantitatively constructing cross-domain tasks by considering the similarity between drugs or proteins.
+Table 3. Size of the ten largest clusters in the BindingDB and BioSNAP datasets generated by the clustering-based pair split.
+
+Dataset
+
+Object # 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10
+
+BindingDB Drug 598 460 304 290 253 250 203 202 198 158
+
+BioSNAP Drug 294 267 75 68 36 35 28 26 24 24
+
+BindingDB Protein 17 15 15 12 10 10 10 9
+
+9
+
+8
+
+BioSNAP Protein 8
+
+8
+
+8
+
+6
+
+5
+
+4
+
+4
+
+4
+
+4
+
+4
+
+S2. Dataset statistics, notations, and preprocessing steps Table 4 shows the statistics of experimental datasets and Table 5 lists the notations used in this paper with descriptions. The BioSNAP and Human datasets were created by Huang et al. (2021)17 and Liu et al. (2015)32, respectively. For the BindingDB dataset, we created a low-bias version from the BindingDB database source51 following the bias-reducing preprocessing steps in our earlier work52: i) We considered a drug-target pair to be positive only if its IC50 is less than 100 nM, and negative only if its IC50 was greater than 10,000 nM, giving a 100-fold diﬀerence to reduce class label noise. These IC50 thresholds were selected following earlier works9,60. ii) We removed all DTI pairs where the drugs only had one type of pairs (positive or negative) to improve drug-wise pair class balance and reduce hidden ligand bias that can lead to the correct predictions based only on drug features.
+Table 4. Experimental dataset statistics
+
+Dataset
+BindingDB52 BioSNAP17 Human32
+
+# Drugs
+14,643 4,510 2,726
+
+# Proteins
+2,623 2,181 2,001
+
+# Interactions
+49,199 27,464 6,728
+
+S3. Hyperparameter setting and sensitivity analysis Table 6 shows a list of model hyperparameters and their values used in experiment. As our model performance is not sensitive to hyperparameter setting, we use the same hyperparamters on all experimental datasets (BindingDB, BioSNAP and Human). Figure 5 illustrates the learning curves with the diﬀerent choices of hyperparameters on the BindingDB validation set, including bilinear embedding size, learning rate and heads of attention. It shows that the performance diﬀerences are not large and typically converges between 30 and 40 epochs.
+15/19
+
+Table 5. Notations and descriptions
+
+Notations
+
+Description
+
+∈ ℝ23× protein amino acid embedding matrix
+
+∈ℝ ∕
+
+drug-target joint representation
+
+(⋅), (⋅), (⋅) feature extractor, decoder and domain discriminator in CDAN
+
+∈ ℝ2 ( ), ( )
+
+output interaction probability by softmax function hidden representation for protein (drug) in -th CNN (GCN) layer
+
+∈ℝ ×
+
+pair-wise interaction matrix between drug and protein substructures
+
+∈ ℝΘ ×74 drug node feature matrix by its chemical properties
+
+∈ ℝ1
+
+output interaction probability by Sigmoid function
+
+, 
+
+protein amino acid sequence, drug 2D molecular graph
+
+∈ℝ
+
+weight vector for bilinear transformation
+
+∈ℝ × ∈ℝ ×
+
+the weight matrix for encoded drug representation the weight matrix for encoded protein representation
+
+,
+
+the weight matrix and bias for protein CNN encoder
+
+,
+
+the weight matrix and bias for drug GCN encoder
+
+, ∈ ℝΘ ×
+
+the weight matrix and bias for decoder latent protein matrix representation
+
+∈ ℝΘ × latent drug matrix representation
+
+$852& $852& $852&
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%LOLQHDUHPEHGGLQJVL]H 
+
+%LOLQHDUHPEHGGLQJVL]H 
+
+
+
+%LOLQHDUHPEHGGLQJVL]H  
+
+/HDUQLQJUDWH H /HDUQLQJUDWH H  /HDUQLQJUDWH H
+
++HDGVRI%$1  +HDGVRI%$1  +HDGVRI%$1 
+
+
+
+
+
+
+
+
+
+
+
+
+
+(SRFK
+
+
+
+
+
+
+
+
+
+
+
+
+
+(SRFK
+
+
+
+
+
+
+
+
+
+
+
+
+
+(SRFK
+
+Figure 5. Learning curves with the diﬀerent choices of hyperparameters on the BindingDB validation set.
+
+S4. Performance comparison across different protein families We conduct experiments to study the performance of DrugBAN on diﬀerent protein families. Following the previous studies3,17, we select four major protein families: enzymes, G protein-coupled receptors (GPCRs), ion channels and nuclear hormone receptors (NHRs). We randomly retrieve one in-domain test set of BindingDB and BioSNAP respectively, and map their proteins to the four protein families using GtoPdb database (https://www.guidetopharmacology.org/targets.jsp). Table 7 presents the number of interactions for each protein family in the test sets. Figure 6 shows the performance (AUROC and AUPRC) varying only slightly given diﬀerent protein families.
+S5 Performance comparison on unseen drugs/targets To study how DrugBAN and other deep learning baselines perform on unseen drugs/targets, we conduct additional experiments on BindingDB and BioSNAP. For each dataset, we randomly select 20% drugs/target proteins. Then we evaluate predictive performance on all DTI pairs associated with these drugs/target proteins (70% as test set for evaluation and 30% as validation set for determining early stopping), and the rest pairs as training set for model optimization. Each unseen setting has ﬁve independent runs. Table 8 presents the AUROC results on the test sets, including the results on the usual random split for
+16/19
+
+Table 6. DrugBAN hyperparameter conﬁguration
+
+Module Optimizer Mini-batch Three-layer CNN protein encoder
+Three-layer GCN drug encoder Bilinear interaction attention
+Fully connected decoder Discriminator
+
+Hyperparameter
+Learning rate Batch size Initial amino acid embedding Number of ﬁlters Kernel size Initial atom embedding Hidden node dimensions Heads of bilinear attention Bilinear embedding size Sum pooling window size Number of hidden neurons Number of hidden neurons
+
+Value
+5e-5 64 128 [128, 128, 128] [3, 6, 9] 128 [128, 128, 128] 2 768 3 512 256
+
+Table 7. Number of interactions for major protein families in the test sets
+
+Dataset
+BindingDB BioSNAP
+
+# Enzymes
+5,277 1,956
+
+# GPCRs
+472 536
+
+# Ion channels
+440 510
+
+# NHRs
+144 103
+
+Table 8. Performance (average AUROC over ﬁve random runs) comparison on the BindingDB and BioSNAP datasets with random split, unseen drug, and unseen target settings (Best, Second Best).
+
+Setting
+Random Split Unseen Drug Unseen Target
+Random Split Unseen Drug Unseen Target
+
+DeepConv-DTI11
+0.945±0.002 0.943±0.004 0.627±0.070
+0.886±0.006 0.856±0.005 0.692±0.017
+
+GraphDTA13
+
+MolTrans17
+
+BindingDB
+
+0.951±0.002
+
+0.952±0.002
+
+0.950±0.004
+
+0.945±0.004
+
+0.670±0.023
+
+0.661±0.037
+
+BioSNAP
+
+0.887±0.008
+
+0.895±0.004
+
+0.858±0.007
+
+0.856±0.008
+
+0.704±0.010
+
+0.714±0.014
+
+DrugBAN
+0.960±0.001 0.959±0.002 0.692±0.038
+0.903±0.005 0.886±0.005 0.710±0.016
+
+comparison. DrugBAN achieves the best performance in ﬁve of the six settings, while its performance in the unseen target setting of BioSNAP is also very competitive.
+We need to point out that the model performance under the unseen drug setting only dropped slightly compared to that under the random split for all methods on BindingDB. This is because there are many highly similar molecules in the DTI datasets, and naive unseen drug setting does not distinguish them. A better strategy is the clustering-based split strategy in our previous study to alleviate this issue, leading to a more challenging cross-domain task.
+S6 Performance comparison with high fraction of missing data We conduct experiments to clarify how the proposed model performs with high fraction of missing data on BindingDB and BioSNAP. Following the missing data setting in MolTrans17, we train DrugBAN and deep learning baselines with only 5%, 10%, 20% and 30% of each dataset, and evaluate predictive performance on the rest of data (90% as test set and 10% as validation set for determining early stopping). Table 9 presents the obtained results, showing DrugBAN has the best performance in all settings. In particular, the improvement is larger on the bigger dataset (BindingDB).
+S7 Scalability We study the scalability of DrugBAN from three diﬀerent perspectives: model optimization time, data loading time and GPU memory usage. We use the default hyperparameter conﬁguration in Table 6, and a single Nvidia V100 GPU to train the model in 100 epochs. Figure 7a illustrates the model optimization time and data loading time against the number of DTI pairs for
+17/19
+
+7UXH3RVLWLYH5DWH
+
+
+
+
+
+
+
+
+
+3UHFLVLRQ
+
+ 
+
+
+
+
+$OODUHD 
+
+
+
+$OODUHD 
+
+(Q]\PHVDUHD 
+
+(Q]\PHVDUHD 
+
+
+
+*3&5VDUHD 
+
+
+
+*3&5VDUHD 
+
+,RQ&KDQQHOVDUHD 
+
+,RQ&KDQQHOVDUHD 
+
+1+5VDUHD 
+
+
+
+1+5VDUHD 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+)DOVH3RVLWLYH5DWH
+
+5HFDOO
+
+D
+
+E
+
+
+
+
+
+
+
+
+
+3UHFLVLRQ
+
+ 
+
+
+
+
+$OODUHD 
+
+
+
+$OODUHD 
+
+(Q]\PHVDUHD 
+
+(Q]\PHVDUHD 
+
+
+
+*3&5VDUHD 
+
+
+
+*3&5VDUHD 
+
+,RQ&KDQQHOVDUHD 
+
+,RQ&KDQQHOVDUHD 
+
+1+5VDUHD 
+
+
+
+1+5VDUHD 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+)DOVH3RVLWLYH5DWH
+
+5HFDOO
+
+F
+
+G
+
+7UXH3RVLWLYH5DWH
+
+Figure 6. DrugBAN performance on diﬀerent protein families. (a) AUROC curves on the BindingDB dataset. (b) AUPRC curves on the BindingDB dataset. (c) AUROC curves on the BioSNAP dataset. (d) AUPRC curves on the BioSNAP dataset.
+
+Table 9. Performance comparison (average AUROC over ﬁve random runs) on the BindingDB and BioSNAP datasets with high fraction of missing data (Best, Second Best)
+
+Missing (%)
+95 90 80 70
+95 90 80 70
+
+DeepConv-DTI11
+0.773±0.005 0.840±0.002 0.877±0.002 0.890±0.005
+0.710±0.005 0.781±0.003 0.816±0.003 0.839±0.002
+
+GraphDTA13
+
+MolTrans17
+
+BindingDB
+
+0.831±0.002
+
+0.846±0.004
+
+0.867±0.002
+
+0.874±0.003
+
+0.897±0.003
+
+0.905±0.001
+
+0.916±0.002
+
+0.923±0.001
+
+BioSNAP
+
+0.768±0.005
+
+0.767±0.006
+
+0.798±0.003
+
+0.800±0.004
+
+0.829±0.003
+
+0.835±0.001
+
+0.851±0.002
+
+0.853±0.002
+
+DrugBAN
+0.856±0.003 0.887±0.004 0.920±0.003 0.934±0.001
+0.770±0.008 0.802±0.003 0.836±0.002 0.860±0.003
+
+4,919 (10%) - 49,199 (100%) from the BindingDB dataset. We empirically observe that the optimization time (red line) of DrugBAN increases almost linearly with the number of DTI pairs. It takes about two hours for 49,199 DTI pairs to complete the optimization. The data loading process (blue line) takes more time than model optimization. Nevertheless, since the data loading can be done on CPU, we can accelerate the process with multiple loading workers (subprocesses) in parallel. Figure 7b shows the data loading time changes with respect to the number of workers, and it reduces signiﬁcantly with only two additional workers added. Figure 7c shows the peak GPU memory usage against the batch size. We ﬁnd that DrugBAN only takes up 4.63 GB RAM with the default batch size 64, which is highly eﬃcient. Similar to the optimization time, the memory usage also increases linearly with the batch size. This study demonstrates the scalability of DrugBAN.
+
+18/19
+
+7LPHLQVHFRQGV 7LPHLQVHFRQGV
+5$0LQ*%
+
+0RGHORSWLPL]DWLRQWLPH
+
+
+
+'DWDORDGLQJWLPH
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'DWDORDGLQJWLPH
+
+
+
+
+3HDN*38PHPRU\XVDJH
+
+
+
+
+
+
+
+
+
+
+
+     1XPEHURI'7,SDLUV
+D
+
+  1XPEHURIZRUNHUV
+E
+
+
+
+
+
+
+
+
+
+
+
+
+
+%DWFKVL]H
+
+F
+
+Figure 7. Scalability of DrugBAN on the BindingDB dataset (a) Model optimization and data loading time increase almost linearly with the number of DTI pairs. (b) Data loading time signiﬁcantly reduces with the increasing number of workers. (c) Peak GPU memory usage increases linearly with the batch size.
+
+19/19
+
